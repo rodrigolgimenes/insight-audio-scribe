@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 interface Style {
   id: string;
@@ -25,6 +26,8 @@ interface StyleDialogProps {
 export function StyleDialog({ open, onOpenChange, style }: StyleDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { session } = useAuth();
+  
   const { register, handleSubmit, formState: { errors }, reset } = useForm({
     defaultValues: style || {
       name: "",
@@ -36,16 +39,18 @@ export function StyleDialog({ open, onOpenChange, style }: StyleDialogProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: Partial<Style>) => {
+      if (!session?.user?.id) throw new Error("User not authenticated");
+      
       if (style?.id) {
         const { error } = await supabase
           .from("styles")
-          .update(data)
+          .update({ ...data, user_id: session.user.id })
           .eq("id", style.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("styles")
-          .insert([data]);
+          .insert([{ ...data, user_id: session.user.id }]);
         if (error) throw error;
       }
     },
