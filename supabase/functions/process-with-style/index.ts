@@ -46,7 +46,7 @@ serve(async (req) => {
     console.log('Style prompt template:', style.prompt_template);
     
     // Replace the {{transcript}} placeholder in the prompt template
-    const prompt = style.prompt_template.replace('{{transcript}}', transcript);
+    const prompt = style.prompt_template.replace('{{transcript}}', `"${transcript}"`);
     console.log('Final prompt for GPT:', prompt);
 
     // Process with OpenAI
