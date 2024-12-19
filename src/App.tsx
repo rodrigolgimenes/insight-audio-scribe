@@ -10,6 +10,7 @@ import Record from "./pages/Record";
 import NotePage from "./pages/NotePage";
 import FolderPage from "./pages/FolderPage";
 import StylesPage from "./pages/StylesPage";
+import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -77,6 +78,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Record />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/test"
+              element={
+                <ProtectedRoute>
+                  <TestPage />
                 </ProtectedRoute>
               }
             />
