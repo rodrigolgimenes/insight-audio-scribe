@@ -45,10 +45,12 @@ const Record = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      // Set the first style as default if no style is selected and styles exist
-      if (!selectedStyleId && data && data.length > 0) {
-        setSelectedStyleId(data[0].id);
+    meta: {
+      onSuccess: (data: any) => {
+        // Set the first style as default if no style is selected and styles exist
+        if (!selectedStyleId && data && data.length > 0) {
+          setSelectedStyleId(data[0].id);
+        }
       }
     }
   });
