@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     const { recordingId } = await req.json();
-    console.log('Starting transcription for recording:', recordingId);
+    console.log('Starting transcription process for recording:', recordingId);
     
     if (!recordingId) {
       throw new Error('Recording ID is required');
@@ -88,6 +88,7 @@ serve(async (req) => {
     }
 
     const transcription = await openAIResponse.json();
+    console.log('Transcription received from OpenAI:', transcription.text?.substring(0, 100) + '...');
 
     if (!transcription.text) {
       throw new Error('No transcription text received from OpenAI');
@@ -129,7 +130,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'An unexpected error occurred' 
       }), 
       {
-        status: 400, // Changed from 500 to 400 for client errors
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
