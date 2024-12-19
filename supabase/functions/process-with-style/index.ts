@@ -20,6 +20,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log('Fetching style with ID:', styleId);
     // Get the style from the database
     const { data: style, error: styleError } = await supabase
       .from('styles')
@@ -27,8 +28,16 @@ serve(async (req) => {
       .eq('id', styleId)
       .single();
 
-    if (styleError) throw styleError;
+    if (styleError) {
+      console.error('Error fetching style:', styleError);
+      throw styleError;
+    }
 
+    if (!style) {
+      throw new Error('Style not found');
+    }
+
+    console.log('Processing transcript with style:', style.name);
     // Replace the {{transcript}} placeholder in the prompt template
     const prompt = style.prompt_template.replace('{{transcript}}', transcript);
 
@@ -44,32 +53,46 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that processes transcripts according to specific styles and formats. Your output should be in HTML format for proper rendering.'
+            content: 'You are a helpful assistant that processes transcripts according to specific styles and formats. Your output should be in HTML format for proper rendering. Start with an appropriate title in an h1 tag, followed by the formatted content.'
           },
           { role: 'user', content: prompt }
         ],
+        temperature: 0.7,
+        max_tokens: 2000,
       }),
     });
+
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+    }
 
     const openAIData = await openAIResponse.json();
     
     if (!openAIData.choices?.[0]?.message?.content) {
+      console.error('Invalid OpenAI response:', openAIData);
       throw new Error('Failed to process transcript with OpenAI');
     }
 
     const processedContent = openAIData.choices[0].message.content;
 
-    // Extract title from the processed content (assuming it's in the first line)
-    const lines = processedContent.split('\n');
-    const title = lines[0].replace(/<[^>]+>/g, '').trim();
-    const content = processedContent;
+    // Extract title from the processed content (assuming it's in an h1 tag)
+    const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
+    const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
+
+    console.log('Successfully processed content with title:', title);
 
     return new Response(
-      JSON.stringify({ title, content }),
+      JSON.stringify({ 
+        title, 
+        content: processedContent,
+        styleId 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in process-with-style function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
