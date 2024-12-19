@@ -14,8 +14,8 @@ serve(async (req) => {
 
   try {
     const { styleId, transcript } = await req.json();
-    console.log('Processing transcript with style:', styleId);
-    console.log('Raw transcript received:', transcript);
+    console.log('Starting processing with style:', styleId);
+    console.log('Raw transcript length:', transcript?.length || 0);
 
     if (!styleId || !transcript) {
       throw new Error('Style ID and transcript are required');
@@ -42,12 +42,16 @@ serve(async (req) => {
       throw new Error('Style not found');
     }
 
-    console.log('Style found:', style.name);
-    console.log('Raw prompt template:', style.prompt_template);
+    console.log('Style found:', {
+      name: style.name,
+      category: style.category,
+      templateLength: style.prompt_template?.length || 0
+    });
     
     // Replace the {{transcript}} placeholder in the prompt template
     const prompt = style.prompt_template.replace('{{transcript}}', transcript);
-    console.log('Final prompt being sent to GPT:', prompt);
+    console.log('Prompt prepared. Length:', prompt.length);
+    console.log('Sending request to OpenAI...');
 
     // Process with OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -68,7 +72,8 @@ serve(async (req) => {
             2. Use ul and li tags to create bullet points
             3. Group related points under h2 or h3 headings when appropriate
             4. Maintain the original meaning while making the content more structured and readable
-            5. Use proper HTML indentation for readability`
+            5. Use proper HTML indentation for readability
+            6. Ensure all HTML tags are properly closed`
           },
           { 
             role: 'user', 
@@ -82,27 +87,25 @@ serve(async (req) => {
 
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.json();
-      console.error('OpenAI API error:', errorData);
+      console.error('OpenAI API error response:', errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response received');
-    console.log('Raw OpenAI response:', openAIData.choices?.[0]?.message?.content);
+    console.log('OpenAI response received. Status:', openAIResponse.status);
     
     if (!openAIData.choices?.[0]?.message?.content) {
-      console.error('Invalid OpenAI response:', openAIData);
-      throw new Error('Failed to process transcript with OpenAI');
+      console.error('Invalid OpenAI response structure:', openAIData);
+      throw new Error('Failed to process transcript: Invalid response format from OpenAI');
     }
 
     const processedContent = openAIData.choices[0].message.content;
+    console.log('Processed content length:', processedContent.length);
 
     // Extract title from the processed content (assuming it's in an h1 tag)
     const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
     const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
-
-    console.log('Successfully processed content with title:', title);
-    console.log('Final processed content:', processedContent);
+    console.log('Extracted title:', title);
 
     return new Response(
       JSON.stringify({ 
