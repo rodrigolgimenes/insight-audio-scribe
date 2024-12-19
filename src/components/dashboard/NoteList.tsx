@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button"; // Add this import
 import { FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
