@@ -236,7 +236,10 @@ const NotePage = () => {
             onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
           />
           
-          <NoteContent title={note?.title} content={note?.content} />
+          <NoteContent 
+            title={note?.title || ''} 
+            processed_content={note?.processed_content || ''} 
+          />
 
           <MoveNoteDialog
             isOpen={isMoveDialogOpen}

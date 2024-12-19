@@ -52,7 +52,7 @@ const FolderPage = () => {
           note:notes (
             id,
             title,
-            content,
+            processed_content,
             created_at
           )
         `)
@@ -219,7 +219,7 @@ const FolderPage = () => {
                   )}
                   <h3 className="font-medium mb-2">{note.title}</h3>
                   <p className="text-gray-600 text-sm line-clamp-3">
-                    {note.content}
+                    {note.processed_content}
                   </p>
                   <div className="mt-4 flex justify-between items-center">
                     <span className="text-xs text-gray-500">

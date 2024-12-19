@@ -1,14 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button"; // Add this import
+import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  created_at: string;
-}
+import { Note } from "@/types/notes";
 
 interface NoteListProps {
   notes: Note[];
@@ -76,7 +70,7 @@ export const NoteList = ({
             </div>
           )}
           <h3 className="font-medium mb-2">{note.title}</h3>
-          <p className="text-gray-600 text-sm line-clamp-3">{note.content}</p>
+          <p className="text-gray-600 text-sm line-clamp-3">{note.processed_content}</p>
           <div className="mt-4 flex justify-between items-center">
             <span className="text-xs text-gray-500">
               {new Date(note.created_at).toLocaleDateString()}
