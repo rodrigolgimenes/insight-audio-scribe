@@ -1,7 +1,7 @@
 import { ProcessedContent } from "@/components/record/ProcessedContent";
 
 interface ProcessedContentSectionProps {
-  processedContent: { title: string; content: string } | null;
+  processedContent: { title: string; content: string; styleId: string } | null;
   transcript: string | null;
   processMutation: {
     isPending: boolean;
