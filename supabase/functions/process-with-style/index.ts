@@ -97,7 +97,8 @@ serve(async (req) => {
       JSON.stringify({ 
         title, 
         content: processedContent,
-        styleId 
+        styleId,
+        originalTranscript: transcript 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
