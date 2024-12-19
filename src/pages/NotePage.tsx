@@ -84,32 +84,42 @@ const NotePage = () => {
   };
 
   const moveNoteToFolder = async (folderId: string) => {
-    // First remove from current folder if any
-    await supabase
-      .from("notes_folders")
-      .delete()
-      .eq("note_id", noteId);
+    if (!noteId) return;
 
-    // Then add to new folder
-    const { error } = await supabase.from("notes_folders").insert({
-      note_id: noteId,
-      folder_id: folderId,
-    });
+    try {
+      // First remove from current folder if any
+      await supabase
+        .from("notes_folders")
+        .delete()
+        .eq("note_id", noteId);
 
-    if (error) {
+      // Then add to new folder
+      const { error } = await supabase.from("notes_folders").insert({
+        note_id: noteId,
+        folder_id: folderId,
+      });
+
+      if (error) {
+        toast({
+          title: "Error moving note",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedFolder(folderId);
+      toast({
+        title: "Note moved",
+        description: "Note has been moved to the selected folder.",
+      });
+    } catch (error) {
       toast({
         title: "Error moving note",
-        description: error.message,
+        description: "Failed to move note to folder",
         variant: "destructive",
       });
-      return;
     }
-
-    setSelectedFolder(folderId);
-    toast({
-      title: "Note moved",
-      description: "Note has been moved to the selected folder.",
-    });
   };
 
   if (isLoadingNote) {

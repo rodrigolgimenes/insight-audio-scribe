@@ -86,15 +86,27 @@ const Dashboard = () => {
   };
 
   const moveNotesToFolder = async (folderId: string) => {
-    const promises = selectedNotes.map((noteId) =>
-      supabase.from("notes_folders").insert({
-        note_id: noteId,
-        folder_id: folderId,
-      })
+    // First, remove existing folder associations for these notes
+    const deletePromises = selectedNotes.map((noteId) =>
+      supabase
+        .from("notes_folders")
+        .delete()
+        .eq("note_id", noteId)
     );
 
     try {
-      await Promise.all(promises);
+      await Promise.all(deletePromises);
+
+      // Then create new folder associations
+      const insertPromises = selectedNotes.map((noteId) =>
+        supabase.from("notes_folders").insert({
+          note_id: noteId,
+          folder_id: folderId,
+        })
+      );
+
+      await Promise.all(insertPromises);
+      
       toast({
         title: "Success",
         description: "Notes moved to folder successfully",
