@@ -18,7 +18,7 @@ const Record = () => {
   const { toast } = useToast();
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
   const [keepAudio, setKeepAudio] = useState(true);
-  const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
+  const [processedContent, setProcessedContent] = useState<{ title: string; content: string; styleId: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const {
     isRecording,
@@ -51,7 +51,7 @@ const Record = () => {
         body: { styleId, transcript },
       });
       if (response.error) throw response.error;
-      return response.data;
+      return { ...response.data, styleId };
     },
     onSuccess: (data) => {
       setProcessedContent(data);
