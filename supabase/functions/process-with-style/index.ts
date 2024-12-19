@@ -50,12 +50,11 @@ serve(async (req) => {
       template_length: style.prompt_template?.length || 0
     });
 
-    // Step 3: Prepare the prompt
+    // Step 3: Prepare the prompt with explicit formatting instruction
     console.log('\nStep 3: Preparing prompt...');
-    const finalPrompt = style.prompt_template.replace('{{transcript}}', transcript);
-    console.log('Template before replacement:', style.prompt_template);
-    console.log('Final prompt length:', finalPrompt.length);
-    console.log('First 100 chars of final prompt:', finalPrompt.substring(0, 100));
+    const formattingInstruction = "Transforme o seguinte texto em um tema engraçado:\n\n";
+    const finalPrompt = formattingInstruction + transcript;
+    console.log('Final prompt with formatting instruction:', finalPrompt);
 
     // Step 4: Call OpenAI API
     console.log('\nStep 4: Calling OpenAI API...');

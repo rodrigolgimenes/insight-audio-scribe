@@ -28,6 +28,16 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         </div>
       )}
 
+      {/* Generated Text Output */}
+      <div className="border-t pt-8">
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">Generated Text Output</h2>
+        <div className="bg-gray-50 rounded-lg p-6">
+          <div className="whitespace-pre-wrap text-gray-700">
+            {note.processed_content}
+          </div>
+        </div>
+      </div>
+
       {/* OpenAI Debug Info */}
       <div className="border-t pt-8">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">OpenAI Debug Info</h2>
