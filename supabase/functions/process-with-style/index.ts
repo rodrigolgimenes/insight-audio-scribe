@@ -61,11 +61,25 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that processes transcripts according to specific styles and formats. Your output MUST be in HTML format for proper rendering. Start with an appropriate title in an h1 tag, followed by the formatted content. Use appropriate HTML tags for formatting (p, ul, li, strong, em, etc). Make sure to maintain the original meaning while applying the style transformation.'
+            content: `You are a helpful assistant that processes transcripts according to specific styles and formats. 
+            Your output MUST be in HTML format with two main sections:
+            1. The original transcript wrapped in a div with class "original-content"
+            2. The processed content according to the style instruction, wrapped in a div with class "processed-content"
+            
+            Use appropriate HTML tags for formatting (h1, h2, p, ul, li, strong, em, etc).
+            Make sure to maintain the original meaning while applying the style transformation.`
           },
           { 
             role: 'user', 
-            content: `Please process this transcript according to the following instruction: ${prompt}`
+            content: `Here is the transcript to process:
+            
+            Original transcript:
+            ${transcript}
+            
+            Please process it according to this instruction:
+            ${prompt}
+            
+            Remember to format your response in HTML with both the original content and the processed content in separate divs.`
           }
         ],
         temperature: 0.7,
