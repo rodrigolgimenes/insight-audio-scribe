@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 const FolderPage = () => {
   const { folderId } = useParams();
+  const navigate = useNavigate();
 
   const { data: folder, isLoading: folderLoading } = useQuery({
     queryKey: ["folder", folderId],
@@ -29,8 +30,12 @@ const FolderPage = () => {
       const { data, error } = await supabase
         .from("notes_folders")
         .select(`
-          note_id,
-          notes:notes (*)
+          notes (
+            id,
+            title,
+            content,
+            created_at
+          )
         `)
         .eq("folder_id", folderId);
 
@@ -57,7 +62,7 @@ const FolderPage = () => {
                     <div
                       key={note.id}
                       className="bg-white p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow"
-                      onClick={() => window.location.href = `/app/notes/${note.id}`}
+                      onClick={() => navigate(`/app/notes/${note.id}`)}
                     >
                       <h3 className="font-medium mb-2">{note.title}</h3>
                       <p className="text-gray-600 text-sm line-clamp-3">
