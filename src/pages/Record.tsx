@@ -1,18 +1,123 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Play, Trash, Settings, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AudioRecorder } from "@/utils/audioRecorder";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const Record = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [timer, setTimer] = useState("00:00");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { session } = useAuth();
+  const audioRecorder = useRef(new AudioRecorder());
+  const timerInterval = useRef<number>();
+
+  const updateTimer = (startTime: number) => {
+    const updateTime = () => {
+      const seconds = Math.floor((Date.now() - startTime) / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      setTimer(
+        `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+          .toString()
+          .padStart(2, "0")}`
+      );
+    };
+
+    updateTime();
+    return setInterval(updateTime, 1000);
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      await audioRecorder.current.startRecording();
+      setIsRecording(true);
+      const startTime = Date.now();
+      timerInterval.current = updateTimer(startTime);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Could not start recording. Please check your microphone permissions.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleStopRecording = async () => {
+    try {
+      const { blob, duration } = await audioRecorder.current.stopRecording();
+      setIsRecording(false);
+      clearInterval(timerInterval.current);
+
+      // Create object URL for preview
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+
+      // Upload to Supabase
+      const fileName = `${session?.user.id}/${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from('audio-recordings')
+        .upload(fileName, blob);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Save recording metadata
+      const { error: dbError } = await supabase.from('recordings').insert({
+        user_id: session?.user.id,
+        title: `Recording ${new Date().toLocaleString()}`,
+        duration,
+        file_path: fileName,
+      });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Recording saved successfully!",
+      });
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save recording. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleBack = () => {
     navigate("/app");
   };
+
+  const handleDelete = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setTimer("00:00");
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerInterval.current) {
+        clearInterval(timerInterval.current);
+      }
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   return (
     <SidebarProvider>
@@ -51,7 +156,12 @@ const Record = () => {
 
               {/* Waveform Visualization */}
               <div className="h-32 mb-8 bg-[#F8F9FE] rounded-lg flex items-center justify-center">
-                <div className="w-full max-w-md h-1 bg-primary rounded"></div>
+                {audioUrl && (
+                  <audio controls src={audioUrl} className="w-full max-w-md" />
+                )}
+                {!audioUrl && (
+                  <div className="w-full max-w-md h-1 bg-primary rounded"></div>
+                )}
               </div>
 
               {/* Timer */}
@@ -66,6 +176,11 @@ const Record = () => {
                   size="icon"
                   variant="outline"
                   className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
+                  disabled={!audioUrl || isRecording}
+                  onClick={() => {
+                    const audio = document.querySelector('audio');
+                    if (audio) audio.play();
+                  }}
                 >
                   <Play className="w-6 h-6 text-primary" />
                 </Button>
@@ -73,7 +188,7 @@ const Record = () => {
                   size="icon"
                   variant="default"
                   className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
-                  onClick={() => setIsRecording(!isRecording)}
+                  onClick={isRecording ? handleStopRecording : handleStartRecording}
                 >
                   <Mic className="w-10 h-10" />
                 </Button>
@@ -81,6 +196,8 @@ const Record = () => {
                   size="icon"
                   variant="outline"
                   className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
+                  onClick={handleDelete}
+                  disabled={isRecording}
                 >
                   <Trash className="w-6 h-6 text-primary" />
                 </Button>
@@ -92,7 +209,10 @@ const Record = () => {
                   <Settings className="w-4 h-4" />
                   Settings
                 </Button>
-                <Button className="bg-[#E91E63] hover:bg-[#D81B60] gap-2">
+                <Button 
+                  className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
+                  disabled={!audioUrl || isRecording}
+                >
                   Create note
                 </Button>
               </div>
