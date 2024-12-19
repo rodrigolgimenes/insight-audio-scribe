@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Tag, Folder } from "lucide-react";
+import { ArrowLeft, Tag, Folder, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -12,6 +12,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useState } from "react";
 
 const NotePage = () => {
@@ -60,6 +71,70 @@ const NotePage = () => {
       return data;
     },
   });
+
+  const deleteNote = async () => {
+    if (!noteId) return;
+
+    try {
+      // First delete folder associations
+      const { error: folderError } = await supabase
+        .from("notes_folders")
+        .delete()
+        .eq("note_id", noteId);
+
+      if (folderError) {
+        toast({
+          title: "Error deleting folder associations",
+          description: folderError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Then delete tag associations
+      const { error: tagError } = await supabase
+        .from("notes_tags")
+        .delete()
+        .eq("note_id", noteId);
+
+      if (tagError) {
+        toast({
+          title: "Error deleting tag associations",
+          description: tagError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Finally delete the note
+      const { error: noteError } = await supabase
+        .from("notes")
+        .delete()
+        .eq("id", noteId);
+
+      if (noteError) {
+        toast({
+          title: "Error deleting note",
+          description: noteError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Note deleted",
+        description: "The note has been deleted successfully.",
+      });
+
+      navigate("/app");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete note",
+        variant: "destructive",
+      });
+    }
+  };
 
   const addTagToNote = async (tagId: string) => {
     const { error } = await supabase.from("notes_tags").insert({
@@ -191,6 +266,26 @@ const NotePage = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="icon">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this note? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={deleteNote}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
           <div className="max-w-3xl mx-auto">

@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { FileText, Search, FolderPlus } from "lucide-react";
+import { FileText, Search, FolderPlus, Trash2 } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
@@ -16,7 +16,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -87,7 +97,6 @@ const Dashboard = () => {
 
   const moveNotesToFolder = async (folderId: string) => {
     try {
-      // First, remove existing folder associations for these notes
       for (const noteId of selectedNotes) {
         const { error: deleteError } = await supabase
           .from("notes_folders")
@@ -103,7 +112,6 @@ const Dashboard = () => {
           return;
         }
 
-        // Then create new folder association
         const { error: insertError } = await supabase
           .from("notes_folders")
           .insert({
@@ -132,6 +140,69 @@ const Dashboard = () => {
       toast({
         title: "Error moving notes",
         description: "Failed to move notes to folder",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteSelectedNotes = async () => {
+    try {
+      for (const noteId of selectedNotes) {
+        const { error: folderError } = await supabase
+          .from("notes_folders")
+          .delete()
+          .eq("note_id", noteId);
+
+        if (folderError) {
+          toast({
+            title: "Error deleting folder associations",
+            description: folderError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { error: tagError } = await supabase
+          .from("notes_tags")
+          .delete()
+          .eq("note_id", noteId);
+
+        if (tagError) {
+          toast({
+            title: "Error deleting tag associations",
+            description: tagError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { error: noteError } = await supabase
+          .from("notes")
+          .delete()
+          .eq("id", noteId);
+
+        if (noteError) {
+          toast({
+            title: "Error deleting note",
+            description: noteError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      toast({
+        title: "Notes deleted",
+        description: "Selected notes have been deleted successfully.",
+      });
+
+      setSelectedNotes([]);
+      setIsSelectionMode(false);
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete notes",
         variant: "destructive",
       });
     }
@@ -166,12 +237,36 @@ const Dashboard = () => {
               />
             </div>
             {isSelectionMode && selectedNotes.length > 0 && (
-              <Button
-                variant="outline"
-                onClick={() => setIsFolderDialogOpen(true)}
-              >
-                Move to folder
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsFolderDialogOpen(true)}
+                >
+                  Move to folder
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="gap-2">
+                      <Trash2 className="h-4 w-4" />
+                      Delete selected
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Notes</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete {selectedNotes.length} selected notes? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={deleteSelectedNotes}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
           </div>
 
