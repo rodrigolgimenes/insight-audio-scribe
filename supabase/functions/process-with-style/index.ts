@@ -16,6 +16,7 @@ serve(async (req) => {
     const { styleId, transcript } = await req.json();
     console.log('Starting processing with style:', styleId);
     console.log('Raw transcript length:', transcript?.length || 0);
+    console.log('Raw transcript:', transcript);
 
     if (!styleId || !transcript) {
       throw new Error('Style ID and transcript are required');
@@ -51,7 +52,7 @@ serve(async (req) => {
     // Replace the {{transcript}} placeholder in the prompt template
     const prompt = style.prompt_template.replace('{{transcript}}', transcript);
     console.log('Prompt prepared. Length:', prompt.length);
-    console.log('Sending request to OpenAI...');
+    console.log('Final prompt being sent:', prompt);
 
     // Process with OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -61,11 +62,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: 'Transform the following text into a clear and organized format.'
+            content: 'Transform the following text into a clear and organized format with bullet points.'
           },
           { 
             role: 'user', 
@@ -94,6 +95,7 @@ serve(async (req) => {
 
     const processedContent = openAIData.choices[0].message.content;
     console.log('Processed content length:', processedContent.length);
+    console.log('Processed content:', processedContent);
 
     // Extract title from the processed content (assuming it's in an h1 tag)
     const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
