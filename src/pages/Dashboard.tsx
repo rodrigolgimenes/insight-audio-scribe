@@ -16,10 +16,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { session } = useAuth();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
@@ -60,12 +62,13 @@ const Dashboard = () => {
   };
 
   const createNewFolder = async () => {
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim() || !session?.user.id) return;
 
     const { data: folder, error: folderError } = await supabase
       .from("folders")
       .insert({
         name: newFolderName.trim(),
+        user_id: session.user.id,
       })
       .select()
       .single();
