@@ -62,24 +62,21 @@ serve(async (req) => {
           {
             role: 'system',
             content: `You are a helpful assistant that processes transcripts according to specific styles and formats. 
-            Your output MUST be in HTML format with two main sections:
-            1. The original transcript wrapped in a div with class "original-content"
-            2. The processed content according to the style instruction, wrapped in a div with class "processed-content"
-            
-            Use appropriate HTML tags for formatting (h1, h2, p, ul, li, strong, em, etc).
-            Make sure to maintain the original meaning while applying the style transformation.`
+            Your output MUST be in HTML format with appropriate semantic tags (h1, h2, p, ul, li, etc).
+            Focus on creating a well-structured, easy to read document that maintains the original meaning while applying the style transformation.
+            Use bullet points, headings, and paragraphs to organize the information effectively.`
           },
           { 
             role: 'user', 
-            content: `Here is the transcript to process:
+            content: `Transform this transcript according to the following instructions:
             
             Original transcript:
             ${transcript}
             
-            Please process it according to this instruction:
+            Instructions for transformation:
             ${prompt}
             
-            Remember to format your response in HTML with both the original content and the processed content in separate divs.`
+            Remember to format your response in clean, semantic HTML with appropriate headings, paragraphs, and lists.`
           }
         ],
         temperature: 0.7,
