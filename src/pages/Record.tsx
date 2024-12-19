@@ -2,19 +2,16 @@ import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { RecordTimer } from "@/components/record/RecordTimer";
-import { RecordControls } from "@/components/record/RecordControls";
 import { RecordHeader } from "@/components/record/RecordHeader";
-import { RecordStatus } from "@/components/record/RecordStatus";
 import { RecordActions } from "@/components/record/RecordActions";
 import { TranscriptionLoading } from "@/components/record/TranscriptionLoading";
-import { ProcessedContent } from "@/components/record/ProcessedContent";
 import { StyleSelector } from "@/components/record/StyleSelector";
 import { useRecording } from "@/hooks/useRecording";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+import { RecordingSection } from "@/components/record/RecordingSection";
+import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 
 const Record = () => {
   const navigate = useNavigate();
@@ -94,40 +91,18 @@ const Record = () => {
             <div className="max-w-3xl mx-auto">
               {!processedContent ? (
                 <>
-                  <RecordStatus isRecording={isRecording} isPaused={isPaused} />
-
-                  <div className="mb-8">
-                    {audioUrl ? (
-                      <audio controls src={audioUrl} className="w-full" />
-                    ) : (
-                      <AudioVisualizer isRecording={isRecording && !isPaused} stream={mediaStream ?? undefined} />
-                    )}
-                  </div>
-
-                  <div className="mb-12">
-                    <RecordTimer 
-                      isRecording={isRecording} 
-                      isPaused={isPaused}
-                      onTimeLimit={handleTimeLimit}
-                    />
-                  </div>
-
-                  <div className="mb-12">
-                    <RecordControls
-                      isRecording={isRecording}
-                      isPaused={isPaused}
-                      hasRecording={!!audioUrl}
-                      onStartRecording={handleStartRecording}
-                      onStopRecording={handleStopRecording}
-                      onPauseRecording={handlePauseRecording}
-                      onResumeRecording={handleResumeRecording}
-                      onDelete={handleDelete}
-                      onPlay={() => {
-                        const audio = document.querySelector('audio');
-                        if (audio) audio.play();
-                      }}
-                    />
-                  </div>
+                  <RecordingSection
+                    isRecording={isRecording}
+                    isPaused={isPaused}
+                    audioUrl={audioUrl}
+                    mediaStream={mediaStream}
+                    handleStartRecording={handleStartRecording}
+                    handleStopRecording={handleStopRecording}
+                    handlePauseRecording={handlePauseRecording}
+                    handleResumeRecording={handleResumeRecording}
+                    handleDelete={handleDelete}
+                    handleTimeLimit={handleTimeLimit}
+                  />
 
                   <RecordActions
                     onSave={handleStopRecording}
@@ -141,12 +116,10 @@ const Record = () => {
                   />
                 </>
               ) : (
-                <ProcessedContent
-                  title={processedContent.title}
-                  content={processedContent.content}
-                  originalTranscript={transcript || ""}
-                  onReprocess={() => setProcessedContent(null)}
-                  isProcessing={processMutation.isPending}
+                <ProcessedContentSection
+                  processedContent={processedContent}
+                  transcript={transcript}
+                  processMutation={processMutation}
                 />
               )}
             </div>
