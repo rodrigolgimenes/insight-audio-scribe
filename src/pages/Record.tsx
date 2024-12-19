@@ -6,7 +6,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AudioRecorder } from "@/utils/audioRecorder";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { RecordTimer } from "@/components/record/RecordTimer";
@@ -17,6 +17,7 @@ const Record = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
@@ -30,6 +31,7 @@ const Record = () => {
       setIsRecording(true);
       setIsPaused(false);
     } catch (error) {
+      console.error('Error starting recording:', error);
       toast({
         title: "Error",
         description: "Could not start recording. Please check your microphone permissions.",
@@ -39,6 +41,16 @@ const Record = () => {
   };
 
   const handleStopRecording = async () => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save recordings.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const { blob, duration } = await audioRecorder.current.stopRecording();
       setIsRecording(false);
@@ -48,26 +60,44 @@ const Record = () => {
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
 
-      const fileName = `${session?.user.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage
-        .from('audio-recordings')
+      const fileName = `${session.user.id}/${Date.now()}.webm`;
+      
+      // Upload to storage bucket
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('audio_recordings')
         .upload(fileName, blob);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        throw new Error(`Upload error: ${uploadError.message}`);
+      }
 
+      if (!uploadData?.path) {
+        throw new Error('Upload successful but file path is missing');
+      }
+
+      // Save to database
       const { error: dbError } = await supabase.from('recordings').insert({
-        user_id: session?.user.id,
+        user_id: session.user.id,
         title: `Recording ${new Date().toLocaleString()}`,
         duration,
         file_path: fileName,
       });
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        // If database insert fails, try to clean up the uploaded file
+        await supabase.storage
+          .from('audio_recordings')
+          .remove([fileName]);
+        throw new Error(`Database error: ${dbError.message}`);
+      }
 
       toast({
         title: "Success",
         description: "Recording saved successfully!",
       });
+      
+      // Navigate back to dashboard after successful save
+      navigate("/app");
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
@@ -75,6 +105,8 @@ const Record = () => {
         description: "Failed to save recording. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -188,9 +220,9 @@ const Record = () => {
                 <Button 
                   className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
                   onClick={handleStopRecording}
-                  disabled={!isRecording}
+                  disabled={!isRecording || isSaving}
                 >
-                  Create note
+                  {isSaving ? 'Saving...' : 'Create note'}
                 </Button>
               </div>
             </div>
