@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import Record from "./pages/Record";
+import NotePage from "./pages/NotePage";
 import Index from "./pages/Index";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -42,6 +43,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/notes/:noteId"
+              element={
+                <ProtectedRoute>
+                  <NotePage />
                 </ProtectedRoute>
               }
             />
