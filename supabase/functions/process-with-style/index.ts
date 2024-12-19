@@ -52,7 +52,7 @@ serve(async (req) => {
 
     // Step 3: Prepare the prompt with explicit formatting instruction
     console.log('\nStep 3: Preparing prompt...');
-    const formattingInstruction = "Transforme o seguinte texto em um tema engraçado:\n\n";
+    const formattingInstruction = "Transforme o seguinte texto em uma lista de bullet points claros e concisos:\n\n";
     const finalPrompt = formattingInstruction + transcript;
     console.log('Final prompt with formatting instruction:', finalPrompt);
 
@@ -68,17 +68,16 @@ serve(async (req) => {
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
-            {
-              role: 'system',
-              content: 'Transform the following text according to the given instructions.'
-            },
             { 
               role: 'user', 
               content: finalPrompt
             }
           ],
-          temperature: 0.7,
-          max_tokens: 2000,
+          temperature: 1,
+          max_tokens: 2048,
+          top_p: 1,
+          frequency_penalty: 0,
+          presence_penalty: 0
         }),
       });
 
