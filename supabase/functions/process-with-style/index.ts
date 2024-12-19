@@ -61,22 +61,25 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a helpful assistant that processes transcripts according to specific styles and formats. 
-            Your output MUST be in HTML format with appropriate semantic tags (h1, h2, p, ul, li, etc).
-            Focus on creating a well-structured, easy to read document that maintains the original meaning while applying the style transformation.
-            Use bullet points, headings, and paragraphs to organize the information effectively.`
+            content: `You are a helpful assistant that processes transcripts into well-organized bullet points.
+            Your output MUST be in HTML format using semantic tags.
+            Follow these rules:
+            1. Start with an h1 tag containing a clear title summarizing the content
+            2. Use ul and li tags to create bullet points
+            3. Group related points under h2 or h3 headings when appropriate
+            4. Maintain the original meaning while making the content more structured and readable
+            5. Use proper HTML indentation for readability`
           },
           { 
             role: 'user', 
-            content: `Transform this transcript according to the following instructions:
+            content: `Transform this transcript into organized bullet points:
             
-            Original transcript:
             ${transcript}
             
-            Instructions for transformation:
+            Additional instructions:
             ${prompt}
             
-            Remember to format your response in clean, semantic HTML with appropriate headings, paragraphs, and lists.`
+            Remember to format your response in clean, semantic HTML with proper headings and bullet points.`
           }
         ],
         temperature: 0.7,
