@@ -13,21 +13,23 @@ serve(async (req) => {
   }
 
   try {
+    // Step 1: Get transcript and style ID from request
+    console.log('Step 1: Receiving request data...');
     const { styleId, transcript } = await req.json();
-    console.log('Starting processing with style:', styleId);
-    console.log('Raw transcript length:', transcript?.length || 0);
-    console.log('Raw transcript:', transcript);
+    console.log('Received styleId:', styleId);
+    console.log('Received transcript length:', transcript?.length || 0);
+    console.log('First 100 chars of transcript:', transcript?.substring(0, 100));
 
     if (!styleId || !transcript) {
       throw new Error('Style ID and transcript are required');
     }
 
-    // Create Supabase client
+    // Step 2: Get style template from database
+    console.log('\nStep 2: Fetching style template...');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get the style from the database
     const { data: style, error: styleError } = await supabase
       .from('styles')
       .select('*')
@@ -45,16 +47,18 @@ serve(async (req) => {
 
     console.log('Style found:', {
       name: style.name,
-      category: style.category,
-      templateLength: style.prompt_template?.length || 0
+      template_length: style.prompt_template?.length || 0
     });
-    
-    // Replace the {{transcript}} placeholder in the prompt template
-    const prompt = style.prompt_template.replace('{{transcript}}', transcript);
-    console.log('Prompt prepared. Length:', prompt.length);
-    console.log('Final prompt being sent:', prompt);
 
-    // Process with OpenAI
+    // Step 3: Prepare the prompt
+    console.log('\nStep 3: Preparing prompt...');
+    const prompt = style.prompt_template.replace('{{transcript}}', transcript);
+    console.log('Template before replacement:', style.prompt_template);
+    console.log('Final prompt length:', prompt.length);
+    console.log('First 100 chars of final prompt:', prompt.substring(0, 100));
+
+    // Step 4: Call OpenAI API
+    console.log('\nStep 4: Calling OpenAI API...');
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -84,10 +88,12 @@ serve(async (req) => {
       throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
+    // Step 5: Process OpenAI response
+    console.log('\nStep 5: Processing OpenAI response...');
     const openAIData = await openAIResponse.json();
-    console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
     console.log('OpenAI response status:', openAIResponse.status);
-    
+    console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
+
     if (!openAIData.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response structure:', openAIData);
       throw new Error('Failed to process transcript: Invalid response format from OpenAI');
@@ -95,13 +101,16 @@ serve(async (req) => {
 
     const processedContent = openAIData.choices[0].message.content;
     console.log('Processed content length:', processedContent.length);
-    console.log('Processed content:', processedContent);
+    console.log('First 100 chars of processed content:', processedContent.substring(0, 100));
 
-    // Extract title from the processed content (assuming it's in an h1 tag)
+    // Step 6: Extract title and prepare response
+    console.log('\nStep 6: Preparing final response...');
     const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
     const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
     console.log('Extracted title:', title);
 
+    // Step 7: Send response
+    console.log('\nStep 7: Sending response back to client...');
     return new Response(
       JSON.stringify({ 
         title, 
