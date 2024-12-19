@@ -22,13 +22,19 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Missing Supabase configuration');
     }
 
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log('Fetching recording details...');
     // Get recording details
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
@@ -37,6 +43,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (recordingError) {
+      console.error('Error fetching recording:', recordingError);
       throw new Error(`Failed to fetch recording: ${recordingError.message}`);
     }
 
@@ -44,6 +51,7 @@ serve(async (req) => {
       throw new Error('Recording not found');
     }
 
+    console.log('Downloading audio file...');
     // Download the audio file
     const { data: audioData, error: downloadError } = await supabase
       .storage
@@ -51,14 +59,11 @@ serve(async (req) => {
       .download(recording.file_path);
 
     if (downloadError || !audioData) {
+      console.error('Error downloading audio:', downloadError);
       throw new Error('Failed to download audio file');
     }
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key is not configured');
-    }
-
+    console.log('Calling OpenAI API for transcription...');
     // Convert Blob to File for OpenAI API
     const formData = new FormData();
     formData.append('file', audioData, 'audio.webm');
@@ -76,6 +81,7 @@ serve(async (req) => {
 
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.json().catch(() => ({}));
+      console.error('OpenAI API error:', errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
     }
 
@@ -85,6 +91,7 @@ serve(async (req) => {
       throw new Error('No transcription text received from OpenAI');
     }
 
+    console.log('Saving transcription to notes table...');
     // Save transcription to notes table
     const { error: noteError } = await supabase
       .from('notes')
@@ -96,9 +103,11 @@ serve(async (req) => {
       });
 
     if (noteError) {
+      console.error('Error saving note:', noteError);
       throw new Error(`Failed to save transcription: ${noteError.message}`);
     }
 
+    console.log('Transcription completed successfully');
     return new Response(
       JSON.stringify({ 
         success: true, 

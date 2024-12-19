@@ -27,6 +27,16 @@ const Record = () => {
   const audioRecorder = useRef(new AudioRecorder());
 
   const handleStartRecording = async () => {
+    if (!session?.user) {
+      toast({
+        title: "Error",
+        description: "Please log in to record audio.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMediaStream(stream);
@@ -50,6 +60,7 @@ const Record = () => {
         description: "You must be logged in to save recordings.",
         variant: "destructive",
       });
+      navigate("/login");
       return;
     }
 
@@ -60,25 +71,26 @@ const Record = () => {
       setIsPaused(false);
       setMediaStream(null);
 
-      const url = URL.createObjectURL(blob);
-      setAudioUrl(url);
-
       const fileName = `${session.user.id}/${Date.now()}.webm`;
       
       // Upload to storage bucket
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('audio_recordings')
-        .upload(fileName, blob);
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
-        throw new Error(`Upload error: ${uploadError.message}`);
+        console.error('Upload error:', uploadError);
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
 
       if (!uploadData?.path) {
         throw new Error('Upload successful but file path is missing');
       }
 
-      // Save to database
+      // Save to recordings table
       const { error: dbError, data: recordingData } = await supabase.from('recordings')
         .insert({
           user_id: session.user.id,
@@ -90,11 +102,12 @@ const Record = () => {
         .single();
 
       if (dbError) {
-        // If database insert fails, try to clean up the uploaded file
+        console.error('Database error:', dbError);
+        // If database insert fails, clean up the uploaded file
         await supabase.storage
           .from('audio_recordings')
           .remove([fileName]);
-        throw new Error(`Database error: ${dbError.message}`);
+        throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
       // Start transcription
@@ -105,7 +118,8 @@ const Record = () => {
         });
 
       if (transcriptionError) {
-        throw new Error(`Transcription error: ${transcriptionError.message}`);
+        console.error('Transcription error:', transcriptionError);
+        throw new Error(`Transcription failed: ${transcriptionError.message}`);
       }
 
       if (!transcriptionData?.success) {
@@ -117,7 +131,6 @@ const Record = () => {
         description: "Recording saved and transcribed successfully!",
       });
       
-      // Navigate to the notes page after successful save
       navigate("/app/notes");
     } catch (error) {
       console.error('Error saving recording:', error);
@@ -126,15 +139,10 @@ const Record = () => {
         description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
         variant: "destructive",
       });
-
-      // Reset states on error
+    } finally {
       setIsSaving(false);
       setIsTranscribing(false);
-      return;
     }
-
-    setIsSaving(false);
-    setIsTranscribing(false);
   };
 
   const handlePauseRecording = () => {
