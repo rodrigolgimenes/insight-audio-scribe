@@ -26,7 +26,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
   const menuItems = [
     { icon: Mic, label: "Recorder", href: "/record", id: "recorder" },
     { icon: FileText, label: "Notes", href: "/app", id: "notes" },
-    { icon: Paintbrush, label: "Styles", href: "#", id: "styles" },
+    { icon: Paintbrush, label: "Styles", href: "/app/styles", id: "styles" },
     { icon: Headphones, label: "Recordings", href: "#", id: "recordings" },
     { icon: Settings, label: "Settings", href: "#", id: "settings" },
   ];

@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Record from "./pages/Record";
 import NotePage from "./pages/NotePage";
 import FolderPage from "./pages/FolderPage";
+import StylesPage from "./pages/StylesPage";
 import Index from "./pages/Index";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -60,6 +61,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <FolderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/styles"
+              element={
+                <ProtectedRoute>
+                  <StylesPage />
                 </ProtectedRoute>
               }
             />
