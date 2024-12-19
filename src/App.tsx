@@ -8,6 +8,7 @@ import { LoginPage } from "@/components/auth/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import Record from "./pages/Record";
 import NotePage from "./pages/NotePage";
+import FolderPage from "./pages/FolderPage";
 import Index from "./pages/Index";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -51,6 +52,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <NotePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/folder/:folderId"
+              element={
+                <ProtectedRoute>
+                  <FolderPage />
                 </ProtectedRoute>
               }
             />

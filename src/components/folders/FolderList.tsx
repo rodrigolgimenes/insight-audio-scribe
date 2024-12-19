@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { FolderPlus, Folder } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export function FolderList() {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const { toast } = useToast();
   const { session } = useAuth();
+  const navigate = useNavigate();
 
   const { data: folders, refetch: refetchFolders } = useQuery({
     queryKey: ["folders"],
@@ -104,6 +106,7 @@ export function FolderList() {
           <div
             key={folder.id}
             className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded-md cursor-pointer"
+            onClick={() => navigate(`/app/folder/${folder.id}`)}
           >
             <Folder className="h-4 w-4" />
             <span>{folder.name}</span>
