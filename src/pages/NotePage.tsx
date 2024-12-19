@@ -88,21 +88,32 @@ const NotePage = () => {
 
     try {
       // First remove from current folder if any
-      await supabase
+      const { error: deleteError } = await supabase
         .from("notes_folders")
         .delete()
         .eq("note_id", noteId);
 
-      // Then add to new folder
-      const { error } = await supabase.from("notes_folders").insert({
-        note_id: noteId,
-        folder_id: folderId,
-      });
+      if (deleteError) {
+        toast({
+          title: "Error removing old folder association",
+          description: deleteError.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-      if (error) {
+      // Then add to new folder
+      const { error: insertError } = await supabase
+        .from("notes_folders")
+        .insert({
+          note_id: noteId,
+          folder_id: folderId,
+        });
+
+      if (insertError) {
         toast({
           title: "Error moving note",
-          description: error.message,
+          description: insertError.message,
           variant: "destructive",
         });
         return;

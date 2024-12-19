@@ -86,26 +86,40 @@ const Dashboard = () => {
   };
 
   const moveNotesToFolder = async (folderId: string) => {
-    // First, remove existing folder associations for these notes
-    const deletePromises = selectedNotes.map((noteId) =>
-      supabase
-        .from("notes_folders")
-        .delete()
-        .eq("note_id", noteId)
-    );
-
     try {
-      await Promise.all(deletePromises);
+      // First, remove existing folder associations for these notes
+      for (const noteId of selectedNotes) {
+        const { error: deleteError } = await supabase
+          .from("notes_folders")
+          .delete()
+          .eq("note_id", noteId);
 
-      // Then create new folder associations
-      const insertPromises = selectedNotes.map((noteId) =>
-        supabase.from("notes_folders").insert({
-          note_id: noteId,
-          folder_id: folderId,
-        })
-      );
+        if (deleteError) {
+          toast({
+            title: "Error removing old folder association",
+            description: deleteError.message,
+            variant: "destructive",
+          });
+          return;
+        }
 
-      await Promise.all(insertPromises);
+        // Then create new folder association
+        const { error: insertError } = await supabase
+          .from("notes_folders")
+          .insert({
+            note_id: noteId,
+            folder_id: folderId,
+          });
+
+        if (insertError) {
+          toast({
+            title: "Error moving note to new folder",
+            description: insertError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
       
       toast({
         title: "Success",
