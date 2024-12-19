@@ -12,9 +12,9 @@ import { useAuth } from "@/components/auth/AuthProvider";
 interface Style {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   prompt_template: string;
-  category: string;
+  category: string | null;
 }
 
 interface StyleDialogProps {
@@ -41,16 +41,23 @@ export function StyleDialog({ open, onOpenChange, style }: StyleDialogProps) {
     mutationFn: async (data: Partial<Style>) => {
       if (!session?.user?.id) throw new Error("User not authenticated");
       
+      const styleData = {
+        ...data,
+        user_id: session.user.id,
+        name: data.name!, // Required field
+        prompt_template: data.prompt_template!, // Required field
+      };
+      
       if (style?.id) {
         const { error } = await supabase
           .from("styles")
-          .update({ ...data, user_id: session.user.id })
+          .update(styleData)
           .eq("id", style.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("styles")
-          .insert([{ ...data, user_id: session.user.id }]);
+          .insert([styleData]);
         if (error) throw error;
       }
     },
