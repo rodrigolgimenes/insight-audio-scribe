@@ -61,19 +61,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: `You are a helpful assistant that processes transcripts into well-organized bullet points.
-            Your output MUST be in HTML format using semantic tags.
-            Follow these rules:
-            1. Start with an h1 tag containing a clear title summarizing the content
-            2. Use ul and li tags to create bullet points
-            3. Group related points under h2 or h3 headings when appropriate
-            4. Maintain the original meaning while making the content more structured and readable
-            5. Use proper HTML indentation for readability
-            6. Ensure all HTML tags are properly closed`
+            content: 'Transform the following text into a clear and organized format.'
           },
           { 
             role: 'user', 
@@ -92,7 +84,8 @@ serve(async (req) => {
     }
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response received. Status:', openAIResponse.status);
+    console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
+    console.log('OpenAI response status:', openAIResponse.status);
     
     if (!openAIData.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response structure:', openAIData);
