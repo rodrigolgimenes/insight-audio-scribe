@@ -9,11 +9,19 @@ import { RecordHeader } from "@/components/record/RecordHeader";
 import { RecordStatus } from "@/components/record/RecordStatus";
 import { RecordActions } from "@/components/record/RecordActions";
 import { TranscriptionLoading } from "@/components/record/TranscriptionLoading";
+import { ProcessedContent } from "@/components/record/ProcessedContent";
+import { StyleSelector } from "@/components/record/StyleSelector";
 import { useRecording } from "@/hooks/useRecording";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 
 const Record = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
+  const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
+  const [transcript, setTranscript] = useState<string | null>(null);
   const {
     isRecording,
     isPaused,
@@ -28,12 +36,50 @@ const Record = () => {
     handleDelete,
   } = useRecording();
 
+  const { data: styles } = useQuery({
+    queryKey: ['styles'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('styles')
+        .select('*');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const processMutation = useMutation({
+    mutationFn: async ({ styleId, transcript }: { styleId: string; transcript: string }) => {
+      const response = await supabase.functions.invoke('process-with-style', {
+        body: { styleId, transcript },
+      });
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setProcessedContent(data);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to process transcript",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleTimeLimit = () => {
     handleStopRecording();
     toast({
       title: "Time Limit Reached",
       description: "Recording stopped after reaching the 25-minute limit.",
     });
+  };
+
+  const handleStyleSelect = async (styleId: string) => {
+    setSelectedStyleId(styleId);
+    if (transcript) {
+      processMutation.mutate({ styleId, transcript });
+    }
   };
 
   return (
@@ -44,52 +90,75 @@ const Record = () => {
           <RecordHeader onBack={() => navigate("/app")} />
 
           <main className="container mx-auto px-4 py-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <RecordStatus isRecording={isRecording} isPaused={isPaused} />
+            <div className="max-w-3xl mx-auto">
+              {!processedContent ? (
+                <>
+                  <RecordStatus isRecording={isRecording} isPaused={isPaused} />
 
-              <div className="mb-8">
-                {audioUrl ? (
-                  <audio controls src={audioUrl} className="w-full max-w-md" />
-                ) : (
-                  <AudioVisualizer isRecording={isRecording && !isPaused} stream={mediaStream ?? undefined} />
-                )}
-              </div>
+                  <div className="mb-8">
+                    {audioUrl ? (
+                      <audio controls src={audioUrl} className="w-full" />
+                    ) : (
+                      <AudioVisualizer isRecording={isRecording && !isPaused} stream={mediaStream ?? undefined} />
+                    )}
+                  </div>
 
-              <div className="mb-12">
-                <RecordTimer 
-                  isRecording={isRecording} 
-                  isPaused={isPaused}
-                  onTimeLimit={handleTimeLimit}
+                  <div className="mb-12">
+                    <RecordTimer 
+                      isRecording={isRecording} 
+                      isPaused={isPaused}
+                      onTimeLimit={handleTimeLimit}
+                    />
+                  </div>
+
+                  <div className="mb-12">
+                    <RecordControls
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      hasRecording={!!audioUrl}
+                      onStartRecording={handleStartRecording}
+                      onStopRecording={handleStopRecording}
+                      onPauseRecording={handlePauseRecording}
+                      onResumeRecording={handleResumeRecording}
+                      onDelete={handleDelete}
+                      onPlay={() => {
+                        const audio = document.querySelector('audio');
+                        if (audio) audio.play();
+                      }}
+                    />
+                  </div>
+
+                  {transcript && (
+                    <div className="mb-12">
+                      <StyleSelector
+                        styles={styles || []}
+                        selectedStyleId={selectedStyleId}
+                        onStyleSelect={handleStyleSelect}
+                        isProcessing={processMutation.isPending}
+                      />
+                    </div>
+                  )}
+
+                  <RecordActions
+                    onSave={handleStopRecording}
+                    isSaving={isSaving}
+                    isRecording={isRecording}
+                  />
+                </>
+              ) : (
+                <ProcessedContent
+                  title={processedContent.title}
+                  content={processedContent.content}
+                  originalTranscript={transcript || ""}
+                  onReprocess={() => setProcessedContent(null)}
+                  isProcessing={processMutation.isPending}
                 />
-              </div>
-
-              <div className="mb-12">
-                <RecordControls
-                  isRecording={isRecording}
-                  isPaused={isPaused}
-                  hasRecording={!!audioUrl}
-                  onStartRecording={handleStartRecording}
-                  onStopRecording={handleStopRecording}
-                  onPauseRecording={handlePauseRecording}
-                  onResumeRecording={handleResumeRecording}
-                  onDelete={handleDelete}
-                  onPlay={() => {
-                    const audio = document.querySelector('audio');
-                    if (audio) audio.play();
-                  }}
-                />
-              </div>
-
-              <RecordActions
-                onSave={handleStopRecording}
-                isSaving={isSaving}
-                isRecording={isRecording}
-              />
+              )}
             </div>
           </main>
         </div>
       </div>
-      {isTranscribing && <TranscriptionLoading />}
+      {(isTranscribing || processMutation.isPending) && <TranscriptionLoading />}
     </SidebarProvider>
   );
 };
