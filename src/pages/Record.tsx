@@ -20,6 +20,7 @@ const Record = () => {
   const [keepAudio, setKeepAudio] = useState(true);
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string; styleId: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
+
   const {
     isRecording,
     isPaused,
@@ -49,6 +50,7 @@ const Record = () => {
       onSuccess: (data: any) => {
         // Set the first style as default if no style is selected and styles exist
         if (!selectedStyleId && data && data.length > 0) {
+          console.log('Setting default style:', data[0].id);
           setSelectedStyleId(data[0].id);
         }
       }

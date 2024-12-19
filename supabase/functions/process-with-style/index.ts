@@ -14,13 +14,14 @@ serve(async (req) => {
 
   try {
     const { styleId, transcript } = await req.json();
+    console.log('Processing transcript with style:', styleId);
+    console.log('Transcript:', transcript);
 
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('Fetching style with ID:', styleId);
     // Get the style from the database
     const { data: style, error: styleError } = await supabase
       .from('styles')
@@ -37,13 +38,12 @@ serve(async (req) => {
       throw new Error('Style not found');
     }
 
-    console.log('Processing transcript with style:', style.name);
+    console.log('Using style:', style.name);
     console.log('Style prompt template:', style.prompt_template);
     
     // Replace the {{transcript}} placeholder in the prompt template
     const prompt = style.prompt_template.replace('{{transcript}}', transcript);
-
-    console.log('Final prompt:', prompt);
+    console.log('Final prompt for GPT:', prompt);
 
     // Process with OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -53,11 +53,11 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that processes transcripts according to specific styles and formats. Your output MUST be in HTML format for proper rendering. Start with an appropriate title in an h1 tag, followed by the formatted content. Use appropriate HTML tags for formatting (p, ul, li, strong, em, etc).'
+            content: 'You are a helpful assistant that processes transcripts according to specific styles and formats. Your output MUST be in HTML format for proper rendering. Start with an appropriate title in an h1 tag, followed by the formatted content. Use appropriate HTML tags for formatting (p, ul, li, strong, em, etc). Make sure to maintain the original meaning while applying the style transformation.'
           },
           { role: 'user', content: prompt }
         ],
@@ -73,7 +73,7 @@ serve(async (req) => {
     }
 
     const openAIData = await openAIResponse.json();
-    console.log('OpenAI response:', openAIData);
+    console.log('OpenAI response received');
     
     if (!openAIData.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response:', openAIData);
