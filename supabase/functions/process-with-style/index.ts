@@ -58,68 +58,73 @@ serve(async (req) => {
 
     // Step 4: Call OpenAI API
     console.log('\nStep 4: Calling OpenAI API...');
-    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'Transform the following text according to the given instructions.'
-          },
-          { 
-            role: 'user', 
-            content: finalPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
+    try {
+      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'Transform the following text according to the given instructions.'
+            },
+            { 
+              role: 'user', 
+              content: finalPrompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
+      });
 
-    if (!openAIResponse.ok) {
-      const errorData = await openAIResponse.json();
-      console.error('OpenAI API error response:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      if (!openAIResponse.ok) {
+        const errorData = await openAIResponse.json();
+        console.error('OpenAI API error response:', errorData);
+        throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      // Step 5: Process OpenAI response
+      console.log('\nStep 5: Processing OpenAI response...');
+      const openAIData = await openAIResponse.json();
+      console.log('OpenAI response status:', openAIResponse.status);
+      console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
+
+      if (!openAIData.choices?.[0]?.message?.content) {
+        console.error('Invalid OpenAI response structure:', openAIData);
+        throw new Error('Failed to process transcript: Invalid response format from OpenAI');
+      }
+
+      const processedContent = openAIData.choices[0].message.content;
+      console.log('Processed content length:', processedContent.length);
+      console.log('First 100 chars of processed content:', processedContent.substring(0, 100));
+
+      // Step 6: Extract title and prepare response
+      console.log('\nStep 6: Preparing final response...');
+      const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
+      const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
+      console.log('Extracted title:', title);
+
+      // Step 7: Send response
+      console.log('\nStep 7: Sending response back to client...');
+      return new Response(
+        JSON.stringify({ 
+          title, 
+          content: processedContent,
+          styleId,
+          originalTranscript: transcript,
+          fullPrompt: finalPrompt // Include the full prompt in the response
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    } catch (error) {
+      console.error('Error in OpenAI API call:', error);
+      throw error;
     }
-
-    // Step 5: Process OpenAI response
-    console.log('\nStep 5: Processing OpenAI response...');
-    const openAIData = await openAIResponse.json();
-    console.log('OpenAI response status:', openAIResponse.status);
-    console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
-
-    if (!openAIData.choices?.[0]?.message?.content) {
-      console.error('Invalid OpenAI response structure:', openAIData);
-      throw new Error('Failed to process transcript: Invalid response format from OpenAI');
-    }
-
-    const processedContent = openAIData.choices[0].message.content;
-    console.log('Processed content length:', processedContent.length);
-    console.log('First 100 chars of processed content:', processedContent.substring(0, 100));
-
-    // Step 6: Extract title and prepare response
-    console.log('\nStep 6: Preparing final response...');
-    const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
-    const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
-    console.log('Extracted title:', title);
-
-    // Step 7: Send response
-    console.log('\nStep 7: Sending response back to client...');
-    return new Response(
-      JSON.stringify({ 
-        title, 
-        content: processedContent,
-        styleId,
-        originalTranscript: transcript,
-        fullPrompt: finalPrompt // Include the full prompt in the response
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
   } catch (error) {
     console.error('Error in process-with-style function:', error);
     return new Response(
