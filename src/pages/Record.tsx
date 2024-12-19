@@ -20,6 +20,7 @@ const Record = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
+  const [keepAudio, setKeepAudio] = useState(true);
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const {
@@ -128,21 +129,15 @@ const Record = () => {
                     />
                   </div>
 
-                  {transcript && (
-                    <div className="mb-12">
-                      <StyleSelector
-                        styles={styles || []}
-                        selectedStyleId={selectedStyleId}
-                        onStyleSelect={handleStyleSelect}
-                        isProcessing={processMutation.isPending}
-                      />
-                    </div>
-                  )}
-
                   <RecordActions
                     onSave={handleStopRecording}
                     isSaving={isSaving}
                     isRecording={isRecording}
+                    styles={styles || []}
+                    selectedStyleId={selectedStyleId}
+                    onStyleSelect={handleStyleSelect}
+                    keepAudio={keepAudio}
+                    onKeepAudioChange={setKeepAudio}
                   />
                 </>
               ) : (
