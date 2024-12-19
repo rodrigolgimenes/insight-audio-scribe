@@ -46,7 +46,7 @@ serve(async (req) => {
     console.log('Raw prompt template:', style.prompt_template);
     
     // Replace the {{transcript}} placeholder in the prompt template
-    const prompt = style.prompt_template.replace('{{transcript}}', `"${transcript}"`);
+    const prompt = style.prompt_template.replace('{{transcript}}', transcript);
     console.log('Final prompt being sent to GPT:', prompt);
 
     // Process with OpenAI
@@ -63,7 +63,10 @@ serve(async (req) => {
             role: 'system',
             content: 'You are a helpful assistant that processes transcripts according to specific styles and formats. Your output MUST be in HTML format for proper rendering. Start with an appropriate title in an h1 tag, followed by the formatted content. Use appropriate HTML tags for formatting (p, ul, li, strong, em, etc). Make sure to maintain the original meaning while applying the style transformation.'
           },
-          { role: 'user', content: prompt }
+          { 
+            role: 'user', 
+            content: `Please process this transcript according to the following instruction: ${prompt}`
+          }
         ],
         temperature: 0.7,
         max_tokens: 2000,
