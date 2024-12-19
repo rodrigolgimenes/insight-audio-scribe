@@ -17,6 +17,10 @@ serve(async (req) => {
     console.log('Processing transcript with style:', styleId);
     console.log('Transcript:', transcript);
 
+    if (!styleId || !transcript) {
+      throw new Error('Style ID and transcript are required');
+    }
+
     // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
