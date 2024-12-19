@@ -1,6 +1,5 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,51 +12,22 @@ serve(async (req) => {
   }
 
   try {
-    // Step 1: Get transcript and style ID from request
     console.log('Step 1: Receiving request data...');
-    const { styleId, transcript } = await req.json();
-    console.log('Received styleId:', styleId);
-    console.log('Received transcript length:', transcript?.length || 0);
-    console.log('First 100 chars of transcript:', transcript?.substring(0, 100));
+    const { transcript } = await req.json();
+    console.log('Received transcript:', transcript);
 
-    if (!styleId || !transcript) {
-      throw new Error('Style ID and transcript are required');
+    if (!transcript) {
+      throw new Error('Transcript is required');
     }
 
-    // Step 2: Get style template from database
-    console.log('\nStep 2: Fetching style template...');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: style, error: styleError } = await supabase
-      .from('styles')
-      .select('*')
-      .eq('id', styleId)
-      .single();
-
-    if (styleError) {
-      console.error('Error fetching style:', styleError);
-      throw styleError;
-    }
-
-    if (!style) {
-      throw new Error('Style not found');
-    }
-
-    console.log('Style found:', {
-      name: style.name,
-      template_length: style.prompt_template?.length || 0
-    });
-
-    // Step 3: Prepare the prompt with explicit formatting instruction
-    console.log('\nStep 3: Preparing prompt...');
+    // Step 2: Prepare the prompt with explicit formatting instruction
+    console.log('\nStep 2: Preparing prompt...');
     const formattingInstruction = "Transforme o seguinte texto em uma lista de bullet points claros e concisos:\n\n";
     const finalPrompt = formattingInstruction + transcript;
     console.log('Final prompt with formatting instruction:', finalPrompt);
 
-    // Step 4: Call OpenAI API
-    console.log('\nStep 4: Calling OpenAI API...');
+    // Step 3: Call OpenAI API
+    console.log('\nStep 3: Calling OpenAI API...');
     try {
       const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -87,36 +57,27 @@ serve(async (req) => {
         throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
       }
 
-      // Step 5: Process OpenAI response
-      console.log('\nStep 5: Processing OpenAI response...');
+      // Step 4: Process OpenAI response
+      console.log('\nStep 4: Processing OpenAI response...');
       const openAIData = await openAIResponse.json();
       console.log('OpenAI response status:', openAIResponse.status);
       console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
 
       if (!openAIData.choices?.[0]?.message?.content) {
         console.error('Invalid OpenAI response structure:', openAIData);
-        throw new Error('Failed to process transcript: Invalid response format from OpenAI');
+        throw new Error('Failed to process text: Invalid response format from OpenAI');
       }
 
       const processedContent = openAIData.choices[0].message.content;
       console.log('Processed content length:', processedContent.length);
       console.log('First 100 chars of processed content:', processedContent.substring(0, 100));
 
-      // Step 6: Extract title and prepare response
-      console.log('\nStep 6: Preparing final response...');
-      const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
-      const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
-      console.log('Extracted title:', title);
-
-      // Step 7: Send response
-      console.log('\nStep 7: Sending response back to client...');
+      // Step 5: Send response
+      console.log('\nStep 5: Sending response back to client...');
       return new Response(
         JSON.stringify({ 
-          title, 
           content: processedContent,
-          styleId,
-          originalTranscript: transcript,
-          fullPrompt: finalPrompt // Include the full prompt in the response
+          fullPrompt: finalPrompt
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
