@@ -57,7 +57,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4',
         messages: [
           {
             role: 'system',
@@ -72,14 +72,7 @@ serve(async (req) => {
           },
           { 
             role: 'user', 
-            content: `Transform this transcript into organized bullet points:
-            
-            ${transcript}
-            
-            Additional instructions:
-            ${prompt}
-            
-            Remember to format your response in clean, semantic HTML with proper headings and bullet points.`
+            content: prompt
           }
         ],
         temperature: 0.7,
