@@ -79,12 +79,15 @@ const Record = () => {
       }
 
       // Save to database
-      const { error: dbError, data: recordingData } = await supabase.from('recordings').insert({
-        user_id: session.user.id,
-        title: `Recording ${new Date().toLocaleString()}`,
-        duration,
-        file_path: fileName,
-      }).select().single();
+      const { error: dbError, data: recordingData } = await supabase.from('recordings')
+        .insert({
+          user_id: session.user.id,
+          title: `Recording ${new Date().toLocaleString()}`,
+          duration,
+          file_path: fileName,
+        })
+        .select()
+        .single();
 
       if (dbError) {
         // If database insert fails, try to clean up the uploaded file
@@ -96,13 +99,17 @@ const Record = () => {
 
       // Start transcription
       setIsTranscribing(true);
-      const { error: transcriptionError } = await supabase.functions
+      const { error: transcriptionError, data: transcriptionData } = await supabase.functions
         .invoke('transcribe-audio', {
           body: { recordingId: recordingData.id },
         });
 
       if (transcriptionError) {
         throw new Error(`Transcription error: ${transcriptionError.message}`);
+      }
+
+      if (!transcriptionData?.success) {
+        throw new Error('Transcription failed without error message');
       }
 
       toast({
@@ -116,13 +123,18 @@ const Record = () => {
       console.error('Error saving recording:', error);
       toast({
         title: "Error",
-        description: "Failed to save recording. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
         variant: "destructive",
       });
-    } finally {
+
+      // Reset states on error
       setIsSaving(false);
       setIsTranscribing(false);
+      return;
     }
+
+    setIsSaving(false);
+    setIsTranscribing(false);
   };
 
   const handlePauseRecording = () => {

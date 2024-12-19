@@ -15,10 +15,18 @@ serve(async (req) => {
 
   try {
     const { recordingId } = await req.json();
+    if (!recordingId) {
+      throw new Error('Recording ID is required');
+    }
 
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get recording details
@@ -26,9 +34,13 @@ serve(async (req) => {
       .from('recordings')
       .select('*')
       .eq('id', recordingId)
-      .single();
+      .maybeSingle();
 
-    if (recordingError || !recording) {
+    if (recordingError) {
+      throw new Error(`Failed to fetch recording: ${recordingError.message}`);
+    }
+
+    if (!recording) {
       throw new Error('Recording not found');
     }
 
@@ -42,6 +54,11 @@ serve(async (req) => {
       throw new Error('Failed to download audio file');
     }
 
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
     // Convert Blob to File for OpenAI API
     const formData = new FormData();
     formData.append('file', audioData, 'audio.webm');
@@ -52,16 +69,21 @@ serve(async (req) => {
     const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Authorization': `Bearer ${openAIApiKey}`,
       },
       body: formData,
     });
 
     if (!openAIResponse.ok) {
-      throw new Error('OpenAI API error');
+      const errorData = await openAIResponse.json().catch(() => ({}));
+      throw new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
     }
 
     const transcription = await openAIResponse.json();
+
+    if (!transcription.text) {
+      throw new Error('No transcription text received from OpenAI');
+    }
 
     // Save transcription to notes table
     const { error: noteError } = await supabase
@@ -74,17 +96,29 @@ serve(async (req) => {
       });
 
     if (noteError) {
-      throw new Error('Failed to save transcription');
+      throw new Error(`Failed to save transcription: ${noteError.message}`);
     }
 
-    return new Response(JSON.stringify({ success: true, transcription: transcription.text }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        transcription: transcription.text 
+      }), 
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     console.error('Error in transcribe-audio function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+      }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
