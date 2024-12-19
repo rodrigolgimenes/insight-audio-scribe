@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { Note } from "@/integrations/supabase/types/notes";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface BulkActionsProps {
-  selectedNotes: string[];
+  selectedNotes: Note[];
   onMoveToFolder: () => void;
   onDelete: () => void;
 }

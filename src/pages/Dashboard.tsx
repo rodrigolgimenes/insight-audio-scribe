@@ -216,7 +216,7 @@ const Dashboard = () => {
             isLoading={isLoading}
             isSelectionMode={isSelectionMode}
             selectedNotes={selectedNotes}
-            onToggleNoteSelection={toggleNoteSelection}
+            onSelect={toggleNoteSelection}
           />
 
           <FolderDialog

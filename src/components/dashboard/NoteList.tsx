@@ -1,12 +1,24 @@
-import { Note } from "@/types/notes";
+import { Note } from "@/integrations/supabase/types/notes";
 
 interface NoteListProps {
   notes: Note[];
   onSelect: (note: Note) => void;
   selectedNotes: Note[];
+  isLoading?: boolean;
+  isSelectionMode?: boolean;
 }
 
-export const NoteList = ({ notes, onSelect, selectedNotes }: NoteListProps) => {
+export const NoteList = ({ 
+  notes, 
+  onSelect, 
+  selectedNotes,
+  isLoading = false,
+  isSelectionMode = false 
+}: NoteListProps) => {
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="space-y-4">
       {notes.map((note) => (
@@ -15,12 +27,14 @@ export const NoteList = ({ notes, onSelect, selectedNotes }: NoteListProps) => {
           <div className="mt-2 text-gray-600 line-clamp-2">
             {note.processed_content}
           </div>
-          <button
-            onClick={() => onSelect(note)}
-            className={`mt-2 text-sm ${selectedNotes.includes(note) ? 'text-blue-500' : 'text-gray-500'}`}
-          >
-            {selectedNotes.includes(note) ? 'Deselect' : 'Select'}
-          </button>
+          {isSelectionMode && (
+            <button
+              onClick={() => onSelect(note)}
+              className={`mt-2 text-sm ${selectedNotes.includes(note) ? 'text-blue-500' : 'text-gray-500'}`}
+            >
+              {selectedNotes.includes(note) ? 'Deselect' : 'Select'}
+            </button>
+          )}
         </div>
       ))}
     </div>
