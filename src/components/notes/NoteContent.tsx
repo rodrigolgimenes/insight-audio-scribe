@@ -27,6 +27,33 @@ export const NoteContent = ({ note }: NoteContentProps) => {
           </div>
         </div>
       )}
+
+      {/* OpenAI Debug Info */}
+      <div className="border-t pt-8">
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">OpenAI Debug Info</h2>
+        
+        <div className="space-y-6">
+          {/* Input sent to OpenAI */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-600 mb-2">Input Sent to OpenAI:</h3>
+            <div className="bg-gray-50 rounded-lg p-6">
+              <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono">
+                {note.original_transcript}
+              </pre>
+            </div>
+          </div>
+
+          {/* Output received from OpenAI */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-600 mb-2">Output Received from OpenAI:</h3>
+            <div className="bg-gray-50 rounded-lg p-6">
+              <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono">
+                {note.processed_content}
+              </pre>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
