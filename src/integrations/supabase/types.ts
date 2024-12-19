@@ -39,6 +39,7 @@ export type Database = {
       notes: {
         Row: {
           created_at: string
+          full_prompt: string | null
           id: string
           original_transcript: string | null
           processed_content: string
@@ -49,6 +50,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          full_prompt?: string | null
           id?: string
           original_transcript?: string | null
           processed_content: string
@@ -59,6 +61,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          full_prompt?: string | null
           id?: string
           original_transcript?: string | null
           processed_content?: string
