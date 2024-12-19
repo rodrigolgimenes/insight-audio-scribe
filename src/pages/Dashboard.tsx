@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +38,7 @@ const Dashboard = () => {
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  const { data: notes, isLoading } = useQuery({
+  const { data: notes, isLoading, refetch } = useQuery({
     queryKey: ["notes"],
     queryFn: async () => {
       const { data, error } = await supabase
