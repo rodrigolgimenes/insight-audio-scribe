@@ -1,9 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate("/login");
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b">
@@ -27,7 +33,11 @@ export const Header = () => {
             <a href="#faq" className="text-gray-600 hover:text-primary transition-colors">
               FAQ
             </a>
-            <Button variant="default" className="bg-primary hover:bg-primary-dark">
+            <Button 
+              variant="default" 
+              className="bg-primary hover:bg-primary-dark"
+              onClick={handleGetStarted}
+            >
               Get Started
             </Button>
           </div>
@@ -66,7 +76,11 @@ export const Header = () => {
             <a href="#faq" className="block text-gray-600 hover:text-primary transition-colors">
               FAQ
             </a>
-            <Button variant="default" className="w-full bg-primary hover:bg-primary-dark">
+            <Button 
+              variant="default" 
+              className="w-full bg-primary hover:bg-primary-dark"
+              onClick={handleGetStarted}
+            >
               Get Started
             </Button>
           </div>

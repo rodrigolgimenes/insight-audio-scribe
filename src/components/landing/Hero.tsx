@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, AudioWaveform } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const Hero = () => {
+  const navigate = useNavigate();
+
+  const handleStartFreeTrial = () => {
+    navigate("/login");
+  };
+
   return (
     <section className="pt-32 pb-16 px-4">
       <div className="container mx-auto">
@@ -16,7 +23,11 @@ export const Hero = () => {
               summarization. Stay informed without being present.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-primary hover:bg-primary-dark">
+              <Button 
+                size="lg" 
+                className="bg-primary hover:bg-primary-dark"
+                onClick={handleStartFreeTrial}
+              >
                 Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
