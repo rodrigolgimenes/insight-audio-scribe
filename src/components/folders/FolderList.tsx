@@ -3,13 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FolderPlus, ChevronRight, ChevronDown, Folder } from "lucide-react";
+import { FolderPlus, Folder } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export function FolderList() {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const { toast } = useToast();
+  const { session } = useAuth();
 
   const { data: folders, refetch: refetchFolders } = useQuery({
     queryKey: ["folders"],
@@ -25,10 +27,11 @@ export function FolderList() {
   });
 
   const createFolder = async () => {
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim() || !session?.user.id) return;
 
     const { error } = await supabase.from("folders").insert({
       name: newFolderName.trim(),
+      user_id: session.user.id,
     });
 
     if (error) {
@@ -67,7 +70,6 @@ export function FolderList() {
       {isCreating && (
         <div className="px-2 space-y-2">
           <Input
-            size="sm"
             placeholder="Folder name"
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
