@@ -10,12 +10,13 @@ import { SearchHeader } from "@/components/dashboard/SearchHeader";
 import { BulkActions } from "@/components/dashboard/BulkActions";
 import { FolderDialog } from "@/components/dashboard/FolderDialog";
 import { NoteList } from "@/components/dashboard/NoteList";
+import { Note } from "@/integrations/supabase/types/notes";
 
 const Dashboard = () => {
   const { toast } = useToast();
   const { session } = useAuth();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
+  const [selectedNotes, setSelectedNotes] = useState<Note[]>([]);
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
@@ -45,11 +46,11 @@ const Dashboard = () => {
     },
   });
 
-  const toggleNoteSelection = (noteId: string) => {
+  const toggleNoteSelection = (note: Note) => {
     setSelectedNotes((prev) =>
-      prev.includes(noteId)
-        ? prev.filter((id) => id !== noteId)
-        : [...prev, noteId]
+      prev.includes(note)
+        ? prev.filter((n) => n.id !== note.id)
+        : [...prev, note]
     );
   };
 
@@ -79,11 +80,11 @@ const Dashboard = () => {
 
   const moveNotesToFolder = async (folderId: string) => {
     try {
-      for (const noteId of selectedNotes) {
+      for (const note of selectedNotes) {
         const { error: deleteError } = await supabase
           .from("notes_folders")
           .delete()
-          .eq("note_id", noteId);
+          .eq("note_id", note.id);
 
         if (deleteError) {
           toast({
@@ -97,7 +98,7 @@ const Dashboard = () => {
         const { error: insertError } = await supabase
           .from("notes_folders")
           .insert({
-            note_id: noteId,
+            note_id: note.id,
             folder_id: folderId,
           });
 
@@ -129,11 +130,11 @@ const Dashboard = () => {
 
   const deleteSelectedNotes = async () => {
     try {
-      for (const noteId of selectedNotes) {
+      for (const note of selectedNotes) {
         const { error: folderError } = await supabase
           .from("notes_folders")
           .delete()
-          .eq("note_id", noteId);
+          .eq("note_id", note.id);
 
         if (folderError) {
           toast({
@@ -147,7 +148,7 @@ const Dashboard = () => {
         const { error: tagError } = await supabase
           .from("notes_tags")
           .delete()
-          .eq("note_id", noteId);
+          .eq("note_id", note.id);
 
         if (tagError) {
           toast({
@@ -161,7 +162,7 @@ const Dashboard = () => {
         const { error: noteError } = await supabase
           .from("notes")
           .delete()
-          .eq("id", noteId);
+          .eq("id", note.id);
 
         if (noteError) {
           toast({

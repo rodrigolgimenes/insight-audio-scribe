@@ -13,7 +13,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { MoveNoteDialog } from "@/components/notes/MoveNoteDialog";
@@ -220,7 +219,7 @@ const NotePage = () => {
     }
   };
 
-  if (isLoadingNote) {
+  if (isLoadingNote || !note) {
     return <div>Loading...</div>;
   }
 
@@ -230,16 +229,13 @@ const NotePage = () => {
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
           <NoteHeader
-            title={note?.title}
+            title={note.title}
             onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
             onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
             onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
           />
           
-          <NoteContent 
-            title={note?.title || ''} 
-            processed_content={note?.processed_content || ''} 
-          />
+          <NoteContent note={note} />
 
           <MoveNoteDialog
             isOpen={isMoveDialogOpen}

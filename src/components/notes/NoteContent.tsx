@@ -1,4 +1,4 @@
-import { Note } from "@/types/notes";
+import { Note } from "@/integrations/supabase/types/notes";
 
 interface NoteContentProps {
   note: Note;
