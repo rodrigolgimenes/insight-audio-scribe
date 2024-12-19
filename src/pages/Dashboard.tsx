@@ -1,36 +1,17 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { FileText, Search, FolderPlus, Trash2 } from "lucide-react";
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { SearchHeader } from "@/components/dashboard/SearchHeader";
+import { BulkActions } from "@/components/dashboard/BulkActions";
+import { FolderDialog } from "@/components/dashboard/FolderDialog";
+import { NoteList } from "@/components/dashboard/NoteList";
 
 const Dashboard = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -215,158 +196,38 @@ const Dashboard = () => {
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
           <h1 className="text-2xl font-bold mb-6">My notes:</h1>
-          <div className="mb-6">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="search"
-                placeholder="Search notes..."
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="flex gap-2">
-              <Badge variant="secondary">note</Badge>
-              <Badge variant="secondary">tasklist</Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Select notes</span>
-              <Switch
-                checked={isSelectionMode}
-                onCheckedChange={setIsSelectionMode}
-              />
-            </div>
-            {isSelectionMode && selectedNotes.length > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsFolderDialogOpen(true)}
-                >
-                  Move to folder
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="gap-2">
-                      <Trash2 className="h-4 w-4" />
-                      Delete selected
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Notes</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete {selectedNotes.length} selected notes? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={deleteSelectedNotes}>
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            )}
-          </div>
+          
+          <SearchHeader
+            isSelectionMode={isSelectionMode}
+            setIsSelectionMode={setIsSelectionMode}
+          />
 
-          {isLoading ? (
-            <div>Loading...</div>
-          ) : notes && notes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {notes.map((note) => (
-                <div
-                  key={note.id}
-                  className={`bg-white p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow relative ${
-                    isSelectionMode ? "cursor-pointer" : ""
-                  }`}
-                  onClick={() =>
-                    isSelectionMode
-                      ? toggleNoteSelection(note.id)
-                      : navigate(`/app/notes/${note.id}`)
-                  }
-                >
-                  {isSelectionMode && (
-                    <div className="absolute top-4 right-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedNotes.includes(note.id)}
-                        onChange={() => toggleNoteSelection(note.id)}
-                        className="h-4 w-4"
-                      />
-                    </div>
-                  )}
-                  <h3 className="font-medium mb-2">{note.title}</h3>
-                  <p className="text-gray-600 text-sm line-clamp-3">
-                    {note.content}
-                  </p>
-                  <div className="mt-4 flex justify-between items-center">
-                    <span className="text-xs text-gray-500">
-                      {new Date(note.created_at).toLocaleDateString()}
-                    </span>
-                    <Badge>Note</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-[400px] bg-white rounded-lg border border-dashed border-gray-300">
-              <div className="text-center">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900">No notes</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Get started by creating a new note.
-                </p>
-                <Button
-                  className="bg-[#E91E63] hover:bg-[#D81B60]"
-                  onClick={() => navigate("/record")}
-                >
-                  + New Note
-                </Button>
-              </div>
-            </div>
+          {isSelectionMode && selectedNotes.length > 0 && (
+            <BulkActions
+              selectedNotes={selectedNotes}
+              onMoveToFolder={() => setIsFolderDialogOpen(true)}
+              onDelete={deleteSelectedNotes}
+            />
           )}
-        </main>
 
-        <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add notes to folder:</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              {folders?.length === 0 && (
-                <p className="text-center text-gray-500">No folders found</p>
-              )}
-              <div className="space-y-2">
-                <Input
-                  placeholder="New folder name"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                />
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={createNewFolder}
-                >
-                  <FolderPlus className="w-4 h-4 mr-2" />
-                  Create new folder
-                </Button>
-              </div>
-              {folders?.map((folder) => (
-                <Button
-                  key={folder.id}
-                  className="w-full justify-start"
-                  variant="ghost"
-                  onClick={() => moveNotesToFolder(folder.id)}
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  {folder.name}
-                </Button>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
+          <NoteList
+            notes={notes || []}
+            isLoading={isLoading}
+            isSelectionMode={isSelectionMode}
+            selectedNotes={selectedNotes}
+            onToggleNoteSelection={toggleNoteSelection}
+          />
+
+          <FolderDialog
+            isOpen={isFolderDialogOpen}
+            onOpenChange={setIsFolderDialogOpen}
+            folders={folders || []}
+            newFolderName={newFolderName}
+            onNewFolderNameChange={setNewFolderName}
+            onCreateNewFolder={createNewFolder}
+            onSelectFolder={moveNotesToFolder}
+          />
+        </main>
       </div>
     </SidebarProvider>
   );
