@@ -1,6 +1,4 @@
 import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Settings, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -11,6 +9,10 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { RecordControls } from "@/components/record/RecordControls";
+import { RecordHeader } from "@/components/record/RecordHeader";
+import { RecordStatus } from "@/components/record/RecordStatus";
+import { RecordActions } from "@/components/record/RecordActions";
+import { TranscriptionLoading } from "@/components/record/TranscriptionLoading";
 
 const Record = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -18,6 +20,7 @@ const Record = () => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
@@ -76,12 +79,12 @@ const Record = () => {
       }
 
       // Save to database
-      const { error: dbError } = await supabase.from('recordings').insert({
+      const { error: dbError, data: recordingData } = await supabase.from('recordings').insert({
         user_id: session.user.id,
         title: `Recording ${new Date().toLocaleString()}`,
         duration,
         file_path: fileName,
-      });
+      }).select().single();
 
       if (dbError) {
         // If database insert fails, try to clean up the uploaded file
@@ -91,13 +94,24 @@ const Record = () => {
         throw new Error(`Database error: ${dbError.message}`);
       }
 
+      // Start transcription
+      setIsTranscribing(true);
+      const { error: transcriptionError } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { recordingId: recordingData.id },
+        });
+
+      if (transcriptionError) {
+        throw new Error(`Transcription error: ${transcriptionError.message}`);
+      }
+
       toast({
         title: "Success",
-        description: "Recording saved successfully!",
+        description: "Recording saved and transcribed successfully!",
       });
       
-      // Navigate back to dashboard after successful save
-      navigate("/app");
+      // Navigate to the notes page after successful save
+      navigate("/app/notes");
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
@@ -107,6 +121,7 @@ const Record = () => {
       });
     } finally {
       setIsSaving(false);
+      setIsTranscribing(false);
     }
   };
 
@@ -145,37 +160,12 @@ const Record = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-white">
-          {/* Header */}
-          <header className="border-b">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={handleBack}
-                  className="flex items-center text-gray-600 hover:text-gray-900"
-                >
-                  <ArrowLeft className="w-5 h-5 mr-2" />
-                  Back
-                </button>
-                <Button variant="outline" className="text-primary">
-                  <span className="mr-2">↑</span>
-                  Upload
-                </Button>
-              </div>
-            </div>
-          </header>
+          <RecordHeader onBack={handleBack} />
 
-          {/* Main Content */}
           <main className="container mx-auto px-4 py-8">
             <div className="max-w-2xl mx-auto text-center">
-              {/* Recording Status */}
-              <div className="mb-8">
-                <span className="inline-flex items-center text-gray-600">
-                  <span className={`w-2 h-2 rounded-full mr-2 ${isRecording && !isPaused ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></span>
-                  {isRecording ? (isPaused ? 'Paused' : 'Recording...') : 'Recording off'}
-                </span>
-              </div>
+              <RecordStatus isRecording={isRecording} isPaused={isPaused} />
 
-              {/* Waveform Visualization */}
               <div className="mb-8">
                 {audioUrl ? (
                   <audio controls src={audioUrl} className="w-full max-w-md" />
@@ -184,7 +174,6 @@ const Record = () => {
                 )}
               </div>
 
-              {/* Timer */}
               <div className="mb-12">
                 <RecordTimer 
                   isRecording={isRecording} 
@@ -193,7 +182,6 @@ const Record = () => {
                 />
               </div>
 
-              {/* Controls */}
               <div className="mb-12">
                 <RecordControls
                   isRecording={isRecording}
@@ -211,24 +199,16 @@ const Record = () => {
                 />
               </div>
 
-              {/* Settings and Create Note */}
-              <div className="flex flex-col items-center gap-4">
-                <Button variant="outline" className="gap-2 border-2 text-primary">
-                  <Settings className="w-4 h-4" />
-                  Settings
-                </Button>
-                <Button 
-                  className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
-                  onClick={handleStopRecording}
-                  disabled={!isRecording || isSaving}
-                >
-                  {isSaving ? 'Saving...' : 'Create note'}
-                </Button>
-              </div>
+              <RecordActions
+                onSave={handleStopRecording}
+                isSaving={isSaving}
+                isRecording={isRecording}
+              />
             </div>
           </main>
         </div>
       </div>
+      {isTranscribing && <TranscriptionLoading />}
     </SidebarProvider>
   );
 };
