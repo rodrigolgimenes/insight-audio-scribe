@@ -2,15 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Tag, Folder, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
 import {
   AlertDialog,
@@ -25,6 +17,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { MoveNoteDialog } from "@/components/notes/MoveNoteDialog";
+import { NoteHeader } from "@/components/notes/NoteHeader";
+import { NoteContent } from "@/components/notes/NoteContent";
+import { TagsDialog } from "@/components/notes/TagsDialog";
 
 const NotePage = () => {
   const { noteId } = useParams();
@@ -32,6 +27,8 @@ const NotePage = () => {
   const { toast } = useToast();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { data: note, isLoading: isLoadingNote } = useQuery({
     queryKey: ["note", noteId],
@@ -125,6 +122,40 @@ const NotePage = () => {
     }
   };
 
+  const addTagToNote = async (tagId: string) => {
+    if (!noteId) return;
+
+    try {
+      const { error } = await supabase
+        .from("notes_tags")
+        .insert({
+          note_id: noteId,
+          tag_id: tagId,
+        });
+
+      if (error) {
+        toast({
+          title: "Error adding tag",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedTags([...selectedTags, tagId]);
+      toast({
+        title: "Tag added",
+        description: "Tag has been added to the note.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add tag",
+        variant: "destructive",
+      });
+    }
+  };
+
   const deleteNote = async () => {
     if (!noteId) return;
 
@@ -198,81 +229,45 @@ const NotePage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
-          <div className="mb-6 flex justify-between items-center">
-            <Button
-              variant="ghost"
-              className="gap-2"
-              onClick={() => navigate("/app")}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to notes
-            </Button>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Tag className="w-4 h-4" />
-                    Add Tags
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {tags?.map((tag) => (
-                    <DropdownMenuItem
-                      key={tag.id}
-                      onClick={() => addTagToNote(tag.id)}
-                    >
-                      <Tag className="w-4 h-4 mr-2" style={{ color: tag.color }} />
-                      {tag.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+          <NoteHeader
+            title={note?.title}
+            onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
+            onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
+            onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
+          />
+          
+          <NoteContent title={note?.title} content={note?.content} />
 
-              <Button 
-                variant="outline" 
-                className="gap-2"
-                onClick={() => setIsMoveDialogOpen(true)}
-              >
-                <Folder className="w-4 h-4" />
-                Move to Folder
-              </Button>
+          <MoveNoteDialog
+            isOpen={isMoveDialogOpen}
+            onOpenChange={setIsMoveDialogOpen}
+            folders={folders || []}
+            currentFolderId={currentFolder?.folder_id || null}
+            onMoveToFolder={moveNoteToFolder}
+          />
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="icon">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Note</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this note? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={deleteNote}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-2xl font-bold mb-4">{note?.title}</h1>
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <p className="whitespace-pre-wrap">{note?.content}</p>
-            </div>
-          </div>
+          <TagsDialog
+            isOpen={isTagsDialogOpen}
+            onOpenChange={setIsTagsDialogOpen}
+            onAddTag={addTagToNote}
+            selectedTags={selectedTags}
+          />
+
+          <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this note? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteNote}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </main>
-
-        <MoveNoteDialog
-          isOpen={isMoveDialogOpen}
-          onOpenChange={setIsMoveDialogOpen}
-          folders={folders || []}
-          currentFolderId={currentFolder?.folder_id || null}
-          onMoveToFolder={moveNoteToFolder}
-        />
       </div>
     </SidebarProvider>
   );
