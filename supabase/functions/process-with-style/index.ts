@@ -15,7 +15,7 @@ serve(async (req) => {
   try {
     const { styleId, transcript } = await req.json();
     console.log('Processing transcript with style:', styleId);
-    console.log('Transcript:', transcript);
+    console.log('Raw transcript received:', transcript);
 
     if (!styleId || !transcript) {
       throw new Error('Style ID and transcript are required');
@@ -42,12 +42,12 @@ serve(async (req) => {
       throw new Error('Style not found');
     }
 
-    console.log('Using style:', style.name);
-    console.log('Style prompt template:', style.prompt_template);
+    console.log('Style found:', style.name);
+    console.log('Raw prompt template:', style.prompt_template);
     
     // Replace the {{transcript}} placeholder in the prompt template
     const prompt = style.prompt_template.replace('{{transcript}}', `"${transcript}"`);
-    console.log('Final prompt for GPT:', prompt);
+    console.log('Final prompt being sent to GPT:', prompt);
 
     // Process with OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -78,6 +78,7 @@ serve(async (req) => {
 
     const openAIData = await openAIResponse.json();
     console.log('OpenAI response received');
+    console.log('Raw OpenAI response:', openAIData.choices?.[0]?.message?.content);
     
     if (!openAIData.choices?.[0]?.message?.content) {
       console.error('Invalid OpenAI response:', openAIData);
@@ -85,13 +86,13 @@ serve(async (req) => {
     }
 
     const processedContent = openAIData.choices[0].message.content;
-    console.log('Processed content:', processedContent);
 
     // Extract title from the processed content (assuming it's in an h1 tag)
     const titleMatch = processedContent.match(/<h1[^>]*>(.*?)<\/h1>/);
     const title = titleMatch ? titleMatch[1].trim() : 'Processed Note';
 
     console.log('Successfully processed content with title:', title);
+    console.log('Final processed content:', processedContent);
 
     return new Response(
       JSON.stringify({ 
