@@ -42,6 +42,36 @@ export type Database = {
         }
         Relationships: []
       }
+      recordings: {
+        Row: {
+          created_at: string
+          duration: number | null
+          file_path: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: number | null
+          file_path: string
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration?: number | null
+          file_path?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at: string | null

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Play, Trash, Settings, ArrowLeft } from "lucide-react";
+import { Settings, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -8,39 +8,27 @@ import { AudioRecorder } from "@/utils/audioRecorder";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { AudioVisualizer } from "@/components/record/AudioVisualizer";
+import { RecordTimer } from "@/components/record/RecordTimer";
+import { RecordControls } from "@/components/record/RecordControls";
 
 const Record = () => {
   const [isRecording, setIsRecording] = useState(false);
-  const [timer, setTimer] = useState("00:00");
+  const [isPaused, setIsPaused] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
   const audioRecorder = useRef(new AudioRecorder());
-  const timerInterval = useRef<number>();
-
-  const updateTimer = (startTime: number) => {
-    const updateTime = () => {
-      const seconds = Math.floor((Date.now() - startTime) / 1000);
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
-      setTimer(
-        `${minutes.toString().padStart(2, "0")}:${remainingSeconds
-          .toString()
-          .padStart(2, "0")}`
-      );
-    };
-
-    updateTime();
-    return setInterval(updateTime, 1000);
-  };
 
   const handleStartRecording = async () => {
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMediaStream(stream);
       await audioRecorder.current.startRecording();
       setIsRecording(true);
-      const startTime = Date.now();
-      timerInterval.current = updateTimer(startTime);
+      setIsPaused(false);
     } catch (error) {
       toast({
         title: "Error",
@@ -54,23 +42,19 @@ const Record = () => {
     try {
       const { blob, duration } = await audioRecorder.current.stopRecording();
       setIsRecording(false);
-      clearInterval(timerInterval.current);
+      setIsPaused(false);
+      setMediaStream(null);
 
-      // Create object URL for preview
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
 
-      // Upload to Supabase
       const fileName = `${session?.user.id}/${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage
         .from('audio-recordings')
         .upload(fileName, blob);
 
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
-      // Save recording metadata
       const { error: dbError } = await supabase.from('recordings').insert({
         user_id: session?.user.id,
         title: `Recording ${new Date().toLocaleString()}`,
@@ -78,9 +62,7 @@ const Record = () => {
         file_path: fileName,
       });
 
-      if (dbError) {
-        throw dbError;
-      }
+      if (dbError) throw dbError;
 
       toast({
         title: "Success",
@@ -96,28 +78,35 @@ const Record = () => {
     }
   };
 
-  const handleBack = () => {
-    navigate("/app");
+  const handlePauseRecording = () => {
+    audioRecorder.current.pauseRecording();
+    setIsPaused(true);
   };
+
+  const handleResumeRecording = () => {
+    audioRecorder.current.resumeRecording();
+    setIsPaused(false);
+  };
+
+  const handleBack = () => navigate("/app");
 
   const handleDelete = () => {
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
     }
-    setTimer("00:00");
+    setMediaStream(null);
+    setIsRecording(false);
+    setIsPaused(false);
   };
 
-  useEffect(() => {
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current);
-      }
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-    };
-  }, [audioUrl]);
+  const handleTimeLimit = () => {
+    handleStopRecording();
+    toast({
+      title: "Time Limit Reached",
+      description: "Recording stopped after reaching the 25-minute limit.",
+    });
+  };
 
   return (
     <SidebarProvider>
@@ -149,58 +138,45 @@ const Record = () => {
               {/* Recording Status */}
               <div className="mb-8">
                 <span className="inline-flex items-center text-gray-600">
-                  <span className={`w-2 h-2 rounded-full mr-2 ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></span>
-                  {isRecording ? 'Recording...' : 'Recording off'}
+                  <span className={`w-2 h-2 rounded-full mr-2 ${isRecording && !isPaused ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                  {isRecording ? (isPaused ? 'Paused' : 'Recording...') : 'Recording off'}
                 </span>
               </div>
 
               {/* Waveform Visualization */}
-              <div className="h-32 mb-8 bg-[#F8F9FE] rounded-lg flex items-center justify-center">
-                {audioUrl && (
+              <div className="mb-8">
+                {audioUrl ? (
                   <audio controls src={audioUrl} className="w-full max-w-md" />
-                )}
-                {!audioUrl && (
-                  <div className="w-full max-w-md h-1 bg-primary rounded"></div>
+                ) : (
+                  <AudioVisualizer isRecording={isRecording && !isPaused} stream={mediaStream ?? undefined} />
                 )}
               </div>
 
               {/* Timer */}
               <div className="mb-12">
-                <div className="text-4xl font-bold mb-2">{timer}</div>
-                <div className="text-sm text-gray-500">Limit: 20:00</div>
+                <RecordTimer 
+                  isRecording={isRecording} 
+                  isPaused={isPaused}
+                  onTimeLimit={handleTimeLimit}
+                />
               </div>
 
               {/* Controls */}
-              <div className="flex items-center justify-center gap-6 mb-12">
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-                  disabled={!audioUrl || isRecording}
-                  onClick={() => {
+              <div className="mb-12">
+                <RecordControls
+                  isRecording={isRecording}
+                  isPaused={isPaused}
+                  hasRecording={!!audioUrl}
+                  onStartRecording={handleStartRecording}
+                  onStopRecording={handleStopRecording}
+                  onPauseRecording={handlePauseRecording}
+                  onResumeRecording={handleResumeRecording}
+                  onDelete={handleDelete}
+                  onPlay={() => {
                     const audio = document.querySelector('audio');
                     if (audio) audio.play();
                   }}
-                >
-                  <Play className="w-6 h-6 text-primary" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="default"
-                  className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
-                  onClick={isRecording ? handleStopRecording : handleStartRecording}
-                >
-                  <Mic className="w-10 h-10" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-                  onClick={handleDelete}
-                  disabled={isRecording}
-                >
-                  <Trash className="w-6 h-6 text-primary" />
-                </Button>
+                />
               </div>
 
               {/* Settings and Create Note */}
@@ -211,7 +187,8 @@ const Record = () => {
                 </Button>
                 <Button 
                   className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
-                  disabled={!audioUrl || isRecording}
+                  onClick={handleStopRecording}
+                  disabled={!isRecording}
                 >
                   Create note
                 </Button>

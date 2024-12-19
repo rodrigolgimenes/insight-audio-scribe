@@ -2,6 +2,8 @@ export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private startTime: number = 0;
+  private pausedDuration: number = 0;
+  private pauseStartTime: number | null = null;
 
   async startRecording(): Promise<void> {
     try {
@@ -9,6 +11,8 @@ export class AudioRecorder {
       this.mediaRecorder = new MediaRecorder(stream);
       this.audioChunks = [];
       this.startTime = Date.now();
+      this.pausedDuration = 0;
+      this.pauseStartTime = null;
 
       this.mediaRecorder.ondataavailable = (event) => {
         this.audioChunks.push(event.data);
@@ -21,6 +25,23 @@ export class AudioRecorder {
     }
   }
 
+  pauseRecording(): void {
+    if (this.mediaRecorder?.state === 'recording') {
+      this.mediaRecorder.pause();
+      this.pauseStartTime = Date.now();
+    }
+  }
+
+  resumeRecording(): void {
+    if (this.mediaRecorder?.state === 'paused') {
+      this.mediaRecorder.resume();
+      if (this.pauseStartTime) {
+        this.pausedDuration += Date.now() - this.pauseStartTime;
+        this.pauseStartTime = null;
+      }
+    }
+  }
+
   stopRecording(): Promise<{ blob: Blob, duration: number }> {
     return new Promise((resolve) => {
       if (!this.mediaRecorder) {
@@ -28,7 +49,9 @@ export class AudioRecorder {
       }
 
       this.mediaRecorder.onstop = () => {
-        const duration = Math.round((Date.now() - this.startTime) / 1000);
+        const duration = Math.round(
+          (Date.now() - this.startTime - this.pausedDuration) / 1000
+        );
         const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
         resolve({ blob, duration });
       };
@@ -40,5 +63,9 @@ export class AudioRecorder {
 
   isRecording(): boolean {
     return this.mediaRecorder?.state === 'recording';
+  }
+
+  isPaused(): boolean {
+    return this.mediaRecorder?.state === 'paused';
   }
 }
