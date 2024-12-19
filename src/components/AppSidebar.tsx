@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, FileText, Paintbrush, Headphones, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FolderList } from "./folders/FolderList";
+import { TagList } from "./tags/TagList";
 
 interface AppSidebarProps {
   activePage?: string;
@@ -70,6 +71,12 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
         <SidebarGroup>
           <SidebarGroupContent>
             <FolderList />
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <TagList />
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
