@@ -15,6 +15,8 @@ serve(async (req) => {
 
   try {
     const { recordingId } = await req.json();
+    console.log('Starting transcription for recording:', recordingId);
+    
     if (!recordingId) {
       throw new Error('Recording ID is required');
     }
@@ -40,7 +42,7 @@ serve(async (req) => {
       .from('recordings')
       .select('*')
       .eq('id', recordingId)
-      .maybeSingle();
+      .single();
 
     if (recordingError) {
       console.error('Error fetching recording:', recordingError);
@@ -99,7 +101,8 @@ serve(async (req) => {
         user_id: recording.user_id,
         recording_id: recordingId,
         title: recording.title,
-        content: transcription.text,
+        processed_content: transcription.text,
+        original_transcript: transcription.text,
       });
 
     if (noteError) {
@@ -114,6 +117,7 @@ serve(async (req) => {
         transcription: transcription.text 
       }), 
       {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
@@ -125,7 +129,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'An unexpected error occurred' 
       }), 
       {
-        status: 500,
+        status: 400, // Changed from 500 to 400 for client errors
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
