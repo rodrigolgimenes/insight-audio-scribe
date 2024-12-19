@@ -1,16 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { FileText, Search } from "lucide-react";
+import { FileText, Search, FolderPlus } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/use-toast";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
+  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
   const { data: notes, isLoading } = useQuery({
     queryKey: ["notes"],
@@ -24,6 +37,76 @@ const Dashboard = () => {
       return data;
     },
   });
+
+  const { data: folders } = useQuery({
+    queryKey: ["folders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const toggleNoteSelection = (noteId: string) => {
+    setSelectedNotes((prev) =>
+      prev.includes(noteId)
+        ? prev.filter((id) => id !== noteId)
+        : [...prev, noteId]
+    );
+  };
+
+  const createNewFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    const { data: folder, error: folderError } = await supabase
+      .from("folders")
+      .insert({
+        name: newFolderName.trim(),
+      })
+      .select()
+      .single();
+
+    if (folderError) {
+      toast({
+        title: "Error creating folder",
+        description: folderError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await moveNotesToFolder(folder.id);
+  };
+
+  const moveNotesToFolder = async (folderId: string) => {
+    const promises = selectedNotes.map((noteId) =>
+      supabase.from("notes_folders").insert({
+        note_id: noteId,
+        folder_id: folderId,
+      })
+    );
+
+    try {
+      await Promise.all(promises);
+      toast({
+        title: "Success",
+        description: "Notes moved to folder successfully",
+      });
+      setIsFolderDialogOpen(false);
+      setSelectedNotes([]);
+      setIsSelectionMode(false);
+    } catch (error) {
+      toast({
+        title: "Error moving notes",
+        description: "Failed to move notes to folder",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -48,8 +131,19 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">Select notes</span>
-              <Switch />
+              <Switch
+                checked={isSelectionMode}
+                onCheckedChange={setIsSelectionMode}
+              />
             </div>
+            {isSelectionMode && selectedNotes.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setIsFolderDialogOpen(true)}
+              >
+                Move to folder
+              </Button>
+            )}
           </div>
 
           {isLoading ? (
@@ -59,9 +153,25 @@ const Dashboard = () => {
               {notes.map((note) => (
                 <div
                   key={note.id}
-                  className="bg-white p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => navigate(`/app/notes/${note.id}`)}
+                  className={`bg-white p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow relative ${
+                    isSelectionMode ? "cursor-pointer" : ""
+                  }`}
+                  onClick={() =>
+                    isSelectionMode
+                      ? toggleNoteSelection(note.id)
+                      : navigate(`/app/notes/${note.id}`)
+                  }
                 >
+                  {isSelectionMode && (
+                    <div className="absolute top-4 right-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedNotes.includes(note.id)}
+                        onChange={() => toggleNoteSelection(note.id)}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                  )}
                   <h3 className="font-medium mb-2">{note.title}</h3>
                   <p className="text-gray-600 text-sm line-clamp-3">
                     {note.content}
@@ -93,6 +203,45 @@ const Dashboard = () => {
             </div>
           )}
         </main>
+
+        <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add notes to folder:</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-4">
+              {folders?.length === 0 && (
+                <p className="text-center text-gray-500">No folders found</p>
+              )}
+              <div className="space-y-2">
+                <Input
+                  placeholder="New folder name"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                />
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={createNewFolder}
+                >
+                  <FolderPlus className="w-4 h-4 mr-2" />
+                  Create new folder
+                </Button>
+              </div>
+              {folders?.map((folder) => (
+                <Button
+                  key={folder.id}
+                  className="w-full justify-start"
+                  variant="ghost"
+                  onClick={() => moveNotesToFolder(folder.id)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  {folder.name}
+                </Button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </SidebarProvider>
   );
