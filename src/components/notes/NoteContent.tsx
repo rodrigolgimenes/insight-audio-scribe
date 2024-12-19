@@ -1,15 +1,13 @@
+import { Note } from "@/types/notes";
+
 interface NoteContentProps {
-  title: string;
-  processed_content: string;
+  note: Note;
 }
 
-export const NoteContent = ({ title, processed_content }: NoteContentProps) => {
+export const NoteContent = ({ note }: NoteContentProps) => {
   return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">{title}</h1>
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <p className="whitespace-pre-wrap">{processed_content}</p>
-      </div>
+    <div className="prose max-w-none">
+      <div dangerouslySetInnerHTML={{ __html: note.processed_content }} />
     </div>
   );
 };
