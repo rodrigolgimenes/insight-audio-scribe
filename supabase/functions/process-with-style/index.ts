@@ -52,10 +52,10 @@ serve(async (req) => {
 
     // Step 3: Prepare the prompt
     console.log('\nStep 3: Preparing prompt...');
-    const prompt = style.prompt_template.replace('{{transcript}}', transcript);
+    const finalPrompt = style.prompt_template.replace('{{transcript}}', transcript);
     console.log('Template before replacement:', style.prompt_template);
-    console.log('Final prompt length:', prompt.length);
-    console.log('First 100 chars of final prompt:', prompt.substring(0, 100));
+    console.log('Final prompt length:', finalPrompt.length);
+    console.log('First 100 chars of final prompt:', finalPrompt.substring(0, 100));
 
     // Step 4: Call OpenAI API
     console.log('\nStep 4: Calling OpenAI API...');
@@ -70,11 +70,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Transform the following text into a clear and organized format with bullet points.'
+            content: 'Transform the following text according to the given instructions.'
           },
           { 
             role: 'user', 
-            content: prompt
+            content: finalPrompt
           }
         ],
         temperature: 0.7,
@@ -116,7 +116,8 @@ serve(async (req) => {
         title, 
         content: processedContent,
         styleId,
-        originalTranscript: transcript 
+        originalTranscript: transcript,
+        fullPrompt: finalPrompt // Include the full prompt in the response
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

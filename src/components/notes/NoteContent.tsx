@@ -35,10 +35,10 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         <div className="space-y-6">
           {/* Input sent to OpenAI */}
           <div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Input Sent to OpenAI:</h3>
+            <h3 className="text-lg font-medium text-gray-600 mb-2">Complete Prompt Sent to OpenAI:</h3>
             <div className="bg-gray-50 rounded-lg p-6">
               <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono">
-                {note.original_transcript}
+                {note.full_prompt || note.original_transcript}
               </pre>
             </div>
           </div>
