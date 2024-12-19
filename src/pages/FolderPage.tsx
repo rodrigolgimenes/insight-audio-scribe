@@ -30,7 +30,7 @@ const FolderPage = () => {
       const { data, error } = await supabase
         .from("notes_folders")
         .select(`
-          notes (
+          note:notes (
             id,
             title,
             content,
@@ -40,7 +40,7 @@ const FolderPage = () => {
         .eq("folder_id", folderId);
 
       if (error) throw error;
-      return data.map((item) => item.notes);
+      return data.map((item) => item.note);
     },
   });
 
