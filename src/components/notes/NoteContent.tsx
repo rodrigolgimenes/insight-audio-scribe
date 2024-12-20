@@ -28,36 +28,26 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         </div>
       )}
 
-      {/* Generated Text Output */}
+      {/* Debug Information */}
       <div className="border-t pt-8">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">Generated Text Output</h2>
-        <div className="bg-gray-50 rounded-lg p-6">
-          <div className="whitespace-pre-wrap text-gray-700">
-            {note.processed_content}
-          </div>
-        </div>
-      </div>
-
-      {/* OpenAI Debug Info */}
-      <div className="border-t pt-8">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4">OpenAI Debug Info</h2>
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">Debug Information</h2>
         
         <div className="space-y-6">
-          {/* Input sent to OpenAI */}
+          {/* Complete Prompt */}
           <div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Complete Prompt Sent to OpenAI:</h3>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">Complete Prompt:</h3>
             <div className="bg-gray-50 rounded-lg p-6">
-              <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono">
-                {note.full_prompt || note.original_transcript}
+              <pre className="whitespace-pre-wrap text-sm font-mono text-gray-700">
+                {note.full_prompt || "Transforme o seguinte texto em uma lista de bullet points claros e concisos:\n\n" + note.original_transcript}
               </pre>
             </div>
           </div>
 
-          {/* Output received from OpenAI */}
+          {/* OpenAI Response */}
           <div>
-            <h3 className="text-lg font-medium text-gray-600 mb-2">Output Received from OpenAI:</h3>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">OpenAI Response:</h3>
             <div className="bg-gray-50 rounded-lg p-6">
-              <pre className="whitespace-pre-wrap text-sm text-gray-600 font-mono">
+              <pre className="whitespace-pre-wrap text-sm font-mono text-gray-700">
                 {note.processed_content}
               </pre>
             </div>
