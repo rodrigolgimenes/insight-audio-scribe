@@ -13,13 +13,17 @@ export const useNoteData = () => {
   const { data: note, isLoading: isLoadingNote } = useQuery({
     queryKey: ["note", noteId],
     queryFn: async () => {
+      console.log("Fetching note with ID:", noteId); // Debug log
       const { data, error } = await supabase
         .from("notes")
         .select("*, notes_tags(tag_id), notes_folders(folder_id)")
         .eq("id", noteId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching note:", error); // Debug log
+        throw error;
+      }
       return data as Note;
     },
   });
@@ -27,6 +31,7 @@ export const useNoteData = () => {
   const { data: folders } = useQuery({
     queryKey: ["folders"],
     queryFn: async () => {
+      console.log("Fetching folders"); // Debug log
       const { data, error } = await supabase
         .from("folders")
         .select("*")
@@ -40,13 +45,17 @@ export const useNoteData = () => {
   const { data: currentFolder } = useQuery({
     queryKey: ["note-folder", noteId],
     queryFn: async () => {
+      console.log("Fetching current folder for note:", noteId); // Debug log
       const { data, error } = await supabase
         .from("notes_folders")
         .select("folder_id")
         .eq("note_id", noteId)
         .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching folder:", error); // Debug log
+        throw error;
+      }
       return data;
     },
   });
