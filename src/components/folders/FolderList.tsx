@@ -23,8 +23,16 @@ export function FolderList() {
         .select("*")
         .order("created_at", { ascending: true });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error("Error fetching folders:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load folders. Please try again.",
+          variant: "destructive",
+        });
+        return [];
+      }
+      return data || [];
     },
   });
 
@@ -38,36 +46,38 @@ export function FolderList() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("folders")
-      .insert({
-        name: newFolderName.trim(),
-        user_id: session.user.id,
-      })
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("folders")
+        .insert({
+          name: newFolderName.trim(),
+          user_id: session.user.id,
+        })
+        .select()
+        .single();
 
-    if (error) {
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Folder created successfully",
+      });
+
+      setNewFolderName("");
+      setIsCreating(false);
+      await refetchFolders();
+      
+      // Navigate to the new folder
+      if (data) {
+        navigate(`/app/folder/${data.id}`);
+      }
+    } catch (error) {
+      console.error("Error creating folder:", error);
       toast({
         title: "Error creating folder",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Please try again",
         variant: "destructive",
       });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "Folder created successfully",
-    });
-
-    setNewFolderName("");
-    setIsCreating(false);
-    await refetchFolders();
-    
-    // Navigate to the new folder
-    if (data) {
-      navigate(`/app/folder/${data.id}`);
     }
   };
 
@@ -93,7 +103,10 @@ export function FolderList() {
             onChange={(e) => setNewFolderName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") createFolder();
-              if (e.key === "Escape") setIsCreating(false);
+              if (e.key === "Escape") {
+                setIsCreating(false);
+                setNewFolderName("");
+              }
             }}
             autoFocus
           />
