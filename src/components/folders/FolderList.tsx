@@ -37,10 +37,19 @@ export function FolderList() {
   });
 
   const createFolder = async () => {
-    if (!newFolderName.trim() || !session?.user.id) {
+    if (!newFolderName.trim()) {
       toast({
         title: "Error",
         description: "Please enter a folder name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to create folders",
         variant: "destructive",
       });
       return;
@@ -56,7 +65,10 @@ export function FolderList() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating folder:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
