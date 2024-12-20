@@ -29,12 +29,23 @@ export function FolderList() {
   });
 
   const createFolder = async () => {
-    if (!newFolderName.trim() || !session?.user.id) return;
+    if (!newFolderName.trim() || !session?.user.id) {
+      toast({
+        title: "Error",
+        description: "Please enter a folder name",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const { error } = await supabase.from("folders").insert({
-      name: newFolderName.trim(),
-      user_id: session.user.id,
-    });
+    const { data, error } = await supabase
+      .from("folders")
+      .insert({
+        name: newFolderName.trim(),
+        user_id: session.user.id,
+      })
+      .select()
+      .single();
 
     if (error) {
       toast({
@@ -46,13 +57,18 @@ export function FolderList() {
     }
 
     toast({
-      title: "Folder created",
-      description: "Your folder has been created successfully.",
+      title: "Success",
+      description: "Folder created successfully",
     });
 
     setNewFolderName("");
     setIsCreating(false);
-    refetchFolders();
+    await refetchFolders();
+    
+    // Navigate to the new folder
+    if (data) {
+      navigate(`/app/folder/${data.id}`);
+    }
   };
 
   return (
@@ -79,6 +95,7 @@ export function FolderList() {
               if (e.key === "Enter") createFolder();
               if (e.key === "Escape") setIsCreating(false);
             }}
+            autoFocus
           />
           <div className="flex gap-2">
             <Button
@@ -93,7 +110,10 @@ export function FolderList() {
               size="sm"
               variant="ghost"
               className="w-full"
-              onClick={() => setIsCreating(false)}
+              onClick={() => {
+                setIsCreating(false);
+                setNewFolderName("");
+              }}
             >
               Cancel
             </Button>
