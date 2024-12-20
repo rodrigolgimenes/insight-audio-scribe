@@ -17,7 +17,7 @@ export const useNoteData = () => {
         .from("notes")
         .select("*, notes_tags(tag_id), notes_folders(folder_id)")
         .eq("id", noteId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data as Note;
