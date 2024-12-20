@@ -18,18 +18,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 
 const queryClient = new QueryClient();
 
-// Protected route component
+// Temporarily modified to bypass authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth();
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!session) {
-    return <Navigate to="/login" />;
-  }
-
   return <>{children}</>;
 };
 
