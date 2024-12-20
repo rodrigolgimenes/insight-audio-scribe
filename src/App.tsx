@@ -8,6 +8,7 @@ import { LoginPage } from "@/components/auth/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import Record from "./pages/Record";
 import NotePage from "./pages/NotePage";
+import NotesRecord from "./pages/NotesRecord";
 import FolderPage from "./pages/FolderPage";
 import StylesPage from "./pages/StylesPage";
 import TestPage from "./pages/TestPage";
@@ -54,6 +55,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <NotePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/notes-record"
+              element={
+                <ProtectedRoute>
+                  <NotesRecord />
                 </ProtectedRoute>
               }
             />
