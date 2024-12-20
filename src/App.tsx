@@ -7,6 +7,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import Record from "./pages/Record";
+import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
 import NotesRecord from "./pages/NotesRecord";
 import RecordingsPage from "./pages/RecordingsPage";
@@ -86,6 +87,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Record />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/simple-record"
+              element={
+                <ProtectedRoute>
+                  <SimpleRecord />
                 </ProtectedRoute>
               }
             />
