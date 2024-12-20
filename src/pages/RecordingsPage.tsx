@@ -11,14 +11,11 @@ import { formatDistanceToNow } from "date-fns";
 
 interface Note {
   processed_content: string;
-}
-
-interface Tag {
-  name: string;
-}
-
-interface NoteTag {
-  tags: Tag;
+  notes_tags: {
+    tags: {
+      name: string;
+    };
+  }[];
 }
 
 interface Recording {
@@ -28,7 +25,6 @@ interface Recording {
   created_at: string;
   file_path: string;
   notes: Note[];
-  notes_tags: NoteTag[];
 }
 
 const RecordingsPage = () => {
@@ -44,11 +40,11 @@ const RecordingsPage = () => {
         .select(`
           *,
           notes (
-            processed_content
-          ),
-          notes_tags (
-            tags (
-              name
+            processed_content,
+            notes_tags (
+              tags (
+                name
+              )
             )
           )
         `)
@@ -116,7 +112,7 @@ const RecordingsPage = () => {
                 {recording.notes?.[0]?.processed_content || "No content available"}
               </p>
               <div className="flex flex-wrap gap-2">
-                {recording.notes_tags?.map(({ tags }) => (
+                {recording.notes?.[0]?.notes_tags?.map(({ tags }) => (
                   <span
                     key={tags?.name}
                     className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
