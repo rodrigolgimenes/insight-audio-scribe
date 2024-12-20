@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Note } from "@/types/notes";
+import { Note } from "@/integrations/supabase/types/notes";
 
 export const useNoteData = () => {
   const { noteId } = useParams();
