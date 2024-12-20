@@ -181,29 +181,41 @@ export type Database = {
       }
       recordings: {
         Row: {
+          audio_url: string | null
           created_at: string
           duration: number | null
           file_path: string
           id: string
+          status: string | null
+          summary: string | null
           title: string
+          transcription: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          audio_url?: string | null
           created_at?: string
           duration?: number | null
           file_path: string
           id?: string
+          status?: string | null
+          summary?: string | null
           title: string
+          transcription?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          audio_url?: string | null
           created_at?: string
           duration?: number | null
           file_path?: string
           id?: string
+          status?: string | null
+          summary?: string | null
           title?: string
+          transcription?: string | null
           updated_at?: string
           user_id?: string
         }
