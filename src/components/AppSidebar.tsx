@@ -28,7 +28,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
     { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
     { icon: FileText, label: "Notes", href: "/app", id: "notes" },
     { icon: Paintbrush, label: "Styles", href: "/app/styles", id: "styles" },
-    { icon: Headphones, label: "Recordings", href: "#", id: "recordings" },
+    { icon: Headphones, label: "Recordings", href: "/app/recordings", id: "recordings" },
     { icon: Settings, label: "Settings", href: "#", id: "settings" },
   ];
 
