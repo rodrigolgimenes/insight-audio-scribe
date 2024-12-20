@@ -19,8 +19,9 @@ import { useAuth } from "@/components/auth/AuthProvider";
 
 const queryClient = new QueryClient();
 
-// Temporarily modified to bypass authentication
+// Modified to completely bypass authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  // Temporarily bypass all authentication checks
   return <>{children}</>;
 };
 
