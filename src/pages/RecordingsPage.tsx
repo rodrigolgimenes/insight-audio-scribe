@@ -9,14 +9,26 @@ import { Play, Pencil, Trash2, Share2, Clock, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
+interface Note {
+  processed_content: string;
+}
+
+interface Tag {
+  name: string;
+}
+
+interface NoteTag {
+  tags: Tag;
+}
+
 interface Recording {
   id: string;
   title: string;
   duration: number | null;
   created_at: string;
   file_path: string;
-  processed_content?: string;
-  tags?: { name: string }[];
+  notes: Note[];
+  notes_tags: NoteTag[];
 }
 
 const RecordingsPage = () => {
