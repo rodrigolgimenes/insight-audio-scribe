@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Record from "./pages/Record";
 import NotePage from "./pages/NotePage";
 import NotesRecord from "./pages/NotesRecord";
+import RecordingsPage from "./pages/RecordingsPage";
 import FolderPage from "./pages/FolderPage";
 import StylesPage from "./pages/StylesPage";
 import TestPage from "./pages/TestPage";
@@ -59,10 +60,18 @@ const App = () => (
               }
             />
             <Route
-              path="/app/notes-record"
+              path="/app/notes-record/:recordingId"
               element={
                 <ProtectedRoute>
                   <NotesRecord />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/recordings"
+              element={
+                <ProtectedRoute>
+                  <RecordingsPage />
                 </ProtectedRoute>
               }
             />
