@@ -32,6 +32,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Update recording status to processing
+    console.log('Updating recording status to processing...');
     const { error: statusError } = await supabase
       .from('recordings')
       .update({ status: 'processing' })
@@ -43,6 +44,7 @@ serve(async (req) => {
     }
 
     // Get recording details
+    console.log('Fetching recording details...');
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
       .select('*')
@@ -57,6 +59,7 @@ serve(async (req) => {
     console.log('Found recording:', recording);
 
     // Download the audio file
+    console.log('Downloading audio file...');
     const { data: audioData, error: downloadError } = await supabase.storage
       .from('audio_recordings')
       .download(recording.file_path);
@@ -92,6 +95,21 @@ serve(async (req) => {
     const transcription = await whisperResponse.json();
     console.log('Transcription received:', transcription.text?.substring(0, 100) + '...');
 
+    // First, update the recording with the transcription
+    console.log('Updating recording with transcription...');
+    const { error: transcriptionUpdateError } = await supabase
+      .from('recordings')
+      .update({
+        transcription: transcription.text,
+        status: 'transcribed'
+      })
+      .eq('id', recordingId);
+
+    if (transcriptionUpdateError) {
+      console.error('Error updating transcription:', transcriptionUpdateError);
+      throw new Error(`Failed to save transcription: ${transcriptionUpdateError.message}`);
+    }
+
     // Process transcription with GPT
     console.log('Processing transcription with GPT...');
     const gptPrompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
@@ -117,7 +135,7 @@ Please format your response in a clear, structured way with headers for each sec
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',
         messages: [
           { role: 'user', content: gptPrompt }
         ],
@@ -134,12 +152,13 @@ Please format your response in a clear, structured way with headers for each sec
 
     const gptData = await gptResponse.json();
     const processedContent = gptData.choices[0].message.content;
+    console.log('GPT processed content:', processedContent.substring(0, 100) + '...');
 
-    // Update recording with transcription and processed content
+    // Update recording with processed content and status
+    console.log('Updating recording with processed content...');
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
-        transcription: transcription.text,
         summary: processedContent,
         status: 'completed'
       })
@@ -150,25 +169,7 @@ Please format your response in a clear, structured way with headers for each sec
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
-    console.log('Successfully updated recording with transcription and summary');
-
-    // Create note with processed content
-    const { error: noteError } = await supabase
-      .from('notes')
-      .insert({
-        user_id: recording.user_id,
-        recording_id: recordingId,
-        title: recording.title,
-        processed_content: processedContent,
-        original_transcript: transcription.text,
-      });
-
-    if (noteError) {
-      console.error('Error creating note:', noteError);
-      throw new Error(`Failed to create note: ${noteError.message}`);
-    }
-
-    console.log('Successfully created note');
+    console.log('Successfully updated recording with processed content');
 
     return new Response(
       JSON.stringify({ 
@@ -204,10 +205,10 @@ Please format your response in a clear, structured way with headers for each sec
 
     return new Response(
       JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
-      }),
-      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+      }), 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
