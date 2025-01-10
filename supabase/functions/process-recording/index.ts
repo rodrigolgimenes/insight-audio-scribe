@@ -31,6 +31,17 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Update recording status to processing
+    const { error: statusError } = await supabase
+      .from('recordings')
+      .update({ status: 'processing' })
+      .eq('id', recordingId);
+
+    if (statusError) {
+      console.error('Error updating recording status:', statusError);
+      throw new Error(`Failed to update recording status: ${statusError.message}`);
+    }
+
     // Get recording details
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
@@ -169,6 +180,28 @@ Please format your response in a clear, structured way with headers for each sec
     );
   } catch (error) {
     console.error('Error in process-recording function:', error);
+    
+    // Try to update the recording status to error if possible
+    try {
+      const { recordingId } = await req.json();
+      if (recordingId) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          await supabase
+            .from('recordings')
+            .update({ 
+              status: 'error',
+              error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
+            })
+            .eq('id', recordingId);
+        }
+      }
+    } catch (updateError) {
+      console.error('Failed to update recording status to error:', updateError);
+    }
+
     return new Response(
       JSON.stringify({ 
         success: false,
