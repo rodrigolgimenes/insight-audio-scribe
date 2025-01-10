@@ -12,79 +12,57 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Step 1: Receiving request data...');
     const { transcript } = await req.json();
-    console.log('Received transcript:', transcript);
-
+    
     if (!transcript) {
       throw new Error('Transcript is required');
     }
 
-    // Step 2: Prepare the prompt with explicit formatting instruction
-    console.log('\nStep 2: Preparing prompt...');
-    const formattingInstruction = "Transforme o seguinte texto em uma lista de bullet points claros e concisos:\n\n";
-    const finalPrompt = formattingInstruction + transcript;
-    console.log('Final prompt with formatting instruction:', finalPrompt);
+    const prompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
 
-    // Step 3: Call OpenAI API
-    console.log('\nStep 3: Calling OpenAI API...');
-    try {
-      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { 
-              role: 'user', 
-              content: finalPrompt
-            }
-          ],
-          temperature: 1,
-          max_tokens: 2048,
-          top_p: 1,
-          frequency_penalty: 0,
-          presence_penalty: 0
-        }),
-      });
+1. Summary
+2. Project Background
+3. Anticipated Challenges
+4. Potential Solutions
+5. Risks
+6. Preventative Actions
+7. Assigning Responsibility
+8. Next Steps
 
-      if (!openAIResponse.ok) {
-        const errorData = await openAIResponse.json();
-        console.error('OpenAI API error response:', errorData);
-        throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-      }
+Transcript:
+${transcript}`;
 
-      // Step 4: Process OpenAI response
-      console.log('\nStep 4: Processing OpenAI response...');
-      const openAIData = await openAIResponse.json();
-      console.log('OpenAI response status:', openAIResponse.status);
-      console.log('Full OpenAI response:', JSON.stringify(openAIData, null, 2));
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
+    });
 
-      if (!openAIData.choices?.[0]?.message?.content) {
-        console.error('Invalid OpenAI response structure:', openAIData);
-        throw new Error('Failed to process text: Invalid response format from OpenAI');
-      }
-
-      const processedContent = openAIData.choices[0].message.content;
-      console.log('Processed content length:', processedContent.length);
-      console.log('First 100 chars of processed content:', processedContent.substring(0, 100));
-
-      // Step 5: Send response
-      console.log('\nStep 5: Sending response back to client...');
-      return new Response(
-        JSON.stringify({ 
-          content: processedContent,
-          fullPrompt: finalPrompt
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    } catch (error) {
-      console.error('Error in OpenAI API call:', error);
-      throw error;
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.json();
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
+
+    const openAIData = await openAIResponse.json();
+    const processedContent = openAIData.choices[0].message.content;
+
+    return new Response(
+      JSON.stringify({ 
+        content: processedContent,
+        fullPrompt: prompt
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
   } catch (error) {
     console.error('Error in process-with-style function:', error);
     return new Response(

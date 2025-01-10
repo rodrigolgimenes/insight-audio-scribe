@@ -55,8 +55,79 @@ const SimpleRecord = () => {
       });
       return;
     }
-    // Use the first style as default
-    handleStopRecording();
+
+    try {
+      const { blob, duration } = await audioRecorder.current.stopRecording();
+      setIsRecording(false);
+      setIsPaused(false);
+      setMediaStream(null);
+
+      const fileName = `${Date.now()}.webm`;
+      
+      // Upload audio file
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
+      }
+
+      // Save recording metadata
+      const { error: dbError, data: recordingData } = await supabase
+        .from('recordings')
+        .insert({
+          title: `Recording ${new Date().toLocaleString()}`,
+          duration,
+          file_path: fileName,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw new Error(`Failed to save recording: ${dbError.message}`);
+      }
+
+      // Transcribe audio
+      const { error: transcriptionError, data: transcriptionData } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { recordingId: recordingData.id },
+        });
+
+      if (transcriptionError) {
+        throw new Error(`Transcription failed: ${transcriptionError.message}`);
+      }
+
+      // Process transcription with GPT
+      const { error: processError, data: processData } = await supabase.functions
+        .invoke('process-with-style', {
+          body: { 
+            transcript: transcriptionData.transcription,
+            styleId: styles[0].id 
+          },
+        });
+
+      if (processError) {
+        throw new Error(`Processing failed: ${processError.message}`);
+      }
+
+      toast({
+        title: "Success",
+        description: "Recording saved and processed successfully!",
+      });
+      
+      navigate(`/app/notes-record/${recordingData.id}`);
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save recording",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleTimeLimit = () => {
@@ -106,7 +177,10 @@ const SimpleRecord = () => {
                 <ProcessedContentSection
                   processedContent={processedContent}
                   transcript={transcript}
-                  processMutation={null}
+                  processMutation={{
+                    isPending: false,
+                    mutate: () => {},
+                  }}
                 />
               )}
             </div>
