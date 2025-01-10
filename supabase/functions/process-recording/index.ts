@@ -43,6 +43,8 @@ serve(async (req) => {
       throw new Error('Recording not found');
     }
 
+    console.log('Found recording:', recording);
+
     // Download the audio file
     const { data: audioData, error: downloadError } = await supabase.storage
       .from('audio_recordings')
@@ -52,6 +54,8 @@ serve(async (req) => {
       console.error('Error downloading audio:', downloadError);
       throw new Error('Failed to download audio file');
     }
+
+    console.log('Successfully downloaded audio file');
 
     // Transcribe audio using Whisper
     console.log('Transcribing audio with Whisper...');
@@ -135,6 +139,8 @@ Please format your response in a clear, structured way with headers for each sec
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
+    console.log('Successfully updated recording with transcription and summary');
+
     // Create note with processed content
     const { error: noteError } = await supabase
       .from('notes')
@@ -151,7 +157,8 @@ Please format your response in a clear, structured way with headers for each sec
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
-    console.log('Processing completed successfully');
+    console.log('Successfully created note');
+
     return new Response(
       JSON.stringify({ 
         success: true,

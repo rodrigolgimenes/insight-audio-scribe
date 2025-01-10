@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Play, Pencil, Trash2, Share2, Clock, Calendar } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -26,6 +26,9 @@ interface Recording {
   duration: number | null;
   created_at: string;
   file_path: string;
+  transcription: string | null;
+  summary: string | null;
+  status: string;
   notes: Note[];
 }
 
@@ -121,9 +124,24 @@ const RecordingsPage = () => {
                     <CardTitle className="text-xl">{recording.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-gray-600 line-clamp-3">
-                      {recording.notes?.[0]?.processed_content || "No content available"}
-                    </p>
+                    {recording.status === 'completed' ? (
+                      <>
+                        <div className="text-sm text-gray-600">
+                          <h3 className="font-semibold mb-1">Transcription:</h3>
+                          <p className="line-clamp-3">{recording.transcription}</p>
+                        </div>
+                        {recording.summary && (
+                          <div className="text-sm text-gray-600">
+                            <h3 className="font-semibold mb-1">Summary:</h3>
+                            <p className="line-clamp-3">{recording.summary}</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        {recording.status === 'pending' ? 'Processing...' : 'No content available'}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       {recording.notes?.[0]?.notes_tags?.map(({ tags }) => (
                         <span
