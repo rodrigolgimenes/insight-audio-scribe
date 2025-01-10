@@ -68,6 +68,7 @@ const SimpleRecord = () => {
       
       console.log('Creating recording with user ID:', userId);
 
+      // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
@@ -87,13 +88,10 @@ const SimpleRecord = () => {
 
       console.log('Recording saved:', recordingData);
 
-      // Process transcription with GPT
-      const { error: processError, data: processData } = await supabase.functions
-        .invoke('process-with-style', {
-          body: { 
-            transcript: "Sample transcript for testing",
-            styleId: styles[0].id 
-          },
+      // Process the recording
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { recordingId: recordingData.id },
         });
 
       if (processError) {
@@ -101,11 +99,11 @@ const SimpleRecord = () => {
         throw new Error(`Processing failed: ${processError.message}`);
       }
 
-      console.log('Processing completed:', processData);
+      console.log('Processing initiated');
 
       toast({
         title: "Success",
-        description: "Recording saved and processed successfully!",
+        description: "Recording saved and processing started!",
       });
       
       if (recordingData) {
