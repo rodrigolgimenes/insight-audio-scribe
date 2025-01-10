@@ -20,7 +20,6 @@ serve(async (req) => {
       throw new Error('Recording ID is required');
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -31,7 +30,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Update recording status to processing
     console.log('Updating recording status to processing...');
     const { error: statusError } = await supabase
       .from('recordings')
@@ -43,7 +41,6 @@ serve(async (req) => {
       throw new Error(`Failed to update recording status: ${statusError.message}`);
     }
 
-    // Get recording details
     console.log('Fetching recording details...');
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
@@ -58,20 +55,60 @@ serve(async (req) => {
 
     console.log('Found recording:', recording);
 
-    // Download the audio file
     console.log('Downloading audio file...');
     const { data: audioData, error: downloadError } = await supabase.storage
       .from('audio_recordings')
       .download(recording.file_path);
 
-    if (downloadError || !audioData) {
+    if (downloadError) {
       console.error('Error downloading audio:', downloadError);
-      throw new Error('Failed to download audio file');
+      // Update recording status to indicate no audio was captured
+      await supabase
+        .from('recordings')
+        .update({
+          status: 'completed',
+          transcription: 'No audio was captured in this recording.',
+          summary: 'This recording contains no audio data.'
+        })
+        .eq('id', recordingId);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          message: 'No audio data available',
+          transcription: 'No audio was captured in this recording.',
+          processedContent: 'This recording contains no audio data.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!audioData || audioData.size === 0) {
+      console.log('Audio file is empty');
+      // Update recording status to indicate empty audio
+      await supabase
+        .from('recordings')
+        .update({
+          status: 'completed',
+          transcription: 'The recording is empty. No audio was captured.',
+          summary: 'This recording contains no audio data.'
+        })
+        .eq('id', recordingId);
+
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          message: 'Empty audio file',
+          transcription: 'The recording is empty. No audio was captured.',
+          processedContent: 'This recording contains no audio data.'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('Successfully downloaded audio file');
 
-    // Transcribe audio using Whisper
+    // Continue with normal processing for valid audio files
     console.log('Transcribing audio with Whisper...');
     const formData = new FormData();
     formData.append('file', audioData, 'audio.webm');
@@ -95,7 +132,7 @@ serve(async (req) => {
     const transcription = await whisperResponse.json();
     console.log('Transcription received:', transcription.text?.substring(0, 100) + '...');
 
-    // First, update the recording with the transcription
+    // Update recording with transcription
     console.log('Updating recording with transcription...');
     const { error: transcriptionUpdateError } = await supabase
       .from('recordings')
@@ -110,7 +147,7 @@ serve(async (req) => {
       throw new Error(`Failed to save transcription: ${transcriptionUpdateError.message}`);
     }
 
-    // Process transcription with GPT
+    // Process with GPT
     console.log('Processing transcription with GPT...');
     const gptPrompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
 
@@ -154,7 +191,7 @@ Please format your response in a clear, structured way with headers for each sec
     const processedContent = gptData.choices[0].message.content;
     console.log('GPT processed content:', processedContent.substring(0, 100) + '...');
 
-    // Update recording with processed content and status
+    // Update recording with processed content
     console.log('Updating recording with processed content...');
     const { error: updateError } = await supabase
       .from('recordings')
@@ -182,7 +219,6 @@ Please format your response in a clear, structured way with headers for each sec
   } catch (error) {
     console.error('Error in process-recording function:', error);
     
-    // Try to update the recording status to error if possible
     try {
       const { recordingId } = await req.json();
       if (recordingId) {

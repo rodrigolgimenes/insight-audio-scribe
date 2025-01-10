@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, Pencil, Trash2, Share2, Clock, Calendar } from "lucide-react";
+import { Play, Pencil, Trash2, Share2, Clock, Calendar, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -89,6 +89,18 @@ const RecordingsPage = () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  const getStatusMessage = (recording: Recording) => {
+    if (recording.status === 'completed' && recording.transcription?.includes('No audio was captured')) {
+      return (
+        <div className="flex items-center gap-2 text-yellow-600">
+          <AlertCircle className="h-4 w-4" />
+          <span>No audio was captured in this recording</span>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (isLoading) {
     return (
       <SidebarProvider>
@@ -124,7 +136,8 @@ const RecordingsPage = () => {
                     <CardTitle className="text-xl">{recording.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {recording.status === 'completed' ? (
+                    {getStatusMessage(recording)}
+                    {recording.status === 'completed' && !recording.transcription?.includes('No audio was captured') && (
                       <>
                         <div className="text-sm text-gray-600">
                           <h3 className="font-semibold mb-1">Transcription:</h3>
@@ -137,10 +150,6 @@ const RecordingsPage = () => {
                           </div>
                         )}
                       </>
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        {recording.status === 'pending' ? 'Processing...' : 'No content available'}
-                      </p>
                     )}
                     <div className="flex flex-wrap gap-2">
                       {recording.notes?.[0]?.notes_tags?.map(({ tags }) => (
