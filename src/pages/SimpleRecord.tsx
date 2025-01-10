@@ -57,46 +57,58 @@ const SimpleRecord = () => {
     }
 
     try {
+      // Stop the recording first if it's still active
+      if (isRecording) {
+        await handleStopRecording();
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
+      const defaultUserId = '00000000-0000-0000-0000-000000000000';
+      const userId = user?.id || defaultUserId;
       
-      if (!user?.id) {
-        // For development, use a default user ID
-        const defaultUserId = '00000000-0000-0000-0000-000000000000';
-        console.warn('No authenticated user found, using default user ID:', defaultUserId);
-        
-        const { error: dbError, data: recordingData } = await supabase
-          .from('recordings')
-          .insert({
-            title: `Recording ${new Date().toLocaleString()}`,
-            duration: 0,
-            file_path: 'temp-path',
-            user_id: defaultUserId,
-          })
-          .select()
-          .single();
+      console.log('Creating recording with user ID:', userId);
 
-        if (dbError) {
-          throw new Error(`Failed to save recording: ${dbError.message}`);
-        }
+      const { error: dbError, data: recordingData } = await supabase
+        .from('recordings')
+        .insert({
+          title: `Recording ${new Date().toLocaleString()}`,
+          duration: 0,
+          file_path: 'temp-path',
+          user_id: userId,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-        // Process transcription with GPT
-        const { error: processError, data: processData } = await supabase.functions
-          .invoke('process-with-style', {
-            body: { 
-              transcript: "Sample transcript for testing",
-              styleId: styles[0].id 
-            },
-          });
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw new Error(`Failed to save recording: ${dbError.message}`);
+      }
 
-        if (processError) {
-          throw new Error(`Processing failed: ${processError.message}`);
-        }
+      console.log('Recording saved:', recordingData);
 
-        toast({
-          title: "Success",
-          description: "Recording saved and processed successfully!",
+      // Process transcription with GPT
+      const { error: processError, data: processData } = await supabase.functions
+        .invoke('process-with-style', {
+          body: { 
+            transcript: "Sample transcript for testing",
+            styleId: styles[0].id 
+          },
         });
-        
+
+      if (processError) {
+        console.error('Processing error:', processError);
+        throw new Error(`Processing failed: ${processError.message}`);
+      }
+
+      console.log('Processing completed:', processData);
+
+      toast({
+        title: "Success",
+        description: "Recording saved and processed successfully!",
+      });
+      
+      if (recordingData) {
         navigate(`/app/notes-record/${recordingData.id}`);
       }
     } catch (error) {
@@ -145,7 +157,7 @@ const SimpleRecord = () => {
                     <Button 
                       className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
                       onClick={handleSave}
-                      disabled={!isRecording || isSaving}
+                      disabled={isSaving}
                     >
                       <Mic className="w-4 h-4" />
                       {isSaving ? 'Saving...' : 'Create note'}
