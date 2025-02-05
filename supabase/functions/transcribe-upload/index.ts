@@ -39,6 +39,12 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Update recording status to processing
+    await supabase
+      .from('recordings')
+      .update({ status: 'processing' })
+      .eq('id', recordingId);
+
     // Convert file to audio if it's a video
     let audioFile = file;
     if (file.type.startsWith('video/')) {
@@ -51,7 +57,18 @@ serve(async (req) => {
         const uint8Array = new Uint8Array(arrayBuffer);
         
         ffmpeg.FS('writeFile', 'input.mp4', uint8Array);
-        await ffmpeg.run('-i', 'input.mp4', '-vn', '-acodec', 'libmp3lame', '-ar', '44100', '-ac', '2', '-b:a', '192k', 'output.mp3');
+        
+        // Enhanced FFmpeg settings for better audio extraction
+        await ffmpeg.run(
+          '-i', 'input.mp4',
+          '-vn',                // Remove video stream
+          '-acodec', 'libmp3lame', // Use MP3 codec
+          '-ar', '44100',       // Audio sample rate
+          '-ac', '2',           // Stereo audio
+          '-b:a', '192k',       // Bitrate
+          '-af', 'silenceremove=1:0:-50dB', // Remove silence
+          'output.mp3'
+        );
         
         const audioData = ffmpeg.FS('readFile', 'output.mp3');
         audioFile = new File([audioData], 'audio.mp3', { type: 'audio/mpeg' });
@@ -63,6 +80,16 @@ serve(async (req) => {
         console.log('Video successfully converted to audio');
       } catch (error) {
         console.error('Error converting video to audio:', error);
+        
+        // Update recording status to error
+        await supabase
+          .from('recordings')
+          .update({ 
+            status: 'error',
+            error_message: `Failed to convert video to audio: ${error.message}`
+          })
+          .eq('id', recordingId);
+          
         throw new Error(`Failed to convert video to audio: ${error.message}`);
       }
     }
@@ -72,10 +99,24 @@ serve(async (req) => {
     const filePath = `${recordingId}/${crypto.randomUUID()}.${audioFile.name.split('.').pop()}`;
     const { error: uploadError } = await supabase.storage
       .from('audio_recordings')
-      .upload(filePath, audioFile);
+      .upload(filePath, audioFile, {
+        contentType: audioFile.type,
+        cacheControl: '3600',
+        upsert: false
+      });
 
     if (uploadError) {
       console.error('Error uploading file:', uploadError);
+      
+      // Update recording status to error
+      await supabase
+        .from('recordings')
+        .update({ 
+          status: 'error',
+          error_message: `Failed to upload file: ${uploadError.message}`
+        })
+        .eq('id', recordingId);
+        
       throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
@@ -90,7 +131,7 @@ serve(async (req) => {
       .update({
         file_path: filePath,
         audio_url: publicUrl,
-        status: 'processing'
+        status: 'transcribing'
       })
       .eq('id', recordingId);
 
@@ -118,6 +159,16 @@ serve(async (req) => {
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.json();
       console.error('OpenAI API error:', errorData);
+      
+      // Update recording status to error
+      await supabase
+        .from('recordings')
+        .update({ 
+          status: 'error',
+          error_message: `OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`
+        })
+        .eq('id', recordingId);
+        
       throw new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
     }
 
@@ -157,6 +208,16 @@ Please format your response in a clear, structured way with headers for each sec
     if (!gptResponse.ok) {
       const errorData = await gptResponse.json();
       console.error('GPT API error:', errorData);
+      
+      // Update recording status to error
+      await supabase
+        .from('recordings')
+        .update({ 
+          status: 'error',
+          error_message: `GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`
+        })
+        .eq('id', recordingId);
+        
       throw new Error(`GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`);
     }
 
@@ -178,7 +239,7 @@ Please format your response in a clear, structured way with headers for each sec
       throw new Error(`Failed to update recording: ${finalUpdateError.message}`);
     }
 
-    // Create note
+    // Get recording data for user ID
     const { data: recordingData } = await supabase
       .from('recordings')
       .select('user_id')
@@ -189,6 +250,7 @@ Please format your response in a clear, structured way with headers for each sec
       throw new Error('Recording not found');
     }
 
+    // Create note
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
