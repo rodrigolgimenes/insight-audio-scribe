@@ -38,7 +38,7 @@ A ata deve conter as seguintes seções:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: 'You are a helpful assistant that generates meeting minutes in Portuguese.' },
           { role: 'user', content: prompt }
@@ -47,6 +47,12 @@ A ata deve conter as seguintes seções:
     });
 
     const data = await openAIResponse.json();
+    console.log('OpenAI response:', data);
+
+    if (!data.choices?.[0]?.message?.content) {
+      throw new Error('Invalid response from OpenAI');
+    }
+
     const minutes = data.choices[0].message.content;
 
     return new Response(JSON.stringify({ minutes }), {
@@ -55,6 +61,8 @@ A ata deve conter as seguintes seções:
   } catch (error) {
     console.error('Error generating meeting minutes:', error);
     return new Response(JSON.stringify({
+      error: error.message || 'Error generating meeting minutes'
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

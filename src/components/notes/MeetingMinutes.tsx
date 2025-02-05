@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface MeetingMinutesProps {
   transcript: string | null;
@@ -11,6 +12,7 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
   const [minutes, setMinutes] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const generateMinutes = async () => {
     if (!transcript) {
@@ -22,16 +24,18 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
     setError(null);
 
     try {
-      console.log("Calling generate-meeting-minutes function with transcript:", transcript.substring(0, 100) + "...");
+      console.log('Sending transcript to OpenAI...', transcript.substring(0, 100) + '...');
       
       const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
-        body: { transcript },
+        body: { 
+          transcript: transcript
+        },
       });
 
-      console.log("Response from generate-meeting-minutes:", { data, error: functionError });
+      console.log('Response from generate-meeting-minutes:', { data, functionError });
 
       if (functionError) {
-        console.error("Function error:", functionError);
+        console.error('Error from edge function:', functionError);
         throw new Error(functionError.message || "Erro ao gerar ata da reunião");
       }
 
@@ -40,9 +44,19 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
       }
 
       setMinutes(data.minutes);
+      
+      toast({
+        title: "Sucesso",
+        description: "Ata da reunião gerada com sucesso",
+      });
     } catch (err) {
       console.error('Error generating meeting minutes:', err);
       setError("Erro ao gerar a ata da reunião. Por favor, tente novamente.");
+      toast({
+        title: "Erro",
+        description: "Falha ao gerar a ata da reunião",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
