@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,6 +8,7 @@ const corsHeaders = {
 
 interface RequestBody {
   transcript: string;
+  noteId: string;
 }
 
 serve(async (req) => {
@@ -15,10 +17,32 @@ serve(async (req) => {
   }
 
   try {
-    const { transcript } = await req.json() as RequestBody;
+    const { transcript, noteId } = await req.json() as RequestBody;
 
-    if (!transcript) {
-      throw new Error('Transcript is required');
+    if (!transcript || !noteId) {
+      throw new Error('Transcript and noteId are required');
+    }
+
+    // Check if meeting minutes already exist
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: existingMinutes } = await supabase
+      .from('meeting_minutes')
+      .select('content')
+      .eq('note_id', noteId)
+      .maybeSingle();
+
+    if (existingMinutes) {
+      return new Response(JSON.stringify({ minutes: existingMinutes.content }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const prompt = `
@@ -77,6 +101,19 @@ ${transcript}
     }
 
     const minutes = data.choices[0].message.content;
+
+    // Save the generated minutes to the database
+    const { error: insertError } = await supabase
+      .from('meeting_minutes')
+      .insert({
+        note_id: noteId,
+        content: minutes,
+      });
+
+    if (insertError) {
+      console.error('Error saving meeting minutes:', insertError);
+      throw new Error('Failed to save meeting minutes');
+    }
 
     return new Response(JSON.stringify({ minutes }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

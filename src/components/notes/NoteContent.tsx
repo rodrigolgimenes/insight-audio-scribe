@@ -17,7 +17,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       {/* Meeting Minutes section */}
       <div className="border-t pt-8">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Ata da Reunião</h2>
-        <MeetingMinutes transcript={note.original_transcript} />
+        <MeetingMinutes transcript={note.original_transcript} noteId={note.id} />
       </div>
 
       {/* Original transcript section */}

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -7,13 +7,41 @@ import ReactMarkdown from 'react-markdown';
 
 interface MeetingMinutesProps {
   transcript: string | null;
+  noteId: string;
 }
 
-export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
+export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
   const [minutes, setMinutes] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchExistingMinutes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('meeting_minutes')
+          .select('content')
+          .eq('note_id', noteId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching meeting minutes:', error);
+          return;
+        }
+
+        if (data) {
+          setMinutes(data.content);
+        }
+      } catch (err) {
+        console.error('Error fetching meeting minutes:', err);
+      }
+    };
+
+    if (noteId) {
+      fetchExistingMinutes();
+    }
+  }, [noteId]);
 
   const generateMinutes = async () => {
     if (!transcript) {
@@ -29,7 +57,8 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
       
       const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
         body: { 
-          transcript: transcript
+          transcript: transcript,
+          noteId: noteId
         },
       });
 
@@ -68,11 +97,11 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
       <div className="flex justify-between items-center">
         <Button
           onClick={generateMinutes}
-          disabled={isLoading || !transcript}
+          disabled={isLoading || !transcript || minutes !== null}
           className="gap-2"
         >
           {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-          Gerar Ata de Reunião
+          {minutes ? 'Ata já gerada' : 'Gerar Ata de Reunião'}
         </Button>
       </div>
 
@@ -105,14 +134,6 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
               >
                 {minutes}
               </ReactMarkdown>
-            </div>
-          </div>
-
-          {/* Seção de Participantes (se existir no markdown) */}
-          <div className="bg-gray-50 border rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Informações Adicionais</h3>
-            <div className="prose prose-sm max-w-none text-gray-600">
-              <ReactMarkdown>{minutes}</ReactMarkdown>
             </div>
           </div>
         </div>
