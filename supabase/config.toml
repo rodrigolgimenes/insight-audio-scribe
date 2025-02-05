@@ -16,5 +16,5 @@ port = 54323
 [functions.generate-meeting-minutes]
 verify_jwt = false
 
-[functions.generate-meeting-minutes.allowed_http_hosts]
+[functions.allowed_http_hosts]
 hosts = ["api.openai.com"]
