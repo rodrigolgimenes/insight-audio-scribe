@@ -22,11 +22,23 @@ export const MeetingMinutes = ({ transcript }: MeetingMinutesProps) => {
     setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-meeting-minutes', {
+      console.log("Calling generate-meeting-minutes function with transcript:", transcript.substring(0, 100) + "...");
+      
+      const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
         body: { transcript },
       });
 
-      if (error) throw error;
+      console.log("Response from generate-meeting-minutes:", { data, error: functionError });
+
+      if (functionError) {
+        console.error("Function error:", functionError);
+        throw new Error(functionError.message || "Erro ao gerar ata da reunião");
+      }
+
+      if (!data?.minutes) {
+        throw new Error("Resposta inválida do servidor");
+      }
+
       setMinutes(data.minutes);
     } catch (err) {
       console.error('Error generating meeting minutes:', err);
