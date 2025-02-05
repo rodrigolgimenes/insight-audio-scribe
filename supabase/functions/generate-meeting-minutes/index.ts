@@ -12,20 +12,40 @@ interface RequestBody {
 }
 
 function extractDateTime(transcript: string): string | null {
-  // Try to match the "Recording DD/MM/YYYY, HH:mm:ss" pattern
-  const dateMatch = transcript.match(/Recording (\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})/);
-  if (dateMatch) {
-    const [_, date, time] = dateMatch;
-    // Convert to a more readable format
-    const [day, month, year] = date.split('/');
-    const dateObj = new Date(`${year}-${month}-${day}T${time}`);
-    
-    // Format the date in Portuguese
-    const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-    const weekDay = weekDays[dateObj.getDay()];
-    
-    return `${date}, ${weekDay}, ${time}`;
+  // First, try to match the title format "Recording DD/MM/YYYY, HH:mm:ss"
+  const titleMatch = transcript.match(/Recording (\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})/);
+  
+  if (titleMatch) {
+    const [_, date, time] = titleMatch;
+    try {
+      // Convert to a more readable format
+      const [day, month, year] = date.split('/');
+      const dateObj = new Date(`${year}-${month}-${day}T${time}`);
+      
+      if (isNaN(dateObj.getTime())) {
+        console.error('Invalid date created:', { date, time });
+        return null;
+      }
+      
+      // Format the date in Portuguese
+      const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+      const weekDay = weekDays[dateObj.getDay()];
+      
+      return `${date}, ${weekDay}, ${time}`;
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return null;
+    }
   }
+
+  // If no match in title, try to find any date/time pattern in the text
+  const generalDateMatch = transcript.match(/\d{2}\/\d{2}\/\d{4}/);
+  const generalTimeMatch = transcript.match(/\d{2}:\d{2}:\d{2}/);
+  
+  if (generalDateMatch && generalTimeMatch) {
+    return extractDateTime(`Recording ${generalDateMatch[0]}, ${generalTimeMatch[0]}`);
+  }
+
   return null;
 }
 
@@ -63,6 +83,8 @@ serve(async (req) => {
     }
 
     const dateTime = extractDateTime(transcript);
+    console.log('Extracted date and time:', dateTime);
+
     const prompt = `
 Por favor, gere uma ata de reunião bem formatada em markdown a partir da seguinte transcrição. 
 A ata deve incluir:
