@@ -1,5 +1,7 @@
 import { Note } from "@/integrations/supabase/types/notes";
 import { MeetingMinutes } from "./MeetingMinutes";
+import { TranscriptAccordion } from "./TranscriptAccordion";
+import { TranscriptChat } from "./TranscriptChat";
 
 interface NoteContentProps {
   note: Note;
@@ -40,19 +42,16 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         <div dangerouslySetInnerHTML={{ __html: note.processed_content }} />
       </div>
 
-      {/* Original transcript section */}
+      {/* Transcript Accordion and Chat */}
       {note.original_transcript && (
-        <div className="border-t pt-8 mt-12">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Transcrição Original</h2>
-          <div className="bg-gray-50 rounded-lg p-6">
-            <p className="text-sm text-gray-500 mb-4">
-              Esta é a transcrição automatizada. Pode conter erros.
-            </p>
-            <div className="whitespace-pre-wrap text-gray-700">
-              {getTranscriptWithoutFirstLine(note.original_transcript)}
-            </div>
-          </div>
-        </div>
+        <>
+          <TranscriptAccordion 
+            transcript={getTranscriptWithoutFirstLine(note.original_transcript)} 
+          />
+          <TranscriptChat 
+            transcript={getTranscriptWithoutFirstLine(note.original_transcript)} 
+          />
+        </>
       )}
     </div>
   );
