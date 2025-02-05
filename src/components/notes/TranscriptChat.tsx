@@ -61,7 +61,6 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   };
 
   const stopGeneration = () => {
-    // Implementation for stopping generation would go here
     setIsLoading(false);
   };
 
