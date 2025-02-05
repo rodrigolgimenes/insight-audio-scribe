@@ -91,15 +91,13 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
       }
     };
 
-    if (noteId) {
-      fetchExistingMinutes();
-    }
+    fetchExistingMinutes();
   }, [noteId]);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        {minutes && (
+      {minutes && (
+        <div className="flex justify-between items-center">
           <Button
             onClick={() => generateMinutes(true)}
             disabled={isLoading || !transcript}
@@ -108,8 +106,8 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
             {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             Regerar Ata de Reunião
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {isLoading && !minutes && (
         <div className="flex items-center justify-center py-4">
