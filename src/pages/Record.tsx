@@ -28,11 +28,13 @@ const Record = () => {
     mediaStream,
     isSaving,
     isTranscribing,
+    isSystemAudio,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
     handleDelete,
+    setIsSystemAudio,
   } = useRecording();
 
   // Fetch styles and set default style
@@ -120,12 +122,14 @@ const Record = () => {
                     isPaused={isPaused}
                     audioUrl={audioUrl}
                     mediaStream={mediaStream}
+                    isSystemAudio={isSystemAudio}
                     handleStartRecording={handleStartRecording}
                     handleStopRecording={handleStopRecording}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
                     handleTimeLimit={handleTimeLimit}
+                    setIsSystemAudio={setIsSystemAudio}
                   />
 
                   <RecordActions
