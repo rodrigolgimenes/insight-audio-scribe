@@ -20,6 +20,7 @@ const SimpleRecord = () => {
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string; styleId: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     isRecording,
@@ -35,7 +36,6 @@ const SimpleRecord = () => {
     handleDelete,
   } = useRecording();
 
-  // Fetch default style for processing
   const { data: styles } = useQuery({
     queryKey: ['styles'],
     queryFn: async () => {
@@ -65,26 +65,19 @@ const SimpleRecord = () => {
 
     try {
       setIsUploading(true);
+      setIsProcessing(true);
 
       // Get user data
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Upload file to Supabase storage
-      const fileName = `${user.id}/${Date.now()}_${file.name}`;
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('audio_recordings')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      // Create recording entry
+      // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           user_id: user.id,
           title: `Recording ${new Date().toLocaleString()}`,
-          file_path: fileName,
+          file_path: 'pending',
           status: 'pending'
         })
         .select()
@@ -92,12 +85,11 @@ const SimpleRecord = () => {
 
       if (dbError) throw dbError;
 
-      // Create FormData for transcription
+      // Upload file and process
       const formData = new FormData();
       formData.append('file', file);
       formData.append('recordingId', recordingData.id);
 
-      // Get transcription
       const { error: transcriptionError } = await supabase.functions
         .invoke('transcribe-upload', {
           body: formData,
@@ -122,6 +114,7 @@ const SimpleRecord = () => {
       });
     } finally {
       setIsUploading(false);
+      setIsProcessing(false);
     }
   };
 
@@ -198,14 +191,6 @@ const SimpleRecord = () => {
     }
   };
 
-  const handleTimeLimit = () => {
-    handleStopRecording();
-    toast({
-      title: "Limite de Tempo",
-      description: "Gravação interrompida após atingir o limite de 25 minutos.",
-    });
-  };
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -227,7 +212,6 @@ const SimpleRecord = () => {
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
-                    handleTimeLimit={handleTimeLimit}
                   />
 
                   <div className="flex flex-col items-center gap-4">
@@ -276,7 +260,7 @@ const SimpleRecord = () => {
           </main>
         </div>
       </div>
-      {(isTranscribing || isSaving || isUploading) && <TranscriptionLoading />}
+      {(isTranscribing || isSaving || isUploading || isProcessing) && <TranscriptionLoading />}
     </SidebarProvider>
   );
 };
