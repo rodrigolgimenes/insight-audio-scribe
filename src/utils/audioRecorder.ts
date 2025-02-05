@@ -1,10 +1,16 @@
+interface RecordingResult {
+  blob: Blob;
+  duration: number;
+}
+
 export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private stream: MediaStream | null = null;
   private isRecording = false;
+  private startTime: number = 0;
 
-  async startRecording() {
+  async startRecording(useSystemAudio: boolean = false): Promise<void> {
     if (this.isRecording) {
       console.log('Already recording');
       return;
@@ -13,18 +19,18 @@ export class AudioRecorder {
     try {
       this.audioChunks = [];
       
-      if (navigator.mediaDevices.getDisplayMedia) {
-        // For system audio
-        this.stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          },
-          video: false
-        });
+      const audioConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video: false
+      };
+      
+      if (useSystemAudio && navigator.mediaDevices.getDisplayMedia) {
+        this.stream = await navigator.mediaDevices.getDisplayMedia(audioConstraints);
       } else {
-        // Fallback to microphone
         this.stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -43,6 +49,7 @@ export class AudioRecorder {
       };
 
       this.mediaRecorder.start();
+      this.startTime = Date.now();
       this.isRecording = true;
       console.log('Recording started');
     } catch (error) {
@@ -51,7 +58,7 @@ export class AudioRecorder {
     }
   }
 
-  async stopRecording(): Promise<Blob> {
+  async stopRecording(): Promise<RecordingResult> {
     return new Promise((resolve, reject) => {
       if (!this.mediaRecorder || !this.stream) {
         reject(new Error('No recording in progress'));
@@ -60,14 +67,29 @@ export class AudioRecorder {
 
       this.mediaRecorder.onstop = () => {
         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        const duration = Math.round((Date.now() - this.startTime) / 1000); // Duration in seconds
         this.cleanup();
-        resolve(audioBlob);
+        resolve({ blob: audioBlob, duration });
       };
 
       this.mediaRecorder.stop();
       this.isRecording = false;
       console.log('Recording stopped');
     });
+  }
+
+  pauseRecording(): void {
+    if (this.mediaRecorder && this.isRecording) {
+      this.mediaRecorder.pause();
+      console.log('Recording paused');
+    }
+  }
+
+  resumeRecording(): void {
+    if (this.mediaRecorder) {
+      this.mediaRecorder.resume();
+      console.log('Recording resumed');
+    }
   }
 
   private cleanup() {
