@@ -85,33 +85,23 @@ serve(async (req) => {
     const dateTime = extractDateTime(transcript);
     console.log('Extracted date and time:', dateTime);
 
-    const prompt = `
-Por favor, gere uma ata de reunião bem formatada em markdown a partir da seguinte transcrição. 
-A ata deve incluir:
+    const prompt = `Você é um assistente especializado em análise de reuniões e transcrições. A seguir, analise a transcrição da reunião que vou fornecer e, utilizando sua capacidade de cadeia de pensamento dinâmica, gere um resumo estruturado com os seguintes elementos – adaptando e criando seções conforme o conteúdo, sem utilizar tópicos pré-definidos se o conteúdo não os justificar:
 
-# Título da Reunião
+Principais Tópicos e Temas: Identifique os assuntos centrais e as nuances discutidas, agrupando informações relacionadas.
 
-## Data e Hora
-${dateTime || '(data não encontrada na transcrição)'}
+Decisões e Atribuições: Liste as decisões tomadas, indicando quem são os responsáveis e quais ações foram definidas, se aplicável.
 
-## Participantes
-(identificar participantes mencionados na transcrição)
+Prazos, Datas e Marcos Temporais: Extraia e organize datas, prazos e marcos relevantes mencionados na reunião.
 
-## Pauta
-(principais tópicos discutidos)
+Dúvidas, Preocupações e Pontos de Atenção: Identifique e resuma as principais preocupações, dúvidas ou pontos de alerta levantados durante a reunião.
 
-## Decisões e Encaminhamentos
-(pontos principais e decisões tomadas)
+Contexto e Informações Complementares: Inclua detalhes contextuais que auxiliem na compreensão do andamento dos projetos ou processos discutidos.
 
-## Próximos Passos
-(ações futuras mencionadas)
+Utilize uma abordagem de raciocínio em cadeia para explorar e conectar as informações, garantindo que cada seção do resumo seja gerada dinamicamente com base no conteúdo. Não crie seções desnecessárias; apenas produza aquelas que fazem sentido conforme a transcrição fornecida.
 
-## Observações
-(informações adicionais relevantes)
+Finalmente, apresente o resumo final de forma clara, objetiva e estruturada, sem expor seu processo de pensamento. Agora, processe a seguinte transcrição:
 
-Transcrição:
-${transcript}
-`;
+${transcript}`;
 
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
