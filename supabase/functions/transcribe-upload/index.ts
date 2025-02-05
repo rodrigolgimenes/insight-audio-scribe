@@ -1,7 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { decode as base64Decode } from "https://deno.land/std@0.208.0/encoding/base64.ts";
+import { FFmpeg } from "https://esm.sh/@ffmpeg/ffmpeg@0.12.7";
+import { fetchFile } from "https://esm.sh/@ffmpeg/util@0.12.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,11 +15,13 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting file processing...');
     const formData = await req.formData();
     const file = formData.get('file');
     const recordingId = formData.get('recordingId');
 
     if (!file || !recordingId) {
+      console.error('Missing required parameters:', { file: !!file, recordingId: !!recordingId });
       throw new Error('No file uploaded or missing recordingId');
     }
 
@@ -30,6 +33,7 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     
     if (!supabaseUrl || !supabaseKey || !openAIApiKey) {
+      console.error('Missing required environment variables');
       throw new Error('Missing required environment variables');
     }
 
@@ -39,21 +43,28 @@ serve(async (req) => {
     let audioFile = file;
     if (file.type.startsWith('video/')) {
       console.log('Converting video to audio...');
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-
-      // Use FFmpeg to convert video to audio
-      const ffmpeg = new FFmpeg();
-      await ffmpeg.load();
-      
-      ffmpeg.FS('writeFile', 'input.mp4', uint8Array);
-      await ffmpeg.run('-i', 'input.mp4', '-vn', '-acodec', 'libmp3lame', 'output.mp3');
-      
-      const audioData = ffmpeg.FS('readFile', 'output.mp3');
-      audioFile = new File([audioData], 'audio.mp3', { type: 'audio/mpeg' });
-      
-      ffmpeg.FS('unlink', 'input.mp4');
-      ffmpeg.FS('unlink', 'output.mp3');
+      try {
+        const ffmpeg = new FFmpeg();
+        await ffmpeg.load();
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        ffmpeg.FS('writeFile', 'input.mp4', uint8Array);
+        await ffmpeg.run('-i', 'input.mp4', '-vn', '-acodec', 'libmp3lame', '-ar', '44100', '-ac', '2', '-b:a', '192k', 'output.mp3');
+        
+        const audioData = ffmpeg.FS('readFile', 'output.mp3');
+        audioFile = new File([audioData], 'audio.mp3', { type: 'audio/mpeg' });
+        
+        // Cleanup
+        ffmpeg.FS('unlink', 'input.mp4');
+        ffmpeg.FS('unlink', 'output.mp3');
+        
+        console.log('Video successfully converted to audio');
+      } catch (error) {
+        console.error('Error converting video to audio:', error);
+        throw new Error(`Failed to convert video to audio: ${error.message}`);
+      }
     }
 
     console.log('Preparing audio file for transcription...');
@@ -94,14 +105,29 @@ serve(async (req) => {
       .eq('id', recordingId);
 
     if (updateError) {
+      console.error('Error updating recording:', updateError);
       throw new Error(`Failed to update recording: ${updateError.message}`);
+    }
+
+    console.log('Recording updated with transcription');
+
+    // Get user ID from the recording
+    const { data: recordingData, error: recordingError } = await supabase
+      .from('recordings')
+      .select('user_id')
+      .eq('id', recordingId)
+      .single();
+
+    if (recordingError || !recordingData) {
+      console.error('Error fetching recording:', recordingError);
+      throw new Error(`Failed to fetch recording: ${recordingError?.message}`);
     }
 
     // Create note entry
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: recordingData.user_id,
         recording_id: recordingId,
         title: `Note from ${new Date().toLocaleString()}`,
         processed_content: transcription.text,
@@ -109,8 +135,11 @@ serve(async (req) => {
       });
 
     if (noteError) {
+      console.error('Error creating note:', noteError);
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
+
+    console.log('Note created successfully');
 
     return new Response(
       JSON.stringify({ 
@@ -130,7 +159,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'An unexpected error occurred' 
       }), 
       {
-        status: 400,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
