@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { ChevronDown } from "lucide-react";
 
 interface TranscriptAccordionProps {
   transcript: string | null;
@@ -13,9 +14,9 @@ export const TranscriptAccordion = ({ transcript }: TranscriptAccordionProps) =>
   if (!transcript) return null;
 
   return (
-    <Accordion type="single" collapsible className="w-full">
-      <AccordionItem value="transcript" className="border rounded-lg">
-        <AccordionTrigger className="px-4">
+    <Accordion type="single" collapsible className="w-full mt-8">
+      <AccordionItem value="transcript" className="border rounded-lg shadow-sm">
+        <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 transition-colors">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-semibold text-gray-700">Transcrição Original</h2>
           </div>
