@@ -1,6 +1,6 @@
 {
   "imports": {
-    "@ffmpeg/ffmpeg": "https://esm.sh/@ffmpeg/ffmpeg@0.12.7",
-    "@ffmpeg/util": "https://esm.sh/@ffmpeg/util@0.12.1"
+    "@ffmpeg/core": "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
+    "@ffmpeg/ffmpeg": "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js"
   }
 }
