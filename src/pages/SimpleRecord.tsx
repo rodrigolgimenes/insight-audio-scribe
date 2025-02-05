@@ -109,8 +109,8 @@ const SimpleRecord = () => {
         description: "Arquivo processado com sucesso!",
       });
 
-      // Navigate to the note page
-      navigate(`/app/notes-record/${recordingData.id}`);
+      // Navigate to the dashboard instead of note page
+      navigate("/app");
 
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -184,9 +184,9 @@ const SimpleRecord = () => {
         description: "Gravação salva e processamento iniciado!",
       });
       
-      if (recordingData) {
-        navigate(`/app/notes-record/${recordingData.id}`);
-      }
+      // Navigate to the dashboard instead of notes-record page
+      navigate("/app");
+      
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
