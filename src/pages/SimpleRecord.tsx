@@ -66,28 +66,49 @@ const SimpleRecord = () => {
     try {
       setIsUploading(true);
 
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', file);
+      // Get user data
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      // Upload file and get transcription
-      const response = await supabase.functions.invoke('transcribe-upload', {
-        body: formData,
-      });
+      // Upload file to Supabase storage
+      const fileName = `${user.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, file);
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
+      if (uploadError) throw uploadError;
 
-      const { transcription } = response.data;
+      // Create recording entry
+      const { error: dbError, data: recordingData } = await supabase
+        .from('recordings')
+        .insert({
+          user_id: user.id,
+          title: `Recording ${new Date().toLocaleString()}`,
+          file_path: fileName,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-      // Update UI with transcription
-      setTranscript(transcription);
+      if (dbError) throw dbError;
+
+      // Process the recording
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { recordingId: recordingData.id },
+        });
+
+      if (processError) throw processError;
 
       toast({
         title: "Sucesso",
-        description: "Arquivo processado com sucesso!",
+        description: "Arquivo enviado e processamento iniciado!",
       });
+
+      // Navigate to the note page
+      if (recordingData) {
+        navigate(`/app/notes-record/${recordingData.id}`);
+      }
 
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -252,7 +273,7 @@ const SimpleRecord = () => {
           </main>
         </div>
       </div>
-      {(isTranscribing || isSaving) && <TranscriptionLoading />}
+      {(isTranscribing || isSaving || isUploading) && <TranscriptionLoading />}
     </SidebarProvider>
   );
 };
