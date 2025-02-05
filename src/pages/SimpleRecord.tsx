@@ -95,25 +95,15 @@ const SimpleRecord = () => {
       // Create FormData for transcription
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('recordingId', recordingData.id);
 
       // Get transcription
-      const { data: transcriptionData, error: transcriptionError } = await supabase.functions
+      const { error: transcriptionError } = await supabase.functions
         .invoke('transcribe-upload', {
           body: formData,
         });
 
       if (transcriptionError) throw transcriptionError;
-
-      // Update recording with transcription
-      const { error: updateError } = await supabase
-        .from('recordings')
-        .update({
-          transcription: transcriptionData.transcription,
-          status: 'completed'
-        })
-        .eq('id', recordingData.id);
-
-      if (updateError) throw updateError;
 
       toast({
         title: "Sucesso",

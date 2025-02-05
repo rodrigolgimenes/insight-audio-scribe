@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@ffmpeg/ffmpeg": "https://esm.sh/@ffmpeg/ffmpeg@0.12.7",
+    "@ffmpeg/util": "https://esm.sh/@ffmpeg/util@0.12.1"
+  }
+}
