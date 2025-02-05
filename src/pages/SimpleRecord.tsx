@@ -11,13 +11,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
+import { Mic, Upload } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const SimpleRecord = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string; styleId: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const {
     isRecording,
@@ -46,11 +48,64 @@ const SimpleRecord = () => {
     },
   });
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'video/mp4'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Erro",
+        description: "Formato de arquivo não suportado. Por favor, use arquivos de áudio (MP3, WAV, WebM) ou vídeo (MP4).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload file and get transcription
+      const response = await supabase.functions.invoke('transcribe-upload', {
+        body: formData,
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { transcription } = response.data;
+
+      // Update UI with transcription
+      setTranscript(transcription);
+
+      toast({
+        title: "Sucesso",
+        description: "Arquivo processado com sucesso!",
+      });
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao processar o arquivo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!styles || styles.length === 0) {
       toast({
-        title: "Error",
-        description: "No default style found for processing",
+        title: "Erro",
+        description: "Nenhum estilo encontrado para processamento",
         variant: "destructive",
       });
       return;
@@ -102,8 +157,8 @@ const SimpleRecord = () => {
       console.log('Processing initiated');
 
       toast({
-        title: "Success",
-        description: "Recording saved and processing started!",
+        title: "Sucesso",
+        description: "Gravação salva e processamento iniciado!",
       });
       
       if (recordingData) {
@@ -112,8 +167,8 @@ const SimpleRecord = () => {
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save recording",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar a gravação",
         variant: "destructive",
       });
     }
@@ -122,8 +177,8 @@ const SimpleRecord = () => {
   const handleTimeLimit = () => {
     handleStopRecording();
     toast({
-      title: "Time Limit Reached",
-      description: "Recording stopped after reaching the 25-minute limit.",
+      title: "Limite de Tempo",
+      description: "Gravação interrompida após atingir o limite de 25 minutos.",
     });
   };
 
@@ -152,14 +207,35 @@ const SimpleRecord = () => {
                   />
 
                   <div className="flex flex-col items-center gap-4">
-                    <Button 
-                      className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
-                      onClick={handleSave}
-                      disabled={isSaving}
-                    >
-                      <Mic className="w-4 h-4" />
-                      {isSaving ? 'Saving...' : 'Create note'}
-                    </Button>
+                    <div className="flex gap-4">
+                      <Button 
+                        className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
+                        onClick={handleSave}
+                        disabled={isSaving}
+                      >
+                        <Mic className="w-4 h-4" />
+                        {isSaving ? 'Salvando...' : 'Criar nota'}
+                      </Button>
+
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept="audio/*,video/mp4"
+                          className="hidden"
+                          id="file-upload"
+                          onChange={handleFileUpload}
+                          disabled={isUploading}
+                        />
+                        <Button 
+                          className="bg-[#2196F3] hover:bg-[#1976D2] gap-2"
+                          onClick={() => document.getElementById('file-upload')?.click()}
+                          disabled={isUploading}
+                        >
+                          <Upload className="w-4 h-4" />
+                          {isUploading ? 'Enviando...' : 'Upload'}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
