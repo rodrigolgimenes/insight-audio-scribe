@@ -22,8 +22,7 @@ export class AudioRecorder {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true,
-            suppressLocalAudioPlayback: true
+            autoGainControl: true
           },
           video: false
         });
@@ -32,8 +31,7 @@ export class AudioRecorder {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true,
-            suppressLocalAudioPlayback: true
+            autoGainControl: true
           }
         });
       }
