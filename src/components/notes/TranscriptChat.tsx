@@ -29,6 +29,11 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     setIsLoading(true);
 
     try {
+      console.log('Sending message to chat-with-transcript function:', {
+        messages: [...messages, userMessage],
+        transcript: transcript
+      });
+
       const { data, error } = await supabase.functions.invoke('chat-with-transcript', {
         body: { 
           messages: [...messages, userMessage],
@@ -36,7 +41,12 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error in chat:', error);
+        throw error;
+      }
+
+      console.log('Received response from chat-with-transcript:', data);
 
       if (data?.message) {
         setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
