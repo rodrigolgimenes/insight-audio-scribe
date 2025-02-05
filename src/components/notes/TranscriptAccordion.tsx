@@ -19,7 +19,7 @@ export const TranscriptAccordion = ({ transcript }: TranscriptAccordionProps) =>
         <AccordionTrigger className="px-4 py-3 hover:bg-gray-50 transition-colors">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-semibold text-gray-700">Transcrição Original</h2>
-            <ChevronDown className="h-5 w-5 text-gray-500 transition-transform" />
+            <ChevronDown className="h-5 w-5 text-gray-500 shrink-0 transition-transform duration-200" />
           </div>
         </AccordionTrigger>
         <AccordionContent>
