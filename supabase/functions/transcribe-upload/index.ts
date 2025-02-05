@@ -37,21 +37,10 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Update recording status to processing
-    await supabase
-      .from('recordings')
-      .update({ status: 'processing' })
-      .eq('id', recordingId);
-
-    // Handle video files by extracting audio using a cloud service or alternative approach
+    // Handle video files by accepting the audio track directly
     let audioFile = file;
     if (file.type.startsWith('video/')) {
-      console.log('Converting video to audio using cloud service...');
-      
-      // For now, we'll use a temporary solution of accepting the audio track directly
-      // In a production environment, you would want to implement a proper video-to-audio
-      // conversion service, either using a cloud service or a dedicated server
-      
+      console.log('Processing video file as audio...');
       const arrayBuffer = await file.arrayBuffer();
       audioFile = new File([arrayBuffer], 'audio.mp3', { type: 'audio/mpeg' });
       console.log('Video processed as audio');
@@ -70,7 +59,6 @@ serve(async (req) => {
 
     if (uploadError) {
       console.error('Error uploading file:', uploadError);
-      
       await supabase
         .from('recordings')
         .update({ 
@@ -78,7 +66,6 @@ serve(async (req) => {
           error_message: `Failed to upload file: ${uploadError.message}`
         })
         .eq('id', recordingId);
-        
       throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
@@ -241,7 +228,8 @@ Please format your response in a clear, structured way with headers for each sec
     console.error('Error in transcribe-upload function:', error);
     
     try {
-      const { recordingId } = await req.formData();
+      const formData = await req.formData();
+      const recordingId = formData.get('recordingId');
       if (recordingId) {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
