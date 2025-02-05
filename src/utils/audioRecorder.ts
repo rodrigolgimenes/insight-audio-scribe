@@ -5,9 +5,31 @@ export class AudioRecorder {
   private pausedDuration: number = 0;
   private pauseStartTime: number | null = null;
 
-  async startRecording(): Promise<void> {
+  async startRecording(useSystemAudio: boolean = false): Promise<void> {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let stream: MediaStream;
+      
+      if (useSystemAudio) {
+        // Captura áudio do sistema usando getDisplayMedia
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100,
+          },
+          video: false,
+        });
+      } else {
+        // Captura áudio do microfone usando getUserMedia
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100,
+          }
+        });
+      }
+
       this.mediaRecorder = new MediaRecorder(stream);
       this.audioChunks = [];
       this.startTime = Date.now();

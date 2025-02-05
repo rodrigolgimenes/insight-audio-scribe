@@ -12,6 +12,7 @@ export const useRecording = () => {
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isSystemAudio, setIsSystemAudio] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
@@ -20,8 +21,8 @@ export const useRecording = () => {
   const handleStartRecording = async () => {
     if (!session?.user) {
       toast({
-        title: "Error",
-        description: "Please log in to record audio.",
+        title: "Erro",
+        description: "Por favor, faça login para gravar áudio.",
         variant: "destructive",
       });
       navigate("/login");
@@ -29,16 +30,22 @@ export const useRecording = () => {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setMediaStream(stream);
-      await audioRecorder.current.startRecording();
+      await audioRecorder.current.startRecording(isSystemAudio);
       setIsRecording(true);
       setIsPaused(false);
+      
+      // Atualiza o stream apenas se não estiver usando áudio do sistema
+      if (!isSystemAudio) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMediaStream(stream);
+      }
     } catch (error) {
       console.error('Error starting recording:', error);
       toast({
-        title: "Error",
-        description: "Could not start recording. Please check your microphone permissions.",
+        title: "Erro",
+        description: isSystemAudio 
+          ? "Não foi possível iniciar a captura do áudio do sistema. Por favor, verifique as permissões."
+          : "Não foi possível iniciar a gravação. Por favor, verifique as permissões do microfone.",
         variant: "destructive",
       });
     }
@@ -152,10 +159,12 @@ export const useRecording = () => {
     mediaStream,
     isSaving,
     isTranscribing,
+    isSystemAudio,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
     handleDelete,
+    setIsSystemAudio,
   };
 };

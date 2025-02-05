@@ -8,12 +8,14 @@ interface RecordingSectionProps {
   isPaused: boolean;
   audioUrl: string | null;
   mediaStream: MediaStream | null;
+  isSystemAudio: boolean;
   handleStartRecording: () => void;
   handleStopRecording: () => void;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
   handleTimeLimit: () => void;
+  setIsSystemAudio: (checked: boolean) => void;
 }
 
 export const RecordingSection = ({
@@ -21,12 +23,14 @@ export const RecordingSection = ({
   isPaused,
   audioUrl,
   mediaStream,
+  isSystemAudio,
   handleStartRecording,
   handleStopRecording,
   handlePauseRecording,
   handleResumeRecording,
   handleDelete,
   handleTimeLimit,
+  setIsSystemAudio,
 }: RecordingSectionProps) => {
   return (
     <>
@@ -53,6 +57,7 @@ export const RecordingSection = ({
           isRecording={isRecording}
           isPaused={isPaused}
           hasRecording={!!audioUrl}
+          isSystemAudio={isSystemAudio}
           onStartRecording={handleStartRecording}
           onStopRecording={handleStopRecording}
           onPauseRecording={handlePauseRecording}
@@ -62,6 +67,7 @@ export const RecordingSection = ({
             const audio = document.querySelector('audio');
             if (audio) audio.play();
           }}
+          onToggleSystemAudio={setIsSystemAudio}
         />
       </div>
     </>
