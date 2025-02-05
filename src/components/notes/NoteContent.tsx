@@ -1,4 +1,5 @@
 import { Note } from "@/integrations/supabase/types/notes";
+import { MeetingMinutes } from "./MeetingMinutes";
 
 interface NoteContentProps {
   note: Note;
@@ -11,6 +12,12 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       <div className="prose max-w-none">
         <h1 className="text-3xl font-bold mb-6">{note.title}</h1>
         <div className="mb-8" dangerouslySetInnerHTML={{ __html: note.processed_content }} />
+      </div>
+
+      {/* Meeting Minutes section */}
+      <div className="border-t pt-8">
+        <h2 className="text-xl font-semibold text-gray-700 mb-4">Ata da Reunião</h2>
+        <MeetingMinutes transcript={note.original_transcript} />
       </div>
 
       {/* Original transcript section */}
