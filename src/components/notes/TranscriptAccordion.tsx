@@ -1,4 +1,3 @@
-import { ChevronDown } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -15,16 +14,18 @@ export const TranscriptAccordion = ({ transcript }: TranscriptAccordionProps) =>
 
   return (
     <Accordion type="single" collapsible className="w-full">
-      <AccordionItem value="transcript" className="border-t">
-        <AccordionTrigger className="py-6">
-          <h2 className="text-xl font-semibold text-gray-700">Transcrição Original</h2>
+      <AccordionItem value="transcript" className="border rounded-lg">
+        <AccordionTrigger className="px-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-700">Transcrição Original</h2>
+          </div>
         </AccordionTrigger>
         <AccordionContent>
-          <div className="bg-gray-50 rounded-lg p-6">
+          <div className="bg-gray-50 p-6 rounded-lg">
             <p className="text-sm text-gray-500 mb-4">
               Esta é a transcrição automatizada. Pode conter erros.
             </p>
-            <div className="whitespace-pre-wrap text-gray-700">
+            <div className="whitespace-pre-wrap text-gray-700 max-h-[500px] overflow-y-auto">
               {transcript}
             </div>
           </div>
