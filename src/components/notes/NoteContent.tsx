@@ -6,11 +6,27 @@ interface NoteContentProps {
 }
 
 export const NoteContent = ({ note }: NoteContentProps) => {
+  // Função para extrair apenas o título e data/hora da primeira linha
+  const extractTitleAndDateTime = (transcript: string | null): string => {
+    if (!transcript) return '';
+    const firstLine = transcript.split('\n')[0];
+    const match = firstLine.match(/Recording (\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})/);
+    return match ? `Recording ${match[1]}, ${match[2]}` : '';
+  };
+
+  // Função para remover a primeira linha da transcrição
+  const getTranscriptWithoutFirstLine = (transcript: string | null): string => {
+    if (!transcript) return '';
+    const lines = transcript.split('\n');
+    return lines.slice(1).join('\n');
+  };
+
   return (
     <div className="space-y-8">
       {/* Main content section */}
       <div className="prose max-w-none">
         <h1 className="text-3xl font-bold mb-6">{note.title}</h1>
+        <p className="text-gray-600 mb-4">{extractTitleAndDateTime(note.original_transcript)}</p>
         <div className="mb-8" dangerouslySetInnerHTML={{ __html: note.processed_content }} />
       </div>
 
@@ -29,7 +45,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
               This is the automated transcription. It may contain errors.
             </p>
             <div className="whitespace-pre-wrap text-gray-700">
-              {note.original_transcript}
+              {getTranscriptWithoutFirstLine(note.original_transcript)}
             </div>
           </div>
         </div>

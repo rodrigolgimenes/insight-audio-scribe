@@ -16,34 +16,7 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchExistingMinutes = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('meeting_minutes')
-          .select('content')
-          .eq('note_id', noteId)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error fetching meeting minutes:', error);
-          return;
-        }
-
-        if (data) {
-          setMinutes(data.content);
-        }
-      } catch (err) {
-        console.error('Error fetching meeting minutes:', err);
-      }
-    };
-
-    if (noteId) {
-      fetchExistingMinutes();
-    }
-  }, [noteId]);
-
-  const generateMinutes = async () => {
+  const generateMinutes = async (isRegeneration: boolean = false) => {
     if (!transcript) {
       setError("Não há transcrição disponível para gerar a ata.");
       return;
@@ -58,7 +31,8 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
       const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
         body: { 
           transcript: transcript,
-          noteId: noteId
+          noteId: noteId,
+          isRegeneration: isRegeneration
         },
       });
 
@@ -77,7 +51,7 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
       
       toast({
         title: "Sucesso",
-        description: "Ata da reunião gerada com sucesso",
+        description: isRegeneration ? "Ata da reunião regenerada com sucesso" : "Ata da reunião gerada com sucesso",
       });
     } catch (err) {
       console.error('Error generating meeting minutes:', err);
@@ -92,18 +66,57 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
     }
   };
 
+  useEffect(() => {
+    const fetchExistingMinutes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('meeting_minutes')
+          .select('content')
+          .eq('note_id', noteId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching meeting minutes:', error);
+          return;
+        }
+
+        if (data) {
+          setMinutes(data.content);
+        } else {
+          // Se não existir ata, gera automaticamente
+          await generateMinutes(false);
+        }
+      } catch (err) {
+        console.error('Error fetching meeting minutes:', err);
+      }
+    };
+
+    if (noteId) {
+      fetchExistingMinutes();
+    }
+  }, [noteId]);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <Button
-          onClick={generateMinutes}
-          disabled={isLoading || !transcript || minutes !== null}
-          className="gap-2"
-        >
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-          {minutes ? 'Ata já gerada' : 'Gerar Ata de Reunião'}
-        </Button>
+        {minutes && (
+          <Button
+            onClick={() => generateMinutes(true)}
+            disabled={isLoading || !transcript}
+            className="gap-2"
+          >
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Regerar Ata de Reunião
+          </Button>
+        )}
       </div>
+
+      {isLoading && !minutes && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="ml-2 text-gray-600">Gerando Ata...</span>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-50 text-red-700 p-4 rounded-lg">
@@ -113,21 +126,16 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
 
       {minutes && (
         <div className="space-y-6">
-          {/* Seção Principal */}
           <div className="bg-white border rounded-lg p-6 shadow-sm">
             <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none">
               <ReactMarkdown
                 components={{
-                  // Customize heading styles
                   h1: ({ children }) => <h1 className="text-2xl font-bold text-gray-900 mb-4">{children}</h1>,
                   h2: ({ children }) => <h2 className="text-xl font-semibold text-gray-800 mb-3">{children}</h2>,
                   h3: ({ children }) => <h3 className="text-lg font-medium text-gray-700 mb-2">{children}</h3>,
-                  // Customize list styles
                   ul: ({ children }) => <ul className="list-disc pl-6 space-y-2 text-gray-600">{children}</ul>,
                   ol: ({ children }) => <ol className="list-decimal pl-6 space-y-2 text-gray-600">{children}</ol>,
-                  // Customize paragraph styles
                   p: ({ children }) => <p className="text-gray-600 mb-4 leading-relaxed">{children}</p>,
-                  // Customize emphasis styles
                   strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
                   em: ({ children }) => <em className="text-gray-700 italic">{children}</em>,
                 }}
