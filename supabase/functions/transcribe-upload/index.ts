@@ -67,17 +67,46 @@ serve(async (req) => {
       }
     }
 
-    console.log('Preparing audio file for transcription...');
+    // Upload audio file to storage
+    console.log('Uploading audio file to storage...');
+    const filePath = `${recordingId}/${crypto.randomUUID()}.${audioFile.name.split('.').pop()}`;
+    const { error: uploadError } = await supabase.storage
+      .from('audio_recordings')
+      .upload(filePath, audioFile);
 
-    // Convert Blob to FormData for OpenAI API
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
+    }
+
+    // Get public URL for the uploaded file
+    const { data: { publicUrl } } = supabase.storage
+      .from('audio_recordings')
+      .getPublicUrl(filePath);
+
+    // Update recording with file path and audio URL
+    const { error: updateError } = await supabase
+      .from('recordings')
+      .update({
+        file_path: filePath,
+        audio_url: publicUrl,
+        status: 'processing'
+      })
+      .eq('id', recordingId);
+
+    if (updateError) {
+      console.error('Error updating recording:', updateError);
+      throw new Error(`Failed to update recording: ${updateError.message}`);
+    }
+
+    // Prepare audio for transcription
+    console.log('Preparing audio file for transcription...');
     const openAIFormData = new FormData();
     openAIFormData.append('file', audioFile);
     openAIFormData.append('model', 'whisper-1');
     openAIFormData.append('language', 'pt');
 
     console.log('Calling OpenAI API for transcription...');
-
-    // Call OpenAI API for transcription
     const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
@@ -87,7 +116,7 @@ serve(async (req) => {
     });
 
     if (!openAIResponse.ok) {
-      const errorData = await openAIResponse.json().catch(() => ({}));
+      const errorData = await openAIResponse.json();
       console.error('OpenAI API error:', errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
     }
@@ -95,42 +124,78 @@ serve(async (req) => {
     const transcription = await openAIResponse.json();
     console.log('Transcription received from OpenAI');
 
-    // Update recording with transcription
-    const { error: updateError } = await supabase
+    // Process with GPT-4
+    console.log('Processing transcription with GPT-4...');
+    const gptPrompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
+
+1. Summary
+2. Key Points
+3. Action Items
+4. Next Steps
+
+Transcript:
+${transcription.text}
+
+Please format your response in a clear, structured way with headers for each section.`;
+
+    const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'user', content: gptPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!gptResponse.ok) {
+      const errorData = await gptResponse.json();
+      console.error('GPT API error:', errorData);
+      throw new Error(`GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`);
+    }
+
+    const gptData = await gptResponse.json();
+    const processedContent = gptData.choices[0].message.content;
+
+    // Update recording with transcription and processed content
+    const { error: finalUpdateError } = await supabase
       .from('recordings')
       .update({
         transcription: transcription.text,
+        summary: processedContent,
         status: 'completed'
       })
       .eq('id', recordingId);
 
-    if (updateError) {
-      console.error('Error updating recording:', updateError);
-      throw new Error(`Failed to update recording: ${updateError.message}`);
+    if (finalUpdateError) {
+      console.error('Error updating recording:', finalUpdateError);
+      throw new Error(`Failed to update recording: ${finalUpdateError.message}`);
     }
 
-    console.log('Recording updated with transcription');
-
-    // Get user ID from the recording
-    const { data: recordingData, error: recordingError } = await supabase
+    // Create note
+    const { data: recordingData } = await supabase
       .from('recordings')
       .select('user_id')
       .eq('id', recordingId)
       .single();
 
-    if (recordingError || !recordingData) {
-      console.error('Error fetching recording:', recordingError);
-      throw new Error(`Failed to fetch recording: ${recordingError?.message}`);
+    if (!recordingData) {
+      throw new Error('Recording not found');
     }
 
-    // Create note entry
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
         user_id: recordingData.user_id,
         recording_id: recordingId,
         title: `Note from ${new Date().toLocaleString()}`,
-        processed_content: transcription.text,
+        processed_content: processedContent,
         original_transcript: transcription.text,
       });
 
@@ -139,28 +204,49 @@ serve(async (req) => {
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
-    console.log('Note created successfully');
+    console.log('Processing completed successfully');
 
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        transcription: transcription.text 
-      }), 
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+        success: true,
+        transcription: transcription.text,
+        processedContent
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in transcribe-upload function:', error);
+    
+    try {
+      const { recordingId } = await req.formData();
+      if (recordingId) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          await supabase
+            .from('recordings')
+            .update({ 
+              status: 'error',
+              error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
+            })
+            .eq('id', recordingId);
+        }
+      }
+    } catch (updateError) {
+      console.error('Failed to update recording status to error:', updateError);
+    }
+
     return new Response(
       JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
-      }), 
-      {
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      }),
+      { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

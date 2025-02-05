@@ -76,7 +76,7 @@ const SimpleRecord = () => {
         .from('recordings')
         .insert({
           user_id: user.id,
-          title: `Recording ${new Date().toLocaleString()}`,
+          title: file.name || `Recording ${new Date().toLocaleString()}`,
           file_path: 'pending',
           status: 'pending'
         })
@@ -90,12 +90,17 @@ const SimpleRecord = () => {
       formData.append('file', file);
       formData.append('recordingId', recordingData.id);
 
-      const { error: transcriptionError } = await supabase.functions
-        .invoke('transcribe-upload', {
-          body: formData,
-        });
+      const response = await supabase.functions.invoke('transcribe-upload', {
+        body: formData,
+      });
 
-      if (transcriptionError) throw transcriptionError;
+      if (response.error) {
+        throw new Error(`Error processing file: ${response.error.message}`);
+      }
+
+      if (!response.data?.success) {
+        throw new Error('Failed to process file');
+      }
 
       toast({
         title: "Sucesso",
@@ -135,10 +140,9 @@ const SimpleRecord = () => {
       }
 
       const { data: { user } } = await supabase.auth.getUser();
-      const defaultUserId = '00000000-0000-0000-0000-000000000000';
-      const userId = user?.id || defaultUserId;
+      if (!user) throw new Error('User not authenticated');
       
-      console.log('Creating recording with user ID:', userId);
+      console.log('Creating recording with user ID:', user.id);
 
       // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
@@ -147,7 +151,7 @@ const SimpleRecord = () => {
           title: `Recording ${new Date().toLocaleString()}`,
           duration: 0,
           file_path: 'temp-path',
-          user_id: userId,
+          user_id: user.id,
           status: 'pending'
         })
         .select()
