@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -60,53 +60,71 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     }
   };
 
+  const stopGeneration = () => {
+    // Implementation for stopping generation would go here
+    setIsLoading(false);
+  };
+
   return (
-    <div className="mt-8 border rounded-lg p-6">
+    <div className="mt-8 max-w-3xl mx-auto">
       <h2 className="text-xl font-semibold text-gray-700 mb-4">Chat com a Transcrição</h2>
       
-      <div className="bg-gray-50 rounded-lg p-4 h-[400px] mb-4 overflow-y-auto flex flex-col gap-4">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+      <div className="border rounded-lg shadow-lg bg-white overflow-hidden">
+        <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+          {messages.map((message, index) => (
             <div
-              className={`max-w-[80%] p-3 rounded-lg ${
-                message.role === 'user'
-                  ? 'bg-primary text-white'
-                  : 'bg-white border border-gray-200'
-              }`}
+              key={index}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.content}
+              <div
+                className={`max-w-[80%] p-4 rounded-lg ${
+                  message.role === 'user'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {message.content}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          )}
+        </div>
+
+        <div className="border-t p-4 bg-white">
+          <div className="flex gap-2 items-center">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Digite sua pergunta sobre a transcrição..."
+              disabled={isLoading}
+              className="flex-1 py-3 px-4 rounded-lg"
+            />
+            <div className="flex gap-2">
+              {isLoading ? (
+                <Button 
+                  onClick={stopGeneration}
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              ) : null}
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={isLoading || !input.trim()}
+                className="shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-        ))}
-        {isLoading && (
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Digite sua pergunta sobre a transcrição..."
-          disabled={isLoading}
-          className="flex-1"
-        />
-        <Button 
-          onClick={handleSendMessage} 
-          disabled={isLoading || !input.trim()}
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-        </Button>
+        </div>
       </div>
     </div>
   );
