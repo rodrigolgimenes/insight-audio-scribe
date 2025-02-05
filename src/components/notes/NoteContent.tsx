@@ -30,13 +30,13 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         <div className="mb-8" dangerouslySetInnerHTML={{ __html: note.processed_content }} />
       </div>
 
-      {/* Meeting Minutes section */}
-      <div className="border-t pt-8">
+      {/* Meeting Minutes section - Now first */}
+      <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Ata da Reunião</h2>
         <MeetingMinutes transcript={note.original_transcript} noteId={note.id} />
       </div>
 
-      {/* Original transcript section */}
+      {/* Original transcript section - Now second */}
       {note.original_transcript && (
         <div className="border-t pt-8">
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Original Transcript</h2>
