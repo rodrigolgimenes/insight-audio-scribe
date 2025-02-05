@@ -191,6 +191,14 @@ const SimpleRecord = () => {
     }
   };
 
+  const handleTimeLimit = () => {
+    handleStopRecording();
+    toast({
+      title: "Limite de Tempo",
+      description: "Gravação interrompida após atingir o limite de 25 minutos.",
+    });
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -212,6 +220,7 @@ const SimpleRecord = () => {
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
+                    handleTimeLimit={handleTimeLimit}
                   />
 
                   <div className="flex flex-col items-center gap-4">
