@@ -23,20 +23,24 @@ export const NoteContent = ({ note }: NoteContentProps) => {
 
   return (
     <div className="space-y-8">
-      {/* Main content section */}
+      {/* Title and date section */}
       <div className="prose max-w-none">
         <h1 className="text-3xl font-bold mb-6">{note.title}</h1>
         <p className="text-gray-600 mb-4">{extractTitleAndDateTime(note.original_transcript)}</p>
-        <div className="mb-8" dangerouslySetInnerHTML={{ __html: note.processed_content }} />
       </div>
 
-      {/* Meeting Minutes section - Now first */}
+      {/* Meeting Minutes section */}
       <div>
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Ata da Reunião</h2>
         <MeetingMinutes transcript={note.original_transcript} noteId={note.id} />
       </div>
 
-      {/* Original transcript section - Now second */}
+      {/* Processed content section */}
+      <div className="mb-8">
+        <div dangerouslySetInnerHTML={{ __html: note.processed_content }} />
+      </div>
+
+      {/* Original transcript section */}
       {note.original_transcript && (
         <div className="border-t pt-8 mt-12">
           <h2 className="text-xl font-semibold text-gray-700 mb-4">Transcrição Original</h2>
