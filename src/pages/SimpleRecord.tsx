@@ -92,23 +92,36 @@ const SimpleRecord = () => {
 
       if (dbError) throw dbError;
 
-      // Process the recording
-      const { error: processError } = await supabase.functions
-        .invoke('process-recording', {
-          body: { recordingId: recordingData.id },
+      // Create FormData for transcription
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Get transcription
+      const { data: transcriptionData, error: transcriptionError } = await supabase.functions
+        .invoke('transcribe-upload', {
+          body: formData,
         });
 
-      if (processError) throw processError;
+      if (transcriptionError) throw transcriptionError;
+
+      // Update recording with transcription
+      const { error: updateError } = await supabase
+        .from('recordings')
+        .update({
+          transcription: transcriptionData.transcription,
+          status: 'completed'
+        })
+        .eq('id', recordingData.id);
+
+      if (updateError) throw updateError;
 
       toast({
         title: "Sucesso",
-        description: "Arquivo enviado e processamento iniciado!",
+        description: "Arquivo processado com sucesso!",
       });
 
       // Navigate to the note page
-      if (recordingData) {
-        navigate(`/app/notes-record/${recordingData.id}`);
-      }
+      navigate(`/app/notes-record/${recordingData.id}`);
 
     } catch (error) {
       console.error('Error uploading file:', error);
