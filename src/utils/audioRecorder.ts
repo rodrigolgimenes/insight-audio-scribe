@@ -1,43 +1,42 @@
 export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
-  private audioChunks: Blob[] = [];
+  private chunks: Blob[] = [];
   private startTime: number = 0;
   private pausedDuration: number = 0;
-  private pauseStartTime: number | null = null;
+  private lastPauseTime: number | null = null;
 
-  async startRecording(useSystemAudio: boolean = false): Promise<void> {
+  async startRecording(useSystemAudio: boolean = false) {
     try {
-      let stream: MediaStream;
+      let stream;
       
       if (useSystemAudio) {
-        // Captura áudio do sistema usando getDisplayMedia
         stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            sampleRate: 44100,
-          },
-          video: false,
+          audio: true,
+          video: false
         });
       } else {
-        // Captura áudio do microfone usando getUserMedia
         stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            sampleRate: 44100,
+            autoGainControl: true
           }
         });
       }
 
-      this.mediaRecorder = new MediaRecorder(stream);
-      this.audioChunks = [];
+      this.mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm'
+      });
+
+      this.chunks = [];
       this.startTime = Date.now();
       this.pausedDuration = 0;
-      this.pauseStartTime = null;
+      this.lastPauseTime = null;
 
-      this.mediaRecorder.ondataavailable = (event) => {
-        this.audioChunks.push(event.data);
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          this.chunks.push(e.data);
+        }
       };
 
       this.mediaRecorder.start();
@@ -47,47 +46,44 @@ export class AudioRecorder {
     }
   }
 
-  pauseRecording(): void {
-    if (this.mediaRecorder?.state === 'recording') {
-      this.mediaRecorder.pause();
-      this.pauseStartTime = Date.now();
-    }
-  }
-
-  resumeRecording(): void {
-    if (this.mediaRecorder?.state === 'paused') {
-      this.mediaRecorder.resume();
-      if (this.pauseStartTime) {
-        this.pausedDuration += Date.now() - this.pauseStartTime;
-        this.pauseStartTime = null;
-      }
-    }
-  }
-
-  stopRecording(): Promise<{ blob: Blob, duration: number }> {
-    return new Promise((resolve) => {
+  async stopRecording(): Promise<{ blob: Blob; duration: number }> {
+    return new Promise((resolve, reject) => {
       if (!this.mediaRecorder) {
-        throw new Error('No recording in progress');
+        reject(new Error('No recording in progress'));
+        return;
       }
 
       this.mediaRecorder.onstop = () => {
-        const duration = Math.round(
+        const duration = Math.floor(
           (Date.now() - this.startTime - this.pausedDuration) / 1000
         );
-        const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        
+        const blob = new Blob(this.chunks, { type: 'audio/webm' });
+        
+        // Stop all tracks in the stream
+        this.mediaRecorder?.stream.getTracks().forEach(track => track.stop());
+        
         resolve({ blob, duration });
       };
 
       this.mediaRecorder.stop();
-      this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
     });
   }
 
-  isRecording(): boolean {
-    return this.mediaRecorder?.state === 'recording';
+  pauseRecording() {
+    if (this.mediaRecorder?.state === 'recording') {
+      this.mediaRecorder.pause();
+      this.lastPauseTime = Date.now();
+    }
   }
 
-  isPaused(): boolean {
-    return this.mediaRecorder?.state === 'paused';
+  resumeRecording() {
+    if (this.mediaRecorder?.state === 'paused') {
+      this.mediaRecorder.resume();
+      if (this.lastPauseTime) {
+        this.pausedDuration += Date.now() - this.lastPauseTime;
+        this.lastPauseTime = null;
+      }
+    }
   }
 }
