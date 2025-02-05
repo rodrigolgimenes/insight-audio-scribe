@@ -11,6 +11,24 @@ interface RequestBody {
   noteId: string;
 }
 
+function extractDateTime(transcript: string): string | null {
+  // Try to match the "Recording DD/MM/YYYY, HH:mm:ss" pattern
+  const dateMatch = transcript.match(/Recording (\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})/);
+  if (dateMatch) {
+    const [_, date, time] = dateMatch;
+    // Convert to a more readable format
+    const [day, month, year] = date.split('/');
+    const dateObj = new Date(`${year}-${month}-${day}T${time}`);
+    
+    // Format the date in Portuguese
+    const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const weekDay = weekDays[dateObj.getDay()];
+    
+    return `${date}, ${weekDay}, ${time}`;
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -23,7 +41,6 @@ serve(async (req) => {
       throw new Error('Transcript and noteId are required');
     }
 
-    // Check if meeting minutes already exist
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -45,6 +62,7 @@ serve(async (req) => {
       });
     }
 
+    const dateTime = extractDateTime(transcript);
     const prompt = `
 Por favor, gere uma ata de reunião bem formatada em markdown a partir da seguinte transcrição. 
 A ata deve incluir:
@@ -52,7 +70,7 @@ A ata deve incluir:
 # Título da Reunião
 
 ## Data e Hora
-(extrair da transcrição ou usar data atual)
+${dateTime || '(data não encontrada na transcrição)'}
 
 ## Participantes
 (identificar participantes mencionados na transcrição)
