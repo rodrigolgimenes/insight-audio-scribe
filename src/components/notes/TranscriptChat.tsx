@@ -21,8 +21,9 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   const { toast } = useToast();
 
   const handleSendMessage = async () => {
-    // Validação do input
-    if (!input.trim() || !transcript) {
+    const trimmedInput = input.trim();
+    
+    if (!trimmedInput || !transcript) {
       toast({
         title: "Entrada inválida",
         description: "Por favor, digite uma mensagem antes de enviar.",
@@ -32,29 +33,26 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     }
 
     // Adiciona mensagem do usuário imediatamente
-    const userMessage: Message = { role: 'user', content: input.trim() };
+    const userMessage: Message = { role: 'user', content: trimmedInput };
     setMessages(prev => [...prev, userMessage]);
     
-    // Limpa input e ativa loading
-    const question = input.trim();
+    // Limpa input imediatamente após envio
     setInput('');
     setIsLoading(true);
 
     try {
-      // Log do request para debugging
       console.log('Enviando mensagem para chat-with-transcript:', {
         messages: [...messages, userMessage],
-        transcript: transcript
+        transcript
       });
 
       const { data, error } = await supabase.functions.invoke('chat-with-transcript', {
         body: { 
           messages: [...messages, userMessage],
-          transcript: transcript
+          transcript
         },
       });
 
-      // Log da resposta para debugging
       console.log('Resposta recebida de chat-with-transcript:', { data, error });
 
       if (error) {
@@ -78,7 +76,6 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
         variant: "destructive",
       });
       
-      // Adiciona mensagem de erro no chat
       const errorMessage: Message = {
         role: 'assistant',
         content: "Desculpe, ocorreu um erro ao processar sua pergunta. Por favor, tente novamente."
@@ -90,7 +87,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -146,6 +143,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
                   variant="outline"
                   size="icon"
                   className="shrink-0"
+                  type="button"
                 >
                   <Square className="h-4 w-4" />
                 </Button>
