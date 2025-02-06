@@ -11,6 +11,13 @@ interface NoteCardProps {
   onClick: () => void;
 }
 
+const formatDuration = (duration: number | null) => {
+  if (!duration) return "Unknown duration";
+  const minutes = Math.floor(duration / 60);
+  const seconds = duration % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
   return (
     <Card
@@ -48,7 +55,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         <div className="flex items-center gap-4 text-sm text-gray-500">
           <span className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            Unknown duration
+            {formatDuration(note.duration)}
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
