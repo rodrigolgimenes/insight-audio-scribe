@@ -14,14 +14,25 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     hasOriginalTranscript: !!note.original_transcript,
     originalTranscriptLength: note.original_transcript?.length,
     hasProcessedContent: !!note.processed_content,
-    processedContentLength: note.processed_content?.length
+    processedContentLength: note.processed_content?.length,
+    fullNote: note // Add full note logging for debugging
   });
 
   // Função para extrair apenas o título e data/hora da primeira linha
   const extractTitleAndDateTime = (transcript: string | null): string => {
-    if (!transcript) return '';
+    if (!transcript) {
+      console.log('NoteContent - Erro ao extrair título: transcrição ausente');
+      return '';
+    }
     const firstLine = transcript.split('\n')[0];
     const match = firstLine.match(/Recording (\d{2}\/\d{2}\/\d{4}), (\d{2}:\d{2}:\d{2})/);
+    
+    console.log('NoteContent - Extração de título:', {
+      firstLine,
+      hasMatch: !!match,
+      extractedDateTime: match ? `Recording ${match[1]}, ${match[2]}` : ''
+    });
+    
     return match ? `Recording ${match[1]}, ${match[2]}` : '';
   };
 
@@ -30,7 +41,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     if (!transcript) {
       console.log('NoteContent - Transcrição não encontrada:', { 
         noteId: note.id,
-        transcriptValue: transcript 
+        transcriptValue: transcript,
+        transcriptType: typeof transcript
       });
       return '';
     }
@@ -38,7 +50,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     if (typeof transcript !== 'string') {
       console.log('NoteContent - Tipo inválido de transcrição:', {
         noteId: note.id,
-        transcriptType: typeof transcript
+        transcriptType: typeof transcript,
+        transcriptValue: transcript
       });
       return '';
     }
@@ -46,7 +59,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     console.log('NoteContent - Processando transcrição:', {
       noteId: note.id,
       transcriptLength: transcript.length,
-      firstLine: transcript.split('\n')[0]
+      firstLine: transcript.split('\n')[0],
+      transcriptPreview: transcript.substring(0, 100) // Add preview of content
     });
     
     const lines = transcript.split('\n');
@@ -56,7 +70,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       noteId: note.id,
       processedLength: processedTranscript.length,
       hasContent: !!processedTranscript,
-      firstProcessedLine: processedTranscript.split('\n')[0]
+      firstProcessedLine: processedTranscript.split('\n')[0],
+      processedPreview: processedTranscript.substring(0, 100) // Add preview of processed content
     });
     
     return processedTranscript.trim();
@@ -70,7 +85,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     noteId: note.id,
     isTranscriptValid,
     processedTranscriptLength: processedTranscript.length,
-    willShowTranscript: isTranscriptValid
+    willShowTranscript: isTranscriptValid,
+    transcriptPreview: isTranscriptValid ? processedTranscript.substring(0, 100) : 'N/A'
   });
 
   return (
@@ -94,7 +110,10 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       {isTranscriptValid ? (
         <>
           <TranscriptAccordion transcript={processedTranscript} />
-          <TranscriptChat transcript={processedTranscript} />
+          <TranscriptChat 
+            transcript={processedTranscript} 
+            key={note.id} // Add key to force re-render on note change
+          />
         </>
       ) : (
         <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md">
