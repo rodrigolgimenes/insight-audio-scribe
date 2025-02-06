@@ -6,6 +6,15 @@ interface TranscriptValidationProps {
 
 export const TranscriptValidation = ({ note }: TranscriptValidationProps) => {
   const getTranscriptWithoutFirstLine = (transcript: string | null): string => {
+    console.log('TranscriptValidation - Input transcript details:', { 
+      noteId: note.id,
+      hasTranscript: !!transcript,
+      transcriptType: typeof transcript,
+      transcriptLength: transcript?.length,
+      transcriptValue: transcript,
+      firstFewChars: transcript?.substring(0, 50)
+    });
+
     if (!transcript) {
       console.log('TranscriptValidation - Transcrição não encontrada:', { 
         noteId: note.id,
@@ -55,7 +64,9 @@ export const TranscriptValidation = ({ note }: TranscriptValidationProps) => {
     hasValidTranscript: !!validTranscript,
     processedTranscriptLength: processedTranscript.length,
     willShowTranscript: !!validTranscript,
-    transcriptPreview: validTranscript ? validTranscript.substring(0, 100) : 'N/A'
+    transcriptPreview: validTranscript ? validTranscript.substring(0, 100) : 'N/A',
+    originalTranscriptExists: !!note.original_transcript,
+    originalTranscriptLength: note.original_transcript?.length
   });
 
   return { validTranscript };
