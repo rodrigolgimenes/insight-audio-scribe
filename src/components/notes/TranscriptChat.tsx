@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2, Send, Square } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { ChatInput } from "./ChatInput";
+import { ChatMessages } from "./ChatMessages";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -56,12 +55,9 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
       return;
     }
 
-    // Adiciona mensagem do usuário imediatamente
     const userMessage: Message = { role: 'user', content: trimmedInput };
     console.log('TranscriptChat - Adding user message:', userMessage);
     setMessages(prev => [...prev, userMessage]);
-    
-    // Limpa input imediatamente após envio
     setInput('');
     setIsLoading(true);
 
@@ -130,64 +126,15 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
       <h2 className="text-xl font-semibold text-gray-700 mb-4">Chat com a Transcrição</h2>
       
       <div className="border rounded-lg shadow-lg bg-white overflow-hidden">
-        <div className="h-[500px] overflow-y-auto p-6 space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] p-4 rounded-lg ${
-                  message.role === 'user'
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-100 text-gray-800'
-                }`}
-              >
-                {message.content}
-              </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex items-center justify-center p-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          )}
-        </div>
-
-        <div className="border-t p-4 bg-white">
-          <div className="flex gap-2 items-center">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Digite sua pergunta sobre a transcrição..."
-              disabled={isLoading}
-              className="flex-1 py-3 px-4 rounded-lg"
-              type="text"
-            />
-            <div className="flex gap-2">
-              {isLoading ? (
-                <Button 
-                  onClick={stopGeneration}
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  type="button"
-                >
-                  <Square className="h-4 w-4" />
-                </Button>
-              ) : null}
-              <Button 
-                onClick={handleSendMessage} 
-                disabled={isLoading || !input.trim()}
-                className="shrink-0"
-                type="button"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ChatMessages messages={messages} isLoading={isLoading} />
+        <ChatInput
+          input={input}
+          isLoading={isLoading}
+          onInputChange={setInput}
+          onSendMessage={handleSendMessage}
+          onStopGeneration={stopGeneration}
+          onKeyPress={handleKeyPress}
+        />
       </div>
     </div>
   );
