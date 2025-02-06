@@ -13,9 +13,24 @@ interface NoteCardProps {
 
 const formatDuration = (duration: number | null) => {
   if (!duration) return "Unknown duration";
-  const minutes = Math.floor(duration / 60);
+  
+  const hours = Math.floor(duration / 3600);
+  const minutes = Math.floor((duration % 3600) / 60);
   const seconds = duration % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+  const parts = [];
+
+  if (hours > 0) {
+    parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+  }
+  if (seconds > 0 && hours === 0) { // Only show seconds if less than an hour
+    parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
+  }
+
+  return parts.join(' and ');
 };
 
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
