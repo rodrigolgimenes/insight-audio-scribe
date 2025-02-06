@@ -1,6 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Play, Pencil, Trash2, Share2, Clock, Calendar, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Clock, Calendar, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Recording {
@@ -16,17 +15,11 @@ interface Recording {
 interface RecordingCardProps {
   recording: Recording;
   onPlay: (id: string) => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onShare: (id: string) => void;
 }
 
 export const RecordingCard = ({
   recording,
   onPlay,
-  onEdit,
-  onDelete,
-  onShare,
 }: RecordingCardProps) => {
   const formatDuration = (duration: number | null) => {
     if (!duration) return "Unknown duration";
@@ -48,7 +41,10 @@ export const RecordingCard = ({
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card 
+      className="hover:shadow-lg transition-shadow cursor-pointer hover:bg-gray-50"
+      onClick={() => onPlay(recording.id)}
+    >
       <CardHeader>
         <CardTitle className="text-xl">{recording.title}</CardTitle>
       </CardHeader>
@@ -79,40 +75,6 @@ export const RecordingCard = ({
           </span>
         </div>
       </CardContent>
-      <CardFooter className="flex gap-2">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => onPlay(recording.id)}
-        >
-          <Play className="h-4 w-4" />
-          Play
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onEdit(recording.id)}
-        >
-          <Pencil className="h-4 w-4" />
-          Edit
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onDelete(recording.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => onShare(recording.id)}
-        >
-          <Share2 className="h-4 w-4" />
-          Share
-        </Button>
-      </CardFooter>
     </Card>
   );
 };
