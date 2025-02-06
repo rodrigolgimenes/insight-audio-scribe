@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, FolderOpen } from "lucide-react";
 import { Note } from "@/integrations/supabase/types/notes";
 import {
   AlertDialog,
@@ -27,8 +27,17 @@ export const BulkActions = ({
   if (selectedNotes.length === 0) return null;
 
   return (
-    <>
-      <Button variant="outline" onClick={onMoveToFolder}>
+    <div className="flex items-center gap-3 mb-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
+      <span className="text-sm font-medium text-gray-600">
+        {selectedNotes.length} notes selected
+      </span>
+      <div className="flex-1" />
+      <Button 
+        variant="outline" 
+        onClick={onMoveToFolder}
+        className="gap-2"
+      >
+        <FolderOpen className="h-4 w-4" />
         Move to folder
       </Button>
       <AlertDialog>
@@ -52,6 +61,6 @@ export const BulkActions = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 };
