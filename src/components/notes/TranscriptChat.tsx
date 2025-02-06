@@ -21,19 +21,28 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   const { toast } = useToast();
 
   const handleSendMessage = async () => {
-    if (!input.trim() || !transcript) return;
+    // Validação do input
+    if (!input.trim() || !transcript) {
+      toast({
+        title: "Entrada inválida",
+        description: "Por favor, digite uma mensagem antes de enviar.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Add user message immediately
-    const userMessage = { role: 'user' as const, content: input };
+    // Adiciona mensagem do usuário imediatamente
+    const userMessage: Message = { role: 'user', content: input.trim() };
     setMessages(prev => [...prev, userMessage]);
     
-    // Clear input right after sending
+    // Limpa input e ativa loading
+    const question = input.trim();
     setInput('');
     setIsLoading(true);
 
     try {
-      // Log the request for debugging
-      console.log('Sending message to chat-with-transcript function:', {
+      // Log do request para debugging
+      console.log('Enviando mensagem para chat-with-transcript:', {
         messages: [...messages, userMessage],
         transcript: transcript
       });
@@ -45,24 +54,36 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
         },
       });
 
-      if (error) {
-        console.error('Error in chat:', error);
-        throw error;
-      }
+      // Log da resposta para debugging
+      console.log('Resposta recebida de chat-with-transcript:', { data, error });
 
-      // Log the response for debugging
-      console.log('Received response from chat-with-transcript:', data);
+      if (error) {
+        throw new Error(error.message || "Erro ao processar mensagem");
+      }
 
       if (data?.message) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+        const assistantMessage: Message = { 
+          role: 'assistant', 
+          content: data.message 
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      } else {
+        throw new Error("Resposta inválida do servidor");
       }
     } catch (error) {
-      console.error('Error in chat:', error);
+      console.error('Erro no chat:', error);
       toast({
         title: "Erro",
         description: "Não foi possível processar sua mensagem. Tente novamente.",
         variant: "destructive",
       });
+      
+      // Adiciona mensagem de erro no chat
+      const errorMessage: Message = {
+        role: 'assistant',
+        content: "Desculpe, ocorreu um erro ao processar sua pergunta. Por favor, tente novamente."
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
