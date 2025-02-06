@@ -1,0 +1,154 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Note } from "@/integrations/supabase/types/notes";
+
+export const useNoteManagement = () => {
+  const { toast } = useToast();
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedNotes, setSelectedNotes] = useState<Note[]>([]);
+  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+
+  const { data: notes, isLoading, refetch } = useQuery({
+    queryKey: ["notes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching notes:", error);
+        throw error;
+      }
+
+      return data as Note[];
+    },
+  });
+
+  const toggleNoteSelection = (note: Note) => {
+    setSelectedNotes((prev) =>
+      prev.includes(note)
+        ? prev.filter((n) => n.id !== note.id)
+        : [...prev, note]
+    );
+  };
+
+  const createNewFolder = async () => {
+    if (!newFolderName.trim()) {
+      toast({
+        title: "Folder name is required",
+        description: "Please enter a name for the new folder.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast({
+        title: "Authentication error",
+        description: "Please sign in to create folders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("folders")
+      .insert({ 
+        name: newFolderName,
+        user_id: user.id 
+      });
+
+    if (error) {
+      console.error("Error creating folder:", error);
+      toast({
+        title: "Error creating folder",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Folder created",
+      description: "The new folder has been created successfully.",
+    });
+    setNewFolderName("");
+    setIsFolderDialogOpen(false);
+    refetch();
+  };
+
+  const handleMoveToFolder = async (folderId: string) => {
+    for (const note of selectedNotes) {
+      const { error } = await supabase
+        .from("notes_folders")
+        .insert({ note_id: note.id, folder_id: folderId });
+
+      if (error) {
+        console.error("Error moving note:", error);
+        toast({
+          title: "Error moving note",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: "Notes moved",
+      description: "Selected notes have been moved to the folder.",
+    });
+    setIsSelectionMode(false);
+    setSelectedNotes([]);
+    refetch();
+  };
+
+  const handleDeleteNotes = async () => {
+    for (const note of selectedNotes) {
+      const { error } = await supabase
+        .from("notes")
+        .delete()
+        .eq("id", note.id);
+
+      if (error) {
+        console.error("Error deleting note:", error);
+        toast({
+          title: "Error deleting note",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: "Notes deleted",
+      description: "Selected notes have been deleted.",
+    });
+    setIsSelectionMode(false);
+    setSelectedNotes([]);
+    refetch();
+  };
+
+  return {
+    notes,
+    isLoading,
+    isSelectionMode,
+    setIsSelectionMode,
+    selectedNotes,
+    toggleNoteSelection,
+    isFolderDialogOpen,
+    setIsFolderDialogOpen,
+    newFolderName,
+    setNewFolderName,
+    createNewFolder,
+    handleMoveToFolder,
+    handleDeleteNotes,
+  };
+};
