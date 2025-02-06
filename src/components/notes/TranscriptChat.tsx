@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Note } from "@/integrations/supabase/types/notes";
 import { ChatInput } from "./ChatInput";
 import { ChatMessages } from "./ChatMessages";
 
@@ -10,10 +11,10 @@ interface Message {
 }
 
 interface TranscriptChatProps {
-  transcript: string | null;
+  note: Note;
 }
 
-export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
+export const TranscriptChat = ({ note }: TranscriptChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -25,9 +26,9 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     console.log('TranscriptChat - Initial state:', {
       rawInput: input,
       trimmedInput: trimmedInput,
-      transcript: transcript,
-      transcriptType: typeof transcript,
-      transcriptLength: transcript?.length,
+      transcript: note.original_transcript,
+      transcriptType: typeof note.original_transcript,
+      transcriptLength: note.original_transcript?.length,
       isLoading: isLoading,
       messagesCount: messages.length
     });
@@ -42,10 +43,10 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
       return;
     }
 
-    if (!transcript || typeof transcript !== 'string') {
+    if (!note.original_transcript || typeof note.original_transcript !== 'string') {
       console.log('TranscriptChat - Validation failed: Invalid transcript', {
-        transcript: transcript,
-        type: typeof transcript
+        transcript: note.original_transcript,
+        type: typeof note.original_transcript
       });
       toast({
         title: "Erro na transcrição",
@@ -64,13 +65,13 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     try {
       console.log('TranscriptChat - Sending request to chat-with-transcript:', {
         messagesCount: messages.length + 1,
-        transcriptPreview: transcript.substring(0, 100) + '...'
+        transcriptPreview: note.original_transcript.substring(0, 100) + '...'
       });
 
       const { data, error } = await supabase.functions.invoke('chat-with-transcript', {
         body: { 
           messages: [...messages, userMessage],
-          transcript
+          transcript: note.original_transcript
         },
       });
 
