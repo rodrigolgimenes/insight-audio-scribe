@@ -153,11 +153,6 @@ const Dashboard = () => {
     refetch();
   };
 
-  const handleCancelSelection = () => {
-    setIsSelectionMode(false);
-    setSelectedNotes([]);
-  };
-
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
@@ -171,10 +166,9 @@ const Dashboard = () => {
 
             {isSelectionMode && selectedNotes.length > 0 && (
               <BulkActions
-                selectedCount={selectedNotes.length}
-                onMoveToFolder={handleMoveToFolder}
+                selectedNotes={selectedNotes}
+                onMoveToFolder={() => setIsFolderDialogOpen(true)}
                 onDelete={handleDeleteNotes}
-                onCancel={handleCancelSelection}
               />
             )}
 
@@ -195,11 +189,11 @@ const Dashboard = () => {
             <FolderDialog
               isOpen={isFolderDialogOpen}
               onOpenChange={setIsFolderDialogOpen}
+              folders={[]}
               newFolderName={newFolderName}
               onNewFolderNameChange={setNewFolderName}
-              onCreateFolder={createNewFolder}
-              onSelectFolder={() => {}}
-              folders={[]}
+              onCreateNewFolder={createNewFolder}
+              onSelectFolder={handleMoveToFolder}
             />
           </div>
         </main>
