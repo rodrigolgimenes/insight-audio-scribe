@@ -63,9 +63,23 @@ const Dashboard = () => {
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      toast({
+        title: "Authentication error",
+        description: "Please sign in to create folders.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from("folders")
-      .insert({ name: newFolderName });
+      .insert({ 
+        name: newFolderName,
+        user_id: user.id 
+      });
 
     if (error) {
       console.error("Error creating folder:", error);
@@ -87,7 +101,6 @@ const Dashboard = () => {
   };
 
   const handleMoveToFolder = async (folderId: string) => {
-    // Implement the logic to move selected notes to the specified folder
     for (const note of selectedNotes) {
       const { error } = await supabase
         .from("notes_folders")
@@ -152,8 +165,8 @@ const Dashboard = () => {
         <main className="flex-1 overflow-auto">
           <div className="max-w-5xl mx-auto px-6 py-8">
             <SearchHeader
-              onEnterSelectionMode={() => setIsSelectionMode(true)}
               isSelectionMode={isSelectionMode}
+              setIsSelectionMode={setIsSelectionMode}
             />
 
             {isSelectionMode && selectedNotes.length > 0 && (
@@ -182,9 +195,11 @@ const Dashboard = () => {
             <FolderDialog
               isOpen={isFolderDialogOpen}
               onOpenChange={setIsFolderDialogOpen}
-              folderName={newFolderName}
-              onFolderNameChange={setNewFolderName}
+              newFolderName={newFolderName}
+              onNewFolderNameChange={setNewFolderName}
               onCreateFolder={createNewFolder}
+              onSelectFolder={() => {}}
+              folders={[]}
             />
           </div>
         </main>
