@@ -1,9 +1,9 @@
 import { Note } from "@/integrations/supabase/types/notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, AlertCircle, CheckSquare } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Calendar, AlertCircle, CheckSquare, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NoteDuration } from "./NoteDuration";
+import { formatDate } from "@/utils/formatDate";
 
 interface NoteCardProps {
   note: Note;
@@ -50,7 +50,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
           <NoteDuration duration={note.duration} />
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+            {formatDate(note.created_at)}
           </span>
         </div>
       </CardContent>
