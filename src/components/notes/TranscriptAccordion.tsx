@@ -11,7 +11,17 @@ interface TranscriptAccordionProps {
 }
 
 export const TranscriptAccordion = ({ transcript }: TranscriptAccordionProps) => {
-  if (!transcript) return null;
+  console.log('TranscriptAccordion - Dados da transcrição recebidos:', {
+    hasTranscript: !!transcript,
+    transcriptLength: transcript?.length,
+    transcriptPreview: transcript?.substring(0, 100),
+    transcriptType: typeof transcript
+  });
+
+  if (!transcript || transcript.trim() === '') {
+    console.log('TranscriptAccordion - Transcrição inválida ou vazia');
+    return null;
+  }
 
   return (
     <Accordion type="single" collapsible className="w-full mt-8">
