@@ -25,7 +25,6 @@ serve(async (req) => {
 
     console.log('Processing file:', file.name, 'type:', file.type);
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -37,7 +36,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Handle video files by accepting the audio track directly
     let audioFile = file;
     if (file.type.startsWith('video/')) {
       console.log('Processing video file as audio...');
@@ -46,7 +44,6 @@ serve(async (req) => {
       console.log('Video processed as audio');
     }
 
-    // Upload audio file to storage
     console.log('Uploading audio file to storage...');
     const filePath = `${recordingId}/${crypto.randomUUID()}.${audioFile.name.split('.').pop()}`;
     const { error: uploadError } = await supabase.storage
@@ -69,12 +66,10 @@ serve(async (req) => {
       throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
-    // Get public URL for the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from('audio_recordings')
       .getPublicUrl(filePath);
 
-    // Update recording with file path and audio URL
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
@@ -89,7 +84,6 @@ serve(async (req) => {
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
-    // Prepare audio for transcription
     console.log('Preparing audio file for transcription...');
     const openAIFormData = new FormData();
     openAIFormData.append('file', audioFile);
@@ -123,7 +117,6 @@ serve(async (req) => {
     const transcription = await openAIResponse.json();
     console.log('Transcription received from OpenAI');
 
-    // Process with GPT-4
     console.log('Processing transcription with GPT-4...');
     const gptPrompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
 
@@ -144,7 +137,7 @@ Please format your response in a clear, structured way with headers for each sec
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4',
         messages: [
           { role: 'user', content: gptPrompt }
         ],
@@ -197,7 +190,7 @@ Please format your response in a clear, structured way with headers for each sec
       throw new Error('Recording not found');
     }
 
-    // Create note
+    // Create note with original transcript
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
