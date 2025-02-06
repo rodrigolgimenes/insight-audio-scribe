@@ -24,7 +24,6 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
   const navigate = useNavigate();
   
   const menuItems = [
-    { icon: Mic, label: "Recorder", href: "/record", id: "recorder" },
     { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
     { icon: FileText, label: "Notes", href: "/app", id: "notes" },
     { icon: Paintbrush, label: "Styles", href: "/app/styles", id: "styles" },

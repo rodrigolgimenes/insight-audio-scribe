@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import Dashboard from "./pages/Dashboard";
-import Record from "./pages/Record";
 import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
 import NotesRecord from "./pages/NotesRecord";
@@ -80,14 +79,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <StylesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/record"
-              element={
-                <ProtectedRoute>
-                  <Record />
                 </ProtectedRoute>
               }
             />
