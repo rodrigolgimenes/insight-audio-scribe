@@ -23,12 +23,16 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   const handleSendMessage = async () => {
     if (!input.trim() || !transcript) return;
 
+    // Add user message immediately
     const userMessage = { role: 'user' as const, content: input };
     setMessages(prev => [...prev, userMessage]);
+    
+    // Clear input right after sending
     setInput('');
     setIsLoading(true);
 
     try {
+      // Log the request for debugging
       console.log('Sending message to chat-with-transcript function:', {
         messages: [...messages, userMessage],
         transcript: transcript
@@ -46,6 +50,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
         throw error;
       }
 
+      // Log the response for debugging
       console.log('Received response from chat-with-transcript:', data);
 
       if (data?.message) {
