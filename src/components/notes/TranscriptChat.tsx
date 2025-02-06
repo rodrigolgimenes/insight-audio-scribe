@@ -23,7 +23,16 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   const handleSendMessage = async () => {
     const trimmedInput = input.trim();
     
+    console.log('Send message triggered with:', {
+      rawInput: input,
+      trimmedInput: trimmedInput,
+      hasTranscript: !!transcript,
+      transcriptLength: transcript?.length,
+      isLoading: isLoading
+    });
+    
     if (!trimmedInput) {
+      console.log('Validation failed: Empty input');
       toast({
         title: "Entrada inválida",
         description: "Por favor, digite uma mensagem antes de enviar.",
@@ -33,6 +42,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     }
 
     if (!transcript) {
+      console.log('Validation failed: No transcript available');
       toast({
         title: "Erro",
         description: "Não foi possível encontrar a transcrição.",
@@ -43,6 +53,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
 
     // Adiciona mensagem do usuário imediatamente
     const userMessage: Message = { role: 'user', content: trimmedInput };
+    console.log('Adding user message to history:', userMessage);
     setMessages(prev => [...prev, userMessage]);
     
     // Limpa input imediatamente após envio
@@ -50,9 +61,9 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     setIsLoading(true);
 
     try {
-      console.log('Enviando mensagem para chat-with-transcript:', {
+      console.log('Sending request to chat-with-transcript:', {
         messages: [...messages, userMessage],
-        transcript
+        transcriptPreview: transcript.substring(0, 100) + '...'
       });
 
       const { data, error } = await supabase.functions.invoke('chat-with-transcript', {
@@ -62,7 +73,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
         },
       });
 
-      console.log('Resposta recebida de chat-with-transcript:', { data, error });
+      console.log('Response from chat-with-transcript:', { data, error });
 
       if (error) {
         throw new Error(error.message || "Erro ao processar mensagem");
@@ -73,12 +84,13 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
           role: 'assistant', 
           content: data.message 
         };
+        console.log('Adding assistant response to history:', assistantMessage);
         setMessages(prev => [...prev, assistantMessage]);
       } else {
         throw new Error("Resposta inválida do servidor");
       }
     } catch (error) {
-      console.error('Erro no chat:', error);
+      console.error('Error in chat process:', error);
       toast({
         title: "Erro",
         description: "Não foi possível processar sua mensagem. Tente novamente.",
@@ -144,6 +156,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
               placeholder="Digite sua pergunta sobre a transcrição..."
               disabled={isLoading}
               className="flex-1 py-3 px-4 rounded-lg"
+              type="text"
             />
             <div className="flex gap-2">
               {isLoading ? (
