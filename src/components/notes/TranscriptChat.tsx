@@ -23,10 +23,19 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   const handleSendMessage = async () => {
     const trimmedInput = input.trim();
     
-    if (!trimmedInput || !transcript) {
+    if (!trimmedInput) {
       toast({
         title: "Entrada inválida",
         description: "Por favor, digite uma mensagem antes de enviar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!transcript) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível encontrar a transcrição.",
         variant: "destructive",
       });
       return;
