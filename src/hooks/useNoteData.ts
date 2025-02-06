@@ -28,7 +28,12 @@ export const useNoteData = () => {
       console.log("Fetching note with ID:", noteId);
       const { data, error } = await supabase
         .from("notes")
-        .select("*, notes_tags(tag_id), notes_folders(folder_id)")
+        .select(`
+          *,
+          notes_tags(tag_id),
+          notes_folders(folder_id),
+          recordings:recording_id (duration)
+        `)
         .eq("id", noteId)
         .maybeSingle();
 
@@ -47,7 +52,21 @@ export const useNoteData = () => {
         return null;
       }
 
-      return data as Note;
+      // Transform the data to match the Note interface
+      const transformedNote: Note = {
+        id: data.id,
+        title: data.title,
+        processed_content: data.processed_content,
+        original_transcript: data.original_transcript,
+        full_prompt: data.full_prompt,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        recording_id: data.recording_id,
+        user_id: data.user_id,
+        duration: data.recordings?.duration || null,
+      };
+
+      return transformedNote;
     },
     retry: false,
   });
