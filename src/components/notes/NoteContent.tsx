@@ -23,24 +23,34 @@ export const NoteContent = ({ note }: NoteContentProps) => {
   const { validTranscript } = TranscriptValidation({ note });
 
   return (
-    <div className="space-y-8">
-      <TitleSection note={note} />
+    <div className="divide-y divide-gray-200">
+      <div className="px-6 py-4">
+        <TitleSection note={note} />
+      </div>
 
-      <div>
+      <div className="px-6 py-4">
         <h2 className="text-xl font-semibold text-gray-700 mb-4">Ata da Reunião</h2>
-        <MeetingMinutes transcript={note.original_transcript} noteId={note.id} />
+        <div className="bg-gray-50 rounded-lg p-4">
+          <MeetingMinutes transcript={note.original_transcript} noteId={note.id} />
+        </div>
       </div>
 
       {validTranscript ? (
         <>
-          <TranscriptAccordion transcript={validTranscript} />
-          <TranscriptChat 
-            transcript={validTranscript} 
-            key={note.id}
-          />
+          <div className="px-6 py-4">
+            <TranscriptAccordion transcript={validTranscript} />
+          </div>
+          <div className="px-6 py-4">
+            <TranscriptChat 
+              transcript={validTranscript} 
+              key={note.id}
+            />
+          </div>
         </>
       ) : (
-        <TranscriptError />
+        <div className="px-6 py-4">
+          <TranscriptError />
+        </div>
       )}
     </div>
   );
