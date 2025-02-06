@@ -19,7 +19,7 @@ export const SearchHeader = ({
         <Input 
           type="search" 
           placeholder="Search notes..." 
-          className="pl-10 h-12 text-lg rounded-xl border-gray-200 focus:border-primary focus:ring-primary"
+          className="pl-10 h-12 text-lg rounded-xl border-gray-200 focus:border-primary focus:ring-primary shadow-sm"
         />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
