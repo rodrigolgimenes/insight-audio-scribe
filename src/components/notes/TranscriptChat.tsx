@@ -133,6 +133,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
                 onClick={handleSendMessage} 
                 disabled={isLoading || !input.trim()}
                 className="shrink-0"
+                type="button"
               >
                 <Send className="h-4 w-4" />
               </Button>
