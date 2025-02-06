@@ -9,6 +9,14 @@ interface NoteContentProps {
 }
 
 export const NoteContent = ({ note }: NoteContentProps) => {
+  console.log('NoteContent - Dados da nota recebidos:', {
+    noteId: note.id,
+    hasOriginalTranscript: !!note.original_transcript,
+    originalTranscriptLength: note.original_transcript?.length,
+    hasProcessedContent: !!note.processed_content,
+    processedContentLength: note.processed_content?.length
+  });
+
   // Função para extrair apenas o título e data/hora da primeira linha
   const extractTitleAndDateTime = (transcript: string | null): string => {
     if (!transcript) return '';
@@ -17,12 +25,24 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     return match ? `Recording ${match[1]}, ${match[2]}` : '';
   };
 
-  // Função para remover a primeira linha da transcrição
+  // Função para remover a primeira linha da transcrição e validar o conteúdo
   const getTranscriptWithoutFirstLine = (transcript: string | null): string => {
     if (!transcript) {
-      console.log('NoteContent - Transcrição não encontrada:', { noteId: note.id });
+      console.log('NoteContent - Transcrição não encontrada:', { 
+        noteId: note.id,
+        transcriptValue: transcript 
+      });
       return '';
     }
+
+    if (typeof transcript !== 'string') {
+      console.log('NoteContent - Tipo inválido de transcrição:', {
+        noteId: note.id,
+        transcriptType: typeof transcript
+      });
+      return '';
+    }
+
     console.log('NoteContent - Processando transcrição:', {
       noteId: note.id,
       transcriptLength: transcript.length,
@@ -35,14 +55,23 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     console.log('NoteContent - Transcrição processada:', {
       noteId: note.id,
       processedLength: processedTranscript.length,
-      hasContent: !!processedTranscript
+      hasContent: !!processedTranscript,
+      firstProcessedLine: processedTranscript.split('\n')[0]
     });
     
-    return processedTranscript;
+    return processedTranscript.trim();
   };
 
-  // Processa a transcrição uma única vez
+  // Processa a transcrição uma única vez e valida o resultado
   const processedTranscript = getTranscriptWithoutFirstLine(note.original_transcript);
+  const isTranscriptValid = processedTranscript && processedTranscript.length > 0;
+
+  console.log('NoteContent - Resultado final do processamento:', {
+    noteId: note.id,
+    isTranscriptValid,
+    processedTranscriptLength: processedTranscript.length,
+    willShowTranscript: isTranscriptValid
+  });
 
   return (
     <div className="space-y-8">
@@ -62,7 +91,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       <ProcessedContentAccordion content={note.processed_content} />
 
       {/* Transcript Accordion and Chat */}
-      {processedTranscript ? (
+      {isTranscriptValid ? (
         <>
           <TranscriptAccordion transcript={processedTranscript} />
           <TranscriptChat transcript={processedTranscript} />
@@ -71,6 +100,9 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md">
           <p className="text-yellow-700">
             Não foi possível encontrar a transcrição para este documento.
+            {note.original_transcript === null ? 
+              ' A transcrição original não está disponível.' : 
+              ' A transcrição está vazia ou em formato inválido.'}
           </p>
         </div>
       )}
