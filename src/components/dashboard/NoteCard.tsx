@@ -18,19 +18,15 @@ const formatDuration = (duration: number | null) => {
   const minutes = Math.floor((duration % 3600) / 60);
   const seconds = duration % 60;
 
-  const parts = [];
-
   if (hours > 0) {
-    parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`);
+    return `${hours}h ${minutes}min`;
   }
+  
   if (minutes > 0) {
-    parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`);
+    return `${minutes}min ${seconds}s`;
   }
-  if (seconds > 0 && hours === 0) { // Only show seconds if less than an hour
-    parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`);
-  }
-
-  return parts.join(' and ');
+  
+  return `${seconds}s`;
 };
 
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
