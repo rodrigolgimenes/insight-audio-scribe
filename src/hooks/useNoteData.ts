@@ -32,7 +32,7 @@ export const useNoteData = () => {
           *,
           notes_tags(tag_id),
           notes_folders(folder_id),
-          recordings:recording_id (duration)
+          recordings!inner (duration)
         `)
         .eq("id", noteId)
         .maybeSingle();
