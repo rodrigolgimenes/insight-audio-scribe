@@ -23,6 +23,8 @@ export const ChatInput = ({
     <div className="border-t p-4 bg-white">
       <div className="flex gap-2 items-center">
         <Input
+          id="chat-input"
+          name="chat-input"
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyPress={onKeyPress}

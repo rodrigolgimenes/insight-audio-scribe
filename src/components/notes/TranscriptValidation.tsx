@@ -18,46 +18,43 @@ export const TranscriptValidation = ({ note }: TranscriptValidationProps) => {
     if (!transcript) {
       console.log('TranscriptValidation - Transcrição não encontrada:', { 
         noteId: note.id,
-        transcriptValue: transcript,
-        transcriptType: typeof transcript
+        transcript: 'null'
       });
       return '';
     }
 
-    if (typeof transcript !== 'string') {
-      console.log('TranscriptValidation - Tipo inválido de transcrição:', {
-        noteId: note.id,
-        transcriptType: typeof transcript,
-        transcriptValue: transcript
-      });
-      return '';
-    }
-
+    const lines = transcript.split('\n');
     console.log('TranscriptValidation - Processando transcrição:', {
       noteId: note.id,
       transcriptLength: transcript.length,
-      firstLine: transcript.split('\n')[0],
-      transcriptPreview: transcript.substring(0, 100)
+      firstLine: lines[0],
+      transcriptPreview: transcript.substring(0, 100) + '...'
     });
-    
-    const lines = transcript.split('\n');
-    const processedTranscript = lines.slice(1).join('\n');
-    
-    console.log('TranscriptValidation - Transcrição processada:', {
-      noteId: note.id,
-      processedLength: processedTranscript.length,
-      hasContent: !!processedTranscript,
-      firstProcessedLine: processedTranscript.split('\n')[0],
-      processedPreview: processedTranscript.substring(0, 100)
-    });
-    
-    return processedTranscript.trim();
+
+    // Retorna a transcrição completa se ela existir
+    return transcript;
   };
 
-  const processedTranscript = getTranscriptWithoutFirstLine(note.original_transcript);
-  const validTranscript = processedTranscript && processedTranscript.trim() !== ''
-    ? processedTranscript
-    : null;
+  const processTranscript = (transcript: string): string => {
+    if (!transcript.trim()) {
+      return '';
+    }
+
+    console.log('TranscriptValidation - Transcrição processada:', {
+      noteId: note.id,
+      hasContent: !!transcript,
+      processedLength: transcript.length,
+      firstProcessedLine: transcript.split('\n')[0],
+      processedPreview: transcript.substring(0, 100)
+    });
+
+    return transcript;
+  };
+
+  const transcript = note.original_transcript || note.processed_content;
+  const transcriptWithoutFirstLine = getTranscriptWithoutFirstLine(transcript);
+  const processedTranscript = processTranscript(transcriptWithoutFirstLine);
+  const validTranscript = processedTranscript;
 
   console.log('TranscriptValidation - Resultado final do processamento:', {
     noteId: note.id,
