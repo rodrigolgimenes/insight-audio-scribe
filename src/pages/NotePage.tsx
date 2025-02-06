@@ -61,8 +61,10 @@ const NotePage = () => {
               onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
             />
             
-            <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200">
-              <NoteContent note={note} />
+            <div className="mt-8">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <NoteContent note={note} />
+              </div>
             </div>
 
             <MoveNoteDialog

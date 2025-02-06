@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { NoteActions } from "./NoteActions";
+import { Tag, FolderOpen, Trash2 } from "lucide-react";
 
 interface NoteHeaderProps {
   title: string;
@@ -16,23 +14,38 @@ export const NoteHeader = ({
   onOpenMoveDialog,
   onOpenDeleteDialog,
 }: NoteHeaderProps) => {
-  const navigate = useNavigate();
-
   return (
-    <div className="mb-6 flex justify-between items-center">
-      <Button
-        variant="ghost"
-        className="gap-2"
-        onClick={() => navigate("/app")}
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to notes
-      </Button>
-      <NoteActions
-        onOpenTagsDialog={onOpenTagsDialog}
-        onOpenMoveDialog={onOpenMoveDialog}
-        onOpenDeleteDialog={onOpenDeleteDialog}
-      />
+    <div className="flex justify-between items-center">
+      <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+      <div className="flex gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={onOpenTagsDialog}
+        >
+          <Tag className="h-4 w-4" />
+          Add tags
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          onClick={onOpenMoveDialog}
+        >
+          <FolderOpen className="h-4 w-4" />
+          Move to folder
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="gap-2"
+          onClick={onOpenDeleteDialog}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete
+        </Button>
+      </div>
     </div>
   );
 };
