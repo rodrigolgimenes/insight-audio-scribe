@@ -1,8 +1,9 @@
 import { Note } from "@/integrations/supabase/types/notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Calendar, AlertCircle, CheckSquare } from "lucide-react";
+import { Calendar, AlertCircle, CheckSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { NoteDuration } from "./NoteDuration";
 
 interface NoteCardProps {
   note: Note;
@@ -10,24 +11,6 @@ interface NoteCardProps {
   isSelected: boolean;
   onClick: () => void;
 }
-
-const formatDuration = (duration: number | null) => {
-  if (!duration) return "Unknown duration";
-  
-  const hours = Math.floor(duration / 3600);
-  const minutes = Math.floor((duration % 3600) / 60);
-  const seconds = duration % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}min`;
-  }
-  
-  if (minutes > 0) {
-    return `${minutes}min ${seconds}s`;
-  }
-  
-  return `${seconds}s`;
-};
 
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
   return (
@@ -64,10 +47,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
           </div>
         )}
         <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            {formatDuration(note.duration)}
-          </span>
+          <NoteDuration duration={note.duration} />
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
             {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
