@@ -36,15 +36,32 @@ interface NoteCardProps {
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { deleteNote } = useNoteOperations(note.id);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Previne a propagação do clique do dropdown para o card
-    if (e.target instanceof HTMLElement && e.target.closest('[data-dropdown]')) {
-      e.stopPropagation();
+    if (e.target instanceof HTMLElement && 
+        (e.target.closest('[data-dropdown]') || 
+         e.target.closest('[role="dialog"]'))) {
       return;
     }
     onClick();
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteNote();
+      setIsDropdownOpen(false);
+    } catch (error) {
+      console.error('Error deleting note:', error);
+    }
+  };
+
+  const handleMove = (folderId: string) => {
+    // Implementar a lógica de mover para pasta
+    setIsMoveDialogOpen(false);
+    setIsDropdownOpen(false);
   };
 
   return (
@@ -68,29 +85,55 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       <CardHeader className="flex flex-row items-start justify-between">
         <CardTitle className="text-xl">{note.title}</CardTitle>
         {!isSelectionMode && (
-          <DropdownMenu>
+          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
             <DropdownMenuTrigger asChild data-dropdown>
-              <Button variant="ghost" className="h-8 w-8 p-0">
+              <Button 
+                variant="ghost" 
+                className="h-8 w-8 p-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[160px]">
-              <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+            <DropdownMenuContent 
+              align="end" 
+              className="w-[160px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DropdownMenuItem 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsRenaming(true);
+                  setIsDropdownOpen(false);
+                }}
+              >
                 <Pencil className="mr-2 h-4 w-4" />
                 Renomear
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsMoveDialogOpen(true)}>
+              <DropdownMenuItem 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMoveDialogOpen(true);
+                  setIsDropdownOpen(false);
+                }}
+              >
                 <FolderOpen className="mr-2 h-4 w-4" />
                 Mover
               </DropdownMenuItem>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
+                  <DropdownMenuItem 
+                    className="text-red-600" 
+                    onSelect={(e) => e.preventDefault()}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Excluir
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Excluir nota</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -98,8 +141,12 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={deleteNote}>Excluir</AlertDialogAction>
+                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+                      Cancelar
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>
+                      Excluir
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -128,16 +175,12 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         </div>
       </CardContent>
 
-      {/* Diálogo para mover a nota */}
       <MoveNoteDialog
         isOpen={isMoveDialogOpen}
         onOpenChange={setIsMoveDialogOpen}
         folders={[]} // Será preenchido com as pastas disponíveis
         currentFolderId={null}
-        onMoveToFolder={(folderId) => {
-          // Implementar a lógica de mover para pasta
-          setIsMoveDialogOpen(false);
-        }}
+        onMoveToFolder={handleMove}
       />
     </Card>
   );
