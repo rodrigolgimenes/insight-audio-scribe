@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { EmptyState } from "./EmptyState";
 import { BulkActions } from "./BulkActions";
 import { FolderDialog } from "./FolderDialog";
-import { NotesGrid } from "./NotesGrid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Calendar, AlertCircle } from "lucide-react";
+import { Clock, Calendar, AlertCircle, CheckSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface DashboardContentProps {
   notes: Note[] | undefined;
@@ -73,9 +73,22 @@ export const DashboardContent = ({
           {notes.map((note) => (
             <Card
               key={note.id}
-              className="hover:shadow-lg transition-shadow cursor-pointer hover:bg-gray-50"
+              className={cn(
+                "hover:shadow-lg transition-shadow cursor-pointer hover:bg-gray-50 relative",
+                isSelectionMode && selectedNotes.includes(note) && "bg-gray-50 ring-2 ring-primary"
+              )}
               onClick={() => handleNoteClick(note)}
             >
+              {isSelectionMode && (
+                <div className="absolute top-4 right-4">
+                  <CheckSquare 
+                    className={cn(
+                      "h-6 w-6",
+                      selectedNotes.includes(note) ? "text-primary" : "text-gray-300"
+                    )} 
+                  />
+                </div>
+              )}
               <CardHeader>
                 <CardTitle className="text-xl">{note.title}</CardTitle>
               </CardHeader>
@@ -86,18 +99,10 @@ export const DashboardContent = ({
                     <span>No audio was captured in this recording</span>
                   </div>
                 ) : (
-                  <>
-                    <div className="text-sm text-gray-600">
-                      <h3 className="font-semibold mb-1">Transcription:</h3>
-                      <p className="line-clamp-3">{note.original_transcript}</p>
-                    </div>
-                    {note.processed_content && (
-                      <div className="text-sm text-gray-600">
-                        <h3 className="font-semibold mb-1">Summary:</h3>
-                        <p className="line-clamp-3">{note.processed_content}</p>
-                      </div>
-                    )}
-                  </>
+                  <div className="text-sm text-gray-600">
+                    <h3 className="font-semibold mb-1">Transcription:</h3>
+                    <p className="line-clamp-3">{note.original_transcript}</p>
+                  </div>
                 )}
                 <div className="flex items-center gap-4 text-sm text-gray-500">
                   <span className="flex items-center gap-1">
