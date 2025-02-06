@@ -19,10 +19,30 @@ export const NoteContent = ({ note }: NoteContentProps) => {
 
   // Função para remover a primeira linha da transcrição
   const getTranscriptWithoutFirstLine = (transcript: string | null): string => {
-    if (!transcript) return '';
+    if (!transcript) {
+      console.log('NoteContent - Transcrição não encontrada:', { noteId: note.id });
+      return '';
+    }
+    console.log('NoteContent - Processando transcrição:', {
+      noteId: note.id,
+      transcriptLength: transcript.length,
+      firstLine: transcript.split('\n')[0]
+    });
+    
     const lines = transcript.split('\n');
-    return lines.slice(1).join('\n');
+    const processedTranscript = lines.slice(1).join('\n');
+    
+    console.log('NoteContent - Transcrição processada:', {
+      noteId: note.id,
+      processedLength: processedTranscript.length,
+      hasContent: !!processedTranscript
+    });
+    
+    return processedTranscript;
   };
+
+  // Processa a transcrição uma única vez
+  const processedTranscript = getTranscriptWithoutFirstLine(note.original_transcript);
 
   return (
     <div className="space-y-8">
@@ -42,15 +62,17 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       <ProcessedContentAccordion content={note.processed_content} />
 
       {/* Transcript Accordion and Chat */}
-      {note.original_transcript && (
+      {processedTranscript ? (
         <>
-          <TranscriptAccordion 
-            transcript={getTranscriptWithoutFirstLine(note.original_transcript)} 
-          />
-          <TranscriptChat 
-            transcript={getTranscriptWithoutFirstLine(note.original_transcript)} 
-          />
+          <TranscriptAccordion transcript={processedTranscript} />
+          <TranscriptChat transcript={processedTranscript} />
         </>
+      ) : (
+        <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-yellow-700">
+            Não foi possível encontrar a transcrição para este documento.
+          </p>
+        </div>
       )}
     </div>
   );
