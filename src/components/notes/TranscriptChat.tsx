@@ -23,16 +23,18 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
   const handleSendMessage = async () => {
     const trimmedInput = input.trim();
     
-    console.log('Send message triggered with:', {
+    console.log('TranscriptChat - Initial state:', {
       rawInput: input,
       trimmedInput: trimmedInput,
-      hasTranscript: !!transcript,
+      transcript: transcript,
+      transcriptType: typeof transcript,
       transcriptLength: transcript?.length,
-      isLoading: isLoading
+      isLoading: isLoading,
+      messagesCount: messages.length
     });
     
     if (!trimmedInput) {
-      console.log('Validation failed: Empty input');
+      console.log('TranscriptChat - Validation failed: Empty input');
       toast({
         title: "Entrada inválida",
         description: "Por favor, digite uma mensagem antes de enviar.",
@@ -41,11 +43,14 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
       return;
     }
 
-    if (!transcript) {
-      console.log('Validation failed: No transcript available');
+    if (!transcript || typeof transcript !== 'string') {
+      console.log('TranscriptChat - Validation failed: Invalid transcript', {
+        transcript: transcript,
+        type: typeof transcript
+      });
       toast({
-        title: "Erro",
-        description: "Não foi possível encontrar a transcrição.",
+        title: "Erro na transcrição",
+        description: "A transcrição não está disponível no momento. Por favor, tente novamente.",
         variant: "destructive",
       });
       return;
@@ -53,7 +58,7 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
 
     // Adiciona mensagem do usuário imediatamente
     const userMessage: Message = { role: 'user', content: trimmedInput };
-    console.log('Adding user message to history:', userMessage);
+    console.log('TranscriptChat - Adding user message:', userMessage);
     setMessages(prev => [...prev, userMessage]);
     
     // Limpa input imediatamente após envio
@@ -61,8 +66,8 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
     setIsLoading(true);
 
     try {
-      console.log('Sending request to chat-with-transcript:', {
-        messages: [...messages, userMessage],
+      console.log('TranscriptChat - Sending request to chat-with-transcript:', {
+        messagesCount: messages.length + 1,
         transcriptPreview: transcript.substring(0, 100) + '...'
       });
 
@@ -73,9 +78,10 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
         },
       });
 
-      console.log('Response from chat-with-transcript:', { data, error });
+      console.log('TranscriptChat - Response received:', { data, error });
 
       if (error) {
+        console.error('TranscriptChat - Supabase function error:', error);
         throw new Error(error.message || "Erro ao processar mensagem");
       }
 
@@ -84,13 +90,14 @@ export const TranscriptChat = ({ transcript }: TranscriptChatProps) => {
           role: 'assistant', 
           content: data.message 
         };
-        console.log('Adding assistant response to history:', assistantMessage);
+        console.log('TranscriptChat - Adding assistant response:', assistantMessage);
         setMessages(prev => [...prev, assistantMessage]);
       } else {
+        console.error('TranscriptChat - Invalid response:', data);
         throw new Error("Resposta inválida do servidor");
       }
     } catch (error) {
-      console.error('Error in chat process:', error);
+      console.error('TranscriptChat - Error in chat process:', error);
       toast({
         title: "Erro",
         description: "Não foi possível processar sua mensagem. Tente novamente.",
