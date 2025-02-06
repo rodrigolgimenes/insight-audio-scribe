@@ -52,7 +52,7 @@ const FolderPage = () => {
           note:notes (
             id,
             title,
-            processed_content,
+            original_transcript,
             created_at
           )
         `)
@@ -74,7 +74,6 @@ const FolderPage = () => {
   const deleteSelectedNotes = async () => {
     try {
       for (const noteId of selectedNotes) {
-        // Delete folder associations
         const { error: folderError } = await supabase
           .from("notes_folders")
           .delete()
@@ -89,7 +88,6 @@ const FolderPage = () => {
           return;
         }
 
-        // Delete tag associations
         const { error: tagError } = await supabase
           .from("notes_tags")
           .delete()
@@ -104,7 +102,6 @@ const FolderPage = () => {
           return;
         }
 
-        // Delete the note
         const { error: noteError } = await supabase
           .from("notes")
           .delete()
@@ -219,7 +216,7 @@ const FolderPage = () => {
                   )}
                   <h3 className="font-medium mb-2">{note.title}</h3>
                   <p className="text-gray-600 text-sm line-clamp-3">
-                    {note.processed_content}
+                    {note.original_transcript || "No transcript available"}
                   </p>
                   <div className="mt-4 flex justify-between items-center">
                     <span className="text-xs text-gray-500">
