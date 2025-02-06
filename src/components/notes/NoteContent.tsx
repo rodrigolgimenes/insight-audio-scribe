@@ -79,14 +79,16 @@ export const NoteContent = ({ note }: NoteContentProps) => {
 
   // Processa a transcrição uma única vez e valida o resultado
   const processedTranscript = getTranscriptWithoutFirstLine(note.original_transcript);
-  const isTranscriptValid = processedTranscript && processedTranscript.length > 0;
+  const validTranscript = processedTranscript && processedTranscript.trim() !== ''
+    ? processedTranscript
+    : null;
 
   console.log('NoteContent - Resultado final do processamento:', {
     noteId: note.id,
-    isTranscriptValid,
+    hasValidTranscript: !!validTranscript,
     processedTranscriptLength: processedTranscript.length,
-    willShowTranscript: isTranscriptValid,
-    transcriptPreview: isTranscriptValid ? processedTranscript.substring(0, 100) : 'N/A'
+    willShowTranscript: !!validTranscript,
+    transcriptPreview: validTranscript ? validTranscript.substring(0, 100) : 'N/A'
   });
 
   return (
@@ -107,11 +109,11 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       <ProcessedContentAccordion content={note.processed_content} />
 
       {/* Transcript Accordion and Chat */}
-      {isTranscriptValid ? (
+      {validTranscript ? (
         <>
-          <TranscriptAccordion transcript={processedTranscript} />
+          <TranscriptAccordion transcript={validTranscript} />
           <TranscriptChat 
-            transcript={processedTranscript} 
+            transcript={validTranscript} 
             key={note.id}
           />
         </>

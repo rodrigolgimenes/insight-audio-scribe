@@ -15,7 +15,8 @@ export const TranscriptAccordion = ({ transcript }: TranscriptAccordionProps) =>
     hasTranscript: !!transcript,
     transcriptLength: transcript?.length,
     transcriptPreview: transcript?.substring(0, 100),
-    transcriptType: typeof transcript
+    transcriptType: typeof transcript,
+    isEmptyOrWhitespace: !transcript?.trim(),
   });
 
   if (!transcript || transcript.trim() === '') {
