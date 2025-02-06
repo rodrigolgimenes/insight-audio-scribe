@@ -2,6 +2,7 @@ import { Note } from "@/integrations/supabase/types/notes";
 import { MeetingMinutes } from "./MeetingMinutes";
 import { TranscriptAccordion } from "./TranscriptAccordion";
 import { TranscriptChat } from "./TranscriptChat";
+import { ProcessedContentAccordion } from "./ProcessedContentAccordion";
 
 interface NoteContentProps {
   note: Note;
@@ -37,10 +38,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         <MeetingMinutes transcript={note.original_transcript} noteId={note.id} />
       </div>
 
-      {/* Processed content section */}
-      <div className="mb-8">
-        <div dangerouslySetInnerHTML={{ __html: note.processed_content }} />
-      </div>
+      {/* Processed content section with accordion */}
+      <ProcessedContentAccordion content={note.processed_content} />
 
       {/* Transcript Accordion and Chat */}
       {note.original_transcript && (
