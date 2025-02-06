@@ -15,7 +15,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     originalTranscriptLength: note.original_transcript?.length,
     hasProcessedContent: !!note.processed_content,
     processedContentLength: note.processed_content?.length,
-    fullNote: note // Add full note logging for debugging
+    fullNote: note
   });
 
   // Função para extrair apenas o título e data/hora da primeira linha
@@ -60,7 +60,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       noteId: note.id,
       transcriptLength: transcript.length,
       firstLine: transcript.split('\n')[0],
-      transcriptPreview: transcript.substring(0, 100) // Add preview of content
+      transcriptPreview: transcript.substring(0, 100)
     });
     
     const lines = transcript.split('\n');
@@ -71,7 +71,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
       processedLength: processedTranscript.length,
       hasContent: !!processedTranscript,
       firstProcessedLine: processedTranscript.split('\n')[0],
-      processedPreview: processedTranscript.substring(0, 100) // Add preview of processed content
+      processedPreview: processedTranscript.substring(0, 100)
     });
     
     return processedTranscript.trim();
@@ -112,7 +112,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
           <TranscriptAccordion transcript={processedTranscript} />
           <TranscriptChat 
             transcript={processedTranscript} 
-            key={note.id} // Add key to force re-render on note change
+            key={note.id}
           />
         </>
       ) : (
