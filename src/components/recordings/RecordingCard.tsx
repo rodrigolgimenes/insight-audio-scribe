@@ -1,6 +1,7 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, Calendar, AlertCircle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDate } from "@/utils/formatDate";
 
 interface Recording {
   id: string;
@@ -71,7 +72,7 @@ export const RecordingCard = ({
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />
-            {formatDistanceToNow(new Date(recording.created_at), { addSuffix: true })}
+            {formatDate(recording.created_at)}
           </span>
         </div>
       </CardContent>
