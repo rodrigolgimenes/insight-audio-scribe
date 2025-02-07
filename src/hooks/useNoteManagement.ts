@@ -11,9 +11,10 @@ export const useNoteManagement = () => {
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  const { data: notes, isLoading, refetch } = useQuery({
+  const { data: notes, isLoading, error } = useQuery({
     queryKey: ["notes"],
     queryFn: async () => {
+      console.log("Fetching notes...");
       try {
         const { data, error } = await supabase
           .from("notes")
@@ -32,20 +33,40 @@ export const useNoteManagement = () => {
             description: "Failed to fetch notes",
             variant: "destructive",
           });
+          throw error;
+        }
+
+        if (!data) {
+          console.log("No notes found");
           return [];
         }
 
+        console.log("Raw notes data:", data);
+
         // Map the data to match the Note type structure
-        return data.map((note) => ({
-          ...note,
-          duration: note.recordings?.duration || null,
-        })) as Note[];
+        const mappedNotes = data.map((note) => {
+          console.log("Mapping note:", note);
+          return {
+            id: note.id,
+            title: note.title,
+            processed_content: note.processed_content,
+            original_transcript: note.original_transcript,
+            full_prompt: note.full_prompt,
+            created_at: note.created_at,
+            updated_at: note.updated_at,
+            recording_id: note.recording_id,
+            user_id: note.user_id,
+            duration: note.recordings?.duration || null,
+          } as Note;
+        });
+
+        console.log("Mapped notes:", mappedNotes);
+        return mappedNotes;
       } catch (error) {
         console.error("Error in notes query:", error);
-        return [];
+        throw error;
       }
     },
-    retry: 1,
   });
 
   const toggleNoteSelection = (note: Note) => {
@@ -101,7 +122,6 @@ export const useNoteManagement = () => {
       });
       setNewFolderName("");
       setIsFolderDialogOpen(false);
-      refetch();
     } catch (error) {
       console.error("Error in createNewFolder:", error);
       toast({
@@ -143,7 +163,6 @@ export const useNoteManagement = () => {
       });
       setIsSelectionMode(false);
       setSelectedNotes([]);
-      refetch();
       setIsFolderDialogOpen(false);
     } catch (error) {
       console.error("Error in handleMoveToFolder:", error);
@@ -180,7 +199,6 @@ export const useNoteManagement = () => {
       });
       setIsSelectionMode(false);
       setSelectedNotes([]);
-      refetch();
     } catch (error) {
       console.error("Error in handleDeleteNotes:", error);
       toast({
@@ -194,6 +212,7 @@ export const useNoteManagement = () => {
   return {
     notes,
     isLoading,
+    error,
     isSelectionMode,
     setIsSelectionMode,
     selectedNotes,
