@@ -6,6 +6,7 @@ import { NotesGrid } from "./NotesGrid";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardContentProps {
   notes: Note[] | undefined;
@@ -37,6 +38,7 @@ export const DashboardContent = ({
   onNoteSelect,
 }: DashboardContentProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Fetch current folder for the selected notes (if they're all in the same folder)
   const { data: currentFolder, isLoading: isLoadingCurrentFolder } = useQuery({
@@ -44,43 +46,65 @@ export const DashboardContent = ({
     queryFn: async () => {
       if (selectedNotes.length === 0) return null;
 
-      const { data, error } = await supabase
-        .from("notes_folders")
-        .select(`
-          folder:folders (
-            id,
-            name
-          )
-        `)
-        .eq("note_id", selectedNotes[0].id)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from("notes_folders")
+          .select(`
+            folder:folders (
+              id,
+              name
+            )
+          `)
+          .eq("note_id", selectedNotes[0].id)
+          .single();
 
-      if (error) {
-        console.error("Error fetching current folder:", error);
+        if (error) {
+          console.error("Error fetching current folder:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch current folder",
+            variant: "destructive",
+          });
+          return null;
+        }
+        
+        return data?.folder || null;
+      } catch (error) {
+        console.error("Error in current folder query:", error);
         return null;
       }
-      
-      return data?.folder || null;
     },
     enabled: selectedNotes.length > 0,
+    retry: 1,
   });
 
   // Fetch available folders
   const { data: folders = [], isLoading: isLoadingFolders } = useQuery({
     queryKey: ["folders"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("folders")
-        .select("*")
-        .order("created_at", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("folders")
+          .select("*")
+          .order("created_at", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching folders:", error);
-        throw error;
+        if (error) {
+          console.error("Error fetching folders:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch folders",
+            variant: "destructive",
+          });
+          return [];
+        }
+
+        return data;
+      } catch (error) {
+        console.error("Error in folders query:", error);
+        return [];
       }
-
-      return data;
     },
+    retry: 1,
   });
 
   const handleNoteClick = (note: Note) => {

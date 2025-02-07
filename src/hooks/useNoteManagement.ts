@@ -14,18 +14,29 @@ export const useNoteManagement = () => {
   const { data: notes, isLoading, refetch } = useQuery({
     queryKey: ["notes"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notes")
-        .select("*")
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("notes")
+          .select("*, recordings(duration)")
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching notes:", error);
-        throw error;
+        if (error) {
+          console.error("Error fetching notes:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch notes",
+            variant: "destructive",
+          });
+          return [];
+        }
+
+        return data as Note[];
+      } catch (error) {
+        console.error("Error in notes query:", error);
+        return [];
       }
-
-      return data as Note[];
     },
+    retry: 1,
   });
 
   const toggleNoteSelection = (note: Note) => {
@@ -46,94 +57,129 @@ export const useNoteManagement = () => {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication error",
+          description: "Please sign in to create folders.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("folders")
+        .insert({ 
+          name: newFolderName,
+          user_id: user.id 
+        });
+
+      if (error) {
+        console.error("Error creating folder:", error);
+        toast({
+          title: "Error creating folder",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Authentication error",
-        description: "Please sign in to create folders.",
+        title: "Folder created",
+        description: "The new folder has been created successfully.",
+      });
+      setNewFolderName("");
+      setIsFolderDialogOpen(false);
+      refetch();
+    } catch (error) {
+      console.error("Error in createNewFolder:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create folder",
         variant: "destructive",
       });
-      return;
     }
-
-    const { error } = await supabase
-      .from("folders")
-      .insert({ 
-        name: newFolderName,
-        user_id: user.id 
-      });
-
-    if (error) {
-      console.error("Error creating folder:", error);
-      toast({
-        title: "Error creating folder",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Folder created",
-      description: "The new folder has been created successfully.",
-    });
-    setNewFolderName("");
-    setIsFolderDialogOpen(false);
-    refetch();
   };
 
   const handleMoveToFolder = async (folderId: string) => {
-    for (const note of selectedNotes) {
-      const { error } = await supabase
-        .from("notes_folders")
-        .insert({ note_id: note.id, folder_id: folderId });
+    try {
+      for (const note of selectedNotes) {
+        // First remove from any existing folder
+        await supabase
+          .from("notes_folders")
+          .delete()
+          .eq("note_id", note.id);
 
-      if (error) {
-        console.error("Error moving note:", error);
-        toast({
-          title: "Error moving note",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
+        // Then add to new folder
+        const { error } = await supabase
+          .from("notes_folders")
+          .insert({ note_id: note.id, folder_id: folderId });
+
+        if (error) {
+          console.error("Error moving note:", error);
+          toast({
+            title: "Error moving note",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
       }
-    }
 
-    toast({
-      title: "Notes moved",
-      description: "Selected notes have been moved to the folder.",
-    });
-    setIsSelectionMode(false);
-    setSelectedNotes([]);
-    refetch();
+      toast({
+        title: "Notes moved",
+        description: "Selected notes have been moved to the folder.",
+      });
+      setIsSelectionMode(false);
+      setSelectedNotes([]);
+      refetch();
+      setIsFolderDialogOpen(false);
+    } catch (error) {
+      console.error("Error in handleMoveToFolder:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move notes",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteNotes = async () => {
-    for (const note of selectedNotes) {
-      const { error } = await supabase
-        .from("notes")
-        .delete()
-        .eq("id", note.id);
+    try {
+      for (const note of selectedNotes) {
+        const { error } = await supabase
+          .from("notes")
+          .delete()
+          .eq("id", note.id);
 
-      if (error) {
-        console.error("Error deleting note:", error);
-        toast({
-          title: "Error deleting note",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
+        if (error) {
+          console.error("Error deleting note:", error);
+          toast({
+            title: "Error deleting note",
+            description: error.message,
+            variant: "destructive",
+          });
+          return;
+        }
       }
-    }
 
-    toast({
-      title: "Notes deleted",
-      description: "Selected notes have been deleted.",
-    });
-    setIsSelectionMode(false);
-    setSelectedNotes([]);
-    refetch();
+      toast({
+        title: "Notes deleted",
+        description: "Selected notes have been deleted.",
+      });
+      setIsSelectionMode(false);
+      setSelectedNotes([]);
+      refetch();
+    } catch (error) {
+      console.error("Error in handleDeleteNotes:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete notes",
+        variant: "destructive",
+      });
+    }
   };
 
   return {
