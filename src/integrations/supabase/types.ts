@@ -70,7 +70,9 @@ export type Database = {
       }
       notes: {
         Row: {
+          audio_url: string | null
           created_at: string
+          duration: number | null
           full_prompt: string | null
           id: string
           original_transcript: string | null
@@ -81,7 +83,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          audio_url?: string | null
           created_at?: string
+          duration?: number | null
           full_prompt?: string | null
           id?: string
           original_transcript?: string | null
@@ -92,7 +96,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          audio_url?: string | null
           created_at?: string
+          duration?: number | null
           full_prompt?: string | null
           id?: string
           original_transcript?: string | null

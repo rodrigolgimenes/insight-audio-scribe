@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -25,13 +26,26 @@ const NotePage = () => {
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useState<HTMLAudioElement | null>(null);
 
   if (!noteId) {
     return <div>Note ID is required</div>;
   }
 
   const { note, isLoadingNote, folders, currentFolder } = useNoteData();
-  const { moveNoteToFolder, addTagToNote, deleteNote } = useNoteOperations(noteId);
+  const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId);
+
+  const handlePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
 
   if (isLoadingNote || !note) {
     return (
@@ -56,6 +70,12 @@ const NotePage = () => {
           <div className="max-w-5xl mx-auto px-6 py-8">
             <NoteHeader
               title={note.title}
+              createdAt={note.created_at}
+              duration={note.duration}
+              audioUrl={note.audio_url}
+              isPlaying={isPlaying}
+              onPlayPause={handlePlayPause}
+              onRenameNote={renameNote}
               onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
               onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
               onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
@@ -66,6 +86,15 @@ const NotePage = () => {
                 <NoteContent note={note} />
               </div>
             </div>
+
+            {note.audio_url && (
+              <audio
+                ref={audioRef}
+                src={note.audio_url}
+                onEnded={() => setIsPlaying(false)}
+                style={{ display: 'none' }}
+              />
+            )}
 
             <MoveNoteDialog
               isOpen={isMoveDialogOpen}

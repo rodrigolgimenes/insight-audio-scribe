@@ -1,3 +1,4 @@
+
 export interface Note {
   id: string;
   title: string;
@@ -9,4 +10,5 @@ export interface Note {
   recording_id: string;
   user_id: string;
   duration: number | null;
+  audio_url: string | null;
 }
