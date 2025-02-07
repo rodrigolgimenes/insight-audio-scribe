@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,11 +26,17 @@ export const RenameNoteDialog = ({
 }: RenameNoteDialogProps) => {
   const [title, setTitle] = useState(currentTitle);
 
+  // Reset title when dialog opens with new currentTitle
+  useEffect(() => {
+    if (isOpen) {
+      setTitle(currentTitle);
+    }
+  }, [isOpen, currentTitle]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
       onRename(title.trim());
-      onOpenChange(false);
     }
   };
 
