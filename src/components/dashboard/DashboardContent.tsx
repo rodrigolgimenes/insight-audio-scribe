@@ -5,6 +5,7 @@ import { FolderDialog } from "./FolderDialog";
 import { NotesGrid } from "./NotesGrid";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardContentProps {
   notes: Note[] | undefined;
@@ -38,12 +39,12 @@ export const DashboardContent = ({
   const navigate = useNavigate();
 
   // Fetch current folder for the selected notes (if they're all in the same folder)
-  const { data: currentFolder } = useQuery({
+  const { data: currentFolder, isLoading: isLoadingCurrentFolder } = useQuery({
     queryKey: ["notes-current-folder", selectedNotes.map(note => note.id)],
     queryFn: async () => {
       if (selectedNotes.length === 0) return null;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notes_folders")
         .select(`
           folder:folders (
@@ -53,6 +54,11 @@ export const DashboardContent = ({
         `)
         .eq("note_id", selectedNotes[0].id)
         .single();
+
+      if (error) {
+        console.error("Error fetching current folder:", error);
+        return null;
+      }
       
       return data?.folder || null;
     },
@@ -60,7 +66,7 @@ export const DashboardContent = ({
   });
 
   // Fetch available folders
-  const { data: folders = [] } = useQuery({
+  const { data: folders = [], isLoading: isLoadingFolders } = useQuery({
     queryKey: ["folders"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -68,7 +74,11 @@ export const DashboardContent = ({
         .select("*")
         .order("created_at", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching folders:", error);
+        throw error;
+      }
+
       return data;
     },
   });
@@ -82,7 +92,24 @@ export const DashboardContent = ({
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map((index) => (
+          <Skeleton key={index} className="h-[200px] rounded-lg" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!notes || notes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <h3 className="text-lg font-medium text-gray-900">No notes found</h3>
+        <p className="mt-2 text-sm text-gray-500">
+          Get started by creating your first note.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -96,7 +123,7 @@ export const DashboardContent = ({
       )}
 
       <NotesGrid
-        notes={notes || []}
+        notes={notes}
         isSelectionMode={isSelectionMode}
         selectedNotes={selectedNotes}
         onNoteClick={handleNoteClick}
