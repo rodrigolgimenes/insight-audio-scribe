@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -7,52 +8,143 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    console.log('Starting file processing...');
+    const formData = await req.formData();
+    const file = formData.get('file');
+    const recordingId = formData.get('recordingId');
+    const duration = formData.get('duration');
+
+    if (!file || !recordingId) {
+      console.error('Missing required parameters:', { file: !!file, recordingId: !!recordingId });
+      throw new Error('No file uploaded or missing recordingId');
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    
+    if (!supabaseUrl || !supabaseKey || !openAIApiKey) {
+      console.error('Missing required environment variables');
+      throw new Error('Missing required environment variables');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Process file (handle video if necessary)
+    const audioFile = file.type.startsWith('video/') 
+      ? await processVideoFile(file as File)
+      : file;
+
+    // Upload to storage
+    const filePath = `${recordingId}/${crypto.randomUUID()}.${audioFile.name.split('.').pop()}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('audio_recordings')
+      .upload(filePath, audioFile, {
+        contentType: audioFile.type,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('audio_recordings')
+      .getPublicUrl(filePath);
+
+    // Update recording with file path, duration and status
+    const { error: updateError } = await supabase
+      .from('recordings')
+      .update({
+        file_path: filePath,
+        audio_url: publicUrl,
+        status: 'transcribing',
+        duration: duration ? parseInt(duration.toString()) : null
+      })
+      .eq('id', recordingId);
+
+    if (updateError) {
+      console.error('Error updating recording:', updateError);
+      throw new Error(`Failed to update recording: ${updateError.message}`);
+    }
+
+    // Get transcription
+    const transcription = await transcribeAudio(audioFile as File, openAIApiKey);
+    
+    // Process with GPT
+    const processedContent = await processWithGPT(transcription.text, openAIApiKey);
+
+    // Update recording with transcription
+    await updateRecordingWithTranscription(supabase, recordingId as string, transcription.text, processedContent);
+
+    // Create note
+    await createNoteFromTranscription(supabase, recordingId as string, transcription.text, processedContent);
+
+    console.log('Processing completed successfully');
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        transcription: transcription.text,
+        processedContent
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error in transcribe-upload function:', error);
+    
+    try {
+      const formData = await req.formData();
+      const recordingId = formData.get('recordingId');
+      if (recordingId) {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          await supabase
+            .from('recordings')
+            .update({ 
+              status: 'error',
+              error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
+            })
+            .eq('id', recordingId);
+        }
+      }
+    } catch (updateError) {
+      console.error('Failed to update recording status to error:', updateError);
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+});
+
+// Helper functions
 async function processVideoFile(file: File): Promise<File> {
   console.log('Processing video file as audio...');
   const arrayBuffer = await file.arrayBuffer();
   const audioFile = new File([arrayBuffer], 'audio.mp3', { type: 'audio/mpeg' });
   console.log('Video processed as audio');
   return audioFile;
-}
-
-async function uploadAudioFile(supabase: any, recordingId: string, audioFile: File) {
-  console.log('Uploading audio file to storage...');
-  const filePath = `${recordingId}/${crypto.randomUUID()}.${audioFile.name.split('.').pop()}`;
-  
-  const { error: uploadError } = await supabase.storage
-    .from('audio_recordings')
-    .upload(filePath, audioFile, {
-      contentType: audioFile.type,
-      cacheControl: '3600',
-      upsert: false
-    });
-
-  if (uploadError) {
-    console.error('Error uploading file:', uploadError);
-    throw new Error(`Failed to upload file: ${uploadError.message}`);
-  }
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('audio_recordings')
-    .getPublicUrl(filePath);
-
-  return { filePath, publicUrl };
-}
-
-async function updateRecordingStatus(supabase: any, recordingId: string, filePath: string, publicUrl: string) {
-  const { error: updateError } = await supabase
-    .from('recordings')
-    .update({
-      file_path: filePath,
-      audio_url: publicUrl,
-      status: 'transcribing'
-    })
-    .eq('id', recordingId);
-
-  if (updateError) {
-    console.error('Error updating recording:', updateError);
-    throw new Error(`Failed to update recording: ${updateError.message}`);
-  }
 }
 
 async function transcribeAudio(audioFile: File, openAIApiKey: string) {
@@ -171,102 +263,3 @@ async function createNoteFromTranscription(
     throw new Error(`Failed to create note: ${noteError.message}`);
   }
 }
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    console.log('Starting file processing...');
-    const formData = await req.formData();
-    const file = formData.get('file');
-    const recordingId = formData.get('recordingId');
-
-    if (!file || !recordingId) {
-      console.error('Missing required parameters:', { file: !!file, recordingId: !!recordingId });
-      throw new Error('No file uploaded or missing recordingId');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    
-    if (!supabaseUrl || !supabaseKey || !openAIApiKey) {
-      console.error('Missing required environment variables');
-      throw new Error('Missing required environment variables');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Process file (handle video if necessary)
-    const audioFile = file.type.startsWith('video/') 
-      ? await processVideoFile(file as File)
-      : file;
-
-    // Upload to storage
-    const { filePath, publicUrl } = await uploadAudioFile(supabase, recordingId as string, audioFile as File);
-    
-    // Update recording status
-    await updateRecordingStatus(supabase, recordingId as string, filePath, publicUrl);
-
-    // Get transcription
-    const transcription = await transcribeAudio(audioFile as File, openAIApiKey);
-    
-    // Process with GPT
-    const processedContent = await processWithGPT(transcription.text, openAIApiKey);
-
-    // Update recording with transcription
-    await updateRecordingWithTranscription(supabase, recordingId as string, transcription.text, processedContent);
-
-    // Create note
-    await createNoteFromTranscription(supabase, recordingId as string, transcription.text, processedContent);
-
-    console.log('Processing completed successfully');
-
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        transcription: transcription.text,
-        processedContent
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
-    console.error('Error in transcribe-upload function:', error);
-    
-    try {
-      const formData = await req.formData();
-      const recordingId = formData.get('recordingId');
-      if (recordingId) {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-        
-        if (supabaseUrl && supabaseKey) {
-          const supabase = createClient(supabaseUrl, supabaseKey);
-          await supabase
-            .from('recordings')
-            .update({ 
-              status: 'error',
-              error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
-            })
-            .eq('id', recordingId);
-        }
-      }
-    } catch (updateError) {
-      console.error('Failed to update recording status to error:', updateError);
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
-  }
-});

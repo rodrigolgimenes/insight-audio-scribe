@@ -69,6 +69,16 @@ const SimpleRecord = () => {
       setIsUploading(true);
       setIsProcessing(true);
 
+      // Get audio duration
+      const duration = await new Promise<number>((resolve) => {
+        const audio = new Audio();
+        audio.src = URL.createObjectURL(file);
+        audio.onloadedmetadata = () => {
+          URL.revokeObjectURL(audio.src);
+          resolve(Math.round(audio.duration));
+        };
+      });
+
       // Get user data
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
@@ -80,7 +90,8 @@ const SimpleRecord = () => {
           user_id: user.id,
           title: file.name || `Recording ${new Date().toLocaleString()}`,
           file_path: 'pending',
-          status: 'pending'
+          status: 'pending',
+          duration: duration // Add duration here
         })
         .select()
         .single();
@@ -91,6 +102,7 @@ const SimpleRecord = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('recordingId', recordingData.id);
+      formData.append('duration', duration.toString());
 
       const response = await supabase.functions.invoke('transcribe-upload', {
         body: formData,
