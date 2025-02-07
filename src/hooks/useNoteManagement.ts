@@ -17,7 +17,12 @@ export const useNoteManagement = () => {
       try {
         const { data, error } = await supabase
           .from("notes")
-          .select("*, recordings(duration)")
+          .select(`
+            *,
+            recordings (
+              duration
+            )
+          `)
           .order("created_at", { ascending: false });
 
         if (error) {
@@ -30,7 +35,11 @@ export const useNoteManagement = () => {
           return [];
         }
 
-        return data as Note[];
+        // Map the data to match the Note type structure
+        return data.map((note) => ({
+          ...note,
+          duration: note.recordings?.duration || null,
+        })) as Note[];
       } catch (error) {
         console.error("Error in notes query:", error);
         return [];
