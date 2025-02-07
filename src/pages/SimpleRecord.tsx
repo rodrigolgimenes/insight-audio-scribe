@@ -12,16 +12,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { Button } from "@/components/ui/button";
-import { Mic, Upload } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Mic } from "lucide-react";
+import { FileUploadSection } from "@/components/record/FileUploadSection";
+import { useFileUpload } from "@/hooks/useFileUpload";
 
 const SimpleRecord = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string; styleId: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { isUploading, isProcessing } = useFileUpload();
 
   const {
     isRecording,
@@ -50,116 +50,6 @@ const SimpleRecord = () => {
       return data;
     },
   });
-
-  const getMediaDuration = async (file: File): Promise<number> => {
-    return new Promise((resolve, reject) => {
-      let media;
-      
-      if (file.type.startsWith('video/')) {
-        media = document.createElement('video');
-      } else {
-        media = document.createElement('audio');
-      }
-
-      media.preload = 'metadata';
-      
-      media.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(media.src);
-        resolve(Math.round(media.duration));
-      };
-
-      media.onerror = () => {
-        window.URL.revokeObjectURL(media.src);
-        reject(new Error('Error loading media file'));
-      };
-
-      media.src = URL.createObjectURL(file);
-    });
-  };
-
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Check file type
-    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'video/mp4'];
-    if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Erro",
-        description: "Formato de arquivo não suportado. Por favor, use arquivos de áudio (MP3, WAV, WebM) ou vídeo (MP4).",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      setIsProcessing(true);
-
-      console.log('Getting media duration...');
-      const duration = await getMediaDuration(file);
-      console.log('Media duration:', duration);
-
-      // Get user data
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      console.log('Creating initial recording entry...');
-      // Create initial recording entry
-      const { error: dbError, data: recordingData } = await supabase
-        .from('recordings')
-        .insert({
-          user_id: user.id,
-          title: file.name || `Recording ${new Date().toLocaleString()}`,
-          file_path: 'pending',
-          status: 'pending',
-          duration: duration // Add duration here
-        })
-        .select()
-        .single();
-
-      if (dbError) throw dbError;
-      console.log('Recording entry created:', recordingData);
-
-      // Upload file and process
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('recordingId', recordingData.id);
-      formData.append('duration', duration.toString());
-
-      console.log('Invoking transcribe-upload function...');
-      const response = await supabase.functions.invoke('transcribe-upload', {
-        body: formData,
-      });
-
-      if (response.error) {
-        throw new Error(`Error processing file: ${response.error.message}`);
-      }
-
-      if (!response.data?.success) {
-        throw new Error('Failed to process file');
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Arquivo processado com sucesso!",
-      });
-
-      // Navigate to the dashboard instead of note page
-      navigate("/app");
-
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao processar o arquivo",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-      setIsProcessing(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!styles || styles.length === 0) {
@@ -220,7 +110,6 @@ const SimpleRecord = () => {
         description: "Gravação salva e processamento iniciado!",
       });
       
-      // Navigate to the dashboard instead of notes-record page
       navigate("/app");
       
     } catch (error) {
@@ -278,24 +167,7 @@ const SimpleRecord = () => {
                         {isSaving ? 'Salvando...' : 'Criar nota'}
                       </Button>
 
-                      <div className="relative">
-                        <Input
-                          type="file"
-                          accept="audio/*,video/mp4"
-                          className="hidden"
-                          id="file-upload"
-                          onChange={handleFileUpload}
-                          disabled={isUploading}
-                        />
-                        <Button 
-                          className="bg-[#2196F3] hover:bg-[#1976D2] gap-2"
-                          onClick={() => document.getElementById('file-upload')?.click()}
-                          disabled={isUploading}
-                        >
-                          <Upload className="w-4 h-4" />
-                          {isUploading ? 'Enviando...' : 'Upload'}
-                        </Button>
-                      </div>
+                      <FileUploadSection />
                     </div>
                   </div>
                 </>
