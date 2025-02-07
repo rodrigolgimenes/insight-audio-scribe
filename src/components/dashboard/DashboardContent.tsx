@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { BulkActions } from "./BulkActions";
 import { FolderDialog } from "./FolderDialog";
 import { NotesGrid } from "./NotesGrid";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardContentProps {
   notes: Note[] | undefined;
@@ -34,6 +36,42 @@ export const DashboardContent = ({
   onNoteSelect,
 }: DashboardContentProps) => {
   const navigate = useNavigate();
+
+  // Fetch current folder for the selected notes (if they're all in the same folder)
+  const { data: currentFolder } = useQuery({
+    queryKey: ["notes-current-folder", selectedNotes.map(note => note.id)],
+    queryFn: async () => {
+      if (selectedNotes.length === 0) return null;
+
+      const { data } = await supabase
+        .from("notes_folders")
+        .select(`
+          folder:folders (
+            id,
+            name
+          )
+        `)
+        .eq("note_id", selectedNotes[0].id)
+        .single();
+      
+      return data?.folder || null;
+    },
+    enabled: selectedNotes.length > 0,
+  });
+
+  // Fetch available folders
+  const { data: folders = [] } = useQuery({
+    queryKey: ["folders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleNoteClick = (note: Note) => {
     if (isSelectionMode) {
@@ -67,7 +105,8 @@ export const DashboardContent = ({
       <FolderDialog
         isOpen={isFolderDialogOpen}
         onOpenChange={setIsFolderDialogOpen}
-        folders={[]}
+        folders={folders}
+        currentFolderId={currentFolder?.id || null}
         newFolderName={newFolderName}
         onNewFolderNameChange={setNewFolderName}
         onCreateNewFolder={onCreateNewFolder}
