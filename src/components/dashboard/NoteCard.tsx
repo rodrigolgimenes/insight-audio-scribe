@@ -9,6 +9,8 @@ import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { NoteCardHeader } from "./NoteCardHeader";
 import { NoteCardContent } from "./NoteCardContent";
 import { NoteCardActions } from "./NoteCardActions";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NoteCardProps {
   note: Note;
@@ -22,6 +24,38 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { deleteNote, renameNote, isRenaming: isRenamingNote } = useNoteOperations(note.id);
+
+  // Fetch current folder for the note
+  const { data: currentFolder } = useQuery({
+    queryKey: ["note-folder", note.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notes_folders")
+        .select(`
+          folder:folders (
+            id,
+            name
+          )
+        `)
+        .eq("note_id", note.id)
+        .single();
+      return data?.folder || null;
+    },
+  });
+
+  // Fetch available folders
+  const { data: folders = [] } = useQuery({
+    queryKey: ["folders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleCardClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement && 
@@ -51,9 +85,27 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
     }
   };
 
-  const handleMove = (folderId: string) => {
-    setIsMoveDialogOpen(false);
-    setIsDropdownOpen(false);
+  const handleMove = async (folderId: string) => {
+    try {
+      // Remove from current folder if exists
+      await supabase
+        .from("notes_folders")
+        .delete()
+        .eq("note_id", note.id);
+
+      // Add to new folder
+      await supabase
+        .from("notes_folders")
+        .insert({
+          note_id: note.id,
+          folder_id: folderId,
+        });
+
+      setIsMoveDialogOpen(false);
+      setIsDropdownOpen(false);
+    } catch (error) {
+      console.error('Error moving note:', error);
+    }
   };
 
   return (
@@ -108,8 +160,8 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       <MoveNoteDialog
         isOpen={isMoveDialogOpen}
         onOpenChange={setIsMoveDialogOpen}
-        folders={[]}
-        currentFolderId={null}
+        folders={folders}
+        currentFolderId={currentFolder?.id || null}
         onMoveToFolder={handleMove}
       />
     </Card>

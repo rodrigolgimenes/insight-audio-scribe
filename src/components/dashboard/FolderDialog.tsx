@@ -7,11 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 interface FolderDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   folders: any[];
+  currentFolderId: string | null;
   newFolderName: string;
   onNewFolderNameChange: (value: string) => void;
   onCreateNewFolder: () => void;
@@ -22,6 +24,7 @@ export const FolderDialog = ({
   isOpen,
   onOpenChange,
   folders,
+  currentFolderId,
   newFolderName,
   onNewFolderNameChange,
   onCreateNewFolder,
@@ -31,7 +34,7 @@ export const FolderDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add notes to folder:</DialogTitle>
+          <DialogTitle>Move note to folder:</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-4">
           {folders?.length === 0 && (
@@ -53,15 +56,26 @@ export const FolderDialog = ({
             </Button>
           </div>
           {folders?.map((folder) => (
-            <Button
+            <div
               key={folder.id}
-              className="w-full justify-start"
-              variant="ghost"
-              onClick={() => onSelectFolder(folder.id)}
+              className="flex items-center justify-between p-2 rounded-lg border"
             >
-              <FileText className="w-4 h-4 mr-2" />
-              {folder.name}
-            </Button>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span>{folder.name}</span>
+                {folder.id === currentFolderId && (
+                  <Badge variant="secondary">Current folder</Badge>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={folder.id === currentFolderId}
+                onClick={() => onSelectFolder(folder.id)}
+              >
+                Move here
+              </Button>
+            </div>
           ))}
         </div>
       </DialogContent>
