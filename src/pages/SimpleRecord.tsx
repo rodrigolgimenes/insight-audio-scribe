@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -50,6 +51,32 @@ const SimpleRecord = () => {
     },
   });
 
+  const getMediaDuration = async (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      let media;
+      
+      if (file.type.startsWith('video/')) {
+        media = document.createElement('video');
+      } else {
+        media = document.createElement('audio');
+      }
+
+      media.preload = 'metadata';
+      
+      media.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(media.src);
+        resolve(Math.round(media.duration));
+      };
+
+      media.onerror = () => {
+        window.URL.revokeObjectURL(media.src);
+        reject(new Error('Error loading media file'));
+      };
+
+      media.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -69,20 +96,15 @@ const SimpleRecord = () => {
       setIsUploading(true);
       setIsProcessing(true);
 
-      // Get audio duration
-      const duration = await new Promise<number>((resolve) => {
-        const audio = new Audio();
-        audio.src = URL.createObjectURL(file);
-        audio.onloadedmetadata = () => {
-          URL.revokeObjectURL(audio.src);
-          resolve(Math.round(audio.duration));
-        };
-      });
+      console.log('Getting media duration...');
+      const duration = await getMediaDuration(file);
+      console.log('Media duration:', duration);
 
       // Get user data
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      console.log('Creating initial recording entry...');
       // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
@@ -97,6 +119,7 @@ const SimpleRecord = () => {
         .single();
 
       if (dbError) throw dbError;
+      console.log('Recording entry created:', recordingData);
 
       // Upload file and process
       const formData = new FormData();
@@ -104,6 +127,7 @@ const SimpleRecord = () => {
       formData.append('recordingId', recordingData.id);
       formData.append('duration', duration.toString());
 
+      console.log('Invoking transcribe-upload function...');
       const response = await supabase.functions.invoke('transcribe-upload', {
         body: formData,
       });
