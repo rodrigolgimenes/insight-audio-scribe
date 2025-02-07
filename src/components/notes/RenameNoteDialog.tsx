@@ -10,12 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 interface RenameNoteDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   currentTitle: string;
-  onRename: (newTitle: string) => void;
+  onRename: (newTitle: string) => Promise<void>;
+  isRenaming?: boolean;
 }
 
 export const RenameNoteDialog = ({
@@ -23,20 +25,21 @@ export const RenameNoteDialog = ({
   onOpenChange,
   currentTitle,
   onRename,
+  isRenaming = false,
 }: RenameNoteDialogProps) => {
   const [title, setTitle] = useState(currentTitle);
 
-  // Reset title when dialog opens with new currentTitle
   useEffect(() => {
     if (isOpen) {
       setTitle(currentTitle);
     }
   }, [isOpen, currentTitle]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (title.trim()) {
-      onRename(title.trim());
+      await onRename(title.trim());
+      onOpenChange(false);
     }
   };
 
@@ -61,12 +64,14 @@ export const RenameNoteDialog = ({
                 onChange={(e) => setTitle(e.target.value)}
                 className="col-span-3"
                 autoFocus
+                disabled={isRenaming}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={!title.trim()}>
-              Salvar
+            <Button type="submit" disabled={!title.trim() || isRenaming}>
+              {isRenaming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isRenaming ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </form>

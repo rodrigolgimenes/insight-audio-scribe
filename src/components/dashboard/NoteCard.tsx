@@ -38,7 +38,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { deleteNote, renameNote } = useNoteOperations(note.id);
+  const { deleteNote, renameNote, isRenaming: isRenamingNote } = useNoteOperations(note.id);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Previne a propagação do clique do dropdown para o card
@@ -191,6 +191,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         onOpenChange={setIsRenaming}
         currentTitle={note.title}
         onRename={handleRename}
+        isRenaming={isRenamingNote}
       />
 
       <MoveNoteDialog

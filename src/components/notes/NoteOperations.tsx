@@ -1,39 +1,39 @@
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const useNoteOperations = (noteId: string) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const renameNote = async (newTitle: string) => {
-    try {
+  const { mutateAsync: renameNote, isPending: isRenaming } = useMutation({
+    mutationFn: async (newTitle: string) => {
       const { error } = await supabase
         .from("notes")
         .update({ title: newTitle })
         .eq("id", noteId);
 
-      if (error) {
-        toast({
-          title: "Error renaming note",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
+      if (error) throw error;
+    },
+    onSuccess: () => {
       toast({
-        title: "Note renamed",
-        description: "The note has been renamed successfully.",
+        title: "Nota renomeada",
+        description: "O título da nota foi atualizado com sucesso.",
       });
-    } catch (error) {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ["note", noteId] });
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+    },
+    onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to rename note",
+        title: "Erro ao renomear nota",
+        description: error.message,
         variant: "destructive",
       });
-    }
-  };
+    },
+  });
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
@@ -172,6 +172,7 @@ export const useNoteOperations = (noteId: string) => {
 
   return {
     renameNote,
+    isRenaming,
     moveNoteToFolder,
     addTagToNote,
     deleteNote,
