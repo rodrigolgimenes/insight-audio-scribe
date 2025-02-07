@@ -8,7 +8,6 @@ import { RenameNoteDialog } from "@/components/notes/RenameNoteDialog";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { NoteCardHeader } from "./NoteCardHeader";
 import { NoteCardContent } from "./NoteCardContent";
-import { NoteCardActions } from "./NoteCardActions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,7 +37,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
           )
         `)
         .eq("note_id", note.id)
-        .single();
+        .maybeSingle();
       return data?.folder || null;
     },
   });
@@ -132,6 +131,9 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         isSelectionMode={isSelectionMode}
         isDropdownOpen={isDropdownOpen}
         setIsDropdownOpen={setIsDropdownOpen}
+        onRename={() => setIsRenaming(true)}
+        onMove={() => setIsMoveDialogOpen(true)}
+        onDelete={handleDelete}
       />
 
       <NoteCardContent
@@ -139,15 +141,6 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         duration={note.duration}
         createdAt={note.created_at}
       />
-
-      {!isSelectionMode && (
-        <NoteCardActions
-          onRename={() => setIsRenaming(true)}
-          onMove={() => setIsMoveDialogOpen(true)}
-          onDelete={handleDelete}
-          setIsDropdownOpen={setIsDropdownOpen}
-        />
-      )}
 
       <RenameNoteDialog
         isOpen={isRenaming}
