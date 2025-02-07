@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -27,7 +27,7 @@ const NotePage = () => {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useState<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   if (!noteId) {
     return <div>Note ID is required</div>;

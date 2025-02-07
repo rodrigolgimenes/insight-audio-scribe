@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +65,7 @@ export const useNoteData = () => {
         recording_id: data.recording_id,
         user_id: data.user_id,
         duration: data.recordings?.duration || null,
+        audio_url: data.audio_url || null,
       };
 
       return transformedNote;
