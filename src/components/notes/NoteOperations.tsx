@@ -1,10 +1,39 @@
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useNoteOperations = (noteId: string) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const renameNote = async (newTitle: string) => {
+    try {
+      const { error } = await supabase
+        .from("notes")
+        .update({ title: newTitle })
+        .eq("id", noteId);
+
+      if (error) {
+        toast({
+          title: "Error renaming note",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Note renamed",
+        description: "The note has been renamed successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to rename note",
+        variant: "destructive",
+      });
+    }
+  };
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
@@ -142,6 +171,7 @@ export const useNoteOperations = (noteId: string) => {
   };
 
   return {
+    renameNote,
     moveNoteToFolder,
     addTagToNote,
     deleteNote,

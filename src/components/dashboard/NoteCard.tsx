@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { MoveNoteDialog } from "@/components/notes/MoveNoteDialog";
+import { RenameNoteDialog } from "@/components/notes/RenameNoteDialog";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 
 interface NoteCardProps {
@@ -37,7 +38,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { deleteNote } = useNoteOperations(note.id);
+  const { deleteNote, renameNote } = useNoteOperations(note.id);
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Previne a propagação do clique do dropdown para o card
@@ -55,6 +56,16 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       setIsDropdownOpen(false);
     } catch (error) {
       console.error('Error deleting note:', error);
+    }
+  };
+
+  const handleRename = async (newTitle: string) => {
+    try {
+      await renameNote(newTitle);
+      setIsRenaming(false);
+      setIsDropdownOpen(false);
+    } catch (error) {
+      console.error('Error renaming note:', error);
     }
   };
 
@@ -174,6 +185,13 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
           </span>
         </div>
       </CardContent>
+
+      <RenameNoteDialog
+        isOpen={isRenaming}
+        onOpenChange={setIsRenaming}
+        currentTitle={note.title}
+        onRename={handleRename}
+      />
 
       <MoveNoteDialog
         isOpen={isMoveDialogOpen}
