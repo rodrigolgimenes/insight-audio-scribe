@@ -1,10 +1,16 @@
 
 import { Button } from "@/components/ui/button";
-import { Tag, FolderOpen, Trash2, Download, Play, Pause, Pencil } from "lucide-react";
+import { Download, Play, Pause, Pencil, MoreVertical } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
 import { formatDuration } from "@/utils/formatDuration";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NoteHeaderProps {
   title: string;
@@ -85,7 +91,7 @@ export const NoteHeader = ({
             )}
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           {audioUrl && (
             <>
               <Button
@@ -114,33 +120,27 @@ export const NoteHeader = ({
               </Button>
             </>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={onOpenTagsDialog}
-          >
-            <Tag className="h-4 w-4" />
-            Add tags
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={onOpenMoveDialog}
-          >
-            <FolderOpen className="h-4 w-4" />
-            Move to folder
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-2"
-            onClick={onOpenDeleteDialog}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onOpenTagsDialog}>
+                Add tags
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenMoveDialog}>
+                Move to folder
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onOpenDeleteDialog}
+                className="text-red-600"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
