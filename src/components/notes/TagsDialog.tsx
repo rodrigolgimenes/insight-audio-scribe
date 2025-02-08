@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Tag } from "lucide-react";
 import {
@@ -35,6 +36,11 @@ export const TagsDialog = ({
     },
   });
 
+  const handleAddTag = (tagId: string) => {
+    onAddTag(tagId);
+    onOpenChange(false); // Close the dialog after adding tag
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -47,7 +53,7 @@ export const TagsDialog = ({
               key={tag.id}
               variant="ghost"
               className="w-full justify-start"
-              onClick={() => onAddTag(tag.id)}
+              onClick={() => handleAddTag(tag.id)}
               disabled={selectedTags.includes(tag.id)}
             >
               <Tag

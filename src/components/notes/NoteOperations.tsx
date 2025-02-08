@@ -20,16 +20,15 @@ export const useNoteOperations = (noteId: string) => {
     },
     onSuccess: () => {
       toast({
-        title: "Nota renomeada",
-        description: "O título da nota foi atualizado com sucesso.",
+        title: "Note renamed",
+        description: "The note title has been updated successfully.",
       });
-      // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: ["note", noteId] });
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
     onError: (error) => {
       toast({
-        title: "Erro ao renomear nota",
+        title: "Error renaming note",
         description: error.message,
         variant: "destructive",
       });
@@ -38,20 +37,15 @@ export const useNoteOperations = (noteId: string) => {
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
+      // First, delete any existing folder association
       const { error: deleteError } = await supabase
         .from("notes_folders")
         .delete()
         .eq("note_id", noteId);
 
-      if (deleteError) {
-        toast({
-          title: "Error removing from current folder",
-          description: deleteError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (deleteError) throw deleteError;
 
+      // Then, add the new folder association
       const { error: insertError } = await supabase
         .from("notes_folders")
         .insert({
@@ -59,23 +53,20 @@ export const useNoteOperations = (noteId: string) => {
           folder_id: folderId,
         });
 
-      if (insertError) {
-        toast({
-          title: "Error moving note",
-          description: insertError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (insertError) throw insertError;
+
+      // Invalidate queries to update the UI
+      await queryClient.invalidateQueries({ queryKey: ["note", noteId] });
+      await queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] });
 
       toast({
         title: "Note moved",
         description: "Note has been moved to the selected folder.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error moving note",
-        description: "Failed to move note to folder",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -90,23 +81,18 @@ export const useNoteOperations = (noteId: string) => {
           tag_id: tagId,
         });
 
-      if (error) {
-        toast({
-          title: "Error adding tag",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ["note-tags", noteId] });
 
       toast({
         title: "Tag added",
         description: "Tag has been added to the note.",
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to add tag",
+        title: "Error adding tag",
+        description: error.message,
         variant: "destructive",
       });
     }
@@ -114,47 +100,29 @@ export const useNoteOperations = (noteId: string) => {
 
   const deleteNote = async () => {
     try {
+      // Delete folder associations
       const { error: folderError } = await supabase
         .from("notes_folders")
         .delete()
         .eq("note_id", noteId);
 
-      if (folderError) {
-        toast({
-          title: "Error deleting folder associations",
-          description: folderError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (folderError) throw folderError;
 
+      // Delete tag associations
       const { error: tagError } = await supabase
         .from("notes_tags")
         .delete()
         .eq("note_id", noteId);
 
-      if (tagError) {
-        toast({
-          title: "Error deleting tag associations",
-          description: tagError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (tagError) throw tagError;
 
+      // Delete the note
       const { error: noteError } = await supabase
         .from("notes")
         .delete()
         .eq("id", noteId);
 
-      if (noteError) {
-        toast({
-          title: "Error deleting note",
-          description: noteError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      if (noteError) throw noteError;
 
       toast({
         title: "Note deleted",
@@ -162,10 +130,10 @@ export const useNoteOperations = (noteId: string) => {
       });
 
       navigate("/app");
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error",
-        description: "Failed to delete note",
+        title: "Error deleting note",
+        description: error.message,
         variant: "destructive",
       });
     }

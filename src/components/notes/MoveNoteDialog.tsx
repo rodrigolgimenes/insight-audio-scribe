@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Folder } from "lucide-react";
 import {
@@ -23,6 +24,11 @@ export const MoveNoteDialog = ({
   currentFolderId,
   onMoveToFolder,
 }: MoveNoteDialogProps) => {
+  const handleMoveToFolder = (folderId: string) => {
+    onMoveToFolder(folderId);
+    onOpenChange(false); // Close the dialog after moving
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -50,7 +56,7 @@ export const MoveNoteDialog = ({
                   variant="ghost"
                   size="sm"
                   disabled={folder.id === currentFolderId}
-                  onClick={() => onMoveToFolder(folder.id)}
+                  onClick={() => handleMoveToFolder(folder.id)}
                 >
                   Move here
                 </Button>
