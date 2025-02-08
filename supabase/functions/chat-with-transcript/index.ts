@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -14,6 +15,12 @@ serve(async (req) => {
   try {
     const { messages, transcript } = await req.json();
 
+    console.log('Processing chat request:', {
+      messageCount: messages.length,
+      transcriptLength: transcript?.length,
+      lastUserMessage: messages[messages.length - 1]?.content
+    });
+
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -25,20 +32,36 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Você é um assistente útil que responde perguntas sobre uma transcrição de reunião. 
-            Use o contexto da transcrição abaixo para responder às perguntas do usuário:
-            
-            ${transcript}
-            
-            Responda de forma concisa e direta, usando apenas informações presentes na transcrição.
-            Se uma informação não estiver na transcrição, diga que não pode encontrar essa informação no texto.`
+            content: `You are a helpful assistant that answers questions about a meeting transcript and can help with additional tasks related to the transcript.
+
+Instructions:
+1. When answering questions, use ONLY information from the transcript provided.
+2. If you cannot find specific information in the transcript, respond with EXACTLY: "I didn't find this information in the transcript"
+3. For special commands like generating meeting minutes or summaries, use the transcript as a base but feel free to structure and organize the information in a helpful way.
+4. Always maintain a professional and helpful tone.
+
+Here's the transcript to work with:
+
+${transcript}
+
+Remember: If you can't find specific information in the transcript, respond with "I didn't find this information in the transcript"`
           },
           ...messages
         ],
       }),
     });
 
+    if (!openAIResponse.ok) {
+      console.error('OpenAI API error:', await openAIResponse.text());
+      throw new Error('Failed to get response from OpenAI');
+    }
+
     const data = await openAIResponse.json();
+    console.log('OpenAI response received:', {
+      status: openAIResponse.status,
+      messageContent: data.choices[0].message.content.substring(0, 100) + '...'
+    });
+
     const message = data.choices[0].message.content;
 
     return new Response(
