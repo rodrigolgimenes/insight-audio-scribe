@@ -14,7 +14,7 @@ export const useMoveNote = (noteId: string) => {
         .from("notes_folders")
         .select("folder_id")
         .eq("note_id", noteId)
-        .single();
+        .maybeSingle();
 
       if (currentFolder?.folder_id === folderId) {
         toast({
@@ -25,33 +25,27 @@ export const useMoveNote = (noteId: string) => {
         return;
       }
 
-      // Delete any existing folder associations
-      const { error: deleteError } = await supabase
-        .from("notes_folders")
-        .delete()
-        .eq("note_id", noteId);
-
-      if (deleteError) throw deleteError;
-
-      // Insert new folder association
-      const { error: insertError } = await supabase
-        .from("notes_folders")
-        .insert({
-          note_id: noteId,
-          folder_id: folderId,
+      // Delete any existing folder associations using transaction
+      const { error: moveError } = await supabase
+        .rpc('move_note_to_folder', {
+          p_note_id: noteId,
+          p_folder_id: folderId
         });
 
-      if (insertError) throw insertError;
+      if (moveError) throw moveError;
 
       // Invalidate queries to refresh the UI
+      await queryClient.invalidateQueries({ queryKey: ["notes"] });
       await queryClient.invalidateQueries({ queryKey: ["note", noteId] });
       await queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] });
+      await queryClient.invalidateQueries({ queryKey: ["folders"] });
 
       toast({
         title: "Note moved",
         description: "Note has been moved to the selected folder.",
       });
     } catch (error: any) {
+      console.error("Error moving note:", error);
       toast({
         title: "Error moving note",
         description: error.message,
