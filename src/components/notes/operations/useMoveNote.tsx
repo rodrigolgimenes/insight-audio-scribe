@@ -9,6 +9,7 @@ export const useMoveNote = (noteId: string) => {
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
+      // First check if note is already in the target folder
       const { data: currentFolder } = await supabase
         .from("notes_folders")
         .select("folder_id")
@@ -24,6 +25,7 @@ export const useMoveNote = (noteId: string) => {
         return;
       }
 
+      // Delete any existing folder associations
       const { error: deleteError } = await supabase
         .from("notes_folders")
         .delete()
@@ -31,6 +33,7 @@ export const useMoveNote = (noteId: string) => {
 
       if (deleteError) throw deleteError;
 
+      // Insert new folder association
       const { error: insertError } = await supabase
         .from("notes_folders")
         .insert({
@@ -40,6 +43,7 @@ export const useMoveNote = (noteId: string) => {
 
       if (insertError) throw insertError;
 
+      // Invalidate queries to refresh the UI
       await queryClient.invalidateQueries({ queryKey: ["note", noteId] });
       await queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] });
 
