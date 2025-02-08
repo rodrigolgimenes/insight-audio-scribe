@@ -37,6 +37,22 @@ export const useNoteOperations = (noteId: string) => {
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
+      // First, check if the note is already in the folder
+      const { data: currentFolder } = await supabase
+        .from("notes_folders")
+        .select("folder_id")
+        .eq("note_id", noteId)
+        .single();
+
+      if (currentFolder?.folder_id === folderId) {
+        toast({
+          title: "Note already in folder",
+          description: "The note is already in this folder.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // First, delete any existing folder association
       const { error: deleteError } = await supabase
         .from("notes_folders")

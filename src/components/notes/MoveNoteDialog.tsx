@@ -40,28 +40,33 @@ export const MoveNoteDialog = ({
             <p className="text-center text-gray-500">No folders found</p>
           )}
           <div className="space-y-2">
-            {folders?.map((folder) => (
-              <div
-                key={folder.id}
-                className="flex items-center justify-between p-2 rounded-lg border"
-              >
-                <div className="flex items-center gap-2">
-                  <Folder className="w-4 h-4" />
-                  <span>{folder.name}</span>
-                  {folder.id === currentFolderId && (
-                    <Badge variant="secondary">Current folder</Badge>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={folder.id === currentFolderId}
-                  onClick={() => handleMoveToFolder(folder.id)}
+            {folders?.map((folder) => {
+              const isCurrentFolder = folder.id === currentFolderId;
+              return (
+                <div
+                  key={folder.id}
+                  className={`flex items-center justify-between p-2 rounded-lg border ${
+                    isCurrentFolder ? "bg-gray-50" : ""
+                  }`}
                 >
-                  Move here
-                </Button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-2">
+                    <Folder className="w-4 h-4" />
+                    <span>{folder.name}</span>
+                    {isCurrentFolder && (
+                      <Badge variant="secondary">Current folder</Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isCurrentFolder}
+                    onClick={() => handleMoveToFolder(folder.id)}
+                  >
+                    {isCurrentFolder ? "Current" : "Move here"}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </DialogContent>
