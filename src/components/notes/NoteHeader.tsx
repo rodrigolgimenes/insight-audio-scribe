@@ -39,6 +39,7 @@ export const NoteHeader = ({
 }: NoteHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleRename = async () => {
     if (editedTitle.trim() && editedTitle !== title) {
@@ -54,6 +55,13 @@ export const NoteHeader = ({
       setIsEditing(false);
       setEditedTitle(title);
     }
+  };
+
+  const handleMenuItemClick = (action: () => void) => (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDropdownOpen(false);
+    action();
   };
 
   return (
@@ -98,7 +106,10 @@ export const NoteHeader = ({
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                onClick={onPlayPause}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onPlayPause?.();
+                }}
               >
                 {isPlaying ? (
                   <Pause className="h-4 w-4" />
@@ -113,28 +124,39 @@ export const NoteHeader = ({
                 className="gap-2"
                 asChild
               >
-                <a href={audioUrl} download>
+                <a 
+                  href={audioUrl} 
+                  download 
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Download className="h-4 w-4" />
                   Download
                 </a>
               </Button>
             </>
           )}
-          <DropdownMenu>
+          <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onOpenTagsDialog}>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onSelect={handleMenuItemClick(onOpenTagsDialog)}>
                 Add tags
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onOpenMoveDialog}>
+              <DropdownMenuItem onSelect={handleMenuItemClick(onOpenMoveDialog)}>
                 Move to folder
               </DropdownMenuItem>
               <DropdownMenuItem 
-                onClick={onOpenDeleteDialog}
+                onSelect={handleMenuItemClick(onOpenDeleteDialog)}
                 className="text-red-600"
               >
                 Delete
