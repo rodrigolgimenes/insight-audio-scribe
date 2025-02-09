@@ -8,6 +8,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarHeader
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Mic, FileText, Settings } from "lucide-react";
