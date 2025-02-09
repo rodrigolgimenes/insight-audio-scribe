@@ -20,9 +20,10 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast } = useToast();
 
-  console.log("MeetingMinutes - Received audioUrl:", audioUrl);
+  console.log("[MeetingMinutes] Props received:", { transcript, noteId, audioUrl });
 
   const handlePlayPause = () => {
+    console.log("[MeetingMinutes] Play/Pause toggled. Current state:", isPlaying);
     setIsPlaying(!isPlaying);
   };
 
@@ -104,17 +105,31 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
     fetchExistingMinutes();
   }, [noteId]);
 
+  console.log("[MeetingMinutes] Rendering with audioUrl:", audioUrl);
+  console.log("[MeetingMinutes] AudioControlBar will render:", audioUrl !== null && audioUrl !== undefined);
+
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-lg p-6 border border-gray-200">
         <h1 className="text-2xl font-bold mb-6">{minutes ? "Ata de Reunião" : "Gerando Ata..."}</h1>
         
         {audioUrl && (
-          <AudioControlBar
-            audioUrl={audioUrl}
-            isPlaying={isPlaying}
-            onPlayPause={handlePlayPause}
-          />
+          <>
+            <div className="mb-4">
+              <p className="text-sm text-gray-500">Debug: Audio URL present</p>
+            </div>
+            <AudioControlBar
+              audioUrl={audioUrl}
+              isPlaying={isPlaying}
+              onPlayPause={handlePlayPause}
+            />
+          </>
+        )}
+
+        {!audioUrl && (
+          <div className="mb-4">
+            <p className="text-sm text-red-500">Debug: Audio URL is missing</p>
+          </div>
         )}
 
         {minutes && (
