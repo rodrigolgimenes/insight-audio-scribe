@@ -58,17 +58,6 @@ const NotePage = () => {
     loadAudioUrl();
   }, [note?.audio_url]);
 
-  const handlePlayPause = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
   if (!noteId) {
     return <div>Note ID is required</div>;
   }
@@ -95,13 +84,6 @@ const NotePage = () => {
         <div className="flex-1 flex flex-col">
           <div className="sticky top-0 z-50 bg-white">
             <NotePageHeader onBack={() => navigate("/app")} />
-            {audioUrl && (
-              <AudioControlBar
-                audioUrl={audioUrl}
-                isPlaying={isPlaying}
-                onPlayPause={handlePlayPause}
-              />
-            )}
           </div>
           <main className="flex-1 overflow-auto">
             <div className="max-w-5xl mx-auto px-6 py-8">

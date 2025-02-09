@@ -1,20 +1,27 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download, Play, Pause } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
+import { AudioControlBar } from "./AudioControlBar";
 
 interface MeetingMinutesProps {
   transcript: string | null;
   noteId: string;
+  audioUrl?: string | null;
 }
 
-export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
+export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesProps) => {
   const [minutes, setMinutes] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const { toast } = useToast();
+
+  const handlePlayPause = () => {
+    setIsPlaying(!isPlaying);
+  };
 
   const generateMinutes = async (isRegeneration: boolean = false) => {
     if (!transcript) {
@@ -96,6 +103,14 @@ export const MeetingMinutes = ({ transcript, noteId }: MeetingMinutesProps) => {
 
   return (
     <div className="space-y-4">
+      {audioUrl && (
+        <AudioControlBar
+          audioUrl={audioUrl}
+          isPlaying={isPlaying}
+          onPlayPause={handlePlayPause}
+        />
+      )}
+
       {minutes && (
         <div className="flex justify-between items-center">
           <Button
