@@ -436,6 +436,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_audio_url: {
+        Args: {
+          file_path: string
+        }
+        Returns: string
+      }
       move_note_to_folder: {
         Args: {
           p_note_id: string
