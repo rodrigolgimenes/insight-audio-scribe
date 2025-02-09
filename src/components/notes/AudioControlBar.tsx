@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AudioControlBarProps {
   audioUrl: string | null;
@@ -26,7 +27,23 @@ export const AudioControlBar = ({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const getPublicUrl = async () => {
+      if (audioUrl) {
+        const { data } = supabase.storage
+          .from('audio_recordings')
+          .getPublicUrl(audioUrl);
+        
+        console.log('Public URL generated:', data.publicUrl);
+        setPublicUrl(data.publicUrl);
+      }
+    };
+
+    getPublicUrl();
+  }, [audioUrl]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -104,8 +121,14 @@ export const AudioControlBar = ({
         </Button>
       </div>
 
-      <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
-        <a href={audioUrl} download>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        asChild 
+        className="text-primary hover:bg-primary/10"
+        disabled={!publicUrl}
+      >
+        <a href={publicUrl || '#'} download>
           <Download className="h-4 w-4 mr-2" />
           Download
         </a>
@@ -113,7 +136,7 @@ export const AudioControlBar = ({
 
       <audio
         ref={audioRef}
-        src={audioUrl}
+        src={publicUrl || undefined}
         onEnded={() => onPlayPause()}
       />
     </div>
