@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -20,6 +20,7 @@ import { NoteContent } from "@/components/notes/NoteContent";
 import { TagsDialog } from "@/components/notes/TagsDialog";
 import { useNoteData } from "@/hooks/useNoteData";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
+import { supabase } from "@/integrations/supabase/client";
 
 const NotePage = () => {
   const { noteId } = useParams();
@@ -28,14 +29,31 @@ const NotePage = () => {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  if (!noteId) {
-    return <div>Note ID is required</div>;
-  }
-
   const { note, isLoadingNote, folders, currentFolder } = useNoteData();
-  const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId);
+  const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
+
+  useEffect(() => {
+    const loadAudioUrl = async () => {
+      if (note?.audio_url) {
+        try {
+          const { data: { publicUrl } } = supabase
+            .storage
+            .from('audio_recordings')
+            .getPublicUrl(note.audio_url);
+          
+          console.log("Public URL:", publicUrl);
+          setAudioUrl(publicUrl);
+        } catch (error) {
+          console.error("Error getting audio URL:", error);
+        }
+      }
+    };
+
+    loadAudioUrl();
+  }, [note?.audio_url]);
 
   const handlePlayPause = () => {
     if (audioRef.current) {
@@ -47,6 +65,10 @@ const NotePage = () => {
       setIsPlaying(!isPlaying);
     }
   };
+
+  if (!noteId) {
+    return <div>Note ID is required</div>;
+  }
 
   if (isLoadingNote || !note) {
     return (
@@ -65,7 +87,7 @@ const NotePage = () => {
 
   // Log para debug
   console.log("Note data:", note);
-  console.log("Audio URL:", note.audio_url);
+  console.log("Audio URL:", audioUrl);
 
   return (
     <SidebarProvider>
@@ -73,7 +95,7 @@ const NotePage = () => {
         <AppSidebar activePage="notes" />
         <main className="flex-1 overflow-auto">
           <AudioControlBar
-            audioUrl={note.audio_url}
+            audioUrl={audioUrl}
             isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
           />
@@ -82,7 +104,7 @@ const NotePage = () => {
               title={note.title}
               createdAt={note.created_at}
               duration={note.duration}
-              audioUrl={note.audio_url}
+              audioUrl={audioUrl}
               isPlaying={isPlaying}
               onPlayPause={handlePlayPause}
               onRenameNote={renameNote}
@@ -97,10 +119,10 @@ const NotePage = () => {
               </div>
             </div>
 
-            {note.audio_url && (
+            {audioUrl && (
               <audio
                 ref={audioRef}
-                src={note.audio_url}
+                src={audioUrl}
                 onEnded={() => setIsPlaying(false)}
                 style={{ display: 'none' }}
               />

@@ -9,7 +9,7 @@ import {
   FastForward,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface AudioControlBarProps {
   audioUrl: string | null;
@@ -25,6 +25,15 @@ export const AudioControlBar = ({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Update audio element when volume or mute changes
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume;
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [volume, isMuted, playbackRate]);
 
   // Log para debug
   console.log("AudioControlBar - Audio URL:", audioUrl);
