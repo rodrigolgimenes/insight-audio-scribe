@@ -18,11 +18,13 @@ export const NoteContent = ({ note }: NoteContentProps) => {
     const loadAudioUrl = async () => {
       if (note?.audio_url) {
         try {
+          console.log("NoteContent - Original audio_url:", note.audio_url);
           const { data: { publicUrl } } = supabase
             .storage
             .from('audio_recordings')
             .getPublicUrl(note.audio_url);
           
+          console.log("NoteContent - Generated publicUrl:", publicUrl);
           setAudioUrl(publicUrl);
         } catch (error) {
           console.error("Error getting audio URL:", error);

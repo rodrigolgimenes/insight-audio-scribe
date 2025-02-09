@@ -20,6 +20,8 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast } = useToast();
 
+  console.log("MeetingMinutes - Received audioUrl:", audioUrl);
+
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
