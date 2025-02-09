@@ -6,7 +6,8 @@ import {
   Volume2,
   VolumeX,
   Download,
-  FastForward,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect, useRef } from "react";
@@ -28,15 +29,11 @@ export const AudioControlBar = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Update audio element when volume or mute changes
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume;
       audioRef.current.playbackRate = playbackRate;
     }
   }, [volume, isMuted, playbackRate]);
-
-  // Log para debug
-  console.log("AudioControlBar - Audio URL:", audioUrl);
 
   if (!audioUrl) {
     console.log("AudioControlBar - No audio URL provided");
@@ -44,8 +41,8 @@ export const AudioControlBar = ({
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-white border-b z-50 shadow-sm">
-      <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-4">
+    <div className="bg-white border-b shadow-sm py-2">
+      <div className="max-w-5xl mx-auto px-6 flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
@@ -66,7 +63,7 @@ export const AudioControlBar = ({
             onClick={() => setIsMuted(!isMuted)}
             className="text-primary hover:bg-primary/10"
           >
-            {isMuted || volume === 0 ? (
+            {isMuted ? (
               <VolumeX className="h-5 w-5" />
             ) : (
               <Volume2 className="h-5 w-5" />
@@ -84,20 +81,25 @@ export const AudioControlBar = ({
           />
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            const rates = [1, 1.5, 2];
-            const currentIndex = rates.indexOf(playbackRate);
-            const nextIndex = (currentIndex + 1) % rates.length;
-            setPlaybackRate(rates[nextIndex]);
-          }}
-          className="text-primary hover:bg-primary/10 min-w-[80px]"
-        >
-          <FastForward className="h-4 w-4 mr-2" />
-          {playbackRate}x
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setPlaybackRate(prev => Math.min(2, prev + 0.5))}
+            className="text-primary hover:bg-primary/10"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+          <span className="text-sm font-medium">{playbackRate}x</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setPlaybackRate(prev => Math.max(0.5, prev - 0.5))}
+            className="text-primary hover:bg-primary/10"
+          >
+            <ArrowDown className="h-4 w-4" />
+          </Button>
+        </div>
 
         <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
           <a href={audioUrl} download>

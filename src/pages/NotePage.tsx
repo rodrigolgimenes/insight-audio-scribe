@@ -21,7 +21,7 @@ import { TagsDialog } from "@/components/notes/TagsDialog";
 import { useNoteData } from "@/hooks/useNoteData";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { supabase } from "@/integrations/supabase/client";
-import { RecordHeader } from "@/components/record/RecordHeader";
+import { NotePageHeader } from "@/components/notes/NotePageHeader";
 import { useNavigate } from "react-router-dom";
 
 const NotePage = () => {
@@ -34,6 +34,9 @@ const NotePage = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   const { note, isLoadingNote, folders, currentFolder } = useNoteData();
   const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
@@ -69,6 +72,13 @@ const NotePage = () => {
     }
   };
 
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume;
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [volume, isMuted, playbackRate]);
+
   if (!noteId) {
     return <div>Note ID is required</div>;
   }
@@ -93,8 +103,8 @@ const NotePage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-50 bg-white">
-            <RecordHeader onBack={() => navigate("/app")} />
+          <div className="sticky top-0 z-50 bg-white">
+            <NotePageHeader onBack={() => navigate("/app")} />
             {audioUrl && (
               <AudioControlBar
                 audioUrl={audioUrl}
@@ -102,7 +112,7 @@ const NotePage = () => {
                 onPlayPause={handlePlayPause}
               />
             )}
-          </header>
+          </div>
           <main className="flex-1 overflow-auto">
             <div className="max-w-5xl mx-auto px-6 py-8">
               <NoteHeader
