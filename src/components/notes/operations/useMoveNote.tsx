@@ -25,7 +25,7 @@ export const useMoveNote = (noteId: string) => {
         return;
       }
 
-      // Delete any existing folder associations using transaction
+      // Move note to new folder using our database function
       const { error: moveError } = await supabase
         .rpc('move_note_to_folder', {
           p_note_id: noteId,

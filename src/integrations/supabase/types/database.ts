@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -374,7 +375,13 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      move_note_to_folder: {
+        Args: {
+          p_note_id: string
+          p_folder_id: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never
