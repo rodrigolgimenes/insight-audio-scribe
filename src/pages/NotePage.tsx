@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AudioControlBar } from "@/components/notes/AudioControlBar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +68,12 @@ const NotePage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 overflow-auto">
-          <div className="max-w-5xl mx-auto px-6 py-8">
+          <AudioControlBar
+            audioUrl={note.audio_url}
+            isPlaying={isPlaying}
+            onPlayPause={handlePlayPause}
+          />
+          <div className="max-w-5xl mx-auto px-6 py-8 mt-14">
             <NoteHeader
               title={note.title}
               createdAt={note.created_at}
