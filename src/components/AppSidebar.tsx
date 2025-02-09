@@ -1,17 +1,16 @@
+
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Mic, FileText, Paintbrush, Headphones, Settings } from "lucide-react";
+import { Mic, FileText, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FolderList } from "./folders/FolderList";
 import { TagList } from "./tags/TagList";
@@ -26,8 +25,6 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
   const menuItems = [
     { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
     { icon: FileText, label: "Notes", href: "/app", id: "notes" },
-    { icon: Paintbrush, label: "Styles", href: "/app/styles", id: "styles" },
-    { icon: Headphones, label: "Recordings", href: "/app/recordings", id: "recordings" },
     { icon: Settings, label: "Settings", href: "#", id: "settings" },
   ];
 

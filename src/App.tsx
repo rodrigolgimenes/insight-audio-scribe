@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,13 +9,9 @@ import { LoginPage } from "@/components/auth/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
-import NotesRecord from "./pages/NotesRecord";
-import RecordingsPage from "./pages/RecordingsPage";
 import FolderPage from "./pages/FolderPage";
-import StylesPage from "./pages/StylesPage";
 import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
-import { useAuth } from "@/components/auth/AuthProvider";
 
 const queryClient = new QueryClient();
 
@@ -51,34 +48,10 @@ const App = () => (
               }
             />
             <Route
-              path="/app/notes-record/:recordingId"
-              element={
-                <ProtectedRoute>
-                  <NotesRecord />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/app/recordings"
-              element={
-                <ProtectedRoute>
-                  <RecordingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/app/folder/:folderId"
               element={
                 <ProtectedRoute>
                   <FolderPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/app/styles"
-              element={
-                <ProtectedRoute>
-                  <StylesPage />
                 </ProtectedRoute>
               }
             />
