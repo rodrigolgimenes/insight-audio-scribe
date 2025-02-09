@@ -63,6 +63,10 @@ const NotePage = () => {
     );
   }
 
+  // Log para debug
+  console.log("Note data:", note);
+  console.log("Audio URL:", note.audio_url);
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">

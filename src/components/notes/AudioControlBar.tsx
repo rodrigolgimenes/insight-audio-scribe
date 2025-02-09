@@ -26,7 +26,13 @@ export const AudioControlBar = ({
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
 
-  if (!audioUrl) return null;
+  // Log para debug
+  console.log("AudioControlBar - Audio URL:", audioUrl);
+
+  if (!audioUrl) {
+    console.log("AudioControlBar - No audio URL provided");
+    return null;
+  }
 
   return (
     <div className="fixed top-0 left-0 right-0 bg-white border-b z-50">
