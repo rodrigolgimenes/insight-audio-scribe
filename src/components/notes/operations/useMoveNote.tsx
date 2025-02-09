@@ -25,20 +25,14 @@ export const useMoveNote = (noteId: string) => {
         return;
       }
 
-      // Delete any existing folder association first
-      const { error: deleteError } = await supabase
-        .from("notes_folders")
-        .delete()
-        .eq("note_id", noteId);
+      // Use the database function to move the note
+      const { error: moveError } = await supabase
+        .rpc('move_note_to_folder', {
+          p_note_id: noteId,
+          p_folder_id: folderId
+        });
 
-      if (deleteError) throw deleteError;
-
-      // Then create the new folder association
-      const { error: insertError } = await supabase
-        .from("notes_folders")
-        .insert({ note_id: noteId, folder_id: folderId });
-
-      if (insertError) throw insertError;
+      if (moveError) throw moveError;
 
       // Invalidate queries to refresh the UI
       await queryClient.invalidateQueries({ queryKey: ["notes"] });
