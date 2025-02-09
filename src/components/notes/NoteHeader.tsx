@@ -16,9 +16,6 @@ interface NoteHeaderProps {
   title: string;
   createdAt: string;
   duration: number | null;
-  audioUrl: string | null;
-  isPlaying?: boolean;
-  onPlayPause?: () => void;
   onRenameNote: (newTitle: string) => Promise<void>;
   onOpenTagsDialog: () => void;
   onOpenMoveDialog: () => void;
@@ -29,9 +26,6 @@ export const NoteHeader = ({
   title,
   createdAt,
   duration,
-  audioUrl,
-  isPlaying = false,
-  onPlayPause,
   onRenameNote,
   onOpenTagsDialog,
   onOpenMoveDialog,
@@ -100,41 +94,6 @@ export const NoteHeader = ({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {audioUrl && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onPlayPause?.();
-                }}
-              >
-                {isPlaying ? (
-                  <Pause className="h-4 w-4" />
-                ) : (
-                  <Play className="h-4 w-4" />
-                )}
-                {isPlaying ? "Pause" : "Play"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                asChild
-              >
-                <a 
-                  href={audioUrl} 
-                  download 
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Download className="h-4 w-4" />
-                  Download
-                </a>
-              </Button>
-            </>
-          )}
           <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <Button 
