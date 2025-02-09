@@ -34,9 +34,6 @@ const NotePage = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
 
   const { note, isLoadingNote, folders, currentFolder } = useNoteData();
   const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
@@ -71,13 +68,6 @@ const NotePage = () => {
       setIsPlaying(!isPlaying);
     }
   };
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-      audioRef.current.playbackRate = playbackRate;
-    }
-  }, [volume, isMuted, playbackRate]);
 
   if (!noteId) {
     return <div>Note ID is required</div>;
@@ -119,9 +109,6 @@ const NotePage = () => {
                 title={note.title}
                 createdAt={note.created_at}
                 duration={note.duration}
-                audioUrl={audioUrl}
-                isPlaying={isPlaying}
-                onPlayPause={handlePlayPause}
                 onRenameNote={renameNote}
                 onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
                 onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
@@ -133,15 +120,6 @@ const NotePage = () => {
                   <NoteContent note={note} />
                 </div>
               </div>
-
-              {audioUrl && (
-                <audio
-                  ref={audioRef}
-                  src={audioUrl}
-                  onEnded={() => setIsPlaying(false)}
-                  style={{ display: 'none' }}
-                />
-              )}
             </div>
           </main>
 

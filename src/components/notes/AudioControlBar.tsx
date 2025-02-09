@@ -107,6 +107,13 @@ export const AudioControlBar = ({
             Download
           </a>
         </Button>
+
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onEnded={() => onPlayPause()}
+          style={{ display: 'none' }}
+        />
       </div>
     </div>
   );
