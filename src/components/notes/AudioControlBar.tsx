@@ -30,91 +30,92 @@ export const AudioControlBar = ({
 
   useEffect(() => {
     if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.play();
+      } else {
+        audioRef.current.pause();
+      }
       audioRef.current.volume = isMuted ? 0 : volume;
       audioRef.current.playbackRate = playbackRate;
     }
-  }, [volume, isMuted, playbackRate]);
+  }, [isPlaying, volume, isMuted, playbackRate]);
 
   if (!audioUrl) {
-    console.log("AudioControlBar - No audio URL provided");
     return null;
   }
 
   return (
-    <div className="bg-white border-b shadow-sm py-2">
-      <div className="max-w-5xl mx-auto px-6 flex items-center gap-4">
+    <div className="flex items-center gap-4 bg-white p-4 rounded-lg border mb-4">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onPlayPause}
+        className="text-primary hover:bg-primary/10"
+      >
+        {isPlaying ? (
+          <Pause className="h-5 w-5" />
+        ) : (
+          <Play className="h-5 w-5" />
+        )}
+      </Button>
+
+      <div className="flex items-center gap-2 w-32">
         <Button
           variant="ghost"
           size="icon"
-          onClick={onPlayPause}
+          onClick={() => setIsMuted(!isMuted)}
           className="text-primary hover:bg-primary/10"
         >
-          {isPlaying ? (
-            <Pause className="h-5 w-5" />
+          {isMuted ? (
+            <VolumeX className="h-5 w-5" />
           ) : (
-            <Play className="h-5 w-5" />
+            <Volume2 className="h-5 w-5" />
           )}
         </Button>
-
-        <div className="flex items-center gap-2 w-32">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMuted(!isMuted)}
-            className="text-primary hover:bg-primary/10"
-          >
-            {isMuted ? (
-              <VolumeX className="h-5 w-5" />
-            ) : (
-              <Volume2 className="h-5 w-5" />
-            )}
-          </Button>
-          <Slider
-            value={[isMuted ? 0 : volume]}
-            onValueChange={(newVolume) => {
-              setVolume(newVolume[0]);
-              setIsMuted(false);
-            }}
-            max={1}
-            step={0.1}
-            className="w-20"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPlaybackRate(prev => Math.min(2, prev + 0.5))}
-            className="text-primary hover:bg-primary/10"
-          >
-            <ArrowUp className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium">{playbackRate}x</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setPlaybackRate(prev => Math.max(0.5, prev - 0.5))}
-            className="text-primary hover:bg-primary/10"
-          >
-            <ArrowDown className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
-          <a href={audioUrl} download>
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </a>
-        </Button>
-
-        <audio
-          ref={audioRef}
-          src={audioUrl}
-          onEnded={() => onPlayPause()}
-          style={{ display: 'none' }}
+        <Slider
+          value={[isMuted ? 0 : volume]}
+          onValueChange={(newVolume) => {
+            setVolume(newVolume[0]);
+            setIsMuted(false);
+          }}
+          max={1}
+          step={0.1}
+          className="w-20"
         />
       </div>
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setPlaybackRate(prev => Math.min(2, prev + 0.5))}
+          className="text-primary hover:bg-primary/10"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium">{playbackRate}x</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setPlaybackRate(prev => Math.max(0.5, prev - 0.5))}
+          className="text-primary hover:bg-primary/10"
+        >
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
+        <a href={audioUrl} download>
+          <Download className="h-4 w-4 mr-2" />
+          Download
+        </a>
+      </Button>
+
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        onEnded={() => onPlayPause()}
+      />
     </div>
   );
 };

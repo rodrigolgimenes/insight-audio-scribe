@@ -1,7 +1,8 @@
+
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Download, Play, Pause } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
 import { AudioControlBar } from "./AudioControlBar";
@@ -103,62 +104,62 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
 
   return (
     <div className="space-y-4">
-      {audioUrl && (
-        <AudioControlBar
-          audioUrl={audioUrl}
-          isPlaying={isPlaying}
-          onPlayPause={handlePlayPause}
-        />
-      )}
+      <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <h1 className="text-2xl font-bold mb-6">{minutes ? "Ata de Reunião" : "Gerando Ata..."}</h1>
+        
+        {audioUrl && (
+          <AudioControlBar
+            audioUrl={audioUrl}
+            isPlaying={isPlaying}
+            onPlayPause={handlePlayPause}
+          />
+        )}
 
-      {minutes && (
-        <div className="flex justify-between items-center">
-          <Button
-            onClick={() => generateMinutes(true)}
-            disabled={isLoading || !transcript}
-            className="gap-2"
-          >
-            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Regerar Ata de Reunião
-          </Button>
-        </div>
-      )}
-
-      {isLoading && !minutes && (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          <span className="ml-2 text-gray-600">Gerando Ata...</span>
-        </div>
-      )}
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {minutes && (
-        <div className="space-y-6">
-          <div className="bg-white border rounded-lg p-6 shadow-sm">
-            <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none">
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => <h1 className="text-2xl font-bold text-gray-900 mb-4">{children}</h1>,
-                  h2: ({ children }) => <h2 className="text-xl font-semibold text-gray-800 mb-3">{children}</h2>,
-                  h3: ({ children }) => <h3 className="text-lg font-medium text-gray-700 mb-2">{children}</h3>,
-                  ul: ({ children }) => <ul className="list-disc pl-6 space-y-2 text-gray-600">{children}</ul>,
-                  ol: ({ children }) => <ol className="list-decimal pl-6 space-y-2 text-gray-600">{children}</ol>,
-                  p: ({ children }) => <p className="text-gray-600 mb-4 leading-relaxed">{children}</p>,
-                  strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                  em: ({ children }) => <em className="text-gray-700 italic">{children}</em>,
-                }}
-              >
-                {minutes}
-              </ReactMarkdown>
-            </div>
+        {minutes && (
+          <div className="mb-6">
+            <Button
+              onClick={() => generateMinutes(true)}
+              disabled={isLoading || !transcript}
+              className="gap-2"
+            >
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Regerar Ata de Reunião
+            </Button>
           </div>
-        </div>
-      )}
+        )}
+
+        {isLoading && !minutes && (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="ml-2 text-gray-600">Gerando Ata...</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {minutes && (
+          <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none">
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => <h1 className="text-2xl font-bold text-gray-900 mb-4">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-xl font-semibold text-gray-800 mb-3">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-lg font-medium text-gray-700 mb-2">{children}</h3>,
+                ul: ({ children }) => <ul className="list-disc pl-6 space-y-2 text-gray-600">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-6 space-y-2 text-gray-600">{children}</ol>,
+                p: ({ children }) => <p className="text-gray-600 mb-4 leading-relaxed">{children}</p>,
+                strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                em: ({ children }) => <em className="text-gray-700 italic">{children}</em>,
+              }}
+            >
+              {minutes}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
