@@ -9,7 +9,7 @@ import {
   FastForward,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 interface AudioControlBarProps {
   audioUrl: string | null;
@@ -25,30 +25,6 @@ export const AudioControlBar = ({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-      audioRef.current.playbackRate = playbackRate;
-    }
-  }, [volume, isMuted, playbackRate]);
-
-  const handleVolumeChange = (newVolume: number[]) => {
-    setVolume(newVolume[0]);
-    setIsMuted(false);
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-  };
-
-  const handlePlaybackRateChange = () => {
-    const rates = [1, 1.5, 2];
-    const currentIndex = rates.indexOf(playbackRate);
-    const nextIndex = (currentIndex + 1) % rates.length;
-    setPlaybackRate(rates[nextIndex]);
-  };
 
   if (!audioUrl) return null;
 
@@ -72,7 +48,7 @@ export const AudioControlBar = ({
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleMute}
+            onClick={() => setIsMuted(!isMuted)}
             className="text-primary"
           >
             {isMuted || volume === 0 ? (
@@ -83,7 +59,10 @@ export const AudioControlBar = ({
           </Button>
           <Slider
             value={[isMuted ? 0 : volume]}
-            onValueChange={handleVolumeChange}
+            onValueChange={(newVolume) => {
+              setVolume(newVolume[0]);
+              setIsMuted(false);
+            }}
             max={1}
             step={0.1}
             className="w-20"
@@ -93,7 +72,12 @@ export const AudioControlBar = ({
         <Button
           variant="ghost"
           size="sm"
-          onClick={handlePlaybackRateChange}
+          onClick={() => {
+            const rates = [1, 1.5, 2];
+            const currentIndex = rates.indexOf(playbackRate);
+            const nextIndex = (currentIndex + 1) % rates.length;
+            setPlaybackRate(rates[nextIndex]);
+          }}
           className="text-primary min-w-[80px]"
         >
           <FastForward className="h-4 w-4 mr-2" />
