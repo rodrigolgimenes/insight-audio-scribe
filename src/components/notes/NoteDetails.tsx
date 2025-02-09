@@ -102,10 +102,7 @@ export const NoteDetails = () => {
               key={tag.id}
               className="group flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md text-sm"
             >
-              <TagIcon
-                className="w-3 h-3 mr-1"
-                style={{ color: tag.color }}
-              />
+              <TagIcon className="w-3 h-3 mr-1" style={{ color: tag.color }} />
               {tag.name}
               <button
                 onClick={() => handleRemoveTag(tag.id)}
