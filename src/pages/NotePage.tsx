@@ -21,9 +21,12 @@ import { TagsDialog } from "@/components/notes/TagsDialog";
 import { useNoteData } from "@/hooks/useNoteData";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { supabase } from "@/integrations/supabase/client";
+import { RecordHeader } from "@/components/record/RecordHeader";
+import { useNavigate } from "react-router-dom";
 
 const NotePage = () => {
   const { noteId } = useParams();
+  const navigate = useNavigate();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
@@ -94,6 +97,7 @@ const NotePage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 overflow-auto">
+          <RecordHeader onBack={() => navigate("/app")} />
           <AudioControlBar
             audioUrl={audioUrl}
             isPlaying={isPlaying}
