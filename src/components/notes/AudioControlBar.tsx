@@ -44,13 +44,13 @@ export const AudioControlBar = ({
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-white border-b z-50">
-      <div className="max-w-5xl mx-auto px-6 py-2 flex items-center gap-4">
+    <div className="fixed top-0 left-0 right-0 bg-white border-b z-50 shadow-sm">
+      <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={onPlayPause}
-          className="text-primary"
+          className="text-primary hover:bg-primary/10"
         >
           {isPlaying ? (
             <Pause className="h-5 w-5" />
@@ -64,7 +64,7 @@ export const AudioControlBar = ({
             variant="ghost"
             size="icon"
             onClick={() => setIsMuted(!isMuted)}
-            className="text-primary"
+            className="text-primary hover:bg-primary/10"
           >
             {isMuted || volume === 0 ? (
               <VolumeX className="h-5 w-5" />
@@ -93,13 +93,13 @@ export const AudioControlBar = ({
             const nextIndex = (currentIndex + 1) % rates.length;
             setPlaybackRate(rates[nextIndex]);
           }}
-          className="text-primary min-w-[80px]"
+          className="text-primary hover:bg-primary/10 min-w-[80px]"
         >
           <FastForward className="h-4 w-4 mr-2" />
           {playbackRate}x
         </Button>
 
-        <Button variant="ghost" size="sm" asChild className="text-primary">
+        <Button variant="ghost" size="sm" asChild className="text-primary hover:bg-primary/10">
           <a href={audioUrl} download>
             <Download className="h-4 w-4 mr-2" />
             Download

@@ -99,7 +99,7 @@ const NotePage = () => {
             isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
           />
-          <div className="max-w-5xl mx-auto px-6 py-8 mt-14">
+          <div className="max-w-5xl mx-auto px-6 py-8 mt-16">
             <NoteHeader
               title={note.title}
               createdAt={note.created_at}
