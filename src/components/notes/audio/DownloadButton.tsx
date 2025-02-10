@@ -21,37 +21,13 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     try {
       console.log('[DownloadButton] Starting download for URL:', publicUrl);
       
-      // Clean up the file path
-      const cleanPath = publicUrl
-        .replace(/^.*[\\\/]/, '') // Remove everything before the last slash
-        .split('?')[0]; // Remove URL parameters if any
-      
-      console.log('[DownloadButton] Clean path:', cleanPath);
-
+      // Extract the path after audio_recordings/
+      const cleanPath = publicUrl.split('audio_recordings/')[1];
       if (!cleanPath) {
         throw new Error('Invalid audio URL format');
       }
-
-      // Check if the file exists
-      const { data: listData, error: listError } = await supabase
-        .storage
-        .from('audio_recordings')
-        .list('', {
-          limit: 1,
-          search: cleanPath
-        });
-
-      console.log('[DownloadButton] List result:', { listData, listError });
-
-      if (listError) {
-        console.error('[DownloadButton] Error listing files:', listError);
-        throw new Error(`Failed to check file existence: ${listError.message}`);
-      }
-
-      if (!listData || listData.length === 0) {
-        console.error('[DownloadButton] File not found in bucket');
-        throw new Error('Audio file not found in storage');
-      }
+      
+      console.log('[DownloadButton] Clean path:', cleanPath);
 
       // Generate signed URL for download
       const { data: signedData, error: signError } = await supabase
@@ -77,7 +53,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = cleanPath;
+      a.download = cleanPath.split('/').pop() || 'audio.mp3'; // Use just the filename
       
       document.body.appendChild(a);
       a.click();
