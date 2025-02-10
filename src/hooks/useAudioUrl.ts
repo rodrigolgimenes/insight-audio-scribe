@@ -19,7 +19,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
       }
 
       try {
-        console.log('[useAudioUrl] Starting to get signed URL for:', audioUrl);
+        console.log('[useAudioUrl] Input audioUrl:', audioUrl);
         
         // Clean up the file path by removing any URL base or parameters
         let cleanPath = audioUrl
@@ -32,6 +32,12 @@ export const useAudioUrl = (audioUrl: string | null) => {
         }
         
         console.log('[useAudioUrl] Cleaned path:', cleanPath);
+        console.log('[useAudioUrl] Original URL structure:', {
+          fullUrl: audioUrl,
+          cleanPath,
+          includesStoragePrefix: audioUrl.includes('storage/v1/object/public/'),
+          includesAudioRecordings: audioUrl.includes('audio_recordings')
+        });
 
         if (!cleanPath) {
           throw new Error('Invalid audio URL format');
@@ -46,7 +52,13 @@ export const useAudioUrl = (audioUrl: string | null) => {
             search: cleanPath,
           });
 
-        console.log('[useAudioUrl] List result for path:', cleanPath, { listData, listError });
+        console.log('[useAudioUrl] List result:', {
+          listData,
+          listError,
+          searchPath: cleanPath,
+          foundFiles: listData?.length,
+          matchingFile: listData?.find(file => file.name === cleanPath)
+        });
 
         if (listError) {
           console.error('[useAudioUrl] Error listing files:', listError);
@@ -54,10 +66,14 @@ export const useAudioUrl = (audioUrl: string | null) => {
         }
 
         const fileExists = listData?.some(file => file.name === cleanPath);
-        console.log('[useAudioUrl] File exists in bucket?', fileExists);
+        console.log('[useAudioUrl] File exists check:', {
+          fileExists,
+          cleanPath,
+          availableFiles: listData?.map(f => f.name)
+        });
 
         if (!fileExists) {
-          console.error('[useAudioUrl] File not found in bucket');
+          console.error('[useAudioUrl] File not found in bucket. Available files:', listData?.map(f => f.name));
           throw new Error('Audio file not found in storage');
         }
 
@@ -72,7 +88,8 @@ export const useAudioUrl = (audioUrl: string | null) => {
         console.log('[useAudioUrl] Signed URL result:', { 
           signedData, 
           signError,
-          urlLength: signedData?.signedUrl?.length 
+          urlLength: signedData?.signedUrl?.length,
+          generatedUrl: signedData?.signedUrl?.substring(0, 100) + '...' // Log first 100 chars for debugging
         });
 
         if (signError) {
@@ -91,7 +108,8 @@ export const useAudioUrl = (audioUrl: string | null) => {
           console.log('[useAudioUrl] Signed URL accessibility check:', {
             status: response.status,
             ok: response.ok,
-            contentType: response.headers.get('content-type')
+            contentType: response.headers.get('content-type'),
+            url: signedData.signedUrl.substring(0, 100) + '...' // Log first 100 chars for debugging
           });
           
           if (!response.ok) {
