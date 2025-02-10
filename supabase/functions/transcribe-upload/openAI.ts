@@ -3,8 +3,8 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function retryWithExponentialBackoff(
   operation: () => Promise<any>,
-  maxRetries: number = 3,
-  initialDelay: number = 1000
+  maxRetries: number = 5, // Increased from 3 to 5
+  initialDelay: number = 2000 // Increased from 1000 to 2000
 ): Promise<any> {
   let lastError;
   
@@ -15,14 +15,17 @@ async function retryWithExponentialBackoff(
       lastError = error;
       if (error.message.includes('server_error')) {
         const delay = initialDelay * Math.pow(2, i);
-        console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms delay...`);
+        console.log(`OpenAI server error encountered. Retry attempt ${i + 1}/${maxRetries} after ${delay}ms delay...`);
+        console.log('Error details:', error.message);
         await wait(delay);
         continue;
       }
+      console.error('Non-server error encountered:', error.message);
       throw error; // Throw immediately for non-server errors
     }
   }
   
+  console.error('Max retries reached. Last error:', lastError.message);
   throw lastError;
 }
 
