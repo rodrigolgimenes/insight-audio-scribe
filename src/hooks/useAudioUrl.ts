@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -21,14 +20,12 @@ export const useAudioUrl = (audioUrl: string | null) => {
       try {
         console.log('[useAudioUrl] Input audioUrl:', audioUrl);
         
-        // Clean up the file path by removing any URL base or parameters
-        let cleanPath = audioUrl
-          .replace(/^.*[\\\/]/, '') // Remove everything before the last slash
-          .split('?')[0]; // Remove URL parameters if any
+        // Keep the full path structure for storage operations
+        let cleanPath = audioUrl.split('?')[0]; // Remove URL parameters if any
         
-        // If the path is from Supabase storage, extract just the file name
+        // If it's a full URL, extract just the path after audio_recordings/
         if (cleanPath.includes('storage/v1/object/public/')) {
-          cleanPath = cleanPath.split('storage/v1/object/public/audio_recordings/').pop() || cleanPath;
+          cleanPath = cleanPath.split('audio_recordings/')[1];
         }
         
         console.log('[useAudioUrl] Cleaned path:', cleanPath);
@@ -65,7 +62,8 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error(`Failed to check file existence: ${listError.message}`);
         }
 
-        const fileExists = listData?.some(file => file.name === cleanPath);
+        // Check if file exists by comparing the full path
+        const fileExists = listData?.some(file => cleanPath.includes(file.name));
         console.log('[useAudioUrl] File exists check:', {
           fileExists,
           cleanPath,
