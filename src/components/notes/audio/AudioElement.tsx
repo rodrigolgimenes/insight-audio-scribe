@@ -10,7 +10,7 @@ interface AudioElementProps {
 export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
   ({ src, onEnded }, ref) => {
     const { toast } = useToast();
-
+    
     const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
       const target = e.currentTarget;
       console.error('[AudioElement] Audio error event:', e);
@@ -21,20 +21,20 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.error('[AudioElement] Ready state:', target.readyState);
       console.error('[AudioElement] MIME type:', target.canPlayType('audio/webm'), target.canPlayType('audio/mp3'));
       
-      let errorMessage = "Error loading audio file";
+      let errorMessage = "Erro ao carregar arquivo de áudio";
       if (target.error) {
         switch (target.error.code) {
           case MediaError.MEDIA_ERR_ABORTED:
-            errorMessage = "Audio playback was aborted";
+            errorMessage = "Reprodução de áudio foi interrompida";
             break;
           case MediaError.MEDIA_ERR_NETWORK:
-            errorMessage = "Network error occurred while loading audio";
+            errorMessage = "Erro de rede ao carregar áudio";
             break;
           case MediaError.MEDIA_ERR_DECODE:
-            errorMessage = "Audio decoding failed - formato não suportado";
+            errorMessage = "Erro ao decodificar áudio - formato não suportado";
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Audio format not supported by browser";
+            errorMessage = "Formato de áudio não suportado pelo navegador";
             break;
         }
       }
@@ -60,13 +60,18 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     const handleCanPlay = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
-        if (!isFinite(audioEl.current.duration)) {
+        // Só recarrega se a duração for inválida e não houver erro de rede
+        if (!isFinite(audioEl.current.duration) && audioEl.current.networkState === HTMLMediaElement.NETWORK_LOADING) {
+          console.log('[AudioElement] Reloading due to invalid duration:', {
+            duration: audioEl.current.duration,
+            networkState: audioEl.current.networkState,
+            readyState: audioEl.current.readyState
+          });
           audioEl.current.load();
         }
-        console.log('[AudioElement] Can play event triggered:', {
-          duration: isFinite(audioEl.current.duration) ? audioEl.current.duration : 'Loading...',
+        console.log('[AudioElement] Can play event:', {
+          duration: audioEl.current.duration,
           readyState: audioEl.current.readyState,
-          src: audioEl.current.src,
           networkState: audioEl.current.networkState,
           type: audioEl.current.canPlayType('audio/webm')
         });
@@ -76,8 +81,13 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     const handleLoadedMetadata = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
-        if (!isFinite(audioEl.current.duration)) {
-          console.warn('[AudioElement] Invalid duration detected, reloading metadata');
+        // Verifica se é realmente necessário recarregar
+        if (!isFinite(audioEl.current.duration) && audioEl.current.networkState === HTMLMediaElement.NETWORK_LOADING) {
+          console.log('[AudioElement] Invalid duration on metadata load, attempting reload:', {
+            duration: audioEl.current.duration,
+            networkState: audioEl.current.networkState,
+            readyState: audioEl.current.readyState
+          });
           audioEl.current.load();
           return;
         }
