@@ -60,15 +60,6 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     const handleCanPlay = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
-        // Só recarrega se a duração for inválida e não houver erro de rede
-        if (!isFinite(audioEl.current.duration) && audioEl.current.networkState === HTMLMediaElement.NETWORK_LOADING) {
-          console.log('[AudioElement] Reloading due to invalid duration:', {
-            duration: audioEl.current.duration,
-            networkState: audioEl.current.networkState,
-            readyState: audioEl.current.readyState
-          });
-          audioEl.current.load();
-        }
         console.log('[AudioElement] Can play event:', {
           duration: audioEl.current.duration,
           readyState: audioEl.current.readyState,
@@ -81,16 +72,6 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     const handleLoadedMetadata = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
-        // Verifica se é realmente necessário recarregar
-        if (!isFinite(audioEl.current.duration) && audioEl.current.networkState === HTMLMediaElement.NETWORK_LOADING) {
-          console.log('[AudioElement] Invalid duration on metadata load, attempting reload:', {
-            duration: audioEl.current.duration,
-            networkState: audioEl.current.networkState,
-            readyState: audioEl.current.readyState
-          });
-          audioEl.current.load();
-          return;
-        }
         console.log('[AudioElement] Metadata loaded:', {
           duration: audioEl.current.duration,
           readyState: audioEl.current.readyState,
@@ -136,4 +117,3 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
 );
 
 AudioElement.displayName = "AudioElement";
-
