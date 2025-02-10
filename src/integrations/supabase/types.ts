@@ -262,6 +262,33 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_logs: {
+        Row: {
+          bucket_id: string | null
+          created_at: string
+          id: string
+          object_path: string | null
+          operation: string | null
+          user_id: string | null
+        }
+        Insert: {
+          bucket_id?: string | null
+          created_at?: string
+          id?: string
+          object_path?: string | null
+          operation?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          bucket_id?: string | null
+          created_at?: string
+          id?: string
+          object_path?: string | null
+          operation?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       styles: {
         Row: {
           category: string | null
