@@ -4,6 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Play, Pause, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatDuration } from "@/utils/formatDuration";
+import { AudioElement } from "./audio/AudioElement";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
@@ -27,6 +28,10 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       };
 
       const handleLoadedMetadata = () => {
+        console.log("Audio metadata loaded:", {
+          duration: audio.duration,
+          currentTime: audio.currentTime
+        });
         setDuration(audio.duration);
       };
 
@@ -43,7 +48,12 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
-        audioRef.current.play();
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Error playing audio:", error);
+          });
+        }
       } else {
         audioRef.current.pause();
       }
@@ -60,7 +70,7 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
 
   return (
     <div className="space-y-4">
-      <audio 
+      <AudioElement 
         ref={audioRef} 
         src={audioUrl || undefined}
         onEnded={() => onPlayPause()}
@@ -88,8 +98,8 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
               className="mb-2"
             />
             <div className="flex justify-between text-sm text-gray-500">
-              <span>{formatDuration(Math.floor(currentTime))}</span>
-              <span>{formatDuration(Math.floor(duration))}</span>
+              <span>{formatDuration(currentTime)}</span>
+              <span>{formatDuration(duration)}</span>
             </div>
           </div>
           <Volume2 className="h-4 w-4 text-gray-500" />
