@@ -16,11 +16,20 @@ export const getMediaDuration = async (file: File): Promise<number> => {
       resolve(Math.round(media.duration));
     };
 
-    media.onerror = () => {
+    media.onerror = (e) => {
       window.URL.revokeObjectURL(media.src);
-      reject(new Error('Error loading media file'));
+      console.error('Error loading media file:', e);
+      // Return a default duration if metadata can't be read
+      resolve(0);
     };
 
     media.src = URL.createObjectURL(file);
+
+    // Add timeout to prevent hanging
+    setTimeout(() => {
+      window.URL.revokeObjectURL(media.src);
+      console.warn('Timeout while getting media duration');
+      resolve(0);
+    }, 5000);
   });
 };

@@ -224,6 +224,7 @@ export type Database = {
           duration: number | null
           file_path: string
           id: string
+          processed_audio_url: string | null
           status: string | null
           summary: string | null
           title: string
@@ -237,6 +238,7 @@ export type Database = {
           duration?: number | null
           file_path: string
           id?: string
+          processed_audio_url?: string | null
           status?: string | null
           summary?: string | null
           title: string
@@ -250,6 +252,7 @@ export type Database = {
           duration?: number | null
           file_path?: string
           id?: string
+          processed_audio_url?: string | null
           status?: string | null
           summary?: string | null
           title?: string
