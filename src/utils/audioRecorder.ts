@@ -24,9 +24,13 @@ export class AudioRecorder {
       this.stream = stream;
       this.recordedDuration = 0;
       
-      // Configure MediaRecorder with specific MIME type and bitrate
+      // Configure MediaRecorder with MP3 mimeType if supported
+      const mimeType = MediaRecorder.isTypeSupported('audio/mpeg') 
+        ? 'audio/mpeg' 
+        : 'audio/webm;codecs=opus';
+      
       const options: MediaRecorderOptions = {
-        mimeType: 'audio/webm;codecs=opus',
+        mimeType,
         bitsPerSecond: 128000 // 128kbps for good audio quality
       };
       
@@ -69,9 +73,9 @@ export class AudioRecorder {
 
       this.mediaRecorder.onstop = async () => {
         try {
-          // Create a new blob with proper metadata
+          // Create a new blob with MP3 type if supported
           const finalBlob = new Blob(this.audioChunks, { 
-            type: 'audio/webm;codecs=opus'
+            type: MediaRecorder.isTypeSupported('audio/mpeg') ? 'audio/mpeg' : 'audio/webm'
           });
 
           // Get the precise duration
