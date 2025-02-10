@@ -1,7 +1,9 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { encode } from 'https://deno.land/x/lodash@4.17.15-es/lodash.js';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile } from '@ffmpeg/util';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,16 +38,42 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Convert to MP3 using FFmpeg
-    const audioFile = await convertToMp3(file);
-    console.log('Audio file converted to MP3');
+    // Initialize FFmpeg
+    const ffmpeg = new FFmpeg();
+    await ffmpeg.load();
+    console.log('FFmpeg loaded');
+
+    // Convert file to ArrayBuffer and write to FFmpeg's virtual filesystem
+    const arrayBuffer = await (file as File).arrayBuffer();
+    const inputFileName = 'input.' + (file as File).name.split('.').pop();
+    const outputFileName = 'output.mp3';
+    
+    ffmpeg.writeFile(inputFileName, new Uint8Array(arrayBuffer));
+    console.log('File written to FFmpeg filesystem');
+
+    // Run FFmpeg command to convert to MP3
+    await ffmpeg.exec([
+      '-i', inputFileName,
+      '-vn', // Disable video if present
+      '-acodec', 'libmp3lame',
+      '-ar', '44100',
+      '-ac', '2',
+      '-b:a', '128k',
+      outputFileName
+    ]);
+    console.log('FFmpeg conversion completed');
+
+    // Read the converted file
+    const data = await ffmpeg.readFile(outputFileName);
+    const mp3Blob = new Blob([data], { type: 'audio/mpeg' });
+    console.log('Converted file read from FFmpeg filesystem');
 
     // Upload to storage with .mp3 extension
     const filePath = `${recordingId}/${crypto.randomUUID()}.mp3`;
     
     const { error: uploadError } = await supabase.storage
       .from('audio_recordings')
-      .upload(filePath, audioFile, {
+      .upload(filePath, mp3Blob, {
         contentType: 'audio/mpeg',
         cacheControl: '3600',
         upsert: false
@@ -77,7 +105,7 @@ serve(async (req) => {
     }
 
     // Get transcription
-    const transcription = await transcribeAudio(audioFile, openAIApiKey);
+    const transcription = await transcribeAudio(mp3Blob, openAIApiKey);
     
     // Process with GPT
     const processedContent = await processWithGPT(transcription.text, openAIApiKey);
@@ -137,44 +165,7 @@ serve(async (req) => {
   }
 });
 
-// Helper function to convert audio/video to MP3
-async function convertToMp3(file: File): Promise<Blob> {
-  const audioContext = new AudioContext();
-  const arrayBuffer = await file.arrayBuffer();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-  
-  // Convert AudioBuffer to MP3
-  const offlineContext = new OfflineAudioContext(
-    audioBuffer.numberOfChannels,
-    audioBuffer.length,
-    audioBuffer.sampleRate
-  );
-  
-  const source = offlineContext.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(offlineContext.destination);
-  source.start();
-  
-  const renderedBuffer = await offlineContext.startRendering();
-  
-  // Convert to MP3 using Web Audio API
-  const mp3Blob = await encodeMP3(renderedBuffer);
-  return new Blob([mp3Blob], { type: 'audio/mpeg' });
-}
-
-// Helper function to encode AudioBuffer to MP3
-async function encodeMP3(audioBuffer: AudioBuffer): Promise<Blob> {
-  // For now, we're returning the audio as is since browser APIs don't directly support MP3 encoding
-  // In a production environment, you would want to use a proper MP3 encoder library or service
-  const channels = [];
-  for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
-    channels.push(audioBuffer.getChannelData(i));
-  }
-  
-  return new Blob([audioBuffer], { type: 'audio/mpeg' });
-}
-
-async function transcribeAudio(audioFile: File, openAIApiKey: string) {
+async function transcribeAudio(audioFile: Blob, openAIApiKey: string) {
   console.log('Preparing audio file for transcription...');
   const openAIFormData = new FormData();
   openAIFormData.append('file', audioFile);
