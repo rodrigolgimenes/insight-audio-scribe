@@ -145,7 +145,7 @@ export type Database = {
           {
             foreignKeyName: "notes_folders_note_id_fkey"
             columns: ["note_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "notes"
             referencedColumns: ["id"]
           },
