@@ -19,6 +19,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.error('[AudioElement] Audio src:', target.src);
       console.error('[AudioElement] Network state:', target.networkState);
       console.error('[AudioElement] Ready state:', target.readyState);
+      console.error('[AudioElement] MIME type:', target.canPlayType('audio/webm'), target.canPlayType('audio/mp3'));
       
       let errorMessage = "Error loading audio file";
       if (target.error) {
@@ -30,17 +31,17 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
             errorMessage = "Network error occurred while loading audio";
             break;
           case MediaError.MEDIA_ERR_DECODE:
-            errorMessage = "Audio decoding failed";
+            errorMessage = "Audio decoding failed - formato não suportado";
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Audio format not supported";
+            errorMessage = "Audio format not supported by browser";
             break;
         }
       }
 
       toast({
-        title: "Error",
-        description: `${errorMessage}. Please try again.`,
+        title: "Erro no áudio",
+        description: `${errorMessage}. Por favor, tente novamente.`,
         variant: "destructive",
       });
     };
@@ -48,14 +49,17 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     const handleLoadStart = () => {
       console.log('[AudioElement] Load started:', { 
         src,
-        ref: ref as React.MutableRefObject<HTMLAudioElement>
+        ref: ref as React.MutableRefObject<HTMLAudioElement>,
+        mimeTypes: {
+          webm: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/webm'),
+          mp3: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/mp3')
+        }
       });
     };
 
     const handleCanPlay = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
-        // Force metadata load if duration is Infinity
         if (!isFinite(audioEl.current.duration)) {
           audioEl.current.load();
         }
@@ -63,7 +67,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
           duration: isFinite(audioEl.current.duration) ? audioEl.current.duration : 'Loading...',
           readyState: audioEl.current.readyState,
           src: audioEl.current.src,
-          networkState: audioEl.current.networkState
+          networkState: audioEl.current.networkState,
+          type: audioEl.current.canPlayType('audio/webm')
         });
       }
     };
@@ -80,7 +85,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
           duration: audioEl.current.duration,
           readyState: audioEl.current.readyState,
           src: audioEl.current.src,
-          networkState: audioEl.current.networkState
+          networkState: audioEl.current.networkState,
+          mimeType: audioEl.current.currentSrc.split('.').pop()
         });
       }
     };
@@ -110,9 +116,14 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         onLoadedMetadata={handleLoadedMetadata}
         onProgress={handleProgress}
         preload="metadata"
-      />
+      >
+        <source src={src} type="audio/webm" />
+        <source src={src} type="audio/mp3" />
+        Your browser does not support the audio element.
+      </audio>
     );
   }
 );
 
 AudioElement.displayName = "AudioElement";
+
