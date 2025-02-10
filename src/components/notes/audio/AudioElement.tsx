@@ -13,6 +13,13 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     
     const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
       const target = e.currentTarget;
+      
+      // Only show error if we have a source URL
+      if (!src) {
+        console.log('[AudioElement] Ignoring error for empty source');
+        return;
+      }
+
       console.error('[AudioElement] Audio error event:', e);
       console.error('[AudioElement] Audio error code:', target.error?.code);
       console.error('[AudioElement] Audio error message:', target.error?.message);
@@ -47,6 +54,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     };
 
     const handleLoadStart = () => {
+      if (!src) return;
+      
       console.log('[AudioElement] Load started:', { 
         src,
         ref: ref as React.MutableRefObject<HTMLAudioElement>,
@@ -58,6 +67,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     };
 
     const handleCanPlay = () => {
+      if (!src) return;
+      
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
         console.log('[AudioElement] Can play event:', {
@@ -70,6 +81,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     };
 
     const handleLoadedMetadata = () => {
+      if (!src) return;
+      
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
         console.log('[AudioElement] Metadata loaded:', {
@@ -83,6 +96,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     };
 
     const handleProgress = () => {
+      if (!src) return;
+      
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
       if (audioEl.current) {
         console.log('[AudioElement] Progress event:', {
@@ -95,6 +110,11 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         });
       }
     };
+
+    // Only render audio element if we have a source
+    if (!src) {
+      return null;
+    }
 
     return (
       <audio
