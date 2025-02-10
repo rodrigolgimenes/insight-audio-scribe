@@ -1,4 +1,6 @@
 
+import { RecordingEvent, RecordingObserver } from './types';
+
 interface RecordingResult {
   blob: Blob;
   duration: number;
@@ -12,6 +14,19 @@ export class AudioRecorder {
   private startTime: number = 0;
   private recordedDuration: number = 0;
   private timerId: number | null = null;
+  private observers: Set<RecordingObserver> = new Set();
+
+  addObserver(observer: RecordingObserver): void {
+    this.observers.add(observer);
+  }
+
+  removeObserver(observer: RecordingObserver): void {
+    this.observers.delete(observer);
+  }
+
+  private notifyObservers(event: RecordingEvent): void {
+    this.observers.forEach(observer => observer.update(event));
+  }
 
   async startRecording(stream: MediaStream): Promise<void> {
     if (this.isRecording) {
@@ -20,7 +35,6 @@ export class AudioRecorder {
     }
 
     try {
-      // Log audio tracks from stream
       const audioTracks = stream.getAudioTracks();
       console.log('[AudioRecorder] Audio tracks:', {
         count: audioTracks.length,
@@ -73,6 +87,7 @@ export class AudioRecorder {
       
       this.mediaRecorder.onstart = () => {
         console.log('[AudioRecorder] MediaRecorder started');
+        this.notifyObservers({ type: 'start' });
       };
 
       this.mediaRecorder.ondataavailable = (event) => {
@@ -85,24 +100,35 @@ export class AudioRecorder {
         if (event.data && event.data.size > 0) {
           this.audioChunks.push(event.data);
           console.log('[AudioRecorder] Total chunks:', this.audioChunks.length);
+          this.notifyObservers({ 
+            type: 'dataAvailable', 
+            data: { chunk: event.data } 
+          });
         }
       };
 
       this.mediaRecorder.onerror = (event) => {
         console.error('[AudioRecorder] MediaRecorder error:', event);
+        this.notifyObservers({ 
+          type: 'error', 
+          data: { error: new Error('MediaRecorder error') } 
+        });
         this.cleanup();
       };
 
       this.mediaRecorder.onpause = () => {
         console.log('[AudioRecorder] MediaRecorder paused');
+        this.notifyObservers({ type: 'pause' });
       };
 
       this.mediaRecorder.onresume = () => {
         console.log('[AudioRecorder] MediaRecorder resumed');
+        this.notifyObservers({ type: 'resume' });
       };
 
       this.mediaRecorder.onstop = () => {
         console.log('[AudioRecorder] MediaRecorder stopped');
+        this.notifyObservers({ type: 'stop' });
       };
 
       // Start tracking duration

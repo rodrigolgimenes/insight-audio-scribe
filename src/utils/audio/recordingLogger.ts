@@ -28,4 +28,3 @@ export class RecordingLogger implements RecordingObserver {
     }
   }
 }
-
