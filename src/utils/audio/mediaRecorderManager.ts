@@ -30,12 +30,11 @@ export class MediaRecorderManager {
     if (!this.mediaRecorder) return;
 
     this.mediaRecorder.ondataavailable = (event) => {
-      const eventData = {
+      console.log('[MediaRecorderManager] Data available event:', {
         dataSize: event.data?.size,
         dataType: event.data?.type,
         timeStamp: event.timeStamp
-      };
-      console.log('[MediaRecorderManager] Data available event:', eventData);
+      });
 
       if (event.data && event.data.size > 0) {
         this.audioChunks.push(event.data);
@@ -55,6 +54,11 @@ export class MediaRecorderManager {
       });
     };
 
+    this.mediaRecorder.onstart = () => {
+      console.log('[MediaRecorderManager] MediaRecorder started');
+      this.notifyObservers({ type: 'start' });
+    };
+
     this.mediaRecorder.onpause = () => {
       console.log('[MediaRecorderManager] MediaRecorder paused');
       this.notifyObservers({ type: 'pause' });
@@ -72,35 +76,38 @@ export class MediaRecorderManager {
   }
 
   start(): void {
-    if (this.mediaRecorder) {
+    if (this.mediaRecorder && this.mediaRecorder.state === 'inactive') {
+      console.log('[MediaRecorderManager] Starting recording');
+      this.audioChunks = [];
       this.mediaRecorder.start(250);
-      this.notifyObservers({ type: 'start' });
+    } else {
+      console.warn('[MediaRecorderManager] Cannot start recording:', this.mediaRecorder?.state);
     }
   }
 
   pause(): void {
-    if (this.mediaRecorder) {
+    if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      console.log('[MediaRecorderManager] Pausing recording');
       this.mediaRecorder.pause();
     }
   }
 
   resume(): void {
-    if (this.mediaRecorder) {
+    if (this.mediaRecorder && this.mediaRecorder.state === 'paused') {
+      console.log('[MediaRecorderManager] Resuming recording');
       this.mediaRecorder.resume();
     }
   }
 
   stop(): void {
-    if (this.mediaRecorder) {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      console.log('[MediaRecorderManager] Stopping recording');
       this.mediaRecorder.stop();
     }
   }
 
   getRecordingStats(duration: number): RecordingStats {
-    const finalBlob = new Blob(this.audioChunks, { 
-      type: this.mediaRecorder?.mimeType || 'audio/webm'
-    });
-
+    const finalBlob = this.getFinalBlob();
     return {
       blobSize: finalBlob.size,
       duration,
@@ -111,7 +118,7 @@ export class MediaRecorderManager {
 
   getFinalBlob(): Blob {
     return new Blob(this.audioChunks, { 
-      type: this.mediaRecorder?.mimeType || 'audio/webm'
+      type: this.mediaRecorder?.mimeType || 'audio/webm;codecs=opus'
     });
   }
 
