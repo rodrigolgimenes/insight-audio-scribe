@@ -1,18 +1,11 @@
 
-import { Button } from "@/components/ui/button";
-import {
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Download,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
-import { Slider } from "@/components/ui/slider";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { PlayPauseButton } from "./audio/PlayPauseButton";
+import { VolumeControl } from "./audio/VolumeControl";
+import { PlaybackSpeedControl } from "./audio/PlaybackSpeedControl";
+import { DownloadButton } from "./audio/DownloadButton";
 
 interface AudioControlBarProps {
   audioUrl: string | null;
@@ -39,10 +32,7 @@ export const AudioControlBar = ({
         try {
           console.log('Processing audio URL:', audioUrl);
           
-          // Remove any file extension from the base path
           const basePath = audioUrl.replace(/\.(webm|mp3)$/, '');
-          
-          // Try both .webm and .mp3 extensions
           const extensions = ['.webm', '.mp3'];
           let foundValidUrl = false;
           
@@ -113,115 +103,33 @@ export const AudioControlBar = ({
     }
   }, [isPlaying, volume, isMuted, playbackRate, toast]);
 
-  const handleDownload = async () => {
-    if (!publicUrl) return;
-    
-    try {
-      const response = await fetch(publicUrl);
-      if (!response.ok) throw new Error('Failed to fetch audio file');
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      
-      // Get the original file extension from the URL
-      const extension = publicUrl.split('.').pop()?.toLowerCase() || 'webm';
-      a.download = `recording.${extension}`;
-      
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      
-      toast({
-        title: "Success",
-        description: "Audio file downloaded successfully",
-      });
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to download audio file",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (!audioUrl) {
     return null;
   }
 
   return (
     <div className="flex items-center gap-4 bg-white p-4 rounded-lg border mb-4">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onPlayPause}
-        className="text-primary hover:bg-primary/10"
-      >
-        {isPlaying ? (
-          <Pause className="h-5 w-5" />
-        ) : (
-          <Play className="h-5 w-5" />
-        )}
-      </Button>
+      <PlayPauseButton isPlaying={isPlaying} onPlayPause={onPlayPause} />
 
-      <div className="flex items-center gap-2 w-32">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMuted(!isMuted)}
-          className="text-primary hover:bg-primary/10"
-        >
-          {isMuted ? (
-            <VolumeX className="h-5 w-5" />
-          ) : (
-            <Volume2 className="h-5 w-5" />
-          )}
-        </Button>
-        <Slider
-          value={[isMuted ? 0 : volume]}
-          onValueChange={(newVolume) => {
-            setVolume(newVolume[0]);
-            setIsMuted(false);
-          }}
-          max={1}
-          step={0.1}
-          className="w-20"
-        />
-      </div>
+      <VolumeControl
+        volume={volume}
+        isMuted={isMuted}
+        onVolumeChange={(newVolume) => {
+          setVolume(newVolume);
+          setIsMuted(false);
+        }}
+        onMuteToggle={() => setIsMuted(!isMuted)}
+      />
 
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setPlaybackRate(prev => Math.min(2, prev + 0.5))}
-          className="text-primary hover:bg-primary/10"
-        >
-          <ArrowUp className="h-4 w-4" />
-        </Button>
-        <span className="text-sm font-medium">{playbackRate}x</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setPlaybackRate(prev => Math.max(0.5, prev - 0.5))}
-          className="text-primary hover:bg-primary/10"
-        >
-          <ArrowDown className="h-4 w-4" />
-        </Button>
-      </div>
+      <PlaybackSpeedControl
+        playbackRate={playbackRate}
+        onPlaybackRateChange={setPlaybackRate}
+      />
 
-      <Button 
-        variant="ghost" 
-        size="sm"
-        onClick={handleDownload}
-        disabled={!isAudioReady}
-        className="text-primary hover:bg-primary/10"
-      >
-        <Download className="h-4 w-4 mr-2" />
-        Download
-      </Button>
+      <DownloadButton
+        publicUrl={publicUrl}
+        isAudioReady={isAudioReady}
+      />
 
       <audio
         ref={audioRef}
