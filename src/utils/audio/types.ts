@@ -17,3 +17,17 @@ export interface RecordingStats {
   chunks: number;
   mimeType: string;
 }
+
+export interface RecordingEvent {
+  type: 'start' | 'stop' | 'pause' | 'resume' | 'dataAvailable' | 'error';
+  data?: {
+    chunk?: Blob;
+    error?: Error;
+    stats?: RecordingStats;
+  };
+}
+
+export interface RecordingObserver {
+  update(event: RecordingEvent): void;
+}
+

@@ -1,7 +1,9 @@
-import { useRef } from "react";
+
+import { useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AudioRecorder } from "@/utils/audio/audioRecorder";
+import { RecordingLogger } from "@/utils/audio/recordingLogger";
 import { useRecordingState } from "./recording/useRecordingState";
 import { useAudioCapture } from "./recording/useAudioCapture";
 import { useAudioProcessing } from "./recording/useAudioProcessing";
@@ -32,6 +34,17 @@ export const useRecording = () => {
   const { session } = useAuth();
   const audioRecorder = useRef(new AudioRecorder());
   const isProcessing = useRef(false);
+  const logger = useRef(new RecordingLogger());
+
+  useEffect(() => {
+    // Add the logger observer when the component mounts
+    audioRecorder.current.addObserver(logger.current);
+    
+    // Remove the observer when the component unmounts
+    return () => {
+      audioRecorder.current.removeObserver(logger.current);
+    };
+  }, []);
 
   const handleStartRecording = async () => {
     console.log('[useRecording] Starting recording process');
@@ -134,3 +147,4 @@ export const useRecording = () => {
     setIsSystemAudio,
   };
 };
+
