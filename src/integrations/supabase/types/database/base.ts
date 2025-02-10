@@ -9,7 +9,7 @@ export type Json =
 
 export type Database = {
   public: {
-    Tables: Tables;
+    Tables: DatabaseTables;
     Views: {
       [_ in never]: never
     };
@@ -28,7 +28,7 @@ import { ContentTables } from './content';
 import { OrganizationTables } from './organization';
 import { SubscriptionTables } from './subscription';
 
-export type Tables = AuthTables & ContentTables & OrganizationTables & SubscriptionTables;
+export type DatabaseTables = AuthTables & ContentTables & OrganizationTables & SubscriptionTables;
 
 export interface Functions {
   generate_audio_url: {
@@ -46,6 +46,6 @@ export interface Functions {
   }
 }
 
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
-export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
-export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+export type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+export type TableInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
+export type TableUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];

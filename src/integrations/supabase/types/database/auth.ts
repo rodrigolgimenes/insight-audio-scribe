@@ -1,4 +1,6 @@
 
+import type { Json } from './base';
+
 export interface AuthTables {
   profiles: {
     Row: {
