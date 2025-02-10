@@ -5,7 +5,7 @@ import { useFolderActions } from "./notes/useFolderActions";
 import { useNoteActions } from "./notes/useNoteActions";
 
 export const useNoteManagement = () => {
-  const { notes, isLoading, error } = useNotesQuery();
+  const { data: notes, isLoading, error } = useNotesQuery();
   const {
     isSelectionMode,
     setIsSelectionMode,
