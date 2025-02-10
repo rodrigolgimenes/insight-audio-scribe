@@ -37,20 +37,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error('Invalid audio URL format');
         }
 
-        // First, check the current state of the bucket
-        const { data: bucketFiles, error: bucketError } = await supabase
-          .storage
-          .from('audio_recordings')
-          .list('');
-        
-        console.log('[useAudioUrl] Current bucket files:', bucketFiles);
-        
-        if (bucketError) {
-          console.error('[useAudioUrl] Error listing bucket:', bucketError);
-          throw new Error(`Failed to list bucket: ${bucketError.message}`);
-        }
-
-        // Check if the file exists in the bucket
+        // First, check if the file exists in the bucket
         const { data: listData, error: listError } = await supabase
           .storage
           .from('audio_recordings')
@@ -72,22 +59,6 @@ export const useAudioUrl = (audioUrl: string | null) => {
         if (!fileExists) {
           console.error('[useAudioUrl] File not found in bucket');
           throw new Error('Audio file not found in storage');
-        }
-
-        // Generate and check public URL
-        const { data: publicUrlData } = supabase
-          .storage
-          .from('audio_recordings')
-          .getPublicUrl(cleanPath);
-
-        console.log('[useAudioUrl] Public URL check:', publicUrlData);
-
-        // Test public URL accessibility
-        try {
-          const publicResponse = await fetch(publicUrlData.publicUrl, { method: 'HEAD' });
-          console.log('[useAudioUrl] Public URL accessibility:', publicResponse.status);
-        } catch (error) {
-          console.warn('[useAudioUrl] Public URL not accessible:', error);
         }
 
         // Generate signed URL
