@@ -72,31 +72,17 @@ export const useFolderActions = () => {
       console.log("Moving notes to folder:", folderId);
       console.log("Selected notes:", notes);
 
-      // Primeiro, removemos todas as associações existentes
       for (const note of notes) {
-        const { error: deleteError } = await supabase
-          .from("notes_folders")
-          .delete()
-          .eq("note_id", note.id);
-
-        if (deleteError) {
-          console.error("Error removing existing folder association:", deleteError);
-          throw deleteError;
-        }
-      }
-
-      // Depois, criamos as novas associações
-      for (const note of notes) {
-        const { error: insertError } = await supabase
-          .from("notes_folders")
-          .insert({
-            note_id: note.id,
-            folder_id: folderId
+        // Usar a função do banco de dados para mover a nota
+        const { error } = await supabase
+          .rpc('move_note_to_folder', {
+            p_note_id: note.id,
+            p_folder_id: folderId
           });
 
-        if (insertError) {
-          console.error("Error moving note:", insertError);
-          throw insertError;
+        if (error) {
+          console.error("Error moving note:", error);
+          throw error;
         }
       }
 
