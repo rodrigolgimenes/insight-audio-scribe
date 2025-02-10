@@ -1,3 +1,4 @@
+
 interface RecordingResult {
   blob: Blob;
   duration: number;
@@ -10,7 +11,7 @@ export class AudioRecorder {
   private isRecording = false;
   private startTime: number = 0;
 
-  async startRecording(useSystemAudio: boolean = false): Promise<void> {
+  async startRecording(stream: MediaStream): Promise<void> {
     if (this.isRecording) {
       console.log('Already recording');
       return;
@@ -18,29 +19,11 @@ export class AudioRecorder {
 
     try {
       this.audioChunks = [];
+      this.stream = stream;
       
-      const audioConstraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        },
-        video: false
-      };
-      
-      if (useSystemAudio && navigator.mediaDevices.getDisplayMedia) {
-        this.stream = await navigator.mediaDevices.getDisplayMedia(audioConstraints);
-      } else {
-        this.stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        });
-      }
-
-      this.mediaRecorder = new MediaRecorder(this.stream);
+      this.mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
       
       this.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -48,12 +31,13 @@ export class AudioRecorder {
         }
       };
 
-      this.mediaRecorder.start();
+      this.mediaRecorder.start(1000); // Collect data every second
       this.startTime = Date.now();
       this.isRecording = true;
       console.log('Recording started');
     } catch (error) {
       console.error('Error starting recording:', error);
+      this.cleanup();
       throw error;
     }
   }
@@ -66,7 +50,7 @@ export class AudioRecorder {
       }
 
       this.mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm;codecs=opus' });
         const duration = Math.round((Date.now() - this.startTime) / 1000); // Duration in seconds
         this.cleanup();
         resolve({ blob: audioBlob, duration });

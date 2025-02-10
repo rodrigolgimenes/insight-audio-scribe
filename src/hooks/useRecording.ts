@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -30,17 +31,29 @@ export const useRecording = () => {
     }
 
     try {
-      await audioRecorder.current.startRecording(isSystemAudio);
+      // Get media stream first
+      const stream = isSystemAudio
+        ? await navigator.mediaDevices.getDisplayMedia({ audio: true, video: false })
+        : await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+
+      // Update stream state
+      setMediaStream(stream);
+
+      // Start recording with the stream
+      await audioRecorder.current.startRecording(stream);
       setIsRecording(true);
       setIsPaused(false);
       
-      // Atualiza o stream apenas se não estiver usando áudio do sistema
-      if (!isSystemAudio) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setMediaStream(stream);
-      }
+      console.log('[useRecording] Recording started with stream:', stream.id);
     } catch (error) {
       console.error('Error starting recording:', error);
+      setMediaStream(null);
       toast({
         title: "Erro",
         description: isSystemAudio 
