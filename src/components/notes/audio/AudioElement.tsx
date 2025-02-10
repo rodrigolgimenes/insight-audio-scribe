@@ -11,19 +11,42 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
   ({ src, onEnded }, ref) => {
     const { toast } = useToast();
 
+    const handleError = (e: Event) => {
+      const target = e.target as HTMLAudioElement;
+      console.error('Audio error:', e, target.error);
+      
+      let errorMessage = "Error loading audio file";
+      if (target.error) {
+        switch (target.error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMessage = "Audio playback was aborted";
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMessage = "Network error occurred while loading audio";
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMessage = "Audio decoding failed";
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = "Audio format not supported";
+            break;
+        }
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    };
+
     return (
       <audio
         ref={ref}
         src={src}
         onEnded={onEnded}
-        onError={(e) => {
-          console.error('Audio error:', e);
-          toast({
-            title: "Error",
-            description: "Error loading audio file",
-            variant: "destructive",
-          });
-        }}
+        onError={handleError}
+        preload="auto"
       />
     );
   }
