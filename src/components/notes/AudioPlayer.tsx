@@ -1,9 +1,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { AudioElement } from "./audio/AudioElement";
 import { AudioProgressBar } from "./audio/AudioProgressBar";
+import { useAudioState } from "@/hooks/useAudioState";
+import { useAudioPlayback } from "@/hooks/useAudioPlayback";
 
 interface AudioPlayerProps {
   audioUrl: string | null;
@@ -12,141 +14,9 @@ interface AudioPlayerProps {
 }
 
 export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerProps) => {
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timeUpdateRef = useRef<number>(0);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      console.log('[AudioPlayer] Audio ref not available on mount');
-      return;
-    }
-
-    const handleTimeUpdate = () => {
-      // Use RAF to throttle updates
-      cancelAnimationFrame(timeUpdateRef.current);
-      timeUpdateRef.current = requestAnimationFrame(() => {
-        if (!audio) return;
-        
-        setCurrentTime(audio.currentTime);
-        console.log('[AudioPlayer] Time Update:', {
-          currentTime: audio.currentTime,
-          duration: audio.duration,
-          progress: (audio.currentTime / audio.duration) * 100,
-          isPlaying: !audio.paused,
-          readyState: audio.readyState,
-          networkState: audio.networkState
-        });
-      });
-    };
-
-    const handleLoadedMetadata = () => {
-      if (!audio) return;
-      console.log('[AudioPlayer] Audio metadata loaded:', {
-        duration: audio.duration,
-        currentTime: audio.currentTime,
-        readyState: audio.readyState,
-        src: audio.src,
-        networkState: audio.networkState
-      });
-      setDuration(audio.duration);
-    };
-
-    const handleDurationChange = () => {
-      if (!audio) return;
-      console.log('[AudioPlayer] Duration changed:', {
-        duration: audio.duration,
-        readyState: audio.readyState,
-        currentSrc: audio.currentSrc,
-        networkState: audio.networkState
-      });
-      setDuration(audio.duration);
-    };
-
-    const handleWaiting = () => {
-      if (!audio) return;
-      console.log('[AudioPlayer] Audio waiting event:', {
-        readyState: audio.readyState,
-        networkState: audio.networkState,
-        paused: audio.paused,
-        currentTime: audio.currentTime,
-        duration: audio.duration
-      });
-    };
-
-    const handleError = () => {
-      if (!audio || !audio.error) return;
-      console.error('[AudioPlayer] Audio error:', {
-        code: audio.error.code,
-        message: audio.error.message,
-        networkState: audio.networkState,
-        readyState: audio.readyState
-      });
-    };
-
-    const handleLoadStart = () => {
-      if (!audio) return;
-      console.log('[AudioPlayer] Load started:', {
-        src: audio.src,
-        networkState: audio.networkState,
-        readyState: audio.readyState
-      });
-    };
-
-    // Add event listeners
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('durationchange', handleDurationChange);
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('error', handleError);
-    audio.addEventListener('loadstart', handleLoadStart);
-
-    // Cleanup function
-    return () => {
-      cancelAnimationFrame(timeUpdateRef.current);
-      if (!audio) return;
-      
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('durationchange', handleDurationChange);
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('error', handleError);
-      audio.removeEventListener('loadstart', handleLoadStart);
-    };
-  }, []); // Empty dependency array to ensure listeners are set up once on mount
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      console.log('[AudioPlayer] Audio ref not available for play/pause');
-      return;
-    }
-
-    if (isPlaying) {
-      console.log('[AudioPlayer] Attempting to play audio:', {
-        currentSrc: audio.currentSrc,
-        readyState: audio.readyState,
-        networkState: audio.networkState,
-        duration: audio.duration,
-        currentTime: audio.currentTime
-      });
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error("[AudioPlayer] Error playing audio:", error);
-        });
-      }
-    } else {
-      console.log('[AudioPlayer] Pausing audio:', {
-        currentTime: audio.currentTime,
-        duration: audio.duration,
-        networkState: audio.networkState
-      });
-      audio.pause();
-    }
-  }, [isPlaying]);
+  const { duration, currentTime } = useAudioState(audioRef);
+  useAudioPlayback(audioRef, isPlaying);
 
   const handleProgressChange = (value: number[]) => {
     const audio = audioRef.current;
@@ -154,7 +24,6 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
 
     const newTime = (value[0] / 100) * duration;
     audio.currentTime = newTime;
-    setCurrentTime(newTime);
     console.log('[AudioPlayer] Progress Change:', {
       newTime,
       progressValue: value[0],
