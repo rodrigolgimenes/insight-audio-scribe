@@ -23,8 +23,15 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       const audio = audioRef.current;
 
       const handleTimeUpdate = () => {
-        setCurrentTime(audio.currentTime);
-        setProgress((audio.currentTime / audio.duration) * 100);
+        if (audio.duration) {
+          setCurrentTime(audio.currentTime);
+          setProgress((audio.currentTime / audio.duration) * 100);
+          console.log("Time update:", {
+            currentTime: audio.currentTime,
+            duration: audio.duration,
+            progress: (audio.currentTime / audio.duration) * 100
+          });
+        }
       };
 
       const handleLoadedMetadata = () => {
@@ -33,14 +40,26 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
           currentTime: audio.currentTime
         });
         setDuration(audio.duration);
+        setCurrentTime(0);
+        setProgress(0);
+      };
+
+      const handleLoadedData = () => {
+        console.log("Audio data loaded:", {
+          duration: audio.duration,
+          currentTime: audio.currentTime
+        });
+        setDuration(audio.duration);
       };
 
       audio.addEventListener('timeupdate', handleTimeUpdate);
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('loadeddata', handleLoadedData);
 
       return () => {
         audio.removeEventListener('timeupdate', handleTimeUpdate);
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('loadeddata', handleLoadedData);
       };
     }
   }, [audioRef.current]);
@@ -65,6 +84,12 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       const newTime = (value[0] / 100) * duration;
       audioRef.current.currentTime = newTime;
       setProgress(value[0]);
+      setCurrentTime(newTime);
+      console.log("Progress changed:", {
+        newTime,
+        progress: value[0],
+        duration
+      });
     }
   };
 
