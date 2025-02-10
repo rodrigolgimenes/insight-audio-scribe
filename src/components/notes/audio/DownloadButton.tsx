@@ -21,7 +21,6 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     try {
       console.log('[DownloadButton] Starting download for URL:', publicUrl);
       
-      // Extract the path after audio_recordings/
       const cleanPath = publicUrl.split('audio_recordings/')[1];
       if (!cleanPath) {
         throw new Error('Invalid audio URL format');
@@ -29,7 +28,6 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       
       console.log('[DownloadButton] Clean path:', cleanPath);
 
-      // Generate signed URL for download
       const { data: signedData, error: signError } = await supabase
         .storage
         .from('audio_recordings')
@@ -42,7 +40,6 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         throw new Error('Failed to generate download URL');
       }
 
-      // Download the file
       const response = await fetch(signedData.signedUrl);
       if (!response.ok) {
         console.error('[DownloadButton] Error fetching audio:', response.statusText);
@@ -53,7 +50,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = cleanPath.split('/').pop() || 'audio.mp3'; // Use just the filename
+      a.download = cleanPath.split('/').pop()?.replace('.webm', '.mp3') || 'audio.mp3';
       
       document.body.appendChild(a);
       a.click();

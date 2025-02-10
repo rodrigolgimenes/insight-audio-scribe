@@ -1,9 +1,9 @@
 
 export const RECORDING_MIME_TYPES = [
-  'audio/webm;codecs=opus',
-  'audio/webm',
+  'audio/mp3',
+  'audio/mpeg',
   'audio/ogg;codecs=opus',
-  'audio/mp4'
+  'audio/webm;codecs=opus'
 ];
 
 export const getMediaRecorderOptions = (): MediaRecorderOptions => {
