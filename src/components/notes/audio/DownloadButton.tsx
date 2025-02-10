@@ -21,10 +21,10 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     try {
       console.log('[DownloadButton] Starting download for URL:', publicUrl);
       
-      // Limpar o caminho do arquivo
+      // Clean up the file path
       const cleanPath = publicUrl
-        .replace(/^.*[\\\/]/, '') // Remove tudo antes da última barra
-        .split('?')[0]; // Remove parâmetros de URL se houver
+        .replace(/^.*[\\\/]/, '') // Remove everything before the last slash
+        .split('?')[0]; // Remove URL parameters if any
       
       console.log('[DownloadButton] Clean path:', cleanPath);
 
@@ -32,7 +32,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         throw new Error('Invalid audio URL format');
       }
 
-      // Verificar se o arquivo existe
+      // Check if the file exists
       const { data: listData, error: listError } = await supabase
         .storage
         .from('audio_recordings')
@@ -53,7 +53,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         throw new Error('Audio file not found in storage');
       }
 
-      // Gerar URL assinada para download
+      // Generate signed URL for download
       const { data: signedData, error: signError } = await supabase
         .storage
         .from('audio_recordings')
@@ -66,7 +66,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         throw new Error('Failed to generate download URL');
       }
 
-      // Fazer o download do arquivo
+      // Download the file
       const response = await fetch(signedData.signedUrl);
       if (!response.ok) {
         console.error('[DownloadButton] Error fetching audio:', response.statusText);
