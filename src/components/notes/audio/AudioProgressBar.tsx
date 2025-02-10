@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Slider } from "@/components/ui/slider";
 import { formatDuration } from "@/utils/formatDuration";
 
@@ -12,14 +12,12 @@ interface AudioProgressBarProps {
 export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: AudioProgressBarProps) => {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  useEffect(() => {
-    console.log('AudioProgressBar - State Update:', {
-      currentTime,
-      duration,
-      progress,
-      isVisible: duration > 0
-    });
-  }, [currentTime, duration, progress]);
+  console.log('AudioProgressBar render:', {
+    currentTime,
+    duration,
+    progress,
+    isVisible: duration > 0
+  });
 
   if (!duration) {
     console.log('AudioProgressBar - Duration not available yet');
@@ -27,9 +25,9 @@ export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: Au
   }
 
   return (
-    <div className="flex flex-col w-full gap-2 py-2">
-      <div className="relative w-full h-2">
-        <div className="absolute w-full h-2 bg-gray-200 rounded-full">
+    <div className="flex flex-col w-full gap-2">
+      <div className="relative w-full h-4">
+        <div className="absolute w-full h-4 bg-gray-200 rounded-full overflow-hidden">
           <div 
             className="absolute h-full bg-primary rounded-full transition-all duration-100"
             style={{ width: `${progress}%` }}

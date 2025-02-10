@@ -17,70 +17,80 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (audioRef.current) {
-      const audio = audioRef.current;
+    const audio = audioRef.current;
+    if (!audio) return;
 
-      const handleTimeUpdate = () => {
-        setCurrentTime(audio.currentTime);
-        console.log('Time Update:', {
-          currentTime: audio.currentTime,
-          duration: audio.duration,
-          progress: (audio.currentTime / audio.duration) * 100
-        });
-      };
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      console.log('Time Update:', {
+        currentTime: audio.currentTime,
+        duration: audio.duration,
+        progress: (audio.currentTime / audio.duration) * 100,
+        isPlaying: !audio.paused
+      });
+    };
 
-      const handleLoadedMetadata = () => {
-        console.log('Audio metadata loaded:', {
-          duration: audio.duration,
-          currentTime: audio.currentTime
-        });
-        setDuration(audio.duration);
-      };
+    const handleLoadedMetadata = () => {
+      console.log('Audio metadata loaded:', {
+        duration: audio.duration,
+        currentTime: audio.currentTime,
+        readyState: audio.readyState
+      });
+      setDuration(audio.duration);
+    };
 
-      const handleDurationChange = () => {
-        console.log('Duration changed:', audio.duration);
-        setDuration(audio.duration);
-      };
+    const handleDurationChange = () => {
+      console.log('Duration changed:', {
+        duration: audio.duration,
+        readyState: audio.readyState
+      });
+      setDuration(audio.duration);
+    };
 
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('durationchange', handleDurationChange);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('durationchange', handleDurationChange);
 
-      return () => {
-        audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.removeEventListener('durationchange', handleDurationChange);
-      };
-    }
-  }, [audioRef.current]);
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('durationchange', handleDurationChange);
+    };
+  }, []); // Run once on mount
 
   useEffect(() => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        console.log('Attempting to play audio');
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.error("Error playing audio:", error);
-          });
-        }
-      } else {
-        console.log('Pausing audio');
-        audioRef.current.pause();
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      console.log('Attempting to play audio:', {
+        currentSrc: audio.currentSrc,
+        readyState: audio.readyState
+      });
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.error("Error playing audio:", error);
+        });
       }
+    } else {
+      console.log('Pausing audio');
+      audio.pause();
     }
   }, [isPlaying]);
 
   const handleProgressChange = (value: number[]) => {
-    if (audioRef.current && duration) {
-      const newTime = (value[0] / 100) * duration;
-      audioRef.current.currentTime = newTime;
-      setCurrentTime(newTime);
-      console.log('Progress Change:', {
-        newTime,
-        progressValue: value[0]
-      });
-    }
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+
+    const newTime = (value[0] / 100) * duration;
+    audio.currentTime = newTime;
+    setCurrentTime(newTime);
+    console.log('Progress Change:', {
+      newTime,
+      progressValue: value[0],
+      readyState: audio.readyState
+    });
   };
 
   return (
