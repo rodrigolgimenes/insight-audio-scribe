@@ -1,11 +1,21 @@
 
 export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
-  console.log('Preparing audio file for transcription...');
+  console.log('Preparing audio file for transcription...', {
+    blobType: audioBlob.type,
+    blobSize: audioBlob.size
+  });
+
   const openAIFormData = new FormData();
-  openAIFormData.append('file', audioBlob);
+  
+  // Create a new blob with explicit audio/webm MIME type
+  const processedBlob = new Blob([audioBlob], { type: 'audio/webm' });
+  
+  openAIFormData.append('file', processedBlob, 'audio.webm');
   openAIFormData.append('model', 'whisper-1');
   openAIFormData.append('language', 'pt');
 
+  console.log('Sending request to OpenAI Whisper API...');
+  
   const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
     headers: {
@@ -16,11 +26,13 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
 
   if (!openAIResponse.ok) {
     const errorData = await openAIResponse.json();
-    console.error('OpenAI API error:', errorData);
+    console.error('OpenAI API error:', JSON.stringify(errorData, null, 2));
     throw new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
   }
 
-  return await openAIResponse.json();
+  const result = await openAIResponse.json();
+  console.log('Transcription completed successfully');
+  return result;
 }
 
 export async function processWithGPT(transcriptionText: string, openAIApiKey: string) {
