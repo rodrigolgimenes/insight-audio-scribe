@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DownloadButtonProps {
   publicUrl: string | null;
@@ -15,7 +16,17 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     if (!publicUrl) return;
     
     try {
-      const response = await fetch(publicUrl);
+      // Generate a signed URL that expires in 1 hour
+      const { data: { signedUrl }, error: signError } = await supabase
+        .storage
+        .from('audio_recordings')
+        .createSignedUrl(publicUrl, 3600); // 1 hour in seconds
+
+      if (signError || !signedUrl) {
+        throw new Error('Failed to generate download URL');
+      }
+
+      const response = await fetch(signedUrl);
       if (!response.ok) throw new Error('Failed to fetch audio file');
       
       const blob = await response.blob();
@@ -58,3 +69,4 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     </Button>
   );
 };
+

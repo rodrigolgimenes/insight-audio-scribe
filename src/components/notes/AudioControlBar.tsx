@@ -22,52 +22,31 @@ export const AudioControlBar = ({
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    const getPublicUrl = async () => {
+    const getSignedUrl = async () => {
       if (audioUrl) {
         try {
-          console.log('Processing audio URL:', audioUrl);
+          console.log('Getting signed URL for:', audioUrl);
           
-          const basePath = audioUrl.replace(/\.(webm|mp3)$/, '');
-          const extensions = ['.webm', '.mp3'];
-          let foundValidUrl = false;
-          
-          for (const ext of extensions) {
-            const testPath = `${basePath}${ext}`;
-            console.log('Testing path:', testPath);
-            
-            const { data: { publicUrl } } = supabase.storage
-              .from('audio_recordings')
-              .getPublicUrl(testPath);
+          // Generate a signed URL that expires in 1 hour
+          const { data: { signedUrl }, error: signError } = await supabase
+            .storage
+            .from('audio_recordings')
+            .createSignedUrl(audioUrl, 3600); // 1 hour in seconds
 
-            try {
-              const response = await fetch(publicUrl, { method: 'HEAD' });
-              if (response.ok) {
-                console.log('Found valid audio file:', publicUrl);
-                setPublicUrl(publicUrl);
-                setIsAudioReady(true);
-                foundValidUrl = true;
-                break;
-              }
-            } catch (error) {
-              console.log(`File with ${ext} not accessible:`, error);
-            }
+          if (signError || !signedUrl) {
+            throw new Error('Failed to generate signed URL');
           }
-          
-          if (!foundValidUrl) {
-            console.error('No valid audio file found');
-            toast({
-              title: "Error",
-              description: "Could not load audio file",
-              variant: "destructive",
-            });
-          }
+
+          console.log('Generated signed URL');
+          setSignedUrl(signedUrl);
+          setIsAudioReady(true);
         } catch (error) {
-          console.error('Error getting audio URL:', error);
+          console.error('Error getting signed URL:', error);
           toast({
             title: "Error",
             description: "Failed to load audio file",
@@ -77,7 +56,7 @@ export const AudioControlBar = ({
       }
     };
 
-    getPublicUrl();
+    getSignedUrl();
   }, [audioUrl, toast]);
 
   useEffect(() => {
@@ -127,13 +106,13 @@ export const AudioControlBar = ({
       />
 
       <DownloadButton
-        publicUrl={publicUrl}
+        publicUrl={audioUrl}
         isAudioReady={isAudioReady}
       />
 
       <audio
         ref={audioRef}
-        src={publicUrl || undefined}
+        src={signedUrl || undefined}
         onEnded={() => onPlayPause()}
         onError={(e) => {
           console.error('Audio error:', e);
@@ -147,3 +126,4 @@ export const AudioControlBar = ({
     </div>
   );
 };
+
