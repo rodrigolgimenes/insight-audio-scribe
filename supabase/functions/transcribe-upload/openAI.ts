@@ -3,8 +3,8 @@ const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function retryWithExponentialBackoff(
   operation: () => Promise<any>,
-  maxRetries: number = 5, // Increased from 3 to 5
-  initialDelay: number = 2000 // Increased from 1000 to 2000
+  maxRetries: number = 5,
+  initialDelay: number = 2000
 ): Promise<any> {
   let lastError;
   
@@ -21,7 +21,7 @@ async function retryWithExponentialBackoff(
         continue;
       }
       console.error('Non-server error encountered:', error.message);
-      throw error; // Throw immediately for non-server errors
+      throw error;
     }
   }
   
@@ -37,10 +37,15 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
 
   const openAIFormData = new FormData();
   
-  // Create a new blob with explicit audio/webm MIME type
-  const processedBlob = new Blob([audioBlob], { type: 'audio/webm' });
+  // Try converting to mp3 MIME type as it's more widely supported
+  const processedBlob = new Blob([audioBlob], { type: 'audio/mp3' });
   
-  openAIFormData.append('file', processedBlob, 'audio.webm');
+  console.log('Processed blob details:', {
+    type: processedBlob.type,
+    size: processedBlob.size
+  });
+
+  openAIFormData.append('file', processedBlob, 'audio.mp3');
   openAIFormData.append('model', 'whisper-1');
   openAIFormData.append('language', 'pt');
 
@@ -57,7 +62,9 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
 
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.json();
-      console.error('OpenAI API error:', JSON.stringify(errorData, null, 2));
+      console.error('OpenAI API error response:', JSON.stringify(errorData, null, 2));
+      console.log('Response status:', openAIResponse.status);
+      console.log('Response headers:', JSON.stringify(Object.fromEntries(openAIResponse.headers.entries()), null, 2));
       
       const error = new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
       if (errorData.error?.type === 'server_error') {
