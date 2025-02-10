@@ -40,7 +40,6 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
         });
         setDuration(audio.duration);
         setCurrentTime(audio.currentTime);
-        setProgress(0);
       };
 
       const handleDurationChange = () => {
@@ -89,36 +88,38 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
   };
 
   return (
-    <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-4 space-y-4">
+    <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-4">
       <AudioElement 
         ref={audioRef} 
         src={audioUrl || undefined}
         onEnded={() => onPlayPause()}
       />
       
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onPlayPause}
-          className="w-8 h-8 p-0"
-        >
-          {isPlaying ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-        </Button>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onPlayPause}
+            className="w-8 h-8 p-0"
+          >
+            {isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+          </Button>
 
-        <div className="flex-1 min-w-[200px]">
-          <AudioProgressBar 
-            currentTime={currentTime}
-            duration={duration}
-            onProgressChange={handleProgressChange}
-          />
+          <div className="flex-1 min-w-[200px]">
+            <AudioProgressBar 
+              currentTime={currentTime}
+              duration={duration}
+              onProgressChange={handleProgressChange}
+            />
+          </div>
+
+          <Volume2 className="h-4 w-4 text-gray-500" />
         </div>
-
-        <Volume2 className="h-4 w-4 text-gray-500" />
       </div>
     </div>
   );

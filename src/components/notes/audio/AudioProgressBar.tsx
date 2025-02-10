@@ -26,15 +26,21 @@ export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: Au
   }
 
   return (
-    <div className="w-full space-y-2 min-h-[48px] flex flex-col justify-center">
-      <Slider
-        value={[progress]}
-        onValueChange={onProgressChange}
-        max={100}
-        step={0.1}
-        className="w-full"
-      />
-      <div className="flex justify-between text-xs text-gray-500">
+    <div className="w-full space-y-2 min-h-[48px] flex flex-col justify-center bg-gray-50 rounded-lg p-2">
+      <div className="relative w-full h-2 bg-gray-200 rounded">
+        <div 
+          className="absolute left-0 top-0 h-full bg-primary rounded transition-all duration-100"
+          style={{ width: `${progress}%` }}
+        />
+        <Slider
+          value={[progress]}
+          onValueChange={onProgressChange}
+          max={100}
+          step={0.1}
+          className="absolute inset-0"
+        />
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 pt-1">
         <span>{formatDuration(currentTime)}</span>
         <span>{formatDuration(duration)}</span>
       </div>
