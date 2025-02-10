@@ -11,8 +11,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
   ({ src, onEnded }, ref) => {
     const { toast } = useToast();
 
-    const handleError = (e: Event) => {
-      const target = e.target as HTMLAudioElement;
+    const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
+      const target = e.currentTarget;
       console.error('Audio error:', e, target.error);
       
       let errorMessage = "Error loading audio file";
