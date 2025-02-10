@@ -20,6 +20,8 @@ export const useRecording = () => {
   const audioRecorder = useRef(new AudioRecorder());
 
   const handleStartRecording = async () => {
+    console.log('[useRecording] Starting recording process');
+    
     if (!session?.user) {
       toast({
         title: "Erro",
@@ -34,11 +36,13 @@ export const useRecording = () => {
       let stream: MediaStream;
       
       if (isSystemAudio) {
+        console.log('[useRecording] Requesting system audio');
         stream = await navigator.mediaDevices.getDisplayMedia({ 
           audio: true, 
           video: false 
         });
       } else {
+        console.log('[useRecording] Requesting microphone access');
         stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             echoCancellation: true,
@@ -54,6 +58,19 @@ export const useRecording = () => {
       if (!stream) {
         throw new Error('Não foi possível obter acesso ao microfone');
       }
+
+      const audioTracks = stream.getAudioTracks();
+      console.log('[useRecording] Obtained audio stream:', {
+        id: stream.id,
+        active: stream.active,
+        trackCount: audioTracks.length,
+        tracks: audioTracks.map(track => ({
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState
+        }))
+      });
 
       // Update stream state
       setMediaStream(stream);
@@ -72,7 +89,7 @@ export const useRecording = () => {
       });
 
     } catch (error) {
-      console.error('Error starting recording:', error);
+      console.error('[useRecording] Error starting recording:', error);
       setMediaStream(null);
       toast({
         title: "Erro",

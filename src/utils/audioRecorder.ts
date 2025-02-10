@@ -20,11 +20,26 @@ export class AudioRecorder {
     }
 
     try {
+      // Log audio tracks from stream
+      const audioTracks = stream.getAudioTracks();
+      console.log('[AudioRecorder] Audio tracks:', {
+        count: audioTracks.length,
+        tracks: audioTracks.map(track => ({
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState
+        }))
+      });
+
+      if (audioTracks.length === 0) {
+        throw new Error('No audio tracks found in stream');
+      }
+
       this.audioChunks = [];
       this.stream = stream;
       this.recordedDuration = 0;
       
-      // Try different mime types in order of preference
       const mimeTypes = [
         'audio/webm;codecs=opus',
         'audio/webm',
@@ -34,7 +49,9 @@ export class AudioRecorder {
       
       let selectedMimeType = mimeTypes.find(type => {
         try {
-          return MediaRecorder.isTypeSupported(type);
+          const isSupported = MediaRecorder.isTypeSupported(type);
+          console.log(`[AudioRecorder] MIME type ${type} supported:`, isSupported);
+          return isSupported;
         } catch (e) {
           console.warn(`[AudioRecorder] Error checking mime type ${type}:`, e);
           return false;
@@ -48,16 +65,26 @@ export class AudioRecorder {
       
       const options: MediaRecorderOptions = {
         mimeType: selectedMimeType,
-        audioBitsPerSecond: 128000 // 128kbps for good audio quality
+        audioBitsPerSecond: 128000
       };
       
       console.log('[AudioRecorder] Creating MediaRecorder with options:', options);
       this.mediaRecorder = new MediaRecorder(stream, options);
       
+      this.mediaRecorder.onstart = () => {
+        console.log('[AudioRecorder] MediaRecorder started');
+      };
+
       this.mediaRecorder.ondataavailable = (event) => {
+        console.log('[AudioRecorder] Data available event:', {
+          dataSize: event.data?.size,
+          dataType: event.data?.type,
+          timeStamp: event.timeStamp
+        });
+
         if (event.data && event.data.size > 0) {
-          console.log('[AudioRecorder] Received data chunk of size:', event.data.size);
           this.audioChunks.push(event.data);
+          console.log('[AudioRecorder] Total chunks:', this.audioChunks.length);
         }
       };
 
@@ -66,13 +93,25 @@ export class AudioRecorder {
         this.cleanup();
       };
 
+      this.mediaRecorder.onpause = () => {
+        console.log('[AudioRecorder] MediaRecorder paused');
+      };
+
+      this.mediaRecorder.onresume = () => {
+        console.log('[AudioRecorder] MediaRecorder resumed');
+      };
+
+      this.mediaRecorder.onstop = () => {
+        console.log('[AudioRecorder] MediaRecorder stopped');
+      };
+
       // Start tracking duration
       this.startTime = Date.now();
       this.timerId = window.setInterval(() => {
         this.recordedDuration = (Date.now() - this.startTime) / 1000;
       }, 100);
 
-      this.mediaRecorder.start(250); // Collect data every 250ms for smoother recording
+      this.mediaRecorder.start(250);
       this.isRecording = true;
       console.log('[AudioRecorder] Recording started successfully');
     } catch (error) {
@@ -164,9 +203,11 @@ export class AudioRecorder {
   }
 
   private cleanup() {
+    console.log('[AudioRecorder] Cleaning up resources');
     if (this.stream) {
       this.stream.getTracks().forEach(track => {
         try {
+          console.log('[AudioRecorder] Stopping track:', track.label);
           track.stop();
         } catch (error) {
           console.error('[AudioRecorder] Error stopping track:', error);
@@ -182,6 +223,7 @@ export class AudioRecorder {
     this.audioChunks = [];
     this.isRecording = false;
     this.recordedDuration = 0;
+    console.log('[AudioRecorder] Cleanup complete');
   }
 
   isCurrentlyRecording(): boolean {
