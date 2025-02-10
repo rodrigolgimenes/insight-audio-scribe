@@ -16,21 +16,21 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     if (!publicUrl) return;
     
     try {
-      // Extract just the file path from the full URL
-      const fullPath = new URL(publicUrl).pathname;
-      const path = fullPath.split('/').pop();
+      // Extract the filename from the path
+      const pathParts = publicUrl.split('/');
+      const filename = pathParts[pathParts.length - 1];
       
-      if (!path) {
-        throw new Error('Invalid audio URL format');
+      if (!filename) {
+        throw new Error('Invalid audio URL format: No filename found');
       }
 
-      console.log('[DownloadButton] Using path for signed URL:', path);
+      console.log('[DownloadButton] Using filename for signed URL:', filename);
       
       // Generate a signed URL that expires in 1 hour
       const { data: { signedUrl }, error: signError } = await supabase
         .storage
         .from('audio_recordings')
-        .createSignedUrl(path, 3600);
+        .createSignedUrl(filename, 3600);
 
       if (signError || !signedUrl) {
         throw new Error('Failed to generate download URL');
@@ -43,9 +43,6 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      
-      // Use the original filename or a fallback
-      const filename = path.split('/').pop() || 'recording.webm';
       a.download = filename;
       
       document.body.appendChild(a);
