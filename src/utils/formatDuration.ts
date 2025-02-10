@@ -1,17 +1,9 @@
-export const formatDuration = (duration: number | null): string => {
-  if (!duration) return "Unknown duration";
-  
-  const hours = Math.floor(duration / 3600);
-  const minutes = Math.floor((duration % 3600) / 60);
-  const seconds = duration % 60;
 
-  if (hours > 0) {
-    return `${hours}h ${minutes}min`;
-  }
+export const formatDuration = (duration: number | null): string => {
+  if (!duration) return "0:00";
   
-  if (minutes > 0) {
-    return `${minutes}min ${seconds}s`;
-  }
+  const minutes = Math.floor(duration / 60);
+  const seconds = Math.floor(duration % 60);
   
-  return `${seconds}s`;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };

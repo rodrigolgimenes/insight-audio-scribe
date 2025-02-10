@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Play, Pause, SkipBack, SkipForward } from "lucide-react";
+import { Play, Pause, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { formatDuration } from "@/utils/formatDuration";
 
@@ -58,18 +58,6 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
     }
   };
 
-  const handleSkipBack = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
-    }
-  };
-
-  const handleSkipForward = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 10);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <audio 
@@ -78,18 +66,12 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
         onEnded={() => onPlayPause()}
       />
       <div className="bg-gray-100 rounded-lg p-4">
-        <div className="flex justify-center gap-2 mb-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleSkipBack}
-          >
-            <SkipBack className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-4 mb-4">
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={onPlayPause}
+            className="w-8 h-8 p-0"
           >
             {isPlaying ? (
               <Pause className="h-4 w-4" />
@@ -97,24 +79,20 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
               <Play className="h-4 w-4" />
             )}
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleSkipForward}
-          >
-            <SkipForward className="h-4 w-4" />
-          </Button>
-        </div>
-        <Slider
-          value={[progress]}
-          onValueChange={handleProgressChange}
-          max={100}
-          step={1}
-          className="mb-2"
-        />
-        <div className="flex justify-between text-sm text-gray-500">
-          <span>{formatDuration(Math.floor(currentTime))}</span>
-          <span>{formatDuration(Math.floor(duration))}</span>
+          <div className="flex-1">
+            <Slider
+              value={[progress]}
+              onValueChange={handleProgressChange}
+              max={100}
+              step={1}
+              className="mb-2"
+            />
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>{formatDuration(Math.floor(currentTime))}</span>
+              <span>{formatDuration(Math.floor(duration))}</span>
+            </div>
+          </div>
+          <Volume2 className="h-4 w-4 text-gray-500" />
         </div>
       </div>
     </div>
