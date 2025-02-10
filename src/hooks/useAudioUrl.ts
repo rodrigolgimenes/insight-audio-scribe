@@ -20,6 +20,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
 
       try {
         console.log('[useAudioUrl] Starting to get signed URL for:', audioUrl);
+        console.log('[useAudioUrl] Current bucket state:', await supabase.storage.from('audio_recordings').list(''));
         
         // Limpar o caminho do arquivo removendo qualquer URL base ou parâmetros
         const cleanPath = audioUrl
@@ -53,6 +54,14 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error('Audio file not found in storage');
         }
 
+        // Verificar se o arquivo é acessível
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('audio_recordings')
+          .getPublicUrl(cleanPath);
+
+        console.log('[useAudioUrl] Public URL check:', publicUrlData);
+
         // Gerar URL assinada
         console.log('[useAudioUrl] Generating signed URL for path:', cleanPath);
         
@@ -71,6 +80,17 @@ export const useAudioUrl = (audioUrl: string | null) => {
         if (!signedData?.signedUrl) {
           console.error('[useAudioUrl] No signed URL generated');
           throw new Error('No signed URL generated');
+        }
+
+        // Verificar se a URL assinada é acessível
+        try {
+          const response = await fetch(signedData.signedUrl, { method: 'HEAD' });
+          console.log('[useAudioUrl] URL accessibility check:', response.status);
+          if (!response.ok) {
+            throw new Error(`URL not accessible: ${response.status}`);
+          }
+        } catch (fetchError) {
+          console.error('[useAudioUrl] Error checking URL accessibility:', fetchError);
         }
 
         console.log('[useAudioUrl] Successfully generated signed URL');
