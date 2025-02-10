@@ -13,7 +13,10 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
 
     const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
       const target = e.currentTarget;
-      console.error('Audio error:', e, target.error);
+      console.error('[AudioElement] Audio error:', e);
+      console.error('[AudioElement] Audio error code:', target.error?.code);
+      console.error('[AudioElement] Audio error message:', target.error?.message);
+      console.error('[AudioElement] Audio src:', target.src);
       
       let errorMessage = "Error loading audio file";
       if (target.error) {
@@ -35,7 +38,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
 
       toast({
         title: "Error",
-        description: errorMessage,
+        description: `${errorMessage}. Please try again.`,
         variant: "destructive",
       });
     };
@@ -47,6 +50,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         onEnded={onEnded}
         onError={handleError}
         preload="auto"
+        crossOrigin="anonymous"
       />
     );
   }
