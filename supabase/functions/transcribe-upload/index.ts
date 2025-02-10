@@ -19,11 +19,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let formData;
+  let recordingId;
+  
   try {
     console.log('Starting file processing...');
-    const formData = await req.formData();
+    formData = await req.formData();
     const file = formData.get('file');
-    const recordingId = formData.get('recordingId');
+    recordingId = formData.get('recordingId');
     const duration = formData.get('duration');
 
     if (!file || !recordingId) {
@@ -127,8 +130,6 @@ serve(async (req) => {
     console.error('Error in transcribe-upload function:', error);
     
     try {
-      const formData = await req.formData();
-      const recordingId = formData.get('recordingId');
       if (recordingId) {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
