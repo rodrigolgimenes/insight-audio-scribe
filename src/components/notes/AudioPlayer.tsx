@@ -25,6 +25,11 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
         if (audio.duration) {
           setCurrentTime(audio.currentTime);
           setProgress((audio.currentTime / audio.duration) * 100);
+          console.log('Time Update:', {
+            currentTime: audio.currentTime,
+            duration: audio.duration,
+            progress: (audio.currentTime / audio.duration) * 100
+          });
         }
       };
 
@@ -34,25 +39,23 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
           currentTime: audio.currentTime
         });
         setDuration(audio.duration);
-        setCurrentTime(0);
+        setCurrentTime(audio.currentTime);
         setProgress(0);
       };
 
-      const handleLoadedData = () => {
-        console.log('Audio data loaded:', {
-          duration: audio.duration
-        });
+      const handleDurationChange = () => {
+        console.log('Duration changed:', audio.duration);
         setDuration(audio.duration);
       };
 
       audio.addEventListener('timeupdate', handleTimeUpdate);
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.addEventListener('loadeddata', handleLoadedData);
+      audio.addEventListener('durationchange', handleDurationChange);
 
       return () => {
         audio.removeEventListener('timeupdate', handleTimeUpdate);
         audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audio.removeEventListener('loadeddata', handleLoadedData);
+        audio.removeEventListener('durationchange', handleDurationChange);
       };
     }
   }, [audioRef.current]);
@@ -78,11 +81,15 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       audioRef.current.currentTime = newTime;
       setProgress(value[0]);
       setCurrentTime(newTime);
+      console.log('Progress Change:', {
+        newTime,
+        progressValue: value[0]
+      });
     }
   };
 
   return (
-    <div className="bg-gray-100 rounded-lg p-4 space-y-4">
+    <div className="bg-white shadow-sm border border-gray-200 rounded-lg p-4 space-y-4">
       <AudioElement 
         ref={audioRef} 
         src={audioUrl || undefined}
@@ -103,7 +110,7 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
           )}
         </Button>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-[200px]">
           <AudioProgressBar 
             currentTime={currentTime}
             duration={duration}

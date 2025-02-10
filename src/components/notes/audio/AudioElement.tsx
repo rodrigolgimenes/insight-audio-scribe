@@ -43,12 +43,22 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       });
     };
 
+    const handleLoadStart = () => {
+      console.log('[AudioElement] Load started:', src);
+    };
+
+    const handleCanPlay = () => {
+      console.log('[AudioElement] Can play event triggered');
+    };
+
     return (
       <audio
         ref={ref}
         src={src}
         onEnded={onEnded}
         onError={handleError}
+        onLoadStart={handleLoadStart}
+        onCanPlay={handleCanPlay}
         preload="metadata"
         crossOrigin="anonymous"
       />
