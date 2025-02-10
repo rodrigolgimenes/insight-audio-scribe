@@ -26,29 +26,16 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
         if (audio.duration) {
           setCurrentTime(audio.currentTime);
           setProgress((audio.currentTime / audio.duration) * 100);
-          console.log("Time update:", {
-            currentTime: audio.currentTime,
-            duration: audio.duration,
-            progress: (audio.currentTime / audio.duration) * 100
-          });
         }
       };
 
       const handleLoadedMetadata = () => {
-        console.log("Audio metadata loaded:", {
-          duration: audio.duration,
-          currentTime: audio.currentTime
-        });
         setDuration(audio.duration);
         setCurrentTime(0);
         setProgress(0);
       };
 
       const handleLoadedData = () => {
-        console.log("Audio data loaded:", {
-          duration: audio.duration,
-          currentTime: audio.currentTime
-        });
         setDuration(audio.duration);
       };
 
@@ -85,50 +72,43 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       audioRef.current.currentTime = newTime;
       setProgress(value[0]);
       setCurrentTime(newTime);
-      console.log("Progress changed:", {
-        newTime,
-        progress: value[0],
-        duration
-      });
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="bg-gray-100 rounded-lg p-4">
       <AudioElement 
         ref={audioRef} 
         src={audioUrl || undefined}
         onEnded={() => onPlayPause()}
       />
-      <div className="bg-gray-100 rounded-lg p-4">
-        <div className="flex items-center gap-4 mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onPlayPause}
-            className="w-8 h-8 p-0"
-          >
-            {isPlaying ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-          </Button>
-          <div className="flex-1">
-            <Slider
-              value={[progress]}
-              onValueChange={handleProgressChange}
-              max={100}
-              step={1}
-              className="mb-2"
-            />
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>{formatDuration(currentTime)}</span>
-              <span>{formatDuration(duration)}</span>
-            </div>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onPlayPause}
+          className="w-8 h-8 p-0"
+        >
+          {isPlaying ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+        </Button>
+        <div className="flex-1">
+          <Slider
+            value={[progress]}
+            onValueChange={handleProgressChange}
+            max={100}
+            step={1}
+            className="mb-2"
+          />
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>{formatDuration(currentTime)}</span>
+            <span>{formatDuration(duration)}</span>
           </div>
-          <Volume2 className="h-4 w-4 text-gray-500" />
         </div>
+        <Volume2 className="h-4 w-4 text-gray-500" />
       </div>
     </div>
   );
