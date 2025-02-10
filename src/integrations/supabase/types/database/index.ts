@@ -1,6 +1,5 @@
 
-export * from './database';
-export * from './notes';
+export * from './base';
 export * from './auth';
 export * from './content';
 export * from './organization';
