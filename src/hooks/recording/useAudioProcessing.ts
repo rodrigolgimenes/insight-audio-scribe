@@ -18,11 +18,19 @@ export const useAudioProcessing = () => {
       // Convert duration to integer (milliseconds)
       const durationInMs = Math.round(duration * 1000);
       
+      console.log('[useAudioProcessing] Uploading audio file:', {
+        fileName,
+        blobSize: blob.size,
+        blobType: blob.type,
+        duration: durationInMs
+      });
+
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('audio_recordings')
         .upload(fileName, blob, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: blob.type
         });
 
       if (uploadError) {
@@ -32,6 +40,8 @@ export const useAudioProcessing = () => {
       if (!uploadData?.path) {
         throw new Error('Upload successful but file path is missing');
       }
+
+      console.log('[useAudioProcessing] Audio file uploaded:', uploadData);
 
       const { error: dbError, data: recordingData } = await supabase.from('recordings')
         .insert({
@@ -51,9 +61,11 @@ export const useAudioProcessing = () => {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
+      console.log('[useAudioProcessing] Recording entry created:', recordingData);
+
       // Create a FormData object to send the file to the transcribe-upload function
       const formData = new FormData();
-      formData.append('file', blob);
+      formData.append('file', blob, 'audio.webm');
       formData.append('recordingId', recordingData.id);
       formData.append('duration', durationInMs.toString());
 

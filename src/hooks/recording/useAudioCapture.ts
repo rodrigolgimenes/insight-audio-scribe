@@ -21,7 +21,7 @@ export const useAudioCapture = () => {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true,
+            autoGainControl: true
           },
           video: false
         });
