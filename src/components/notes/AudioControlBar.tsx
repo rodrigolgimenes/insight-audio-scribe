@@ -30,6 +30,7 @@ export const AudioControlBar = ({
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export const AudioControlBar = ({
           
           // Try both .webm and .mp3 extensions
           const extensions = ['.webm', '.mp3'];
+          let foundValidUrl = false;
           
           for (const ext of extensions) {
             const testPath = `${basePath}${ext}`;
@@ -52,32 +54,28 @@ export const AudioControlBar = ({
               .from('audio_recordings')
               .getPublicUrl(testPath);
 
-            // Create a temporary Audio element to test if the URL is valid
-            const tempAudio = new Audio();
-            tempAudio.src = publicUrl;
-            
             try {
-              await new Promise((resolve, reject) => {
-                tempAudio.addEventListener('loadedmetadata', resolve);
-                tempAudio.addEventListener('error', reject);
-                setTimeout(reject, 2000); // Timeout after 2 seconds
-              });
-              
-              console.log('Found valid audio file:', publicUrl);
-              setPublicUrl(publicUrl);
-              return; // Exit once we find a valid URL
+              const response = await fetch(publicUrl, { method: 'HEAD' });
+              if (response.ok) {
+                console.log('Found valid audio file:', publicUrl);
+                setPublicUrl(publicUrl);
+                setIsAudioReady(true);
+                foundValidUrl = true;
+                break;
+              }
             } catch (error) {
-              console.log(`File with ${ext} not found or not playable`);
-              continue;
+              console.log(`File with ${ext} not accessible:`, error);
             }
           }
           
-          // If we get here, no valid audio file was found
-          toast({
-            title: "Error",
-            description: "Could not load audio file",
-            variant: "destructive",
-          });
+          if (!foundValidUrl) {
+            console.error('No valid audio file found');
+            toast({
+              title: "Error",
+              description: "Could not load audio file",
+              variant: "destructive",
+            });
+          }
         } catch (error) {
           console.error('Error getting audio URL:', error);
           toast({
@@ -102,28 +100,44 @@ export const AudioControlBar = ({
         if (playPromise !== undefined) {
           playPromise.catch(error => {
             console.error("Error playing audio:", error);
+            toast({
+              title: "Error",
+              description: "Failed to play audio",
+              variant: "destructive",
+            });
           });
         }
       } else {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying, volume, isMuted, playbackRate]);
+  }, [isPlaying, volume, isMuted, playbackRate, toast]);
 
   const handleDownload = async () => {
     if (!publicUrl) return;
     
     try {
       const response = await fetch(publicUrl);
+      if (!response.ok) throw new Error('Failed to fetch audio file');
+      
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `recording${publicUrl.endsWith('.mp3') ? '.mp3' : '.webm'}`;
+      
+      // Get the original file extension from the URL
+      const extension = publicUrl.split('.').pop()?.toLowerCase() || 'webm';
+      a.download = `recording.${extension}`;
+      
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      
+      toast({
+        title: "Success",
+        description: "Audio file downloaded successfully",
+      });
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
@@ -202,7 +216,7 @@ export const AudioControlBar = ({
         variant="ghost" 
         size="sm"
         onClick={handleDownload}
-        disabled={!publicUrl}
+        disabled={!isAudioReady}
         className="text-primary hover:bg-primary/10"
       >
         <Download className="h-4 w-4 mr-2" />
@@ -213,6 +227,14 @@ export const AudioControlBar = ({
         ref={audioRef}
         src={publicUrl || undefined}
         onEnded={() => onPlayPause()}
+        onError={(e) => {
+          console.error('Audio error:', e);
+          toast({
+            title: "Error",
+            description: "Error loading audio file",
+            variant: "destructive",
+          });
+        }}
       />
     </div>
   );
