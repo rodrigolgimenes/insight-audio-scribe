@@ -1,54 +1,24 @@
-
-import { useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
-import { RecordingLogger } from "@/utils/audio/recordingLogger";
-import { useRecordingState } from "./recording/useRecordingState";
-import { useAudioCapture } from "./recording/useAudioCapture";
-import { useAudioProcessing } from "./recording/useAudioProcessing";
-import { useToast } from "./use-toast";
+import { AudioRecorder } from "@/utils/audioRecorder";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useRecording = () => {
-  const {
-    isRecording,
-    setIsRecording,
-    isPaused,
-    setIsPaused,
-    audioUrl,
-    setAudioUrl,
-    mediaStream,
-    setMediaStream,
-    isSaving,
-    setIsSaving,
-    isTranscribing,
-    setIsTranscribing,
-    isSystemAudio,
-    setIsSystemAudio,
-  } = useRecordingState();
-
-  const { requestMicrophoneAccess } = useAudioCapture();
-  const { saveRecording } = useAudioProcessing();
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isSystemAudio, setIsSystemAudio] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
   const audioRecorder = useRef(new AudioRecorder());
-  const isProcessing = useRef(false);
-  const logger = useRef(new RecordingLogger());
-
-  useEffect(() => {
-    // Add the logger observer when the component mounts
-    audioRecorder.current.addObserver(logger.current);
-    
-    // Remove the observer when the component unmounts
-    return () => {
-      audioRecorder.current.removeObserver(logger.current);
-    };
-  }, []);
 
   const handleStartRecording = async () => {
-    console.log('[useRecording] Starting recording process');
-    
     if (!session?.user) {
       toast({
         title: "Erro",
@@ -59,28 +29,29 @@ export const useRecording = () => {
       return;
     }
 
-    const stream = await requestMicrophoneAccess(isSystemAudio);
-    if (!stream) return;
-
-    setMediaStream(stream);
-    await audioRecorder.current.startRecording(stream);
-    setIsRecording(true);
-    setIsPaused(false);
-    
-    console.log('[useRecording] Recording started with stream:', stream.id);
-
-    stream.addEventListener('inactive', () => {
-      console.log('[useRecording] Stream became inactive');
-      if (!isProcessing.current) {
-        handleStopRecording();
+    try {
+      await audioRecorder.current.startRecording(isSystemAudio);
+      setIsRecording(true);
+      setIsPaused(false);
+      
+      // Atualiza o stream apenas se não estiver usando áudio do sistema
+      if (!isSystemAudio) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMediaStream(stream);
       }
-    });
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      toast({
+        title: "Erro",
+        description: isSystemAudio 
+          ? "Não foi possível iniciar a captura do áudio do sistema. Por favor, verifique as permissões."
+          : "Não foi possível iniciar a gravação. Por favor, verifique as permissões do microfone.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStopRecording = async () => {
-    if (isProcessing.current) return;
-    isProcessing.current = true;
-
     if (!session?.user?.id) {
       toast({
         title: "Error",
@@ -98,16 +69,66 @@ export const useRecording = () => {
       setIsPaused(false);
       setMediaStream(null);
 
-      setIsTranscribing(true);
-      const success = await saveRecording(session.user.id, blob, duration);
+      const fileName = `${session.user.id}/${Date.now()}.webm`;
       
-      if (success) {
-        navigate("/app");
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
+
+      if (!uploadData?.path) {
+        throw new Error('Upload successful but file path is missing');
+      }
+
+      const { error: dbError, data: recordingData } = await supabase.from('recordings')
+        .insert({
+          user_id: session.user.id,
+          title: `Recording ${new Date().toLocaleString()}`,
+          duration,
+          file_path: fileName,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        await supabase.storage
+          .from('audio_recordings')
+          .remove([fileName]);
+        throw new Error(`Failed to save recording: ${dbError.message}`);
+      }
+
+      setIsTranscribing(true);
+      const { error: transcriptionError } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { recordingId: recordingData.id },
+        });
+
+      if (transcriptionError) {
+        throw new Error(`Transcription failed: ${transcriptionError.message}`);
+      }
+
+      toast({
+        title: "Success",
+        description: "Recording saved and transcribed successfully!",
+      });
+      
+      navigate("/app");
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
       setIsTranscribing(false);
-      isProcessing.current = false;
     }
   };
 
@@ -147,4 +168,3 @@ export const useRecording = () => {
     setIsSystemAudio,
   };
 };
-

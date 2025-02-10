@@ -13,14 +13,7 @@ export const useFileUpload = () => {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      toast({
-        title: "Erro",
-        description: "Nenhum arquivo selecionado.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!file) return;
 
     // Check file type
     const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'video/mp4'];
@@ -43,9 +36,7 @@ export const useFileUpload = () => {
 
       // Get user data
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Usuário não autenticado');
-      }
+      if (!user) throw new Error('User not authenticated');
 
       console.log('Creating initial recording entry...');
       // Create initial recording entry
@@ -61,9 +52,7 @@ export const useFileUpload = () => {
         .select()
         .single();
 
-      if (dbError) {
-        throw new Error(`Erro ao criar registro: ${dbError.message}`);
-      }
+      if (dbError) throw dbError;
       console.log('Recording entry created:', recordingData);
 
       // Upload file and process
@@ -73,16 +62,16 @@ export const useFileUpload = () => {
       formData.append('duration', duration.toString());
 
       console.log('Invoking transcribe-upload function...');
-      const { data, error: functionError } = await supabase.functions.invoke('transcribe-upload', {
+      const response = await supabase.functions.invoke('transcribe-upload', {
         body: formData,
       });
 
-      if (functionError) {
-        throw new Error(`Erro ao processar arquivo: ${functionError.message}`);
+      if (response.error) {
+        throw new Error(`Error processing file: ${response.error.message}`);
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Falha ao processar arquivo');
+      if (!response.data?.success) {
+        throw new Error('Failed to process file');
       }
 
       toast({
@@ -94,23 +83,14 @@ export const useFileUpload = () => {
 
     } catch (error) {
       console.error('Error uploading file:', error);
-      
-      // Show more specific error message to user
       toast({
         title: "Erro",
-        description: error instanceof Error 
-          ? `Erro ao processar arquivo: ${error.message}` 
-          : "Erro ao processar o arquivo. Por favor, tente novamente.",
+        description: error instanceof Error ? error.message : "Erro ao processar o arquivo",
         variant: "destructive",
       });
     } finally {
       setIsUploading(false);
       setIsProcessing(false);
-      // Reset the file input
-      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
     }
   };
 

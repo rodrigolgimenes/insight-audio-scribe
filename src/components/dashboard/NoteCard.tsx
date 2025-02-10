@@ -1,4 +1,3 @@
-
 import { Note } from "@/integrations/supabase/types/notes";
 import { Card } from "@/components/ui/card";
 import { CheckSquare } from "lucide-react";
@@ -23,7 +22,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { deleteNote, renameNote, isRenaming: isRenamingNote, moveNoteToFolder } = useNoteOperations(note.id);
+  const { deleteNote, renameNote, isRenaming: isRenamingNote } = useNoteOperations(note.id);
 
   // Fetch current folder for the note
   const { data: currentFolder } = useQuery({
@@ -87,7 +86,20 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
 
   const handleMove = async (folderId: string) => {
     try {
-      await moveNoteToFolder(folderId);
+      // Remove from current folder if exists
+      await supabase
+        .from("notes_folders")
+        .delete()
+        .eq("note_id", note.id);
+
+      // Add to new folder
+      await supabase
+        .from("notes_folders")
+        .insert({
+          note_id: note.id,
+          folder_id: folderId,
+        });
+
       setIsMoveDialogOpen(false);
       setIsDropdownOpen(false);
     } catch (error) {

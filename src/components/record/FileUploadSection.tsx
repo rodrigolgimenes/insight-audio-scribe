@@ -14,7 +14,6 @@ export const FileUploadSection = () => {
         accept="audio/*,video/mp4"
         className="hidden"
         id="file-upload"
-        name="file-upload"
         onChange={handleFileUpload}
         disabled={isUploading}
       />

@@ -9,8 +9,22 @@ export const useMoveNote = (noteId: string) => {
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
-      console.log("Moving note", noteId, "to folder", folderId);
-      
+      // First check if note is already in the target folder
+      const { data: currentFolder } = await supabase
+        .from("notes_folders")
+        .select("folder_id")
+        .eq("note_id", noteId)
+        .maybeSingle();
+
+      if (currentFolder?.folder_id === folderId) {
+        toast({
+          title: "Note already in folder",
+          description: "The note is already in this folder.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Use the database function to move the note
       const { error: moveError } = await supabase
         .rpc('move_note_to_folder', {
@@ -18,35 +32,27 @@ export const useMoveNote = (noteId: string) => {
           p_folder_id: folderId
         });
 
-      if (moveError) {
-        console.error("Error from move_note_to_folder:", moveError);
-        throw moveError;
-      }
+      if (moveError) throw moveError;
 
       // Invalidate queries to refresh the UI
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["note", noteId] }),
-        queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] }),
-        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["folders"] })
-      ]);
+      await queryClient.invalidateQueries({ queryKey: ["notes"] });
+      await queryClient.invalidateQueries({ queryKey: ["note", noteId] });
+      await queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] });
+      await queryClient.invalidateQueries({ queryKey: ["folders"] });
 
       toast({
-        title: "Nota movida",
-        description: "A nota foi movida para a pasta selecionada.",
+        title: "Note moved",
+        description: "Note has been moved to the selected folder.",
       });
     } catch (error: any) {
       console.error("Error moving note:", error);
       toast({
-        title: "Erro ao mover nota",
+        title: "Error moving note",
         description: error.message,
         variant: "destructive",
       });
-      throw error; // Re-throw to handle in the component
     }
   };
 
   return { moveNoteToFolder };
 };
-
