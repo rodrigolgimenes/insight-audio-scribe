@@ -44,11 +44,35 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     };
 
     const handleLoadStart = () => {
-      console.log('[AudioElement] Load started:', src);
+      console.log('[AudioElement] Load started:', { src });
     };
 
     const handleCanPlay = () => {
-      console.log('[AudioElement] Can play event triggered');
+      const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
+      console.log('[AudioElement] Can play event triggered:', {
+        duration: audioEl.current?.duration,
+        readyState: audioEl.current?.readyState,
+        src: audioEl.current?.src
+      });
+    };
+
+    const handleLoadedMetadata = () => {
+      const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
+      console.log('[AudioElement] Metadata loaded:', {
+        duration: audioEl.current?.duration,
+        readyState: audioEl.current?.readyState,
+        src: audioEl.current?.src
+      });
+    };
+
+    const handleProgress = () => {
+      const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
+      console.log('[AudioElement] Progress event:', {
+        buffered: audioEl.current?.buffered.length > 0 
+          ? `${audioEl.current?.buffered.start(0)} - ${audioEl.current?.buffered.end(0)}`
+          : 'No buffered data',
+        readyState: audioEl.current?.readyState
+      });
     };
 
     return (
@@ -59,6 +83,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         onError={handleError}
         onLoadStart={handleLoadStart}
         onCanPlay={handleCanPlay}
+        onLoadedMetadata={handleLoadedMetadata}
+        onProgress={handleProgress}
         preload="metadata"
       />
     );

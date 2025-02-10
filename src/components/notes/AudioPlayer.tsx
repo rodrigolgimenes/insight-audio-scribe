@@ -15,46 +15,68 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const timeUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.log('[AudioPlayer] Audio ref not available');
+      return;
+    }
 
     const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-      console.log('Time Update:', {
-        currentTime: audio.currentTime,
-        duration: audio.duration,
-        progress: (audio.currentTime / audio.duration) * 100,
-        isPlaying: !audio.paused
+      // Use RAF to throttle updates and improve performance
+      cancelAnimationFrame(timeUpdateRef.current);
+      timeUpdateRef.current = requestAnimationFrame(() => {
+        setCurrentTime(audio.currentTime);
+        console.log('[AudioPlayer] Time Update:', {
+          currentTime: audio.currentTime,
+          duration: audio.duration,
+          progress: (audio.currentTime / audio.duration) * 100,
+          isPlaying: !audio.paused,
+          readyState: audio.readyState
+        });
       });
     };
 
     const handleLoadedMetadata = () => {
-      console.log('Audio metadata loaded:', {
+      console.log('[AudioPlayer] Audio metadata loaded:', {
         duration: audio.duration,
         currentTime: audio.currentTime,
-        readyState: audio.readyState
+        readyState: audio.readyState,
+        src: audio.src
       });
       setDuration(audio.duration);
     };
 
     const handleDurationChange = () => {
-      console.log('Duration changed:', {
+      console.log('[AudioPlayer] Duration changed:', {
         duration: audio.duration,
-        readyState: audio.readyState
+        readyState: audio.readyState,
+        currentSrc: audio.currentSrc
       });
       setDuration(audio.duration);
+    };
+
+    const handleWaiting = () => {
+      console.log('[AudioPlayer] Audio waiting event:', {
+        readyState: audio.readyState,
+        networkState: audio.networkState,
+        paused: audio.paused
+      });
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('durationchange', handleDurationChange);
+    audio.addEventListener('waiting', handleWaiting);
 
     return () => {
+      cancelAnimationFrame(timeUpdateRef.current);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('durationchange', handleDurationChange);
+      audio.removeEventListener('waiting', handleWaiting);
     };
   }, []); // Run once on mount
 
@@ -63,18 +85,23 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
     if (!audio) return;
 
     if (isPlaying) {
-      console.log('Attempting to play audio:', {
+      console.log('[AudioPlayer] Attempting to play audio:', {
         currentSrc: audio.currentSrc,
-        readyState: audio.readyState
+        readyState: audio.readyState,
+        duration: audio.duration,
+        currentTime: audio.currentTime
       });
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(error => {
-          console.error("Error playing audio:", error);
+          console.error("[AudioPlayer] Error playing audio:", error);
         });
       }
     } else {
-      console.log('Pausing audio');
+      console.log('[AudioPlayer] Pausing audio:', {
+        currentTime: audio.currentTime,
+        duration: audio.duration
+      });
       audio.pause();
     }
   }, [isPlaying]);
@@ -86,10 +113,11 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
     const newTime = (value[0] / 100) * duration;
     audio.currentTime = newTime;
     setCurrentTime(newTime);
-    console.log('Progress Change:', {
+    console.log('[AudioPlayer] Progress Change:', {
       newTime,
       progressValue: value[0],
-      readyState: audio.readyState
+      readyState: audio.readyState,
+      duration: audio.duration
     });
   };
 
