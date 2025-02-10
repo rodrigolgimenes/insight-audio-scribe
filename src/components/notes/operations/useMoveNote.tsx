@@ -9,6 +9,8 @@ export const useMoveNote = (noteId: string) => {
 
   const moveNoteToFolder = async (folderId: string) => {
     try {
+      console.log("Moving note", noteId, "to folder", folderId);
+      
       // Use the database function to move the note
       const { error: moveError } = await supabase
         .rpc('move_note_to_folder', {
@@ -16,14 +18,19 @@ export const useMoveNote = (noteId: string) => {
           p_folder_id: folderId
         });
 
-      if (moveError) throw moveError;
+      if (moveError) {
+        console.error("Error from move_note_to_folder:", moveError);
+        throw moveError;
+      }
 
       // Invalidate queries to refresh the UI
-      await queryClient.invalidateQueries({ queryKey: ["notes"] });
-      await queryClient.invalidateQueries({ queryKey: ["note", noteId] });
-      await queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] });
-      await queryClient.invalidateQueries({ queryKey: ["folder-notes"] });
-      await queryClient.invalidateQueries({ queryKey: ["folders"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["note", noteId] }),
+        queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] }),
+        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["folders"] })
+      ]);
 
       toast({
         title: "Nota movida",
@@ -36,8 +43,10 @@ export const useMoveNote = (noteId: string) => {
         description: error.message,
         variant: "destructive",
       });
+      throw error; // Re-throw to handle in the component
     }
   };
 
   return { moveNoteToFolder };
 };
+

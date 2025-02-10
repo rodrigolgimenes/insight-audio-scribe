@@ -42,24 +42,18 @@ export const useNoteManagement = () => {
           return [];
         }
 
-        console.log("Raw notes data:", data);
-
-        // Map the data to match the Note type structure
-        const mappedNotes = data.map((note) => {
-          console.log("Mapping note:", note);
-          return {
-            id: note.id,
-            title: note.title,
-            processed_content: note.processed_content,
-            original_transcript: note.original_transcript,
-            full_prompt: note.full_prompt,
-            created_at: note.created_at,
-            updated_at: note.updated_at,
-            recording_id: note.recording_id,
-            user_id: note.user_id,
-            duration: note.recordings?.duration || null,
-          } as Note;
-        });
+        const mappedNotes = data.map((note) => ({
+          id: note.id,
+          title: note.title,
+          processed_content: note.processed_content,
+          original_transcript: note.original_transcript,
+          full_prompt: note.full_prompt,
+          created_at: note.created_at,
+          updated_at: note.updated_at,
+          recording_id: note.recording_id,
+          user_id: note.user_id,
+          duration: note.recordings?.duration || null,
+        } as Note));
 
         console.log("Mapped notes:", mappedNotes);
         return mappedNotes;
@@ -135,6 +129,9 @@ export const useNoteManagement = () => {
 
   const handleMoveToFolder = async (folderId: string) => {
     try {
+      console.log("Moving notes to folder:", folderId);
+      console.log("Selected notes:", selectedNotes);
+
       for (const note of selectedNotes) {
         const { error } = await supabase
           .rpc('move_note_to_folder', {
@@ -152,6 +149,15 @@ export const useNoteManagement = () => {
           return;
         }
       }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["folders"] }),
+        ...selectedNotes.map(note => 
+          queryClient.invalidateQueries({ queryKey: ["note-folder", note.id] })
+        )
+      ]);
 
       toast({
         title: "Notas movidas",
@@ -222,3 +228,4 @@ export const useNoteManagement = () => {
     handleDeleteNotes,
   };
 };
+
