@@ -12,7 +12,13 @@ export const useAudioCapture = () => {
       if (isSystemAudio) {
         console.log('[useAudioCapture] Requesting system audio');
         stream = await navigator.mediaDevices.getDisplayMedia({ 
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 2,
+            sampleRate: 48000
+          },
           video: false 
         });
       } else {
@@ -21,18 +27,22 @@ export const useAudioCapture = () => {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            channelCount: 2,
+            sampleRate: 48000
           },
           video: false
         });
       }
 
-      if (!stream) {
-        throw new Error('Não foi possível obter acesso ao microfone');
+      console.log('[useAudioCapture] Checking audio tracks...');
+      const audioTracks = stream.getAudioTracks();
+      
+      if (!audioTracks || audioTracks.length === 0) {
+        throw new Error('Nenhuma fonte de áudio detectada');
       }
 
-      const audioTracks = stream.getAudioTracks();
-      console.log('[useAudioCapture] Obtained audio stream:', {
+      console.log('[useAudioCapture] Audio stream details:', {
         id: stream.id,
         active: stream.active,
         trackCount: audioTracks.length,
@@ -40,20 +50,50 @@ export const useAudioCapture = () => {
           label: track.label,
           enabled: track.enabled,
           muted: track.muted,
-          readyState: track.readyState
+          readyState: track.readyState,
+          settings: track.getSettings()
         }))
+      });
+
+      // Verificar se o stream está ativo
+      if (!stream.active) {
+        throw new Error('O stream de áudio não está ativo');
+      }
+
+      // Adicionar listeners para monitorar o estado do stream
+      audioTracks.forEach(track => {
+        track.onended = () => {
+          console.log('[useAudioCapture] Audio track ended:', track.label);
+          toast({
+            title: "Aviso",
+            description: "A captura de áudio foi interrompida.",
+            variant: "default",
+          });
+        };
+
+        track.onmute = () => {
+          console.log('[useAudioCapture] Audio track muted:', track.label);
+        };
+
+        track.onunmute = () => {
+          console.log('[useAudioCapture] Audio track unmuted:', track.label);
+        };
       });
 
       return stream;
     } catch (error) {
-      console.error('[useAudioCapture] Error accessing microphone:', error);
+      console.error('[useAudioCapture] Error accessing audio:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
       toast({
-        title: "Erro",
+        title: "Erro de Captura",
         description: isSystemAudio 
-          ? "Não foi possível iniciar a captura do áudio do sistema. Por favor, verifique as permissões."
-          : "Não foi possível iniciar a gravação. Por favor, verifique as permissões do microfone.",
+          ? `Não foi possível capturar o áudio do sistema: ${errorMessage}`
+          : `Não foi possível acessar o microfone: ${errorMessage}`,
         variant: "destructive",
       });
+      
       return null;
     }
   };
