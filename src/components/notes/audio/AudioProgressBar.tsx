@@ -16,22 +16,25 @@ export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: Au
     console.log('AudioProgressBar - State Update:', {
       currentTime,
       duration,
-      progress
+      progress,
+      isVisible: duration > 0
     });
   }, [currentTime, duration, progress]);
 
-  if (duration === 0) {
-    console.log('AudioProgressBar - No duration available');
+  if (!duration) {
+    console.log('AudioProgressBar - Duration not available yet');
     return null;
   }
 
   return (
-    <div className="w-full space-y-2 min-h-[48px] flex flex-col justify-center bg-gray-50 rounded-lg p-2">
-      <div className="relative w-full h-2 bg-gray-200 rounded">
-        <div 
-          className="absolute left-0 top-0 h-full bg-primary rounded transition-all duration-100"
-          style={{ width: `${progress}%` }}
-        />
+    <div className="flex flex-col w-full gap-2 py-2">
+      <div className="relative w-full h-2">
+        <div className="absolute w-full h-2 bg-gray-200 rounded-full">
+          <div 
+            className="absolute h-full bg-primary rounded-full transition-all duration-100"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
         <Slider
           value={[progress]}
           onValueChange={onProgressChange}
@@ -40,7 +43,7 @@ export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: Au
           className="absolute inset-0"
         />
       </div>
-      <div className="flex justify-between text-xs text-gray-500 pt-1">
+      <div className="flex justify-between text-xs text-gray-500">
         <span>{formatDuration(currentTime)}</span>
         <span>{formatDuration(duration)}</span>
       </div>

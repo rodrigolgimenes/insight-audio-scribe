@@ -12,7 +12,6 @@ interface AudioPlayerProps {
 }
 
 export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerProps) => {
-  const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -22,15 +21,12 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       const audio = audioRef.current;
 
       const handleTimeUpdate = () => {
-        if (audio.duration) {
-          setCurrentTime(audio.currentTime);
-          setProgress((audio.currentTime / audio.duration) * 100);
-          console.log('Time Update:', {
-            currentTime: audio.currentTime,
-            duration: audio.duration,
-            progress: (audio.currentTime / audio.duration) * 100
-          });
-        }
+        setCurrentTime(audio.currentTime);
+        console.log('Time Update:', {
+          currentTime: audio.currentTime,
+          duration: audio.duration,
+          progress: (audio.currentTime / audio.duration) * 100
+        });
       };
 
       const handleLoadedMetadata = () => {
@@ -39,7 +35,6 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
           currentTime: audio.currentTime
         });
         setDuration(audio.duration);
-        setCurrentTime(audio.currentTime);
       };
 
       const handleDurationChange = () => {
@@ -62,6 +57,7 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
+        console.log('Attempting to play audio');
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           playPromise.catch(error => {
@@ -69,6 +65,7 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
           });
         }
       } else {
+        console.log('Pausing audio');
         audioRef.current.pause();
       }
     }
@@ -78,7 +75,6 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
     if (audioRef.current && duration) {
       const newTime = (value[0] / 100) * duration;
       audioRef.current.currentTime = newTime;
-      setProgress(value[0]);
       setCurrentTime(newTime);
       console.log('Progress Change:', {
         newTime,
@@ -95,7 +91,7 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
         onEnded={() => onPlayPause()}
       />
       
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"

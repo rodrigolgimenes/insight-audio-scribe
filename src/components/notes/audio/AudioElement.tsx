@@ -60,7 +60,6 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         onLoadStart={handleLoadStart}
         onCanPlay={handleCanPlay}
         preload="metadata"
-        crossOrigin="anonymous"
       />
     );
   }
