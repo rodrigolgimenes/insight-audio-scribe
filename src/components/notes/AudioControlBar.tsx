@@ -33,12 +33,42 @@ export const AudioControlBar = ({
   useEffect(() => {
     const getPublicUrl = async () => {
       if (audioUrl) {
-        const { data } = supabase.storage
-          .from('audio_recordings')
-          .getPublicUrl(audioUrl);
+        console.log('Processing audio URL:', audioUrl);
         
-        console.log('Public URL generated:', data.publicUrl);
-        setPublicUrl(data.publicUrl);
+        // Remove any file extension from the base path
+        const basePath = audioUrl.replace(/\.(webm|mp3)$/, '');
+        
+        // Try both .webm and .mp3 extensions
+        const extensions = ['.webm', '.mp3'];
+        
+        for (const ext of extensions) {
+          const testPath = `${basePath}${ext}`;
+          const { data } = supabase.storage
+            .from('audio_recordings')
+            .getPublicUrl(testPath);
+          
+          console.log(`Testing URL with ${ext}:`, testPath);
+          
+          // Test if the file exists by creating a temporary Audio element
+          const tempAudio = new Audio();
+          tempAudio.src = data.publicUrl;
+          
+          try {
+            await new Promise((resolve, reject) => {
+              tempAudio.addEventListener('loadedmetadata', resolve);
+              tempAudio.addEventListener('error', reject);
+              // Set a timeout in case the file doesn't exist
+              setTimeout(reject, 2000);
+            });
+            
+            console.log(`Found valid audio file with ${ext}`);
+            setPublicUrl(data.publicUrl);
+            break;
+          } catch (error) {
+            console.log(`File with ${ext} not found or not playable`);
+            continue;
+          }
+        }
       }
     };
 
