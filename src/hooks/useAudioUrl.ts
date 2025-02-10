@@ -21,46 +21,60 @@ export const useAudioUrl = (audioUrl: string | null) => {
       try {
         console.log('[useAudioUrl] Starting to get signed URL for:', audioUrl);
         
-        // Extract the filename from the URL or path
-        const filename = audioUrl.split('/').pop();
+        // Limpar o caminho do arquivo removendo qualquer URL base ou parâmetros
+        const cleanPath = audioUrl
+          .replace(/^.*[\\\/]/, '') // Remove tudo antes da última barra
+          .split('?')[0]; // Remove parâmetros de URL se houver
         
-        if (!filename) {
+        console.log('[useAudioUrl] Cleaned path:', cleanPath);
+
+        if (!cleanPath) {
           throw new Error('Invalid audio URL format');
         }
 
-        console.log('[useAudioUrl] Using filename:', filename);
-
-        // First check if file exists
-        const { data: existsData, error: existsError } = await supabase
+        // Verificar se o arquivo existe no bucket
+        const { data: listData, error: listError } = await supabase
           .storage
           .from('audio_recordings')
           .list('', {
-            search: filename
+            limit: 1,
+            search: cleanPath,
           });
 
-        if (existsError || !existsData.length) {
-          console.error('[useAudioUrl] File not found:', existsError || 'No matching file');
-          throw new Error('Audio file not found');
+        console.log('[useAudioUrl] List result:', { listData, listError });
+
+        if (listError) {
+          console.error('[useAudioUrl] Error listing files:', listError);
+          throw new Error(`Failed to check file existence: ${listError.message}`);
         }
 
-        // Generate signed URL
-        const { data, error: signError } = await supabase
+        if (!listData || listData.length === 0) {
+          console.error('[useAudioUrl] File not found in bucket');
+          throw new Error('Audio file not found in storage');
+        }
+
+        // Gerar URL assinada
+        console.log('[useAudioUrl] Generating signed URL for path:', cleanPath);
+        
+        const { data: signedData, error: signError } = await supabase
           .storage
           .from('audio_recordings')
-          .createSignedUrl(filename, 3600);
+          .createSignedUrl(cleanPath, 3600);
+
+        console.log('[useAudioUrl] Signed URL result:', { signedData, signError });
 
         if (signError) {
           console.error('[useAudioUrl] Error signing URL:', signError);
           throw new Error(`Failed to generate signed URL: ${signError.message}`);
         }
 
-        if (!data?.signedUrl) {
+        if (!signedData?.signedUrl) {
           console.error('[useAudioUrl] No signed URL generated');
           throw new Error('No signed URL generated');
         }
 
-        console.log('[useAudioUrl] Generated signed URL successfully');
-        setSignedUrl(data.signedUrl);
+        console.log('[useAudioUrl] Successfully generated signed URL');
+        setSignedUrl(signedData.signedUrl);
         setIsAudioReady(true);
         setError(null);
       } catch (error) {
@@ -69,8 +83,8 @@ export const useAudioUrl = (audioUrl: string | null) => {
         setIsAudioReady(false);
         setSignedUrl(null);
         toast({
-          title: "Error Loading Audio",
-          description: error instanceof Error ? error.message : "Failed to load audio file. Please try again.",
+          title: "Erro ao Carregar Áudio",
+          description: error instanceof Error ? error.message : "Falha ao carregar arquivo de áudio. Por favor, tente novamente.",
           variant: "destructive",
         });
       }
@@ -78,7 +92,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
 
     getSignedUrl();
 
-    // Refresh the signed URL every 45 minutes to prevent expiration
+    // Atualizar a URL assinada a cada 45 minutos para evitar expiração
     const refreshInterval = setInterval(getSignedUrl, 45 * 60 * 1000);
 
     return () => clearInterval(refreshInterval);

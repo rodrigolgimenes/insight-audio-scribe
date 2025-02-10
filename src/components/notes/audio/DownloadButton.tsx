@@ -21,41 +21,53 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     try {
       console.log('[DownloadButton] Starting download for URL:', publicUrl);
       
-      const filename = publicUrl.split('/').pop();
+      // Limpar o caminho do arquivo
+      const cleanPath = publicUrl
+        .replace(/^.*[\\\/]/, '') // Remove tudo antes da última barra
+        .split('?')[0]; // Remove parâmetros de URL se houver
       
-      if (!filename) {
+      console.log('[DownloadButton] Clean path:', cleanPath);
+
+      if (!cleanPath) {
         throw new Error('Invalid audio URL format');
       }
 
-      console.log('[DownloadButton] Using filename:', filename);
-      
-      // Check if file exists
-      const { data: existsData, error: existsError } = await supabase
+      // Verificar se o arquivo existe
+      const { data: listData, error: listError } = await supabase
         .storage
         .from('audio_recordings')
         .list('', {
-          search: filename
+          limit: 1,
+          search: cleanPath
         });
 
-      if (existsError || !existsData.length) {
-        console.error('[DownloadButton] File not found:', existsError || 'No matching file');
-        throw new Error('Audio file not found');
+      console.log('[DownloadButton] List result:', { listData, listError });
+
+      if (listError) {
+        console.error('[DownloadButton] Error listing files:', listError);
+        throw new Error(`Failed to check file existence: ${listError.message}`);
       }
 
-      // Generate signed URL
-      const { data, error: signError } = await supabase
+      if (!listData || listData.length === 0) {
+        console.error('[DownloadButton] File not found in bucket');
+        throw new Error('Audio file not found in storage');
+      }
+
+      // Gerar URL assinada para download
+      const { data: signedData, error: signError } = await supabase
         .storage
         .from('audio_recordings')
-        .createSignedUrl(filename, 3600);
+        .createSignedUrl(cleanPath, 3600);
 
-      if (signError || !data?.signedUrl) {
+      console.log('[DownloadButton] Signed URL result:', { signedData, signError });
+
+      if (signError || !signedData?.signedUrl) {
         console.error('[DownloadButton] Error generating signed URL:', signError);
         throw new Error('Failed to generate download URL');
       }
 
-      console.log('[DownloadButton] Generated signed URL:', data.signedUrl);
-
-      const response = await fetch(data.signedUrl);
+      // Fazer o download do arquivo
+      const response = await fetch(signedData.signedUrl);
       if (!response.ok) {
         console.error('[DownloadButton] Error fetching audio:', response.statusText);
         throw new Error('Failed to fetch audio file');
@@ -65,7 +77,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = cleanPath;
       
       document.body.appendChild(a);
       a.click();
@@ -74,14 +86,14 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       
       console.log('[DownloadButton] Download completed successfully');
       toast({
-        title: "Success",
-        description: "Audio file downloaded successfully",
+        title: "Sucesso",
+        description: "Arquivo de áudio baixado com sucesso",
       });
     } catch (error) {
       console.error('[DownloadButton] Error downloading file:', error);
       toast({
-        title: "Error",
-        description: "Failed to download audio file",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao baixar arquivo de áudio",
         variant: "destructive",
       });
     }
