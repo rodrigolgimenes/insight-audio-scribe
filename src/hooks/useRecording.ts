@@ -1,8 +1,7 @@
-
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { AudioRecorder } from "@/utils/audioRecorder";
+import { AudioRecorder } from "@/utils/audio/audioRecorder";
 import { useRecordingState } from "./recording/useRecordingState";
 import { useAudioCapture } from "./recording/useAudioCapture";
 import { useAudioProcessing } from "./recording/useAudioProcessing";
