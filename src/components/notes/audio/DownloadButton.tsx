@@ -13,31 +13,42 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
   const { toast } = useToast();
 
   const handleDownload = async () => {
-    if (!publicUrl) return;
+    if (!publicUrl) {
+      console.error('[DownloadButton] No publicUrl provided');
+      return;
+    }
     
     try {
-      // Extract the filename from the path
-      const pathParts = publicUrl.split('/');
-      const filename = pathParts[pathParts.length - 1];
+      console.log('[DownloadButton] Starting download for URL:', publicUrl);
+      
+      const filename = publicUrl.includes('/') 
+        ? publicUrl.split('/').pop() 
+        : publicUrl;
       
       if (!filename) {
-        throw new Error('Invalid audio URL format: No filename found');
+        throw new Error('Invalid audio URL format');
       }
 
-      console.log('[DownloadButton] Using filename for signed URL:', filename);
+      console.log('[DownloadButton] Using filename:', filename);
       
       // Generate a signed URL that expires in 1 hour
-      const { data: { signedUrl }, error: signError } = await supabase
+      const { data, error: signError } = await supabase
         .storage
         .from('audio_recordings')
         .createSignedUrl(filename, 3600);
 
-      if (signError || !signedUrl) {
+      if (signError || !data?.signedUrl) {
+        console.error('[DownloadButton] Error generating signed URL:', signError);
         throw new Error('Failed to generate download URL');
       }
 
-      const response = await fetch(signedUrl);
-      if (!response.ok) throw new Error('Failed to fetch audio file');
+      console.log('[DownloadButton] Generated signed URL:', data.signedUrl);
+
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) {
+        console.error('[DownloadButton] Error fetching audio:', response.statusText);
+        throw new Error('Failed to fetch audio file');
+      }
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -50,6 +61,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
+      console.log('[DownloadButton] Download completed successfully');
       toast({
         title: "Success",
         description: "Audio file downloaded successfully",

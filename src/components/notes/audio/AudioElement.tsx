@@ -13,7 +13,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
 
     const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
       const target = e.currentTarget;
-      console.error('[AudioElement] Audio error:', e);
+      console.error('[AudioElement] Audio error event:', e);
       console.error('[AudioElement] Audio error code:', target.error?.code);
       console.error('[AudioElement] Audio error message:', target.error?.message);
       console.error('[AudioElement] Audio src:', target.src);
@@ -49,7 +49,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         src={src}
         onEnded={onEnded}
         onError={handleError}
-        preload="auto"
+        preload="metadata"
         crossOrigin="anonymous"
       />
     );

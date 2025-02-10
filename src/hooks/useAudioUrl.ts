@@ -21,33 +21,44 @@ export const useAudioUrl = (audioUrl: string | null) => {
       try {
         console.log('[useAudioUrl] Starting to get signed URL for:', audioUrl);
         
-        // Extract the filename from the path
-        const pathParts = audioUrl.split('/');
-        const filename = pathParts[pathParts.length - 1];
+        const filename = audioUrl.includes('/') 
+          ? audioUrl.split('/').pop() 
+          : audioUrl;
         
         if (!filename) {
-          throw new Error('Invalid audio URL format: No filename found');
+          throw new Error('Invalid audio URL format');
         }
-        
-        console.log('[useAudioUrl] Using filename for signed URL:', filename);
-        
-        const { data: { signedUrl }, error: signError } = await supabase
+
+        console.log('[useAudioUrl] Using filename:', filename);
+
+        // First try to get public URL
+        const { data: publicUrlData } = supabase
           .storage
           .from('audio_recordings')
-          .createSignedUrl(filename, 3600); // 1 hour in seconds
+          .getPublicUrl(filename);
+
+        if (!publicUrlData.publicUrl) {
+          throw new Error('Failed to generate public URL');
+        }
+
+        // Then generate signed URL for actual access
+        const { data, error: signError } = await supabase
+          .storage
+          .from('audio_recordings')
+          .createSignedUrl(filename, 3600);
 
         if (signError) {
           console.error('[useAudioUrl] Error signing URL:', signError);
           throw new Error(`Failed to generate signed URL: ${signError.message}`);
         }
 
-        if (!signedUrl) {
+        if (!data.signedUrl) {
           console.error('[useAudioUrl] No signed URL generated');
           throw new Error('No signed URL generated');
         }
 
         console.log('[useAudioUrl] Generated signed URL successfully');
-        setSignedUrl(signedUrl);
+        setSignedUrl(data.signedUrl);
         setIsAudioReady(true);
         setError(null);
       } catch (error) {
