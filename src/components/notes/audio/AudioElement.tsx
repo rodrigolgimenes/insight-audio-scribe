@@ -17,6 +17,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.error('[AudioElement] Audio error code:', target.error?.code);
       console.error('[AudioElement] Audio error message:', target.error?.message);
       console.error('[AudioElement] Audio src:', target.src);
+      console.error('[AudioElement] Network state:', target.networkState);
+      console.error('[AudioElement] Ready state:', target.readyState);
       
       let errorMessage = "Error loading audio file";
       if (target.error) {
@@ -44,7 +46,10 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     };
 
     const handleLoadStart = () => {
-      console.log('[AudioElement] Load started:', { src });
+      console.log('[AudioElement] Load started:', { 
+        src,
+        ref: ref as React.MutableRefObject<HTMLAudioElement>
+      });
     };
 
     const handleCanPlay = () => {
@@ -52,7 +57,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.log('[AudioElement] Can play event triggered:', {
         duration: audioEl.current?.duration,
         readyState: audioEl.current?.readyState,
-        src: audioEl.current?.src
+        src: audioEl.current?.src,
+        networkState: audioEl.current?.networkState
       });
     };
 
@@ -61,7 +67,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.log('[AudioElement] Metadata loaded:', {
         duration: audioEl.current?.duration,
         readyState: audioEl.current?.readyState,
-        src: audioEl.current?.src
+        src: audioEl.current?.src,
+        networkState: audioEl.current?.networkState
       });
     };
 
@@ -71,7 +78,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         buffered: audioEl.current?.buffered.length > 0 
           ? `${audioEl.current?.buffered.start(0)} - ${audioEl.current?.buffered.end(0)}`
           : 'No buffered data',
-        readyState: audioEl.current?.readyState
+        readyState: audioEl.current?.readyState,
+        networkState: audioEl.current?.networkState
       });
     };
 

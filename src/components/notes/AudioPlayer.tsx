@@ -20,74 +20,115 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) {
-      console.log('[AudioPlayer] Audio ref not available');
+      console.log('[AudioPlayer] Audio ref not available on mount');
       return;
     }
 
     const handleTimeUpdate = () => {
-      // Use RAF to throttle updates and improve performance
+      // Use RAF to throttle updates
       cancelAnimationFrame(timeUpdateRef.current);
       timeUpdateRef.current = requestAnimationFrame(() => {
+        if (!audio) return;
+        
         setCurrentTime(audio.currentTime);
         console.log('[AudioPlayer] Time Update:', {
           currentTime: audio.currentTime,
           duration: audio.duration,
           progress: (audio.currentTime / audio.duration) * 100,
           isPlaying: !audio.paused,
-          readyState: audio.readyState
+          readyState: audio.readyState,
+          networkState: audio.networkState
         });
       });
     };
 
     const handleLoadedMetadata = () => {
+      if (!audio) return;
       console.log('[AudioPlayer] Audio metadata loaded:', {
         duration: audio.duration,
         currentTime: audio.currentTime,
         readyState: audio.readyState,
-        src: audio.src
+        src: audio.src,
+        networkState: audio.networkState
       });
       setDuration(audio.duration);
     };
 
     const handleDurationChange = () => {
+      if (!audio) return;
       console.log('[AudioPlayer] Duration changed:', {
         duration: audio.duration,
         readyState: audio.readyState,
-        currentSrc: audio.currentSrc
+        currentSrc: audio.currentSrc,
+        networkState: audio.networkState
       });
       setDuration(audio.duration);
     };
 
     const handleWaiting = () => {
+      if (!audio) return;
       console.log('[AudioPlayer] Audio waiting event:', {
         readyState: audio.readyState,
         networkState: audio.networkState,
-        paused: audio.paused
+        paused: audio.paused,
+        currentTime: audio.currentTime,
+        duration: audio.duration
       });
     };
 
+    const handleError = () => {
+      if (!audio || !audio.error) return;
+      console.error('[AudioPlayer] Audio error:', {
+        code: audio.error.code,
+        message: audio.error.message,
+        networkState: audio.networkState,
+        readyState: audio.readyState
+      });
+    };
+
+    const handleLoadStart = () => {
+      if (!audio) return;
+      console.log('[AudioPlayer] Load started:', {
+        src: audio.src,
+        networkState: audio.networkState,
+        readyState: audio.readyState
+      });
+    };
+
+    // Add event listeners
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('loadstart', handleLoadStart);
 
+    // Cleanup function
     return () => {
       cancelAnimationFrame(timeUpdateRef.current);
+      if (!audio) return;
+      
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('durationchange', handleDurationChange);
       audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('loadstart', handleLoadStart);
     };
-  }, []); // Run once on mount
+  }, []); // Empty dependency array to ensure listeners are set up once on mount
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.log('[AudioPlayer] Audio ref not available for play/pause');
+      return;
+    }
 
     if (isPlaying) {
       console.log('[AudioPlayer] Attempting to play audio:', {
         currentSrc: audio.currentSrc,
         readyState: audio.readyState,
+        networkState: audio.networkState,
         duration: audio.duration,
         currentTime: audio.currentTime
       });
@@ -100,7 +141,8 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
     } else {
       console.log('[AudioPlayer] Pausing audio:', {
         currentTime: audio.currentTime,
-        duration: audio.duration
+        duration: audio.duration,
+        networkState: audio.networkState
       });
       audio.pause();
     }
@@ -117,7 +159,8 @@ export const AudioPlayer = ({ audioUrl, isPlaying, onPlayPause }: AudioPlayerPro
       newTime,
       progressValue: value[0],
       readyState: audio.readyState,
-      duration: audio.duration
+      duration: audio.duration,
+      networkState: audio.networkState
     });
   };
 
