@@ -1,29 +1,17 @@
 
-import { RecordingResult, RecordingEvent, RecordingObserver } from './types';
-import { logAudioTracks, validateAudioTracks } from './recordingHelpers';
-import { DurationTracker } from './durationTracker';
-import { MediaRecorderManager } from './mediaRecorderManager';
-import { StreamManager } from './streamManager';
+interface RecordingResult {
+  blob: Blob;
+  duration: number;
+}
 
 export class AudioRecorder {
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private stream: MediaStream | null = null;
   private isRecording = false;
-  private durationTracker: DurationTracker;
-  private mediaManager: MediaRecorderManager;
-  private streamManager: StreamManager;
-
-  constructor() {
-    this.durationTracker = new DurationTracker();
-    this.mediaManager = new MediaRecorderManager();
-    this.streamManager = new StreamManager();
-  }
-
-  addObserver(observer: RecordingObserver): void {
-    this.mediaManager.addObserver(observer);
-  }
-
-  removeObserver(observer: RecordingObserver): void {
-    this.mediaManager.removeObserver(observer);
-  }
+  private startTime: number = 0;
+  private recordedDuration: number = 0;
+  private timerId: number | null = null;
 
   async startRecording(stream: MediaStream): Promise<void> {
     if (this.isRecording) {
@@ -32,23 +20,99 @@ export class AudioRecorder {
     }
 
     try {
-      logAudioTracks(stream);
-      validateAudioTracks(stream);
-
-      this.streamManager.initialize(stream, () => {
-        if (this.isRecording) {
-          this.stopRecording().catch(error => {
-            console.error('[AudioRecorder] Error handling inactive stream:', error);
-          });
-        }
+      // Log audio tracks from stream
+      const audioTracks = stream.getAudioTracks();
+      console.log('[AudioRecorder] Audio tracks:', {
+        count: audioTracks.length,
+        tracks: audioTracks.map(track => ({
+          label: track.label,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState
+        }))
       });
 
-      this.mediaManager.initialize(stream);
-      this.durationTracker.startTracking();
+      if (audioTracks.length === 0) {
+        throw new Error('No audio tracks found in stream');
+      }
 
-      this.mediaManager.start();
-      this.isRecording = true;
+      this.audioChunks = [];
+      this.stream = stream;
+      this.recordedDuration = 0;
       
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ];
+      
+      let selectedMimeType = mimeTypes.find(type => {
+        try {
+          const isSupported = MediaRecorder.isTypeSupported(type);
+          console.log(`[AudioRecorder] MIME type ${type} supported:`, isSupported);
+          return isSupported;
+        } catch (e) {
+          console.warn(`[AudioRecorder] Error checking mime type ${type}:`, e);
+          return false;
+        }
+      });
+      
+      if (!selectedMimeType) {
+        console.warn('[AudioRecorder] No preferred mime types supported, using default');
+        selectedMimeType = '';
+      }
+      
+      const options: MediaRecorderOptions = {
+        mimeType: selectedMimeType,
+        audioBitsPerSecond: 128000
+      };
+      
+      console.log('[AudioRecorder] Creating MediaRecorder with options:', options);
+      this.mediaRecorder = new MediaRecorder(stream, options);
+      
+      this.mediaRecorder.onstart = () => {
+        console.log('[AudioRecorder] MediaRecorder started');
+      };
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        console.log('[AudioRecorder] Data available event:', {
+          dataSize: event.data?.size,
+          dataType: event.data?.type,
+          timeStamp: event.timeStamp
+        });
+
+        if (event.data && event.data.size > 0) {
+          this.audioChunks.push(event.data);
+          console.log('[AudioRecorder] Total chunks:', this.audioChunks.length);
+        }
+      };
+
+      this.mediaRecorder.onerror = (event) => {
+        console.error('[AudioRecorder] MediaRecorder error:', event);
+        this.cleanup();
+      };
+
+      this.mediaRecorder.onpause = () => {
+        console.log('[AudioRecorder] MediaRecorder paused');
+      };
+
+      this.mediaRecorder.onresume = () => {
+        console.log('[AudioRecorder] MediaRecorder resumed');
+      };
+
+      this.mediaRecorder.onstop = () => {
+        console.log('[AudioRecorder] MediaRecorder stopped');
+      };
+
+      // Start tracking duration
+      this.startTime = Date.now();
+      this.timerId = window.setInterval(() => {
+        this.recordedDuration = (Date.now() - this.startTime) / 1000;
+      }, 100);
+
+      this.mediaRecorder.start(250);
+      this.isRecording = true;
       console.log('[AudioRecorder] Recording started successfully');
     } catch (error) {
       console.error('[AudioRecorder] Error starting recording:', error);
@@ -59,27 +123,48 @@ export class AudioRecorder {
 
   async stopRecording(): Promise<RecordingResult> {
     return new Promise((resolve, reject) => {
-      if (!this.isRecording) {
+      if (!this.mediaRecorder || !this.stream) {
         reject(new Error('No recording in progress'));
         return;
       }
 
-      try {
-        this.mediaManager.stop();
-        const finalDuration = Math.round(this.durationTracker.getCurrentDuration() * 1000);
-        const finalBlob = this.mediaManager.getFinalBlob();
+      if (this.timerId !== null) {
+        clearInterval(this.timerId);
+        this.timerId = null;
+      }
 
-        if (finalBlob.size === 0) {
-          throw new Error('No audio data recorded');
+      const finalDuration = this.recordedDuration;
+
+      this.mediaRecorder.onstop = async () => {
+        try {
+          if (this.audioChunks.length === 0) {
+            throw new Error('No audio data recorded');
+          }
+
+          const finalBlob = new Blob(this.audioChunks, { 
+            type: this.mediaRecorder?.mimeType || 'audio/webm'
+          });
+
+          console.log('[AudioRecorder] Recording stopped:', {
+            blobSize: finalBlob.size,
+            duration: finalDuration,
+            chunks: this.audioChunks.length,
+            mimeType: finalBlob.type
+          });
+
+          this.cleanup();
+          resolve({ blob: finalBlob, duration: finalDuration });
+        } catch (error) {
+          console.error('[AudioRecorder] Error finalizing recording:', error);
+          reject(error);
         }
+      };
 
-        const stats = this.mediaManager.getRecordingStats(finalDuration);
-        console.log('[AudioRecorder] Recording stopped:', stats);
-
-        this.cleanup();
-        resolve({ blob: finalBlob, duration: finalDuration });
+      try {
+        this.mediaRecorder.stop();
+        this.isRecording = false;
       } catch (error) {
-        console.error('[AudioRecorder] Error finalizing recording:', error);
+        console.error('[AudioRecorder] Error stopping MediaRecorder:', error);
         this.cleanup();
         reject(error);
       }
@@ -87,11 +172,14 @@ export class AudioRecorder {
   }
 
   pauseRecording(): void {
-    if (this.isRecording) {
+    if (this.mediaRecorder && this.isRecording) {
       try {
-        this.mediaManager.pause();
-        this.durationTracker.pauseTracking();
-        console.log('[AudioRecorder] Recording paused at:', this.durationTracker.getCurrentDuration());
+        this.mediaRecorder.pause();
+        if (this.timerId !== null) {
+          clearInterval(this.timerId);
+          this.timerId = null;
+        }
+        console.log('[AudioRecorder] Recording paused at:', this.recordedDuration);
       } catch (error) {
         console.error('[AudioRecorder] Error pausing recording:', error);
       }
@@ -99,11 +187,15 @@ export class AudioRecorder {
   }
 
   resumeRecording(): void {
-    if (this.isRecording) {
+    if (this.mediaRecorder) {
       try {
-        this.mediaManager.resume();
-        this.durationTracker.resumeTracking();
-        console.log('[AudioRecorder] Recording resumed from:', this.durationTracker.getCurrentDuration());
+        this.mediaRecorder.resume();
+        // Resume duration tracking
+        this.startTime = Date.now() - (this.recordedDuration * 1000);
+        this.timerId = window.setInterval(() => {
+          this.recordedDuration = (Date.now() - this.startTime) / 1000;
+        }, 100);
+        console.log('[AudioRecorder] Recording resumed from:', this.recordedDuration);
       } catch (error) {
         console.error('[AudioRecorder] Error resuming recording:', error);
       }
@@ -112,10 +204,25 @@ export class AudioRecorder {
 
   private cleanup() {
     console.log('[AudioRecorder] Cleaning up resources');
-    this.streamManager.cleanup();
-    this.mediaManager.cleanup();
-    this.durationTracker.cleanup();
+    if (this.stream) {
+      this.stream.getTracks().forEach(track => {
+        try {
+          console.log('[AudioRecorder] Stopping track:', track.label);
+          track.stop();
+        } catch (error) {
+          console.error('[AudioRecorder] Error stopping track:', error);
+        }
+      });
+      this.stream = null;
+    }
+    if (this.timerId !== null) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+    this.mediaRecorder = null;
+    this.audioChunks = [];
     this.isRecording = false;
+    this.recordedDuration = 0;
     console.log('[AudioRecorder] Cleanup complete');
   }
 
@@ -124,6 +231,6 @@ export class AudioRecorder {
   }
 
   getCurrentDuration(): number {
-    return this.durationTracker.getCurrentDuration();
+    return this.recordedDuration;
   }
 }
