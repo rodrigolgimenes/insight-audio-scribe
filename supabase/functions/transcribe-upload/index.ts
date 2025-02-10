@@ -2,8 +2,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { convertToMp3 } from './audioProcessing.ts';
 import { transcribeAudio, processWithGPT } from './openAI.ts';
 import { 
   uploadToStorage, 
@@ -44,21 +42,24 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Initialize FFmpeg and convert to MP3
-    const ffmpeg = new FFmpeg();
-    await ffmpeg.load();
-    console.log('FFmpeg loaded');
-
-    const arrayBuffer = await (file as File).arrayBuffer();
-    const inputFileName = 'input.' + (file as File).name.split('.').pop();
+    // Upload the audio file directly (no conversion needed since we're sending WebM)
+    const filePath = `${recordingId}/${crypto.randomUUID()}.webm`;
+    const fileBlob = new Blob([await (file as File).arrayBuffer()], { type: 'audio/webm' });
     
-    const convertedData = await convertToMp3(ffmpeg, new Uint8Array(arrayBuffer), inputFileName);
-    const mp3Blob = new Blob([convertedData], { type: 'audio/mpeg' });
-    console.log('Audio conversion completed');
+    console.log('Uploading audio file...', {
+      filePath,
+      size: fileBlob.size,
+      type: fileBlob.type
+    });
 
-    // Upload to storage with .mp3 extension
-    const filePath = `${recordingId}/${crypto.randomUUID()}.mp3`;
-    const { data: { publicUrl } } = await uploadToStorage(supabase, filePath, mp3Blob);
+    const { data: { publicUrl }, error: uploadError } = await uploadToStorage(supabase, filePath, fileBlob);
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error(`Failed to upload audio: ${uploadError.message}`);
+    }
+
+    console.log('File uploaded successfully:', { publicUrl });
 
     // Update recording with file path, duration and status
     const { error: updateError } = await supabase
@@ -77,8 +78,13 @@ serve(async (req) => {
     }
 
     // Get transcription and process with GPT
-    const transcription = await transcribeAudio(mp3Blob, openAIApiKey);
+    console.log('Starting transcription...');
+    const transcription = await transcribeAudio(fileBlob, openAIApiKey);
+    console.log('Transcription completed');
+
+    console.log('Processing with GPT...');
     const processedContent = await processWithGPT(transcription.text, openAIApiKey);
+    console.log('GPT processing completed');
 
     // Update recording and create note
     await updateRecordingWithTranscription(supabase, recordingId as string, transcription.text, processedContent);

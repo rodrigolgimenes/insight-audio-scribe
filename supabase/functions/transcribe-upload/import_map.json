@@ -1,7 +1,4 @@
 
 {
-  "imports": {
-    "@ffmpeg/core": "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js",
-    "@ffmpeg/ffmpeg": "https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/esm/index.js"
-  }
+  "imports": {}
 }
