@@ -1,7 +1,7 @@
 
 export interface RecordingResult {
   blob: Blob;
-  duration: number;
+  duration: number; // in milliseconds
 }
 
 export interface AudioTrackInfo {
@@ -30,4 +30,3 @@ export interface RecordingEvent {
 export interface RecordingObserver {
   update(event: RecordingEvent): void;
 }
-

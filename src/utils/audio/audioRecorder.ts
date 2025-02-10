@@ -12,6 +12,7 @@ export class AudioRecorder {
   private recordedDuration: number = 0;
   private timerId: number | null = null;
   private observers: Set<RecordingObserver> = new Set();
+  private boundStreamInactiveHandler: (() => void) | null = null;
 
   addObserver(observer: RecordingObserver): void {
     this.observers.add(observer);
@@ -40,16 +41,14 @@ export class AudioRecorder {
       this.recordedDuration = 0;
       
       const options = getMediaRecorderOptions();
-      
       console.log('[AudioRecorder] Creating MediaRecorder with options:', options);
       this.mediaRecorder = new MediaRecorder(stream, options);
       
       this.setupMediaRecorderEvents();
+      this.setupStreamInactiveHandler();
 
       this.startTime = Date.now();
-      this.timerId = window.setInterval(() => {
-        this.recordedDuration = (Date.now() - this.startTime) / 1000;
-      }, 100);
+      this.startDurationTracking();
 
       this.mediaRecorder.start(250);
       this.isRecording = true;
@@ -67,13 +66,40 @@ export class AudioRecorder {
     }
   }
 
+  private setupStreamInactiveHandler(): void {
+    if (!this.stream) return;
+
+    // Remove any existing handler
+    if (this.boundStreamInactiveHandler) {
+      this.stream.removeEventListener('inactive', this.boundStreamInactiveHandler);
+    }
+
+    // Create and bind new handler
+    this.boundStreamInactiveHandler = () => {
+      console.log('[AudioRecorder] Stream became inactive');
+      if (this.isRecording) {
+        this.stopRecording().catch(error => {
+          console.error('[AudioRecorder] Error handling inactive stream:', error);
+        });
+      }
+    };
+
+    this.stream.addEventListener('inactive', this.boundStreamInactiveHandler);
+  }
+
+  private startDurationTracking(): void {
+    if (this.timerId !== null) {
+      clearInterval(this.timerId);
+    }
+    
+    this.timerId = window.setInterval(() => {
+      if (!this.isRecording || !this.mediaRecorder) return;
+      this.recordedDuration = (Date.now() - this.startTime) / 1000;
+    }, 100);
+  }
+
   private setupMediaRecorderEvents(): void {
     if (!this.mediaRecorder) return;
-
-    this.mediaRecorder.onstart = () => {
-      console.log('[AudioRecorder] MediaRecorder started');
-      this.notifyObservers({ type: 'start' });
-    };
 
     this.mediaRecorder.ondataavailable = (event) => {
       const eventData = {
@@ -120,7 +146,7 @@ export class AudioRecorder {
 
   async stopRecording(): Promise<RecordingResult> {
     return new Promise((resolve, reject) => {
-      if (!this.mediaRecorder || !this.stream) {
+      if (!this.mediaRecorder || !this.stream || !this.isRecording) {
         reject(new Error('No recording in progress'));
         return;
       }
@@ -130,9 +156,9 @@ export class AudioRecorder {
         this.timerId = null;
       }
 
-      const finalDuration = this.recordedDuration;
+      const finalDuration = Math.round(this.recordedDuration * 1000); // Convert to milliseconds
 
-      this.mediaRecorder.onstop = async () => {
+      const handleStop = () => {
         try {
           if (this.audioChunks.length === 0) {
             throw new Error('No audio data recorded');
@@ -165,6 +191,7 @@ export class AudioRecorder {
       };
 
       try {
+        this.mediaRecorder.onstop = handleStop;
         this.mediaRecorder.stop();
         this.isRecording = false;
       } catch (error) {
@@ -200,9 +227,7 @@ export class AudioRecorder {
       try {
         this.mediaRecorder.resume();
         this.startTime = Date.now() - (this.recordedDuration * 1000);
-        this.timerId = window.setInterval(() => {
-          this.recordedDuration = (Date.now() - this.startTime) / 1000;
-        }, 100);
+        this.startDurationTracking();
         console.log('[AudioRecorder] Recording resumed from:', this.recordedDuration);
         this.notifyObservers({ type: 'resume' });
       } catch (error) {
@@ -218,6 +243,10 @@ export class AudioRecorder {
   private cleanup() {
     console.log('[AudioRecorder] Cleaning up resources');
     if (this.stream) {
+      if (this.boundStreamInactiveHandler) {
+        this.stream.removeEventListener('inactive', this.boundStreamInactiveHandler);
+        this.boundStreamInactiveHandler = null;
+      }
       stopMediaTracks(this.stream);
       this.stream = null;
     }
@@ -240,4 +269,3 @@ export class AudioRecorder {
     return this.recordedDuration;
   }
 }
-
