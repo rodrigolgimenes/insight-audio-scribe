@@ -1,19 +1,33 @@
 
-import { useState, useRef } from "react";
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AudioRecorder } from "@/utils/audioRecorder";
-import { supabase } from "@/integrations/supabase/client";
+import { useRecordingState } from "./recording/useRecordingState";
+import { useAudioCapture } from "./recording/useAudioCapture";
+import { useAudioProcessing } from "./recording/useAudioProcessing";
+import { useToast } from "./use-toast";
 
 export const useRecording = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isSystemAudio, setIsSystemAudio] = useState(false);
+  const {
+    isRecording,
+    setIsRecording,
+    isPaused,
+    setIsPaused,
+    audioUrl,
+    setAudioUrl,
+    mediaStream,
+    setMediaStream,
+    isSaving,
+    setIsSaving,
+    isTranscribing,
+    setIsTranscribing,
+    isSystemAudio,
+    setIsSystemAudio,
+  } = useRecordingState();
+
+  const { requestMicrophoneAccess } = useAudioCapture();
+  const { saveRecording } = useAudioProcessing();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { session } = useAuth();
@@ -32,73 +46,24 @@ export const useRecording = () => {
       return;
     }
 
-    try {
-      let stream: MediaStream;
-      
-      if (isSystemAudio) {
-        console.log('[useRecording] Requesting system audio');
-        stream = await navigator.mediaDevices.getDisplayMedia({ 
-          audio: true, 
-          video: false 
-        });
-      } else {
-        console.log('[useRecording] Requesting microphone access');
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            sampleRate: 44100,
-            channelCount: 1
-          },
-          video: false
-        });
-      }
+    const stream = await requestMicrophoneAccess(isSystemAudio);
+    if (!stream) return;
 
-      if (!stream) {
-        throw new Error('Não foi possível obter acesso ao microfone');
-      }
+    // Update stream state
+    setMediaStream(stream);
 
-      const audioTracks = stream.getAudioTracks();
-      console.log('[useRecording] Obtained audio stream:', {
-        id: stream.id,
-        active: stream.active,
-        trackCount: audioTracks.length,
-        tracks: audioTracks.map(track => ({
-          label: track.label,
-          enabled: track.enabled,
-          muted: track.muted,
-          readyState: track.readyState
-        }))
-      });
+    // Start recording with the stream
+    await audioRecorder.current.startRecording(stream);
+    setIsRecording(true);
+    setIsPaused(false);
+    
+    console.log('[useRecording] Recording started with stream:', stream.id);
 
-      // Update stream state
-      setMediaStream(stream);
-
-      // Start recording with the stream
-      await audioRecorder.current.startRecording(stream);
-      setIsRecording(true);
-      setIsPaused(false);
-      
-      console.log('[useRecording] Recording started with stream:', stream.id);
-
-      // Add stream stop handler
-      stream.addEventListener('inactive', () => {
-        console.log('[useRecording] Stream became inactive');
-        handleStopRecording();
-      });
-
-    } catch (error) {
-      console.error('[useRecording] Error starting recording:', error);
-      setMediaStream(null);
-      toast({
-        title: "Erro",
-        description: isSystemAudio 
-          ? "Não foi possível iniciar a captura do áudio do sistema. Por favor, verifique as permissões."
-          : "Não foi possível iniciar a gravação. Por favor, verifique as permissões do microfone.",
-        variant: "destructive",
-      });
-    }
+    // Add stream stop handler
+    stream.addEventListener('inactive', () => {
+      console.log('[useRecording] Stream became inactive');
+      handleStopRecording();
+    });
   };
 
   const handleStopRecording = async () => {
@@ -119,63 +84,12 @@ export const useRecording = () => {
       setIsPaused(false);
       setMediaStream(null);
 
-      const fileName = `${session.user.id}/${Date.now()}.webm`;
-      
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('audio_recordings')
-        .upload(fileName, blob, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw new Error(`Failed to upload audio: ${uploadError.message}`);
-      }
-
-      if (!uploadData?.path) {
-        throw new Error('Upload successful but file path is missing');
-      }
-
-      const { error: dbError, data: recordingData } = await supabase.from('recordings')
-        .insert({
-          user_id: session.user.id,
-          title: `Recording ${new Date().toLocaleString()}`,
-          duration,
-          file_path: fileName,
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        await supabase.storage
-          .from('audio_recordings')
-          .remove([fileName]);
-        throw new Error(`Failed to save recording: ${dbError.message}`);
-      }
-
       setIsTranscribing(true);
-      const { error: transcriptionError } = await supabase.functions
-        .invoke('transcribe-audio', {
-          body: { recordingId: recordingData.id },
-        });
-
-      if (transcriptionError) {
-        throw new Error(`Transcription failed: ${transcriptionError.message}`);
-      }
-
-      toast({
-        title: "Success",
-        description: "Recording saved and transcribed successfully!",
-      });
+      const success = await saveRecording(session.user.id, blob, duration);
       
-      navigate("/app");
-    } catch (error) {
-      console.error('Error saving recording:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
-        variant: "destructive",
-      });
+      if (success) {
+        navigate("/app");
+      }
     } finally {
       setIsSaving(false);
       setIsTranscribing(false);
