@@ -1,12 +1,13 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
 
 export const useNoteManagement = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedNotes, setSelectedNotes] = useState<Note[]>([]);
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
@@ -228,4 +229,3 @@ export const useNoteManagement = () => {
     handleDeleteNotes,
   };
 };
-
