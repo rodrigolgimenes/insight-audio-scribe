@@ -12,7 +12,11 @@ export const useAudioCapture = () => {
       if (isSystemAudio) {
         console.log('[useAudioCapture] Requesting system audio');
         stream = await navigator.mediaDevices.getDisplayMedia({ 
-          audio: true, 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
           video: false 
         });
       } else {

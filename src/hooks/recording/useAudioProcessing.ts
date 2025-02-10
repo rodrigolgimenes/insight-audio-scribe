@@ -15,7 +15,7 @@ export const useAudioProcessing = () => {
     try {
       const fileName = `${userId}/${Date.now()}.webm`;
       
-      // Converter duração para inteiro (milissegundos)
+      // Convert duration to integer (milliseconds)
       const durationInMs = Math.round(duration * 1000);
       
       const { error: uploadError, data: uploadData } = await supabase.storage
@@ -39,6 +39,7 @@ export const useAudioProcessing = () => {
           title: `Recording ${new Date().toLocaleString()}`,
           duration: durationInMs,
           file_path: fileName,
+          status: 'pending'
         })
         .select()
         .single();
@@ -50,26 +51,33 @@ export const useAudioProcessing = () => {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
-      const { error: transcriptionError } = await supabase.functions
-        .invoke('transcribe-audio', {
-          body: { recordingId: recordingData.id },
+      // Create a FormData object to send the file to the transcribe-upload function
+      const formData = new FormData();
+      formData.append('file', blob);
+      formData.append('recordingId', recordingData.id);
+      formData.append('duration', durationInMs.toString());
+
+      const { error: uploadFunctionError } = await supabase.functions
+        .invoke('transcribe-upload', {
+          body: formData,
         });
 
-      if (transcriptionError) {
-        throw new Error(`Transcription failed: ${transcriptionError.message}`);
+      if (uploadFunctionError) {
+        throw new Error(`Upload processing failed: ${uploadFunctionError.message}`);
       }
 
       toast({
-        title: "Success",
-        description: "Recording saved and transcribed successfully!",
+        title: "Sucesso",
+        description: "Gravação salva com sucesso! A transcrição começará em breve.",
       });
 
+      navigate("/app");
       return true;
     } catch (error) {
       console.error('[useAudioProcessing] Error saving recording:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao salvar a gravação. Por favor, tente novamente.",
         variant: "destructive",
       });
       return false;

@@ -65,6 +65,7 @@ export class AudioRecorder {
       }
 
       try {
+        this.mediaManager.stop();
         const finalDuration = Math.round(this.durationTracker.getCurrentDuration() * 1000);
         const finalBlob = this.mediaManager.getFinalBlob();
 
