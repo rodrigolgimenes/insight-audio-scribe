@@ -54,33 +54,49 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
 
     const handleCanPlay = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
-      console.log('[AudioElement] Can play event triggered:', {
-        duration: audioEl.current?.duration,
-        readyState: audioEl.current?.readyState,
-        src: audioEl.current?.src,
-        networkState: audioEl.current?.networkState
-      });
+      if (audioEl.current) {
+        // Force metadata load if duration is Infinity
+        if (!isFinite(audioEl.current.duration)) {
+          audioEl.current.load();
+        }
+        console.log('[AudioElement] Can play event triggered:', {
+          duration: isFinite(audioEl.current.duration) ? audioEl.current.duration : 'Loading...',
+          readyState: audioEl.current.readyState,
+          src: audioEl.current.src,
+          networkState: audioEl.current.networkState
+        });
+      }
     };
 
     const handleLoadedMetadata = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
-      console.log('[AudioElement] Metadata loaded:', {
-        duration: audioEl.current?.duration,
-        readyState: audioEl.current?.readyState,
-        src: audioEl.current?.src,
-        networkState: audioEl.current?.networkState
-      });
+      if (audioEl.current) {
+        if (!isFinite(audioEl.current.duration)) {
+          console.warn('[AudioElement] Invalid duration detected, reloading metadata');
+          audioEl.current.load();
+          return;
+        }
+        console.log('[AudioElement] Metadata loaded:', {
+          duration: audioEl.current.duration,
+          readyState: audioEl.current.readyState,
+          src: audioEl.current.src,
+          networkState: audioEl.current.networkState
+        });
+      }
     };
 
     const handleProgress = () => {
       const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
-      console.log('[AudioElement] Progress event:', {
-        buffered: audioEl.current?.buffered.length > 0 
-          ? `${audioEl.current?.buffered.start(0)} - ${audioEl.current?.buffered.end(0)}`
-          : 'No buffered data',
-        readyState: audioEl.current?.readyState,
-        networkState: audioEl.current?.networkState
-      });
+      if (audioEl.current) {
+        console.log('[AudioElement] Progress event:', {
+          buffered: audioEl.current.buffered.length > 0 
+            ? `${audioEl.current.buffered.start(0)} - ${audioEl.current.buffered.end(0)}`
+            : 'No buffered data',
+          readyState: audioEl.current.readyState,
+          networkState: audioEl.current.networkState,
+          duration: isFinite(audioEl.current.duration) ? audioEl.current.duration : 'Loading...'
+        });
+      }
     };
 
     return (

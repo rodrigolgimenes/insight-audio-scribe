@@ -10,18 +10,30 @@ interface AudioProgressBarProps {
 }
 
 export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: AudioProgressBarProps) => {
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progress = (duration > 0 && isFinite(duration)) ? (currentTime / duration) * 100 : 0;
 
   console.log('AudioProgressBar render:', {
     currentTime,
-    duration,
+    duration: isFinite(duration) ? duration : 'Loading...',
     progress,
-    isVisible: duration > 0
+    isVisible: duration > 0 && isFinite(duration)
   });
 
-  if (!duration) {
-    console.log('AudioProgressBar - Duration not available yet');
-    return null;
+  if (!duration || !isFinite(duration)) {
+    console.log('AudioProgressBar - Duration not available yet or invalid');
+    return (
+      <div className="flex flex-col w-full gap-2">
+        <div className="relative w-full h-4">
+          <div className="absolute w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+            <div className="absolute h-full bg-gray-300 rounded-full animate-pulse" style={{ width: '100%' }} />
+          </div>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Loading...</span>
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
