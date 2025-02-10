@@ -72,8 +72,19 @@ export const useFolderActions = () => {
       console.log("Moving notes to folder:", folderId);
       console.log("Selected notes:", notes);
 
+      // Primeiro, remover todas as notas da pasta de destino
+      const { error: deleteError } = await supabase
+        .from("notes_folders")
+        .delete()
+        .eq("folder_id", folderId);
+
+      if (deleteError) {
+        console.error("Error clearing folder:", deleteError);
+        throw deleteError;
+      }
+
+      // Depois, mover as notas selecionadas para a pasta
       for (const note of notes) {
-        // Usar a função do banco de dados para mover a nota
         const { error } = await supabase
           .rpc('move_note_to_folder', {
             p_note_id: note.id,
