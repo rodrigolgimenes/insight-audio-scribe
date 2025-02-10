@@ -1,4 +1,31 @@
 
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function retryWithExponentialBackoff(
+  operation: () => Promise<any>,
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+): Promise<any> {
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (error.message.includes('server_error')) {
+        const delay = initialDelay * Math.pow(2, i);
+        console.log(`Retry attempt ${i + 1}/${maxRetries} after ${delay}ms delay...`);
+        await wait(delay);
+        continue;
+      }
+      throw error; // Throw immediately for non-server errors
+    }
+  }
+  
+  throw lastError;
+}
+
 export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
   console.log('Preparing audio file for transcription...', {
     blobType: audioBlob.type,
@@ -16,21 +43,30 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
 
   console.log('Sending request to OpenAI Whisper API...');
   
-  const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIApiKey}`,
-    },
-    body: openAIFormData,
-  });
+  const makeRequest = async () => {
+    const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+      },
+      body: openAIFormData,
+    });
 
-  if (!openAIResponse.ok) {
-    const errorData = await openAIResponse.json();
-    console.error('OpenAI API error:', JSON.stringify(errorData, null, 2));
-    throw new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
-  }
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.json();
+      console.error('OpenAI API error:', JSON.stringify(errorData, null, 2));
+      
+      const error = new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
+      if (errorData.error?.type === 'server_error') {
+        error.message = 'server_error: ' + error.message;
+      }
+      throw error;
+    }
 
-  const result = await openAIResponse.json();
+    return openAIResponse.json();
+  };
+
+  const result = await retryWithExponentialBackoff(makeRequest);
   console.log('Transcription completed successfully');
   return result;
 }
