@@ -12,6 +12,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface AudioControlBarProps {
   audioUrl: string | null;
@@ -24,6 +25,7 @@ export const AudioControlBar = ({
   isPlaying,
   onPlayPause,
 }: AudioControlBarProps) => {
+  const { toast } = useToast();
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -33,59 +35,104 @@ export const AudioControlBar = ({
   useEffect(() => {
     const getPublicUrl = async () => {
       if (audioUrl) {
-        console.log('Processing audio URL:', audioUrl);
-        
-        // Remove any file extension from the base path
-        const basePath = audioUrl.replace(/\.(webm|mp3)$/, '');
-        
-        // Try both .webm and .mp3 extensions
-        const extensions = ['.webm', '.mp3'];
-        
-        for (const ext of extensions) {
-          const testPath = `${basePath}${ext}`;
-          const { data } = supabase.storage
-            .from('audio_recordings')
-            .getPublicUrl(testPath);
+        try {
+          console.log('Processing audio URL:', audioUrl);
           
-          console.log(`Testing URL with ${ext}:`, testPath);
+          // Remove any file extension from the base path
+          const basePath = audioUrl.replace(/\.(webm|mp3)$/, '');
           
-          // Test if the file exists by creating a temporary Audio element
-          const tempAudio = new Audio();
-          tempAudio.src = data.publicUrl;
+          // Try both .webm and .mp3 extensions
+          const extensions = ['.webm', '.mp3'];
           
-          try {
-            await new Promise((resolve, reject) => {
-              tempAudio.addEventListener('loadedmetadata', resolve);
-              tempAudio.addEventListener('error', reject);
-              // Set a timeout in case the file doesn't exist
-              setTimeout(reject, 2000);
-            });
+          for (const ext of extensions) {
+            const testPath = `${basePath}${ext}`;
+            console.log('Testing path:', testPath);
             
-            console.log(`Found valid audio file with ${ext}`);
-            setPublicUrl(data.publicUrl);
-            break;
-          } catch (error) {
-            console.log(`File with ${ext} not found or not playable`);
-            continue;
+            const { data: { publicUrl } } = supabase.storage
+              .from('audio_recordings')
+              .getPublicUrl(testPath);
+
+            // Create a temporary Audio element to test if the URL is valid
+            const tempAudio = new Audio();
+            tempAudio.src = publicUrl;
+            
+            try {
+              await new Promise((resolve, reject) => {
+                tempAudio.addEventListener('loadedmetadata', resolve);
+                tempAudio.addEventListener('error', reject);
+                setTimeout(reject, 2000); // Timeout after 2 seconds
+              });
+              
+              console.log('Found valid audio file:', publicUrl);
+              setPublicUrl(publicUrl);
+              return; // Exit once we find a valid URL
+            } catch (error) {
+              console.log(`File with ${ext} not found or not playable`);
+              continue;
+            }
           }
+          
+          // If we get here, no valid audio file was found
+          toast({
+            title: "Error",
+            description: "Could not load audio file",
+            variant: "destructive",
+          });
+        } catch (error) {
+          console.error('Error getting audio URL:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load audio file",
+            variant: "destructive",
+          });
         }
       }
     };
 
     getPublicUrl();
-  }, [audioUrl]);
+  }, [audioUrl, toast]);
 
   useEffect(() => {
     if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume;
+      audioRef.current.playbackRate = playbackRate;
+      
       if (isPlaying) {
-        audioRef.current.play();
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error("Error playing audio:", error);
+          });
+        }
       } else {
         audioRef.current.pause();
       }
-      audioRef.current.volume = isMuted ? 0 : volume;
-      audioRef.current.playbackRate = playbackRate;
     }
   }, [isPlaying, volume, isMuted, playbackRate]);
+
+  const handleDownload = async () => {
+    if (!publicUrl) return;
+    
+    try {
+      const response = await fetch(publicUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `recording${publicUrl.endsWith('.mp3') ? '.mp3' : '.webm'}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download audio file",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (!audioUrl) {
     return null;
@@ -153,15 +200,13 @@ export const AudioControlBar = ({
 
       <Button 
         variant="ghost" 
-        size="sm" 
-        asChild 
-        className="text-primary hover:bg-primary/10"
+        size="sm"
+        onClick={handleDownload}
         disabled={!publicUrl}
+        className="text-primary hover:bg-primary/10"
       >
-        <a href={publicUrl || '#'} download>
-          <Download className="h-4 w-4 mr-2" />
-          Download
-        </a>
+        <Download className="h-4 w-4 mr-2" />
+        Download
       </Button>
 
       <audio
