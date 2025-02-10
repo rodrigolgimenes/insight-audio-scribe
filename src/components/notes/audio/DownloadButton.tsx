@@ -50,7 +50,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = cleanPath.split('/').pop()?.replace('.webm', '.mp3') || 'audio.mp3';
+      a.download = cleanPath.split('/').pop()?.split('.')[0] + '.mp3';
       
       document.body.appendChild(a);
       a.click();
