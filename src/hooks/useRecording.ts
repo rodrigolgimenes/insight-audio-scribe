@@ -31,16 +31,29 @@ export const useRecording = () => {
     }
 
     try {
-      // Get media stream first
-      const stream = isSystemAudio
-        ? await navigator.mediaDevices.getDisplayMedia({ audio: true, video: false })
-        : await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            }
-          });
+      let stream: MediaStream;
+      
+      if (isSystemAudio) {
+        stream = await navigator.mediaDevices.getDisplayMedia({ 
+          audio: true, 
+          video: false 
+        });
+      } else {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 44100,
+            channelCount: 1
+          },
+          video: false
+        });
+      }
+
+      if (!stream) {
+        throw new Error('Não foi possível obter acesso ao microfone');
+      }
 
       // Update stream state
       setMediaStream(stream);
@@ -51,6 +64,13 @@ export const useRecording = () => {
       setIsPaused(false);
       
       console.log('[useRecording] Recording started with stream:', stream.id);
+
+      // Add stream stop handler
+      stream.addEventListener('inactive', () => {
+        console.log('[useRecording] Stream became inactive');
+        handleStopRecording();
+      });
+
     } catch (error) {
       console.error('Error starting recording:', error);
       setMediaStream(null);

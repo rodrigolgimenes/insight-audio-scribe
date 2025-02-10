@@ -26,13 +26,20 @@ export class AudioRecorder {
       
       // Try different mime types in order of preference
       const mimeTypes = [
-        'audio/webm',
         'audio/webm;codecs=opus',
+        'audio/webm',
         'audio/ogg;codecs=opus',
         'audio/mp4'
       ];
       
-      let selectedMimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type));
+      let selectedMimeType = mimeTypes.find(type => {
+        try {
+          return MediaRecorder.isTypeSupported(type);
+        } catch (e) {
+          console.warn(`[AudioRecorder] Error checking mime type ${type}:`, e);
+          return false;
+        }
+      });
       
       if (!selectedMimeType) {
         console.warn('[AudioRecorder] No preferred mime types supported, using default');
