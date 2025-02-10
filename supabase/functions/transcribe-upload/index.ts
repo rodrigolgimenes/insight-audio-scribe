@@ -31,6 +31,13 @@ serve(async (req) => {
       throw new Error('No file uploaded or missing recordingId');
     }
 
+    console.log('Request parameters:', {
+      fileType: file instanceof File ? file.type : 'unknown',
+      fileSize: file instanceof File ? file.size : 'unknown',
+      recordingId,
+      duration
+    });
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -42,7 +49,18 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Upload the audio file directly (no conversion needed since we're sending WebM)
+    // Update recording status to processing
+    const { error: statusError } = await supabase
+      .from('recordings')
+      .update({ status: 'processing' })
+      .eq('id', recordingId);
+
+    if (statusError) {
+      console.error('Error updating recording status:', statusError);
+      throw new Error(`Failed to update recording status: ${statusError.message}`);
+    }
+
+    // Upload the audio file directly
     const filePath = `${recordingId}/${crypto.randomUUID()}.webm`;
     const fileBlob = new Blob([await (file as File).arrayBuffer()], { type: 'audio/webm' });
     
@@ -80,7 +98,11 @@ serve(async (req) => {
     // Get transcription and process with GPT
     console.log('Starting transcription...');
     const transcription = await transcribeAudio(fileBlob, openAIApiKey);
-    console.log('Transcription completed');
+    console.log('Transcription completed:', transcription.text?.substring(0, 100) + '...');
+
+    if (!transcription.text) {
+      throw new Error('No transcription text received from OpenAI');
+    }
 
     console.log('Processing with GPT...');
     const processedContent = await processWithGPT(transcription.text, openAIApiKey);

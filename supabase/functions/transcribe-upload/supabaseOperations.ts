@@ -9,7 +9,7 @@ export async function uploadToStorage(
   const { error: uploadError } = await supabase.storage
     .from('audio_recordings')
     .upload(filePath, fileBlob, {
-      contentType: 'audio/mpeg',
+      contentType: 'audio/webm',
       cacheControl: '3600',
       upsert: false
     });
