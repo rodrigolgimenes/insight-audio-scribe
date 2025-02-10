@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -80,8 +81,8 @@ export const useNoteManagement = () => {
   const createNewFolder = async () => {
     if (!newFolderName.trim()) {
       toast({
-        title: "Folder name is required",
-        description: "Please enter a name for the new folder.",
+        title: "Nome da pasta é obrigatório",
+        description: "Por favor, insira um nome para a nova pasta.",
         variant: "destructive",
       });
       return;
@@ -92,8 +93,8 @@ export const useNoteManagement = () => {
       
       if (!user) {
         toast({
-          title: "Authentication error",
-          description: "Please sign in to create folders.",
+          title: "Erro de autenticação",
+          description: "Por favor, faça login para criar pastas.",
           variant: "destructive",
         });
         return;
@@ -109,7 +110,7 @@ export const useNoteManagement = () => {
       if (error) {
         console.error("Error creating folder:", error);
         toast({
-          title: "Error creating folder",
+          title: "Erro ao criar pasta",
           description: error.message,
           variant: "destructive",
         });
@@ -117,16 +118,16 @@ export const useNoteManagement = () => {
       }
 
       toast({
-        title: "Folder created",
-        description: "The new folder has been created successfully.",
+        title: "Pasta criada",
+        description: "A nova pasta foi criada com sucesso.",
       });
       setNewFolderName("");
       setIsFolderDialogOpen(false);
     } catch (error) {
       console.error("Error in createNewFolder:", error);
       toast({
-        title: "Error",
-        description: "Failed to create folder",
+        title: "Erro",
+        description: "Falha ao criar pasta",
         variant: "destructive",
       });
     }
@@ -135,21 +136,16 @@ export const useNoteManagement = () => {
   const handleMoveToFolder = async (folderId: string) => {
     try {
       for (const note of selectedNotes) {
-        // First remove from any existing folder
-        await supabase
-          .from("notes_folders")
-          .delete()
-          .eq("note_id", note.id);
-
-        // Then add to new folder
         const { error } = await supabase
-          .from("notes_folders")
-          .insert({ note_id: note.id, folder_id: folderId });
+          .rpc('move_note_to_folder', {
+            p_note_id: note.id,
+            p_folder_id: folderId
+          });
 
         if (error) {
           console.error("Error moving note:", error);
           toast({
-            title: "Error moving note",
+            title: "Erro ao mover nota",
             description: error.message,
             variant: "destructive",
           });
@@ -158,8 +154,8 @@ export const useNoteManagement = () => {
       }
 
       toast({
-        title: "Notes moved",
-        description: "Selected notes have been moved to the folder.",
+        title: "Notas movidas",
+        description: "As notas selecionadas foram movidas para a pasta.",
       });
       setIsSelectionMode(false);
       setSelectedNotes([]);
@@ -167,8 +163,8 @@ export const useNoteManagement = () => {
     } catch (error) {
       console.error("Error in handleMoveToFolder:", error);
       toast({
-        title: "Error",
-        description: "Failed to move notes",
+        title: "Erro",
+        description: "Falha ao mover notas",
         variant: "destructive",
       });
     }
@@ -185,7 +181,7 @@ export const useNoteManagement = () => {
         if (error) {
           console.error("Error deleting note:", error);
           toast({
-            title: "Error deleting note",
+            title: "Erro ao excluir nota",
             description: error.message,
             variant: "destructive",
           });
@@ -194,16 +190,16 @@ export const useNoteManagement = () => {
       }
 
       toast({
-        title: "Notes deleted",
-        description: "Selected notes have been deleted.",
+        title: "Notas excluídas",
+        description: "As notas selecionadas foram excluídas.",
       });
       setIsSelectionMode(false);
       setSelectedNotes([]);
     } catch (error) {
       console.error("Error in handleDeleteNotes:", error);
       toast({
-        title: "Error",
-        description: "Failed to delete notes",
+        title: "Erro",
+        description: "Falha ao excluir notas",
         variant: "destructive",
       });
     }
