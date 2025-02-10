@@ -1,31 +1,28 @@
 
-import { RecordingEvent, RecordingObserver } from './types';
-
-interface RecordingResult {
-  blob: Blob;
-  duration: number;
-}
+import { RecordingEvent, RecordingObserver, RecordingResult } from './types';
+import { MediaRecorderManager } from './mediaRecorderManager';
+import { DurationTracker } from './durationTracker';
+import { StreamManager } from './streamManager';
+import { logAudioTracks, validateAudioTracks } from './recordingHelpers';
 
 export class AudioRecorder {
-  private mediaRecorder: MediaRecorder | null = null;
-  private audioChunks: Blob[] = [];
-  private stream: MediaStream | null = null;
+  private mediaRecorderManager: MediaRecorderManager;
+  private durationTracker: DurationTracker;
+  private streamManager: StreamManager;
   private isRecording = false;
-  private startTime: number = 0;
-  private recordedDuration: number = 0;
-  private timerId: number | null = null;
-  private observers: Set<RecordingObserver> = new Set();
+
+  constructor() {
+    this.mediaRecorderManager = new MediaRecorderManager();
+    this.durationTracker = new DurationTracker();
+    this.streamManager = new StreamManager();
+  }
 
   addObserver(observer: RecordingObserver): void {
-    this.observers.add(observer);
+    this.mediaRecorderManager.addObserver(observer);
   }
 
   removeObserver(observer: RecordingObserver): void {
-    this.observers.delete(observer);
-  }
-
-  private notifyObservers(event: RecordingEvent): void {
-    this.observers.forEach(observer => observer.update(event));
+    this.mediaRecorderManager.removeObserver(observer);
   }
 
   async startRecording(stream: MediaStream): Promise<void> {
@@ -35,109 +32,18 @@ export class AudioRecorder {
     }
 
     try {
-      const audioTracks = stream.getAudioTracks();
-      console.log('[AudioRecorder] Audio tracks:', {
-        count: audioTracks.length,
-        tracks: audioTracks.map(track => ({
-          label: track.label,
-          enabled: track.enabled,
-          muted: track.muted,
-          readyState: track.readyState
-        }))
-      });
+      logAudioTracks(stream);
+      validateAudioTracks(stream);
 
-      if (audioTracks.length === 0) {
-        throw new Error('No audio tracks found in stream');
-      }
-
-      this.audioChunks = [];
-      this.stream = stream;
-      this.recordedDuration = 0;
-      
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4'
-      ];
-      
-      let selectedMimeType = mimeTypes.find(type => {
-        try {
-          const isSupported = MediaRecorder.isTypeSupported(type);
-          console.log(`[AudioRecorder] MIME type ${type} supported:`, isSupported);
-          return isSupported;
-        } catch (e) {
-          console.warn(`[AudioRecorder] Error checking mime type ${type}:`, e);
-          return false;
+      this.mediaRecorderManager.initialize(stream);
+      this.streamManager.initialize(stream, () => {
+        if (this.isRecording) {
+          this.stopRecording();
         }
       });
-      
-      if (!selectedMimeType) {
-        console.warn('[AudioRecorder] No preferred mime types supported, using default');
-        selectedMimeType = '';
-      }
-      
-      const options: MediaRecorderOptions = {
-        mimeType: selectedMimeType,
-        audioBitsPerSecond: 128000
-      };
-      
-      console.log('[AudioRecorder] Creating MediaRecorder with options:', options);
-      this.mediaRecorder = new MediaRecorder(stream, options);
-      
-      this.mediaRecorder.onstart = () => {
-        console.log('[AudioRecorder] MediaRecorder started');
-        this.notifyObservers({ type: 'start' });
-      };
 
-      this.mediaRecorder.ondataavailable = (event) => {
-        console.log('[AudioRecorder] Data available event:', {
-          dataSize: event.data?.size,
-          dataType: event.data?.type,
-          timeStamp: event.timeStamp
-        });
-
-        if (event.data && event.data.size > 0) {
-          this.audioChunks.push(event.data);
-          console.log('[AudioRecorder] Total chunks:', this.audioChunks.length);
-          this.notifyObservers({ 
-            type: 'dataAvailable', 
-            data: { chunk: event.data } 
-          });
-        }
-      };
-
-      this.mediaRecorder.onerror = (event) => {
-        console.error('[AudioRecorder] MediaRecorder error:', event);
-        this.notifyObservers({ 
-          type: 'error', 
-          data: { error: new Error('MediaRecorder error') } 
-        });
-        this.cleanup();
-      };
-
-      this.mediaRecorder.onpause = () => {
-        console.log('[AudioRecorder] MediaRecorder paused');
-        this.notifyObservers({ type: 'pause' });
-      };
-
-      this.mediaRecorder.onresume = () => {
-        console.log('[AudioRecorder] MediaRecorder resumed');
-        this.notifyObservers({ type: 'resume' });
-      };
-
-      this.mediaRecorder.onstop = () => {
-        console.log('[AudioRecorder] MediaRecorder stopped');
-        this.notifyObservers({ type: 'stop' });
-      };
-
-      // Start tracking duration
-      this.startTime = Date.now();
-      this.timerId = window.setInterval(() => {
-        this.recordedDuration = (Date.now() - this.startTime) / 1000;
-      }, 100);
-
-      this.mediaRecorder.start(250);
+      this.durationTracker.startTracking();
+      this.mediaRecorderManager.start();
       this.isRecording = true;
       console.log('[AudioRecorder] Recording started successfully');
     } catch (error) {
@@ -149,48 +55,27 @@ export class AudioRecorder {
 
   async stopRecording(): Promise<RecordingResult> {
     return new Promise((resolve, reject) => {
-      if (!this.mediaRecorder || !this.stream) {
-        reject(new Error('No recording in progress'));
-        return;
-      }
-
-      if (this.timerId !== null) {
-        clearInterval(this.timerId);
-        this.timerId = null;
-      }
-
-      const finalDuration = this.recordedDuration;
-
-      this.mediaRecorder.onstop = async () => {
-        try {
-          if (this.audioChunks.length === 0) {
-            throw new Error('No audio data recorded');
-          }
-
-          const finalBlob = new Blob(this.audioChunks, { 
-            type: this.mediaRecorder?.mimeType || 'audio/webm'
-          });
-
-          console.log('[AudioRecorder] Recording stopped:', {
-            blobSize: finalBlob.size,
-            duration: finalDuration,
-            chunks: this.audioChunks.length,
-            mimeType: finalBlob.type
-          });
-
-          this.cleanup();
-          resolve({ blob: finalBlob, duration: finalDuration });
-        } catch (error) {
-          console.error('[AudioRecorder] Error finalizing recording:', error);
-          reject(error);
-        }
-      };
-
       try {
-        this.mediaRecorder.stop();
+        const finalDuration = this.durationTracker.getCurrentDuration();
+        this.mediaRecorderManager.stop();
         this.isRecording = false;
+        this.durationTracker.stopTracking();
+
+        setTimeout(() => {
+          try {
+            const finalBlob = this.mediaRecorderManager.getFinalBlob();
+            console.log('[AudioRecorder] Recording stopped:', 
+              this.mediaRecorderManager.getRecordingStats(finalDuration)
+            );
+            this.cleanup();
+            resolve({ blob: finalBlob, duration: finalDuration });
+          } catch (error) {
+            console.error('[AudioRecorder] Error finalizing recording:', error);
+            reject(error);
+          }
+        }, 100);
       } catch (error) {
-        console.error('[AudioRecorder] Error stopping MediaRecorder:', error);
+        console.error('[AudioRecorder] Error stopping recording:', error);
         this.cleanup();
         reject(error);
       }
@@ -198,57 +83,27 @@ export class AudioRecorder {
   }
 
   pauseRecording(): void {
-    if (this.mediaRecorder && this.isRecording) {
-      try {
-        this.mediaRecorder.pause();
-        if (this.timerId !== null) {
-          clearInterval(this.timerId);
-          this.timerId = null;
-        }
-        console.log('[AudioRecorder] Recording paused at:', this.recordedDuration);
-      } catch (error) {
-        console.error('[AudioRecorder] Error pausing recording:', error);
-      }
+    if (this.isRecording) {
+      this.mediaRecorderManager.pause();
+      this.durationTracker.pauseTracking();
+      console.log('[AudioRecorder] Recording paused at:', this.durationTracker.getCurrentDuration());
     }
   }
 
   resumeRecording(): void {
-    if (this.mediaRecorder) {
-      try {
-        this.mediaRecorder.resume();
-        // Resume duration tracking
-        this.startTime = Date.now() - (this.recordedDuration * 1000);
-        this.timerId = window.setInterval(() => {
-          this.recordedDuration = (Date.now() - this.startTime) / 1000;
-        }, 100);
-        console.log('[AudioRecorder] Recording resumed from:', this.recordedDuration);
-      } catch (error) {
-        console.error('[AudioRecorder] Error resuming recording:', error);
-      }
+    if (this.isRecording) {
+      this.mediaRecorderManager.resume();
+      this.durationTracker.resumeTracking();
+      console.log('[AudioRecorder] Recording resumed from:', this.durationTracker.getCurrentDuration());
     }
   }
 
-  private cleanup() {
+  private cleanup(): void {
     console.log('[AudioRecorder] Cleaning up resources');
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => {
-        try {
-          console.log('[AudioRecorder] Stopping track:', track.label);
-          track.stop();
-        } catch (error) {
-          console.error('[AudioRecorder] Error stopping track:', error);
-        }
-      });
-      this.stream = null;
-    }
-    if (this.timerId !== null) {
-      clearInterval(this.timerId);
-      this.timerId = null;
-    }
-    this.mediaRecorder = null;
-    this.audioChunks = [];
+    this.mediaRecorderManager.cleanup();
+    this.durationTracker.cleanup();
+    this.streamManager.cleanup();
     this.isRecording = false;
-    this.recordedDuration = 0;
     console.log('[AudioRecorder] Cleanup complete');
   }
 
@@ -257,6 +112,6 @@ export class AudioRecorder {
   }
 
   getCurrentDuration(): number {
-    return this.recordedDuration;
+    return this.durationTracker.getCurrentDuration();
   }
 }
