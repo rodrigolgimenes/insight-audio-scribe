@@ -16,11 +16,21 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     if (!publicUrl) return;
     
     try {
+      // Extract just the file path from the full URL
+      const fullPath = new URL(publicUrl).pathname;
+      const path = fullPath.split('/').pop();
+      
+      if (!path) {
+        throw new Error('Invalid audio URL format');
+      }
+
+      console.log('[DownloadButton] Using path for signed URL:', path);
+      
       // Generate a signed URL that expires in 1 hour
       const { data: { signedUrl }, error: signError } = await supabase
         .storage
         .from('audio_recordings')
-        .createSignedUrl(publicUrl, 3600); // 1 hour in seconds
+        .createSignedUrl(path, 3600);
 
       if (signError || !signedUrl) {
         throw new Error('Failed to generate download URL');
@@ -34,8 +44,9 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       const a = document.createElement('a');
       a.href = url;
       
-      const extension = publicUrl.split('.').pop()?.toLowerCase() || 'webm';
-      a.download = `recording.${extension}`;
+      // Use the original filename or a fallback
+      const filename = path.split('/').pop() || 'recording.webm';
+      a.download = filename;
       
       document.body.appendChild(a);
       a.click();
@@ -47,7 +58,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         description: "Audio file downloaded successfully",
       });
     } catch (error) {
-      console.error('Error downloading file:', error);
+      console.error('[DownloadButton] Error downloading file:', error);
       toast({
         title: "Error",
         description: "Failed to download audio file",
@@ -69,4 +80,3 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     </Button>
   );
 };
-

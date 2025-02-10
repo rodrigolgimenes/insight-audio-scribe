@@ -15,9 +15,15 @@ export const useAudioUrl = (audioUrl: string | null) => {
         try {
           console.log('[useAudioUrl] Starting to get signed URL for:', audioUrl);
           
-          // Extract the path from the public URL
-          const path = audioUrl.split('/').slice(-2).join('/');
-          console.log('[useAudioUrl] Extracted path:', path);
+          // Extract just the file path from the full URL
+          const fullPath = new URL(audioUrl).pathname;
+          const path = fullPath.split('/').pop();
+          
+          if (!path) {
+            throw new Error('Invalid audio URL format');
+          }
+          
+          console.log('[useAudioUrl] Using path for signed URL:', path);
           
           const { data: { signedUrl }, error: signError } = await supabase
             .storage
