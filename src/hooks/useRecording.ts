@@ -32,6 +32,7 @@ export const useRecording = () => {
   const { toast } = useToast();
   const { session } = useAuth();
   const audioRecorder = useRef(new AudioRecorder());
+  const isProcessing = useRef(false);
 
   const handleStartRecording = async () => {
     console.log('[useRecording] Starting recording process');
@@ -49,24 +50,25 @@ export const useRecording = () => {
     const stream = await requestMicrophoneAccess(isSystemAudio);
     if (!stream) return;
 
-    // Update stream state
     setMediaStream(stream);
-
-    // Start recording with the stream
     await audioRecorder.current.startRecording(stream);
     setIsRecording(true);
     setIsPaused(false);
     
     console.log('[useRecording] Recording started with stream:', stream.id);
 
-    // Add stream stop handler
     stream.addEventListener('inactive', () => {
       console.log('[useRecording] Stream became inactive');
-      handleStopRecording();
+      if (!isProcessing.current) {
+        handleStopRecording();
+      }
     });
   };
 
   const handleStopRecording = async () => {
+    if (isProcessing.current) return;
+    isProcessing.current = true;
+
     if (!session?.user?.id) {
       toast({
         title: "Error",
@@ -93,6 +95,7 @@ export const useRecording = () => {
     } finally {
       setIsSaving(false);
       setIsTranscribing(false);
+      isProcessing.current = false;
     }
   };
 

@@ -15,6 +15,9 @@ export const useAudioProcessing = () => {
     try {
       const fileName = `${userId}/${Date.now()}.webm`;
       
+      // Converter duração para inteiro (milissegundos)
+      const durationInMs = Math.round(duration * 1000);
+      
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('audio_recordings')
         .upload(fileName, blob, {
@@ -34,7 +37,7 @@ export const useAudioProcessing = () => {
         .insert({
           user_id: userId,
           title: `Recording ${new Date().toLocaleString()}`,
-          duration,
+          duration: durationInMs,
           file_path: fileName,
         })
         .select()
