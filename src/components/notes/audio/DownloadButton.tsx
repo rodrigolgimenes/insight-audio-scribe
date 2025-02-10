@@ -21,9 +21,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
     try {
       console.log('[DownloadButton] Starting download for URL:', publicUrl);
       
-      const filename = publicUrl.includes('/') 
-        ? publicUrl.split('/').pop() 
-        : publicUrl;
+      const filename = publicUrl.split('/').pop();
       
       if (!filename) {
         throw new Error('Invalid audio URL format');
@@ -31,7 +29,20 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
 
       console.log('[DownloadButton] Using filename:', filename);
       
-      // Generate a signed URL that expires in 1 hour
+      // Check if file exists
+      const { data: existsData, error: existsError } = await supabase
+        .storage
+        .from('audio_recordings')
+        .list('', {
+          search: filename
+        });
+
+      if (existsError || !existsData.length) {
+        console.error('[DownloadButton] File not found:', existsError || 'No matching file');
+        throw new Error('Audio file not found');
+      }
+
+      // Generate signed URL
       const { data, error: signError } = await supabase
         .storage
         .from('audio_recordings')

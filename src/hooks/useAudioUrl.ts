@@ -21,9 +21,8 @@ export const useAudioUrl = (audioUrl: string | null) => {
       try {
         console.log('[useAudioUrl] Starting to get signed URL for:', audioUrl);
         
-        const filename = audioUrl.includes('/') 
-          ? audioUrl.split('/').pop() 
-          : audioUrl;
+        // Extract the filename from the URL or path
+        const filename = audioUrl.split('/').pop();
         
         if (!filename) {
           throw new Error('Invalid audio URL format');
@@ -31,17 +30,20 @@ export const useAudioUrl = (audioUrl: string | null) => {
 
         console.log('[useAudioUrl] Using filename:', filename);
 
-        // First try to get public URL
-        const { data: publicUrlData } = supabase
+        // First check if file exists
+        const { data: existsData, error: existsError } = await supabase
           .storage
           .from('audio_recordings')
-          .getPublicUrl(filename);
+          .list('', {
+            search: filename
+          });
 
-        if (!publicUrlData.publicUrl) {
-          throw new Error('Failed to generate public URL');
+        if (existsError || !existsData.length) {
+          console.error('[useAudioUrl] File not found:', existsError || 'No matching file');
+          throw new Error('Audio file not found');
         }
 
-        // Then generate signed URL for actual access
+        // Generate signed URL
         const { data, error: signError } = await supabase
           .storage
           .from('audio_recordings')
@@ -52,7 +54,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error(`Failed to generate signed URL: ${signError.message}`);
         }
 
-        if (!data.signedUrl) {
+        if (!data?.signedUrl) {
           console.error('[useAudioUrl] No signed URL generated');
           throw new Error('No signed URL generated');
         }
