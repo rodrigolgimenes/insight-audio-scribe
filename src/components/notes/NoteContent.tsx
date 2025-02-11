@@ -21,6 +21,13 @@ export const NoteContent = ({ note }: NoteContentProps) => {
           console.log("[NoteContent] Note received:", note);
           console.log("[NoteContent] Audio URL from note:", note.audio_url);
           
+          // Se já for uma URL completa, usar diretamente
+          if (note.audio_url.startsWith('http')) {
+            setAudioUrl(note.audio_url);
+            return;
+          }
+          
+          // Caso contrário, gerar URL pública
           const { data: { publicUrl } } = supabase
             .storage
             .from('audio_recordings')

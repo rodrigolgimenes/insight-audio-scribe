@@ -25,8 +25,8 @@ export const useAudioUrl = (audioUrl: string | null) => {
         let cleanPath = audioUrl;
         
         // Se for uma URL completa do Supabase Storage
-        if (audioUrl.includes('storage/v1/object/public/')) {
-          cleanPath = audioUrl.split('audio_recordings/')[1];
+        if (cleanPath.includes('storage/v1/object/public/')) {
+          cleanPath = cleanPath.split('audio_recordings/')[1];
         }
         
         // Se tiver parâmetros de URL, removê-los
@@ -34,78 +34,34 @@ export const useAudioUrl = (audioUrl: string | null) => {
         
         console.log('[useAudioUrl] Cleaned path:', cleanPath);
 
-        // Primeiro, verificar se o arquivo existe no bucket
-        const { data: listData, error: listError } = await supabase
+        // Verificar se o arquivo existe no bucket usando o caminho completo
+        const { data: existsData, error: existsError } = await supabase
           .storage
           .from('audio_recordings')
-          .list('', {
-            limit: 100,
-            search: cleanPath,
-          });
+          .createSignedUrl(cleanPath, 3600);
 
-        console.log('[useAudioUrl] List result:', {
-          listData,
-          listError,
-          searchPath: cleanPath,
-          foundFiles: listData?.length,
-          matchingFile: listData?.find(file => file.name === cleanPath)
-        });
-
-        if (listError) {
-          console.error('[useAudioUrl] Error listing files:', listError);
-          throw new Error(`Failed to check file existence: ${listError.message}`);
+        if (existsError) {
+          console.error('[useAudioUrl] Error checking file existence:', existsError);
+          throw new Error(`Failed to check file existence: ${existsError.message}`);
         }
 
-        // Verificar se o arquivo existe comparando o caminho completo
-        const fileExists = listData?.some(file => {
-          const filePath = cleanPath.includes('/') ? cleanPath : `${file.name}`;
-          return cleanPath.includes(filePath);
-        });
-
-        console.log('[useAudioUrl] File exists check:', {
-          fileExists,
-          cleanPath,
-          availableFiles: listData?.map(f => f.name)
-        });
-
-        if (!fileExists) {
-          console.error('[useAudioUrl] File not found in bucket. Available files:', listData?.map(f => f.name));
+        if (!existsData?.signedUrl) {
+          console.error('[useAudioUrl] File not found in bucket');
           throw new Error('Audio file not found in storage');
         }
 
-        // Gerar URL assinada
-        console.log('[useAudioUrl] Generating signed URL for path:', cleanPath);
-        
-        const { data: signedData, error: signError } = await supabase
-          .storage
-          .from('audio_recordings')
-          .createSignedUrl(cleanPath, 3600); // 1 hora de validade
-
-        console.log('[useAudioUrl] Signed URL result:', { 
-          signedData, 
-          signError,
-          urlLength: signedData?.signedUrl?.length,
-          generatedUrl: signedData?.signedUrl?.substring(0, 100) + '...' // Log primeiros 100 caracteres para debug
+        console.log('[useAudioUrl] Signed URL generated:', {
+          urlLength: existsData.signedUrl.length,
+          preview: existsData.signedUrl.substring(0, 100) + '...'
         });
-
-        if (signError) {
-          console.error('[useAudioUrl] Error signing URL:', signError);
-          throw new Error(`Failed to generate signed URL: ${signError.message}`);
-        }
-
-        if (!signedData?.signedUrl) {
-          console.error('[useAudioUrl] No signed URL generated');
-          throw new Error('No signed URL generated');
-        }
 
         // Verificar se a URL assinada é acessível
         try {
-          const response = await fetch(signedData.signedUrl, { method: 'HEAD' });
-          console.log('[useAudioUrl] Signed URL accessibility check:', {
+          const response = await fetch(existsData.signedUrl, { method: 'HEAD' });
+          console.log('[useAudioUrl] URL accessibility check:', {
             status: response.status,
             ok: response.ok,
-            contentType: response.headers.get('content-type'),
-            url: signedData.signedUrl.substring(0, 100) + '...'
+            contentType: response.headers.get('content-type')
           });
           
           if (!response.ok) {
@@ -113,11 +69,10 @@ export const useAudioUrl = (audioUrl: string | null) => {
           }
         } catch (fetchError) {
           console.error('[useAudioUrl] Error checking URL accessibility:', fetchError);
-          // Não lançar o erro aqui para permitir que o player tente usar a URL mesmo assim
+          // Continuar mesmo com erro de verificação
         }
 
-        console.log('[useAudioUrl] Successfully generated signed URL');
-        setSignedUrl(signedData.signedUrl);
+        setSignedUrl(existsData.signedUrl);
         setIsAudioReady(true);
         setError(null);
       } catch (error) {
