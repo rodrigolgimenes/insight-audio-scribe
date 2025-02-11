@@ -38,8 +38,10 @@ export const useFileUpload = () => {
       setIsProcessing(true);
 
       console.log('Getting media duration...');
-      const duration = await getMediaDuration(file);
-      console.log('Media duration:', duration);
+      // Get duration in seconds and convert to milliseconds
+      const durationInSeconds = await getMediaDuration(file);
+      const durationInMs = Math.round(durationInSeconds * 1000);
+      console.log('Media duration:', { seconds: durationInSeconds, milliseconds: durationInMs });
 
       // Get user data
       const { data: { user } } = await supabase.auth.getUser();
@@ -48,7 +50,7 @@ export const useFileUpload = () => {
       }
 
       console.log('Creating initial recording entry...');
-      // Create initial recording entry
+      // Create initial recording entry with duration in milliseconds
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
@@ -56,7 +58,7 @@ export const useFileUpload = () => {
           title: file.name || `Recording ${new Date().toLocaleString()}`,
           file_path: 'pending',
           status: 'pending',
-          duration: duration
+          duration: durationInMs // Now storing in milliseconds
         })
         .select()
         .single();
@@ -70,7 +72,7 @@ export const useFileUpload = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('recordingId', recordingData.id);
-      formData.append('duration', duration.toString());
+      formData.append('duration', durationInMs.toString()); // Pass duration in milliseconds
 
       console.log('Invoking transcribe-upload function...');
       const { data, error: functionError } = await supabase.functions.invoke('transcribe-upload', {
