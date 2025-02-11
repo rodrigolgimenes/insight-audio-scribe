@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { RecordHeader } from "@/components/record/RecordHeader";
 import { TranscriptionLoading } from "@/components/record/TranscriptionLoading";
 import { useRecording } from "@/hooks/useRecording";
 import { useQuery } from "@tanstack/react-query";
@@ -135,8 +134,6 @@ const SimpleRecord = () => {
       <div className="min-h-screen flex w-full">
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-white">
-          <RecordHeader onBack={() => navigate("/app")} />
-
           <main className="container mx-auto px-4 py-8">
             <div className="max-w-3xl mx-auto">
               {!processedContent ? (
@@ -161,7 +158,7 @@ const SimpleRecord = () => {
                       <Button 
                         className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
                         onClick={handleSave}
-                        disabled={isSaving}
+                        disabled={isSaving || isUploading || isProcessing}
                       >
                         <Mic className="w-4 h-4" />
                         {isSaving ? 'Salvando...' : 'Criar nota'}
