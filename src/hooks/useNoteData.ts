@@ -10,7 +10,6 @@ export const useNoteData = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Validate noteId is a valid UUID
   const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(noteId || '');
 
   if (!noteId || !isValidUUID) {
@@ -75,8 +74,8 @@ export const useNoteData = () => {
 
       return transformedNote;
     },
-    staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes
-    cacheTime: 1000 * 60 * 30, // Cache persists for 30 minutes
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
     retry: false,
   });
 
@@ -94,7 +93,7 @@ export const useNoteData = () => {
     },
     enabled: !!noteId && isValidUUID,
     staleTime: 1000 * 60 * 5,
-    cacheTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 30,
   });
 
   const { data: currentFolder } = useQuery({
@@ -115,7 +114,7 @@ export const useNoteData = () => {
     },
     enabled: !!noteId && isValidUUID,
     staleTime: 1000 * 60 * 5,
-    cacheTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 30,
   });
 
   const { data: folders } = useQuery({
@@ -132,7 +131,7 @@ export const useNoteData = () => {
     },
     enabled: !!noteId && isValidUUID,
     staleTime: 1000 * 60 * 5,
-    cacheTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 30,
   });
 
   return {
