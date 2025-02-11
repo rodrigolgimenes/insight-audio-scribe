@@ -6,10 +6,38 @@ export async function uploadToStorage(
   filePath: string,
   fileBlob: Blob,
 ) {
+  // Primeiro, verifica se o arquivo já existe
+  const { data: existingFiles, error: listError } = await supabase.storage
+    .from('audio_recordings')
+    .list(filePath.split('/')[0], {
+      limit: 1,
+      offset: 0,
+      sortBy: { column: 'name', order: 'asc' },
+      search: filePath.split('/')[1]
+    });
+
+  if (listError) {
+    console.error('Error checking existing file:', listError);
+    throw new Error(`Failed to check existing file: ${listError.message}`);
+  }
+
+  // Se o arquivo já existe, exclui antes de fazer o upload
+  if (existingFiles && existingFiles.length > 0) {
+    const { error: deleteError } = await supabase.storage
+      .from('audio_recordings')
+      .remove([filePath]);
+
+    if (deleteError) {
+      console.error('Error deleting existing file:', deleteError);
+      throw new Error(`Failed to delete existing file: ${deleteError.message}`);
+    }
+  }
+
+  // Faz o upload do novo arquivo
   const { error: uploadError } = await supabase.storage
     .from('audio_recordings')
     .upload(filePath, fileBlob, {
-      contentType: 'audio/webm',
+      contentType: fileBlob.type,
       cacheControl: '3600',
       upsert: false
     });
@@ -19,6 +47,7 @@ export async function uploadToStorage(
     throw new Error(`Failed to upload file: ${uploadError.message}`);
   }
 
+  // Retorna a URL pública do arquivo
   return supabase.storage
     .from('audio_recordings')
     .getPublicUrl(filePath);
@@ -53,7 +82,7 @@ export async function createNoteFromTranscription(
 ) {
   const { data: recordingData } = await supabase
     .from('recordings')
-    .select('user_id')
+    .select('user_id, file_path, duration')
     .eq('id', recordingId)
     .single();
 
@@ -69,6 +98,8 @@ export async function createNoteFromTranscription(
       title: `Note from ${new Date().toLocaleString()}`,
       processed_content: processedContent,
       original_transcript: transcriptionText,
+      audio_url: recordingData.file_path,
+      duration: recordingData.duration
     });
 
   if (noteError) {
