@@ -14,6 +14,7 @@ serve(async (req) => {
   }
 
   let recordingId: string | undefined;
+  let supabase: ReturnType<typeof createClient>;
   
   try {
     const body = await req.json();
@@ -33,7 +34,7 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get recording details
     console.log('Fetching recording details...');
@@ -56,47 +57,34 @@ serve(async (req) => {
 
     // Update recording status to processing
     console.log('Updating recording status to processing...');
-    const { error: statusError } = await supabase
+    await supabase
       .from('recordings')
       .update({ status: 'processing' })
       .eq('id', recordingId);
 
-    if (statusError) {
-      console.error('Error updating recording status:', statusError);
-      throw new Error(`Failed to update recording status: ${statusError.message}`);
-    }
-
-    // Get file metadata first
-    console.log('Getting file metadata...');
-    const { data: fileMetadata, error: metadataError } = await supabase
-      .storage
+    // Get file URL
+    console.log('Getting file URL...');
+    const { data: { publicUrl }, error: urlError } = supabase.storage
       .from('audio_recordings')
       .getPublicUrl(recording.file_path);
 
-    if (metadataError) {
-      throw new Error(`Failed to get file metadata: ${metadataError.message}`);
+    if (urlError) {
+      throw new Error(`Failed to get file URL: ${urlError.message}`);
     }
 
     // Download the audio file
-    console.log('Downloading audio file from path:', recording.file_path);
-    const { data: audioData, error: downloadError } = await supabase.storage
-      .from('audio_recordings')
-      .download(recording.file_path);
-
-    if (downloadError) {
-      console.error('Error downloading audio:', downloadError);
-      console.error('Download error details:', {
-        error: downloadError,
-        filePath: recording.file_path,
-        recordingId: recordingId
-      });
-      throw new Error(`Failed to download audio: ${downloadError.message}`);
+    console.log('Downloading audio file...');
+    const audioResponse = await fetch(publicUrl);
+    
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to download audio: HTTP ${audioResponse.status}`);
     }
 
-    if (!audioData) {
-      console.error('No audio data found');
-      throw new Error('No audio data found');
-    }
+    const audioBlob = await audioResponse.blob();
+    console.log('Audio file downloaded successfully:', {
+      size: audioBlob.size,
+      type: audioBlob.type
+    });
 
     // Create FormData for OpenAI
     const formData = new FormData();
@@ -108,36 +96,31 @@ serve(async (req) => {
     console.log('Processing file with type:', {
       fileExtension,
       mimeType,
-      size: audioData.size
+      size: audioBlob.size
     });
     
-    const finalAudioBlob = new Blob([audioData], { type: mimeType });
-    
-    formData.append('file', finalAudioBlob, `audio.${fileExtension}`);
+    formData.append('file', audioBlob, `audio.${fileExtension}`);
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
-    // Check OpenAI quota before making the request
+    // Check OpenAI quota
     console.log('Checking OpenAI API access...');
-    try {
-      const quotaCheckResponse = await fetch('https://api.openai.com/v1/models', {
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-        },
-      });
+    const quotaCheckResponse = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+      },
+    });
 
-      if (!quotaCheckResponse.ok) {
-        const errorData = await quotaCheckResponse.json();
-        if (errorData.error?.type === 'insufficient_quota') {
-          throw new Error('OpenAI API quota exceeded. Please check your billing details.');
-        }
+    if (!quotaCheckResponse.ok) {
+      const errorData = await quotaCheckResponse.json();
+      if (errorData.error?.type === 'insufficient_quota') {
+        throw new Error('OpenAI API quota exceeded');
       }
-    } catch (error) {
-      console.error('OpenAI API access check failed:', error);
-      throw error;
+      throw new Error(`OpenAI API error: ${errorData.error?.message}`);
     }
 
-    console.log('Sending audio to OpenAI for transcription...');
+    // Send to OpenAI for transcription
+    console.log('Sending audio to OpenAI...');
     const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
@@ -148,31 +131,19 @@ serve(async (req) => {
 
     if (!transcriptionResponse.ok) {
       const errorData = await transcriptionResponse.json();
-      console.error('OpenAI transcription error:', errorData);
-      throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
+      throw new Error(`Transcription failed: ${errorData.error?.message}`);
     }
 
     const transcriptionResult = await transcriptionResponse.json();
-    console.log('Transcription received:', transcriptionResult.text?.substring(0, 100) + '...');
-
+    
     if (!transcriptionResult.text) {
       throw new Error('No transcription text received');
     }
 
+    console.log('Transcription received');
+
     // Process with GPT
-    console.log('Processing transcription with GPT...');
-    const gptPrompt = `Please analyze the following transcript and provide a structured response with:
-
-1. Summary
-2. Key Points
-3. Action Items
-4. Next Steps
-
-Transcript:
-${transcriptionResult.text}
-
-Please format your response in a clear, structured way with headers for each section.`;
-
+    console.log('Processing with GPT...');
     const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -182,7 +153,19 @@ Please format your response in a clear, structured way with headers for each sec
       body: JSON.stringify({
         model: 'gpt-4',
         messages: [
-          { role: 'user', content: gptPrompt }
+          {
+            role: 'user',
+            content: `Analyze this transcript and provide:
+1. Summary
+2. Key Points
+3. Action Items
+4. Next Steps
+
+Transcript:
+${transcriptionResult.text}
+
+Format your response clearly with headers for each section.`
+          }
         ],
         temperature: 0.7,
         max_tokens: 2048,
@@ -191,22 +174,15 @@ Please format your response in a clear, structured way with headers for each sec
 
     if (!gptResponse.ok) {
       const errorData = await gptResponse.json();
-      console.error('GPT processing error:', errorData);
-      throw new Error(`GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`);
+      throw new Error(`GPT processing failed: ${errorData.error?.message}`);
     }
 
     const gptResult = await gptResponse.json();
     const processedContent = gptResult.choices[0].message.content;
-    console.log('GPT processed content:', processedContent.substring(0, 100) + '...');
 
-    // Get a public URL for the audio file
-    const { data: { publicUrl } } = supabase.storage
-      .from('audio_recordings')
-      .getPublicUrl(recording.file_path);
-
-    // Update recording with transcription and processed content
-    console.log('Updating recording with transcription and processed content...');
-    const { error: transcriptionUpdateError } = await supabase
+    // Update recording
+    console.log('Updating recording...');
+    const { error: updateError } = await supabase
       .from('recordings')
       .update({
         transcription: transcriptionResult.text,
@@ -217,13 +193,12 @@ Please format your response in a clear, structured way with headers for each sec
       })
       .eq('id', recordingId);
 
-    if (transcriptionUpdateError) {
-      console.error('Error updating transcription:', transcriptionUpdateError);
-      throw new Error(`Failed to save transcription: ${transcriptionUpdateError.message}`);
+    if (updateError) {
+      throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
     // Create note
-    console.log('Creating note with processed content...');
+    console.log('Creating note...');
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
@@ -232,65 +207,47 @@ Please format your response in a clear, structured way with headers for each sec
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
         original_transcript: transcriptionResult.text,
         processed_content: processedContent,
-        audio_url: recording.file_path,
+        audio_url: publicUrl,
         duration: recording.duration
       });
 
     if (noteError) {
-      console.error('Error creating note:', noteError);
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        message: 'Recording processed successfully',
-        transcription: transcriptionResult.text,
-        processedContent
+        message: 'Recording processed successfully'
       }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json' 
-        }
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in process-recording function:', error);
     
-    if (recordingId) {
+    if (recordingId && supabase) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-        
-        if (supabaseUrl && supabaseKey) {
-          const supabase = createClient(supabaseUrl, supabaseKey);
-          await supabase
-            .from('recordings')
-            .update({ 
-              status: 'error',
-              error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
-            })
-            .eq('id', recordingId);
-        }
+        await supabase
+          .from('recordings')
+          .update({ 
+            status: 'error',
+            error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
+          })
+          .eq('id', recordingId);
       } catch (updateError) {
-        console.error('Failed to update recording status to error:', updateError);
+        console.error('Failed to update recording status:', updateError);
       }
     }
-
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    const isQuotaError = errorMessage.includes('quota exceeded') || errorMessage.includes('insufficient_quota');
 
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: errorMessage,
-        isQuotaError
-      }), 
-      {
-        status: isQuotaError ? 402 : 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
