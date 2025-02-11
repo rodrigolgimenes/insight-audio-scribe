@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -37,6 +36,14 @@ const SimpleRecord = () => {
     handleDelete,
     setIsSystemAudio,
   } = useRecording();
+
+  const handleTimeLimit = () => {
+    handleStopRecording();
+    toast({
+      title: "Time Limit Reached",
+      description: "Recording stopped after reaching the 25-minute limit.",
+    });
+  };
 
   const isLoading = isTranscribing || isSaving || isUploading || isProcessing;
 
@@ -123,14 +130,6 @@ const SimpleRecord = () => {
     }
   };
 
-  const handleTimeLimit = () => {
-    handleStopRecording();
-    toast({
-      title: "Limite de Tempo",
-      description: "Gravação interrompida após atingir o limite de 25 minutos.",
-    });
-  };
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -163,7 +162,7 @@ const SimpleRecord = () => {
                         disabled={isLoading}
                       >
                         <Mic className="w-4 h-4" />
-                        {isSaving ? 'Salvando...' : 'Criar nota'}
+                        {isSaving ? 'Saving...' : 'Create Note'}
                       </Button>
 
                       <FileUploadSection isDisabled={isLoading} />

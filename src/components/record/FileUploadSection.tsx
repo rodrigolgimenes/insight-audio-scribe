@@ -28,7 +28,7 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
         disabled={isUploading || isDisabled}
       >
         <Upload className="w-4 h-4" />
-        {isUploading ? 'Enviando...' : 'Upload'}
+        {isUploading ? 'Uploading...' : 'Upload File'}
       </Button>
     </div>
   );
