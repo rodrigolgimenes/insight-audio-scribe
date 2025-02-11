@@ -67,18 +67,15 @@ export const FolderNoteCard = ({
             ))}
           </div>
         )}
-        <div className="flex justify-between items-center text-xs text-gray-500">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              {formatDuration(note.duration)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {formatDate(note.created_at)}
-            </span>
-          </div>
-          <Badge>Note</Badge>
+        <div className="flex items-center text-xs text-gray-500 gap-4">
+          <span className="flex items-center gap-1">
+            <Clock className="h-4 w-4" />
+            {formatDuration(note.duration)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Calendar className="h-4 w-4" />
+            {formatDate(note.created_at)}
+          </span>
         </div>
       </div>
     </div>
