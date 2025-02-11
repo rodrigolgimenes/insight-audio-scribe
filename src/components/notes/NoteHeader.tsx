@@ -16,6 +16,7 @@ interface NoteHeaderProps {
   title: string;
   createdAt: string;
   duration: number | null;
+  folder: { id: string; name: string; description: string | null } | null;
   onRenameNote: (newTitle: string) => Promise<void>;
   onOpenTagsDialog: () => void;
   onOpenMoveDialog: () => void;
@@ -26,6 +27,7 @@ export const NoteHeader = ({
   title,
   createdAt,
   duration,
+  folder,
   onRenameNote,
   onOpenTagsDialog,
   onOpenMoveDialog,
@@ -91,6 +93,9 @@ export const NoteHeader = ({
             {duration !== null && (
               <span>Duration: {formatDuration(duration)}</span>
             )}
+            <span>
+              Folder: {folder ? folder.name : "Uncategorized"}
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-3">

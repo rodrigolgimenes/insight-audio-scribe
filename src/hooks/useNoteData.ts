@@ -100,11 +100,8 @@ export const useNoteData = () => {
       console.log("Fetching current folder for note:", noteId);
       const { data, error } = await supabase
         .from("folders")
-        .select("*")
-        .inner_join("notes_folders", { 
-          foreignTable: "notes_folders",
-          filter: { note_id: noteId }
-        })
+        .select("*, notes_folders!inner(*)")
+        .eq("notes_folders.note_id", noteId)
         .maybeSingle();
 
       if (error && error.code !== "PGRST116") {
