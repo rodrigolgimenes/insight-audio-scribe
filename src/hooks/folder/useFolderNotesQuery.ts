@@ -37,8 +37,8 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
         tags: item.note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
     },
-    staleTime: 0, // Set to 0 to always fetch fresh data when query is refetched
-    gcTime: 1000 * 60 * 30,
+    staleTime: 0,
+    gcTime: 0, // This ensures immediate garbage collection and refetching
   });
 
   useEffect(() => {
@@ -48,12 +48,12 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          event: '*',
           schema: 'public',
-          table: 'notes_tags'
+          table: 'notes'
         },
         () => {
-          // Refetch data when any notes_tags changes occur
+          // Refetch data when any changes occur
           query.refetch();
         }
       )
@@ -62,7 +62,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [query.refetch]);
+  }, [query]);
 
   return query;
 };

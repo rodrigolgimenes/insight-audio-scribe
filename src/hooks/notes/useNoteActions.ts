@@ -2,13 +2,16 @@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useNoteActions = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleDeleteNotes = async (notes: Note[]) => {
     try {
       for (const note of notes) {
+        // Delete note
         const { error } = await supabase
           .from("notes")
           .delete()
@@ -24,6 +27,12 @@ export const useNoteActions = () => {
           return;
         }
       }
+
+      // Immediately invalidate relevant queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
+      ]);
 
       toast({
         title: "Notas excluídas",

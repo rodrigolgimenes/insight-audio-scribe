@@ -2,13 +2,16 @@
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const useDeleteNote = (noteId: string) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const deleteNote = async () => {
     try {
+      // Delete related records first
       const { error: folderError } = await supabase
         .from("notes_folders")
         .delete()
@@ -29,6 +32,12 @@ export const useDeleteNote = (noteId: string) => {
         .eq("id", noteId);
 
       if (noteError) throw noteError;
+
+      // Immediately invalidate all relevant queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
+      ]);
 
       toast({
         title: "Note deleted",
