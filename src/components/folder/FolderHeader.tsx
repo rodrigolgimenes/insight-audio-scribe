@@ -113,7 +113,7 @@ export const FolderHeader = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6">
+              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6 pb-8">
                 <AlertDialogHeader className="space-y-3">
                   <AlertDialogTitle className="text-xl font-semibold text-center">
                     Delete Folder
