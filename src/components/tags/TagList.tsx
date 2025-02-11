@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Tag, Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export function TagList() {
   const [isCreating, setIsCreating] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const { toast } = useToast();
   const { session } = useAuth();
+  const navigate = useNavigate();
 
   const { data: tags, refetch: refetchTags } = useQuery({
     queryKey: ["tags"],
@@ -104,6 +107,7 @@ export function TagList() {
           <div
             key={tag.id}
             className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded-md cursor-pointer"
+            onClick={() => navigate(`/app/tag/${tag.id}`)}
           >
             <Tag className="h-4 w-4" style={{ color: tag.color }} />
             <span>{tag.name}</span>

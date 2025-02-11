@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
 import FolderPage from "./pages/FolderPage";
+import TagPage from "./pages/TagPage";
 import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
 
@@ -52,6 +53,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <FolderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/app/tag/:tagId"
+              element={
+                <ProtectedRoute>
+                  <TagPage />
                 </ProtectedRoute>
               }
             />
