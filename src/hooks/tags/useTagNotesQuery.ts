@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Note } from "@/integrations/supabase/types/notes";
+import { Note } from "@/types/notes";
 import { useEffect } from "react";
 
 export const useTagNotesQuery = (tagId: string | undefined) => {
@@ -15,13 +15,17 @@ export const useTagNotesQuery = (tagId: string | undefined) => {
         .select(`
           id,
           title,
+          processed_content,
           original_transcript,
+          full_prompt,
           created_at,
-          recordings (
-            duration
-          ),
+          updated_at,
+          recording_id,
+          user_id,
+          duration,
+          audio_url,
           notes_tags!inner (
-            tags:tag_id (
+            tags (
               id,
               name,
               color
@@ -40,7 +44,6 @@ export const useTagNotesQuery = (tagId: string | undefined) => {
 
       const processedNotes = data.map(note => ({
         ...note,
-        duration: note.recordings?.duration || null,
         tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
 

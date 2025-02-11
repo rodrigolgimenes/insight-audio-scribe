@@ -22,20 +22,25 @@ export default function TagPage() {
   const { data: notesData, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
   
   // Transform the notes data to match the Note type
-  const notes: Note[] | undefined = notesData?.map(note => ({
-    id: note.id,
-    title: note.title,
-    processed_content: note.processed_content || "",
-    original_transcript: note.original_transcript,
-    full_prompt: note.full_prompt || null,
-    created_at: note.created_at,
-    updated_at: note.updated_at || note.created_at,
-    recording_id: note.recording_id,
-    user_id: note.user_id,
-    duration: note.duration,
-    audio_url: note.audio_url,
-    tags: note.tags || []
-  }));
+  const notes: Note[] | undefined = notesData?.map(note => {
+    // Extract tags from notes_tags array
+    const noteTags = note.notes_tags?.map(nt => nt.tags) || [];
+    
+    return {
+      id: note.id,
+      title: note.title,
+      processed_content: "", // Default empty string as it's required
+      original_transcript: note.original_transcript,
+      full_prompt: null, // Default null as it's nullable
+      created_at: note.created_at,
+      updated_at: note.created_at, // Use created_at as fallback
+      recording_id: note.id, // Use note id as recording_id
+      user_id: "system", // Default value as we don't have it in the query
+      duration: note.recordings?.duration || null,
+      audio_url: null, // Default null as we don't have it in the query
+      tags: noteTags
+    };
+  });
 
   const {
     isEditing,

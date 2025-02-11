@@ -1,3 +1,4 @@
+
 export interface Note {
   id: string;
   title: string;
@@ -8,4 +9,11 @@ export interface Note {
   updated_at: string;
   recording_id: string;
   user_id: string;
+  duration: number | null;
+  audio_url: string | null;
+  tags: Array<{
+    id: string;
+    name: string;
+    color: string | null;
+  }>;
 }
