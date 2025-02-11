@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,6 +106,14 @@ export function FolderList() {
         >
           <FolderPlus className="h-4 w-4" />
         </Button>
+      </div>
+
+      <div 
+        className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-gray-100 rounded-md cursor-pointer"
+        onClick={() => navigate("/app/uncategorized")}
+      >
+        <Folder className="h-4 w-4" />
+        <span>Uncategorized</span>
       </div>
 
       {isCreating && (

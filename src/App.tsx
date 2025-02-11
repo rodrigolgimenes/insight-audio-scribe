@@ -13,6 +13,7 @@ import FolderPage from "./pages/FolderPage";
 import TagPage from "./pages/TagPage";
 import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
+import UncategorizedFolder from "./pages/UncategorizedFolder";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,14 @@ const App = () => (
               }
             />
             <Route
+              path="/app/uncategorized"
+              element={
+                <ProtectedRoute>
+                  <UncategorizedFolder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/app/tag/:tagId"
               element={
                 <ProtectedRoute>
@@ -88,3 +97,4 @@ const App = () => (
 );
 
 export default App;
+

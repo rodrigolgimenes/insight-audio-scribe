@@ -66,6 +66,13 @@ export type Database = {
             referencedRelation: "notes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meeting_minutes_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_folders"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notes: {
@@ -149,6 +156,13 @@ export type Database = {
             referencedRelation: "notes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notes_folders_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: true
+            referencedRelation: "notes_without_folders"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notes_tags: {
@@ -173,6 +187,13 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_tags_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_folders"
             referencedColumns: ["id"]
           },
           {
@@ -463,7 +484,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      notes_without_folders: {
+        Row: {
+          audio_url: string | null
+          created_at: string | null
+          duration: number | null
+          full_prompt: string | null
+          id: string | null
+          original_transcript: string | null
+          processed_content: string | null
+          recording_id: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       generate_audio_url: {
