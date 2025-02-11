@@ -9,12 +9,14 @@ import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
 import { useFolderQuery } from "@/hooks/folder/useFolderQuery";
 import { useFolderNotesQuery } from "@/hooks/folder/useFolderNotesQuery";
 import { useFolderNoteSelection } from "@/hooks/folder/useFolderNoteSelection";
+import { useFolderOperations } from "@/hooks/folder/useFolderOperations";
 
 const FolderPage = () => {
   const { folderId } = useParams();
   
   const { data: folder, isLoading: folderLoading } = useFolderQuery(folderId);
   const { data: notes, isLoading: notesLoading } = useFolderNotesQuery(folderId);
+  const { renameFolder, isRenaming } = useFolderOperations(folderId || '');
   const {
     isSelectionMode,
     setIsSelectionMode,
@@ -23,7 +25,6 @@ const FolderPage = () => {
     deleteSelectedNotes,
   } = useFolderNoteSelection();
 
-  // Get unique tags from notes in this folder
   const folderTags = notes?.reduce((acc: any[], note) => {
     note.tags.forEach((tag: any) => {
       if (!acc.some(existingTag => existingTag.id === tag.id)) {
@@ -40,7 +41,12 @@ const FolderPage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
-          <FolderHeader folderName={folder?.name || ""} />
+          <FolderHeader 
+            folderName={folder?.name || ""} 
+            folderId={folderId || ''}
+            onRename={renameFolder}
+            isRenaming={isRenaming}
+          />
           
           <FolderActions
             tags={folderTags}
