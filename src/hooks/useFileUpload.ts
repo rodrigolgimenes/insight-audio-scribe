@@ -40,7 +40,7 @@ export const useFileUpload = () => {
       console.log('Getting media duration...');
       // Get duration in seconds and convert to milliseconds
       const durationInSeconds = await getMediaDuration(file);
-      const durationInMs = Math.round(durationInSeconds * 1000);
+      const durationInMs = Math.round(durationInSeconds * 1000); // Convert to milliseconds
       console.log('Media duration:', { seconds: durationInSeconds, milliseconds: durationInMs });
 
       // Get user data
