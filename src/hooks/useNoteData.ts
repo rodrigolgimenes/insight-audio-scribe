@@ -59,7 +59,6 @@ export const useNoteData = () => {
 
       console.log("Note data from database:", data);
 
-      // Transform the data to match the Note interface
       const transformedNote: Note = {
         id: data.id,
         title: data.title,
@@ -76,6 +75,8 @@ export const useNoteData = () => {
 
       return transformedNote;
     },
+    staleTime: 1000 * 60 * 5, // Data stays fresh for 5 minutes
+    cacheTime: 1000 * 60 * 30, // Cache persists for 30 minutes
     retry: false,
   });
 
@@ -92,6 +93,8 @@ export const useNoteData = () => {
       return data;
     },
     enabled: !!noteId && isValidUUID,
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
   });
 
   const { data: currentFolder } = useQuery({
@@ -111,6 +114,8 @@ export const useNoteData = () => {
       return data;
     },
     enabled: !!noteId && isValidUUID,
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
   });
 
   const { data: folders } = useQuery({
@@ -126,6 +131,8 @@ export const useNoteData = () => {
       return data;
     },
     enabled: !!noteId && isValidUUID,
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
   });
 
   return {

@@ -38,5 +38,7 @@ export const useTagNotesQuery = (tagId: string | undefined) => {
       }));
     },
     enabled: !!tagId,
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
   });
 };

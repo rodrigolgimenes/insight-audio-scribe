@@ -36,5 +36,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
         tags: item.note.notes_tags?.map((nt: any) => nt.tags) || []
       }));
     },
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
   });
 };

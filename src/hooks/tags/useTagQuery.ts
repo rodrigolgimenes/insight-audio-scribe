@@ -16,5 +16,7 @@ export const useTagQuery = (tagId: string | undefined) => {
       return data;
     },
     enabled: !!tagId,
+    staleTime: 1000 * 60 * 5,
+    cacheTime: 1000 * 60 * 30,
   });
 };
