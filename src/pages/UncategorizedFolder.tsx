@@ -13,8 +13,16 @@ import { FolderDialog } from "@/components/dashboard/FolderDialog";
 import { useFolderActions } from "@/hooks/notes/useFolderActions";
 import { Note } from "@/integrations/supabase/types/notes";
 
+interface NoteWithTags extends Note {
+  tags: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
+}
+
 const UncategorizedFolder = () => {
-  const [selectedNotes, setSelectedNotes] = useState<Note[]>([]);
+  const [selectedNotes, setSelectedNotes] = useState<NoteWithTags[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { toast } = useToast();
   const {
@@ -66,7 +74,7 @@ const UncategorizedFolder = () => {
         .limit(50);
 
       if (error) throw error;
-      return data as Note[];
+      return (data || []) as NoteWithTags[];
     },
   });
 
