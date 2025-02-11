@@ -20,7 +20,6 @@ export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: Au
   });
 
   if (!duration || !isFinite(duration)) {
-    console.log('AudioProgressBar - Duration not available yet or invalid');
     return (
       <div className="flex flex-col w-full gap-2">
         <div className="relative w-full h-4">
@@ -29,7 +28,7 @@ export const AudioProgressBar = ({ currentTime, duration, onProgressChange }: Au
           </div>
         </div>
         <div className="flex justify-between text-xs text-gray-500">
-          <span>Loading...</span>
+          <span>0:00</span>
           <span>Loading...</span>
         </div>
       </div>
