@@ -135,12 +135,53 @@ serve(async (req) => {
       throw new Error('No transcription text received');
     }
 
-    // Update recording with transcription only
-    console.log('Updating recording with transcription...');
+    // Process with GPT
+    console.log('Processing transcription with GPT...');
+    const gptPrompt = `Please analyze the following transcript and provide a structured response with:
+
+1. Summary
+2. Key Points
+3. Action Items
+4. Next Steps
+
+Transcript:
+${transcriptionResult.text}
+
+Please format your response in a clear, structured way with headers for each section.`;
+
+    const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'user', content: gptPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!gptResponse.ok) {
+      const errorData = await gptResponse.json();
+      console.error('GPT processing error:', errorData);
+      throw new Error(`GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`);
+    }
+
+    const gptResult = await gptResponse.json();
+    const processedContent = gptResult.choices[0].message.content;
+    console.log('GPT processed content:', processedContent.substring(0, 100) + '...');
+
+    // Update recording with transcription and processed content
+    console.log('Updating recording with transcription and processed content...');
     const { error: transcriptionUpdateError } = await supabase
       .from('recordings')
       .update({
         transcription: transcriptionResult.text,
+        processed_content: processedContent,
         status: 'completed',
         processed_at: new Date().toISOString()
       })
@@ -151,8 +192,8 @@ serve(async (req) => {
       throw new Error(`Failed to save transcription: ${transcriptionUpdateError.message}`);
     }
 
-    // Create note with original transcript
-    console.log('Creating note with transcription...');
+    // Create note
+    console.log('Creating note with processed content...');
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
@@ -160,6 +201,7 @@ serve(async (req) => {
         recording_id: recordingId,
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
         original_transcript: transcriptionResult.text,
+        processed_content: processedContent
       });
 
     if (noteError) {
@@ -171,7 +213,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: 'Recording processed successfully',
-        transcription: transcriptionResult.text
+        transcription: transcriptionResult.text,
+        processedContent
       }),
       { 
         headers: { 
