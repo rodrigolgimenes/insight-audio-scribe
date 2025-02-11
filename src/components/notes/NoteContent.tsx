@@ -4,8 +4,8 @@ import { TitleSection } from "./TitleSection";
 import { TranscriptAccordion } from "./TranscriptAccordion";
 import { TranscriptChat } from "./TranscriptChat";
 import { MeetingMinutes } from "./MeetingMinutes";
-import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NoteContentProps {
   note: Note;

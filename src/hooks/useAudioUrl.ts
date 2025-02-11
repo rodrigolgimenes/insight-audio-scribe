@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,27 +21,20 @@ export const useAudioUrl = (audioUrl: string | null) => {
       try {
         console.log('[useAudioUrl] Input audioUrl:', audioUrl);
         
-        // Keep the full path structure for storage operations
-        let cleanPath = audioUrl.split('?')[0]; // Remove URL parameters if any
+        // Extrair apenas o caminho do arquivo, removendo a URL completa se presente
+        let cleanPath = audioUrl;
         
-        // If it's a full URL, extract just the path after audio_recordings/
-        if (cleanPath.includes('storage/v1/object/public/')) {
-          cleanPath = cleanPath.split('audio_recordings/')[1];
+        // Se for uma URL completa do Supabase Storage
+        if (audioUrl.includes('storage/v1/object/public/')) {
+          cleanPath = audioUrl.split('audio_recordings/')[1];
         }
+        
+        // Se tiver parâmetros de URL, removê-los
+        cleanPath = cleanPath.split('?')[0];
         
         console.log('[useAudioUrl] Cleaned path:', cleanPath);
-        console.log('[useAudioUrl] Original URL structure:', {
-          fullUrl: audioUrl,
-          cleanPath,
-          includesStoragePrefix: audioUrl.includes('storage/v1/object/public/'),
-          includesAudioRecordings: audioUrl.includes('audio_recordings')
-        });
 
-        if (!cleanPath) {
-          throw new Error('Invalid audio URL format');
-        }
-
-        // First, check if the file exists in the bucket
+        // Primeiro, verificar se o arquivo existe no bucket
         const { data: listData, error: listError } = await supabase
           .storage
           .from('audio_recordings')
@@ -62,8 +56,12 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error(`Failed to check file existence: ${listError.message}`);
         }
 
-        // Check if file exists by comparing the full path
-        const fileExists = listData?.some(file => cleanPath.includes(file.name));
+        // Verificar se o arquivo existe comparando o caminho completo
+        const fileExists = listData?.some(file => {
+          const filePath = cleanPath.includes('/') ? cleanPath : `${file.name}`;
+          return cleanPath.includes(filePath);
+        });
+
         console.log('[useAudioUrl] File exists check:', {
           fileExists,
           cleanPath,
@@ -75,19 +73,19 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error('Audio file not found in storage');
         }
 
-        // Generate signed URL
+        // Gerar URL assinada
         console.log('[useAudioUrl] Generating signed URL for path:', cleanPath);
         
         const { data: signedData, error: signError } = await supabase
           .storage
           .from('audio_recordings')
-          .createSignedUrl(cleanPath, 3600); // 1 hour validity
+          .createSignedUrl(cleanPath, 3600); // 1 hora de validade
 
         console.log('[useAudioUrl] Signed URL result:', { 
           signedData, 
           signError,
           urlLength: signedData?.signedUrl?.length,
-          generatedUrl: signedData?.signedUrl?.substring(0, 100) + '...' // Log first 100 chars for debugging
+          generatedUrl: signedData?.signedUrl?.substring(0, 100) + '...' // Log primeiros 100 caracteres para debug
         });
 
         if (signError) {
@@ -100,14 +98,14 @@ export const useAudioUrl = (audioUrl: string | null) => {
           throw new Error('No signed URL generated');
         }
 
-        // Check if signed URL is accessible
+        // Verificar se a URL assinada é acessível
         try {
           const response = await fetch(signedData.signedUrl, { method: 'HEAD' });
           console.log('[useAudioUrl] Signed URL accessibility check:', {
             status: response.status,
             ok: response.ok,
             contentType: response.headers.get('content-type'),
-            url: signedData.signedUrl.substring(0, 100) + '...' // Log first 100 chars for debugging
+            url: signedData.signedUrl.substring(0, 100) + '...'
           });
           
           if (!response.ok) {
@@ -115,7 +113,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
           }
         } catch (fetchError) {
           console.error('[useAudioUrl] Error checking URL accessibility:', fetchError);
-          // Don't throw the error here to allow the player to try using the URL anyway
+          // Não lançar o erro aqui para permitir que o player tente usar a URL mesmo assim
         }
 
         console.log('[useAudioUrl] Successfully generated signed URL');
@@ -137,7 +135,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
 
     getSignedUrl();
 
-    // Update signed URL every 45 minutes to avoid expiration
+    // Atualizar URL assinada a cada 45 minutos para evitar expiração
     const refreshInterval = setInterval(getSignedUrl, 45 * 60 * 1000);
 
     return () => clearInterval(refreshInterval);
