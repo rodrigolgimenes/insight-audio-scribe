@@ -17,6 +17,7 @@ import { FolderList } from "./folders/FolderList";
 import { TagList } from "./tags/TagList";
 import { useState } from "react";
 import { SuggestionDialog } from "./suggestions/SuggestionDialog";
+import { BugReportDialog } from "./bugs/BugReportDialog";
 
 interface AppSidebarProps {
   activePage?: string;
@@ -25,6 +26,7 @@ interface AppSidebarProps {
 export function AppSidebar({ activePage }: AppSidebarProps) {
   const navigate = useNavigate();
   const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
+  const [isBugReportDialogOpen, setIsBugReportDialogOpen] = useState(false);
   
   const menuItems = [
     { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
@@ -93,7 +95,12 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
             >
               Suggest an idea
             </button>
-            <a href="#" className="block py-1 hover:text-gray-900">Report a bug</a>
+            <button 
+              onClick={() => setIsBugReportDialogOpen(true)}
+              className="block w-full text-left py-1 hover:text-gray-900"
+            >
+              Report a bug
+            </button>
           </div>
         </div>
       </SidebarFooter>
@@ -101,6 +108,10 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
       <SuggestionDialog 
         open={isSuggestionDialogOpen}
         onOpenChange={setIsSuggestionDialogOpen}
+      />
+      <BugReportDialog
+        open={isBugReportDialogOpen}
+        onOpenChange={setIsBugReportDialogOpen}
       />
     </Sidebar>
   );

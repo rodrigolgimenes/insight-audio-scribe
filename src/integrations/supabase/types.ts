@@ -9,6 +9,89 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bug_report_attachments: {
+        Row: {
+          bug_report_id: string
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+        }
+        Insert: {
+          bug_report_id: string
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+        }
+        Update: {
+          bug_report_id?: string
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bug_report_attachments_bug_report_id_fkey"
+            columns: ["bug_report_id"]
+            isOneToOne: false
+            referencedRelation: "bug_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bug_reports: {
+        Row: {
+          browser_info: Json | null
+          created_at: string
+          description: string
+          email: string
+          id: string
+          platform_info: Json | null
+          priority: string | null
+          status: string
+          title: string
+          total_attachments: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          browser_info?: Json | null
+          created_at?: string
+          description: string
+          email: string
+          id?: string
+          platform_info?: Json | null
+          priority?: string | null
+          status?: string
+          title: string
+          total_attachments?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          browser_info?: Json | null
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          platform_info?: Json | null
+          priority?: string | null
+          status?: string
+          title?: string
+          total_attachments?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       folders: {
         Row: {
           created_at: string
