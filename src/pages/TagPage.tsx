@@ -24,39 +24,34 @@ export default function TagPage() {
     );
   };
 
-  if (isTagLoading || isNotesLoading) {
-    return (
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AppSidebar />
-          <main className="flex-1 p-8">
-            <div>Loading...</div>
-          </main>
-        </div>
-      </SidebarProvider>
-    );
-  }
+  const isLoading = isTagLoading || isNotesLoading;
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Tag: {tag?.name}
-            </h1>
-          </div>
-
-          {notes && notes.length > 0 ? (
-            <FolderNotesGrid
-              notes={notes}
-              isSelectionMode={isSelectionMode}
-              selectedNotes={selectedNotes}
-              toggleNoteSelection={toggleNoteSelection}
-            />
+          {isLoading ? (
+            <div>Loading...</div>
           ) : (
-            <FolderEmptyState />
+            <>
+              <div className="mb-6">
+                <h1 className="text-2xl font-semibold text-gray-900">
+                  Tag: {tag?.name}
+                </h1>
+              </div>
+
+              {notes && notes.length > 0 ? (
+                <FolderNotesGrid
+                  notes={notes}
+                  isSelectionMode={isSelectionMode}
+                  selectedNotes={selectedNotes}
+                  toggleNoteSelection={toggleNoteSelection}
+                />
+              ) : (
+                <FolderEmptyState />
+              )}
+            </>
           )}
         </main>
       </div>
