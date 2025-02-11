@@ -35,7 +35,11 @@ export const AudioControlBar = ({
 
   return (
     <div className="flex items-center gap-4 bg-white p-4 rounded-lg border mb-4">
-      <PlayPauseButton isPlaying={isPlaying} onPlayPause={onPlayPause} />
+      <PlayPauseButton 
+        isPlaying={isPlaying} 
+        onPlayPause={onPlayPause}
+        disabled={!isAudioReady} 
+      />
 
       <VolumeControl
         volume={volume}
