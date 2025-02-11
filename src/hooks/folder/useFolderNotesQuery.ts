@@ -14,6 +14,23 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
 
       console.log("Fetching notes for folder:", folderId);
       
+      // First get the note IDs from notes_folders
+      const { data: noteIds, error: folderError } = await supabase
+        .from("notes_folders")
+        .select("note_id")
+        .eq("folder_id", folderId);
+
+      if (folderError) {
+        console.error("Error fetching folder note IDs:", folderError);
+        throw folderError;
+      }
+
+      if (!noteIds || noteIds.length === 0) {
+        console.log("No notes found in folder");
+        return [];
+      }
+
+      // Then fetch the complete note data for these IDs
       const { data, error } = await supabase
         .from("notes")
         .select(`
@@ -32,7 +49,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
             )
           )
         `)
-        .eq("notes_folders.folder_id", folderId)
+        .in('id', noteIds.map(n => n.note_id))
         .order('created_at', { ascending: false });
 
       if (error) {
