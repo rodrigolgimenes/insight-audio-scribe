@@ -48,8 +48,14 @@ const UncategorizedFolder = () => {
           id,
           title,
           original_transcript,
+          processed_content,
+          full_prompt,
           created_at,
+          updated_at,
+          recording_id,
+          user_id,
           duration,
+          audio_url,
           tags (
             id,
             name,
@@ -60,7 +66,7 @@ const UncategorizedFolder = () => {
         .limit(50);
 
       if (error) throw error;
-      return data || [];
+      return data as Note[];
     },
   });
 
