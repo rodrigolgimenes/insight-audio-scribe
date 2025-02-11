@@ -33,7 +33,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
       return data.map((item) => ({
         ...item.note,
         duration: item.note.recordings?.duration || null,
-        tags: item.note.notes_tags?.map((nt: any) => nt.tags) || []
+        tags: item.note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
     },
     staleTime: 1000 * 60 * 5,

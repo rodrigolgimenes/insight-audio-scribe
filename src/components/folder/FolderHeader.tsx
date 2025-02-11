@@ -1,20 +1,41 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Edit2, Check } from "lucide-react";
+import { Search, Edit2, Check, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface FolderHeaderProps {
   folderName: string;
   folderId: string;
   onRename: (newName: string) => Promise<void>;
+  onDelete: (deleteNotes: boolean) => Promise<void>;
   isRenaming?: boolean;
+  isDeleting?: boolean;
 }
 
-export const FolderHeader = ({ folderName, folderId, onRename, isRenaming = false }: FolderHeaderProps) => {
+export const FolderHeader = ({ 
+  folderName, 
+  folderId, 
+  onRename, 
+  onDelete,
+  isRenaming = false,
+  isDeleting = false 
+}: FolderHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(folderName);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -79,6 +100,42 @@ export const FolderHeader = ({ folderName, folderId, onRename, isRenaming = fals
             >
               <Edit2 className="h-4 w-4" />
             </Button>
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9 text-red-500 hover:text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    What would you like to do with the notes in this folder?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col space-y-2 sm:space-y-0">
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(false)}
+                    disabled={isDeleting}
+                    className="bg-yellow-500 hover:bg-yellow-600"
+                  >
+                    Move notes to Uncategorized
+                  </AlertDialogAction>
+                  <AlertDialogAction
+                    onClick={() => onDelete(true)}
+                    disabled={isDeleting}
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    Delete folder and all notes
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </div>

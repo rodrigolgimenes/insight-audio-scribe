@@ -16,7 +16,12 @@ const FolderPage = () => {
   
   const { data: folder, isLoading: folderLoading } = useFolderQuery(folderId);
   const { data: notes, isLoading: notesLoading } = useFolderNotesQuery(folderId);
-  const { renameFolder, isRenaming } = useFolderOperations(folderId || '');
+  const { 
+    renameFolder, 
+    isRenaming, 
+    deleteFolder,
+    isDeleting 
+  } = useFolderOperations(folderId || '');
   const {
     isSelectionMode,
     setIsSelectionMode,
@@ -45,7 +50,9 @@ const FolderPage = () => {
             folderName={folder?.name || ""} 
             folderId={folderId || ''}
             onRename={renameFolder}
+            onDelete={deleteFolder}
             isRenaming={isRenaming}
+            isDeleting={isDeleting}
           />
           
           <FolderActions
