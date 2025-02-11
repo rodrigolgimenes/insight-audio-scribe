@@ -10,6 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { TagHeader } from "@/components/tag/TagHeader";
 import { TagContent } from "@/components/tag/TagContent";
 import { useTagOperations } from "@/hooks/tags/useTagOperations";
+import { Note } from "@/types/notes";
 
 export default function TagPage() {
   const { tagId } = useParams();
@@ -18,7 +19,24 @@ export default function TagPage() {
   const queryClient = useQueryClient();
   
   const { data: tag, isLoading: isTagLoading } = useTagQuery(tagId);
-  const { data: notes, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
+  const { data: notesData, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
+  
+  // Transform the notes data to match the Note type
+  const notes: Note[] | undefined = notesData?.map(note => ({
+    id: note.id,
+    title: note.title,
+    processed_content: note.processed_content || "",
+    original_transcript: note.original_transcript,
+    full_prompt: note.full_prompt || null,
+    created_at: note.created_at,
+    updated_at: note.updated_at || note.created_at,
+    recording_id: note.recording_id,
+    user_id: note.user_id,
+    duration: note.duration,
+    audio_url: note.audio_url,
+    tags: note.tags || []
+  }));
+
   const {
     isEditing,
     editedName,
