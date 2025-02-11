@@ -36,7 +36,7 @@ export const useFolderOperations = (folderId: string) => {
   });
 
   const { mutateAsync: deleteFolder, isPending: isDeleting } = useMutation({
-    mutationFn: async ({ deleteNotes }: { deleteNotes: boolean }) => {
+    mutationFn: async (deleteNotes: boolean) => {
       if (deleteNotes) {
         // Get all notes in the folder
         const { data: notesInFolder } = await supabase
