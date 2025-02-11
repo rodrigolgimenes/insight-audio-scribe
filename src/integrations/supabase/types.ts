@@ -328,6 +328,7 @@ export type Database = {
           duration: number | null
           file_path: string
           id: string
+          processed_at: string | null
           processed_audio_url: string | null
           status: string | null
           summary: string | null
@@ -342,6 +343,7 @@ export type Database = {
           duration?: number | null
           file_path: string
           id?: string
+          processed_at?: string | null
           processed_audio_url?: string | null
           status?: string | null
           summary?: string | null
@@ -356,6 +358,7 @@ export type Database = {
           duration?: number | null
           file_path?: string
           id?: string
+          processed_at?: string | null
           processed_audio_url?: string | null
           status?: string | null
           summary?: string | null
