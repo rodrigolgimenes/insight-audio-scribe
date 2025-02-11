@@ -16,7 +16,6 @@ serve(async (req) => {
   let recordingId: string | undefined;
   
   try {
-    // Parse request body once and store it
     const body = await req.json();
     recordingId = body.recordingId;
     
@@ -67,6 +66,17 @@ serve(async (req) => {
       throw new Error(`Failed to update recording status: ${statusError.message}`);
     }
 
+    // Get file metadata first
+    console.log('Getting file metadata...');
+    const { data: fileMetadata, error: metadataError } = await supabase
+      .storage
+      .from('audio_recordings')
+      .getPublicUrl(recording.file_path);
+
+    if (metadataError) {
+      throw new Error(`Failed to get file metadata: ${metadataError.message}`);
+    }
+
     // Download the audio file
     console.log('Downloading audio file from path:', recording.file_path);
     const { data: audioData, error: downloadError } = await supabase.storage
@@ -75,7 +85,6 @@ serve(async (req) => {
 
     if (downloadError) {
       console.error('Error downloading audio:', downloadError);
-      // Log detailed error information
       console.error('Download error details:', {
         error: downloadError,
         filePath: recording.file_path,
@@ -92,14 +101,19 @@ serve(async (req) => {
     // Create FormData for OpenAI
     const formData = new FormData();
     
-    // Convert audio to supported format if needed
-    let finalAudioBlob = audioData;
-    if (!audioData.type.includes('webm') && !audioData.type.includes('mp3')) {
-      console.log('Converting audio to MP3 format...');
-      finalAudioBlob = new Blob([audioData], { type: 'audio/mp3' });
-    }
+    // Determine file type and handle accordingly
+    const fileExtension = recording.file_path.split('.').pop()?.toLowerCase();
+    const mimeType = fileExtension === 'mp3' ? 'audio/mpeg' : 'audio/webm';
     
-    formData.append('file', finalAudioBlob, 'audio.mp3');
+    console.log('Processing file with type:', {
+      fileExtension,
+      mimeType,
+      size: audioData.size
+    });
+    
+    const finalAudioBlob = new Blob([audioData], { type: mimeType });
+    
+    formData.append('file', finalAudioBlob, `audio.${fileExtension}`);
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
@@ -218,7 +232,7 @@ Please format your response in a clear, structured way with headers for each sec
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
         original_transcript: transcriptionResult.text,
         processed_content: processedContent,
-        audio_url: publicUrl,
+        audio_url: recording.file_path,
         duration: recording.duration
       });
 
