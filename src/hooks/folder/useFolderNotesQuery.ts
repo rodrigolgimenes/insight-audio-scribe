@@ -8,33 +8,32 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
     queryKey: ["folder-notes", folderId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("notes_folders")
+        .from("notes")
         .select(`
-          note:notes (
-            id,
-            title,
-            original_transcript,
-            created_at,
-            recordings (
-              duration
-            ),
-            notes_tags!left (
-              tags:tag_id (
-                id,
-                name,
-                color
-              )
+          id,
+          title,
+          original_transcript,
+          created_at,
+          recordings (
+            duration
+          ),
+          notes_tags!left (
+            tags:tag_id (
+              id,
+              name,
+              color
             )
           )
         `)
-        .eq("folder_id", folderId)
-        .order('created_at', { ascending: false, foreignTable: 'notes' });
+        .eq("notes_folders.folder_id", folderId)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
-      return data.map((item) => ({
-        ...item.note,
-        duration: item.note.recordings?.duration || null,
-        tags: item.note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
+      return data.map((note) => ({
+        ...note,
+        duration: note.recordings?.duration || null,
+        tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
     },
     staleTime: 0,
