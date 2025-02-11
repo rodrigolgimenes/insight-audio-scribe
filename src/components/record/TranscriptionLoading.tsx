@@ -1,3 +1,4 @@
+
 import { Loader2 } from "lucide-react";
 
 export const TranscriptionLoading = () => {
@@ -6,9 +7,9 @@ export const TranscriptionLoading = () => {
       <div className="text-center space-y-4">
         <div className="flex items-center gap-2 text-xl font-semibold text-primary">
           <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Transcrevendo nota...</span>
+          <span>Processing audio...</span>
         </div>
-        <p className="text-gray-500">Isso pode levar alguns minutos</p>
+        <p className="text-gray-500">This may take a few minutes</p>
       </div>
     </div>
   );
