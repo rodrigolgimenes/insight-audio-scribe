@@ -21,7 +21,6 @@ import { TagsDialog } from "@/components/notes/TagsDialog";
 import { useNoteData } from "@/hooks/useNoteData";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { supabase } from "@/integrations/supabase/client";
-import { NotePageHeader } from "@/components/notes/NotePageHeader";
 import { useNavigate } from "react-router-dom";
 import { NoteTags } from "@/components/notes/NoteTags";
 
@@ -83,9 +82,6 @@ const NotePage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <div className="flex-1 flex flex-col">
-          <div className="sticky top-0 z-50 bg-white">
-            <NotePageHeader onBack={() => navigate("/app")} />
-          </div>
           <main className="flex-1 overflow-auto">
             <div className="max-w-5xl mx-auto px-6 py-8">
               <NoteHeader
