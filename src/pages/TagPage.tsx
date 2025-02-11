@@ -29,15 +29,15 @@ export default function TagPage() {
     return {
       id: note.id,
       title: note.title,
-      processed_content: "", // Default empty string as it's required
+      processed_content: note.processed_content || "",
       original_transcript: note.original_transcript,
-      full_prompt: null, // Default null as it's nullable
+      full_prompt: note.full_prompt || null,
       created_at: note.created_at,
-      updated_at: note.created_at, // Use created_at as fallback
-      recording_id: note.id, // Use note id as recording_id
-      user_id: "system", // Default value as we don't have it in the query
-      duration: note.recordings?.duration || null,
-      audio_url: null, // Default null as we don't have it in the query
+      updated_at: note.updated_at || note.created_at,
+      recording_id: note.recording_id || note.id,
+      user_id: note.user_id || "system",
+      duration: note.duration || null,
+      audio_url: note.audio_url || null,
       tags: noteTags
     };
   });
