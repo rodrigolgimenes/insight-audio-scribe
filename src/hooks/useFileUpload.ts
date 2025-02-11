@@ -38,10 +38,20 @@ export const useFileUpload = () => {
       setIsProcessing(true);
 
       console.log('Getting media duration...');
-      // Get duration in seconds and convert to milliseconds
-      const durationInSeconds = await getMediaDuration(file);
-      const durationInMs = Math.round(durationInSeconds * 1000); // Convert to milliseconds
-      console.log('Media duration:', { seconds: durationInSeconds, milliseconds: durationInMs });
+      let durationInMs = 0;
+      
+      try {
+        // Get duration in seconds and convert to milliseconds
+        const durationInSeconds = await getMediaDuration(file);
+        durationInMs = Math.round(durationInSeconds * 1000); // Convert to milliseconds
+        console.log('Media duration:', { seconds: durationInSeconds, milliseconds: durationInMs });
+      } catch (durationError) {
+        console.error('Error getting media duration:', durationError);
+        toast({
+          title: "Aviso",
+          description: "Não foi possível determinar a duração do arquivo. Continuando com o processamento.",
+        });
+      }
 
       // Get user data
       const { data: { user } } = await supabase.auth.getUser();
