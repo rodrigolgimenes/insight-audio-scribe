@@ -4,26 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { FileText, Search, Trash2, Clock, Calendar } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
+import { FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { formatDuration } from "@/utils/formatDuration";
-import { formatDate } from "@/utils/formatDate";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { FolderHeader } from "@/components/folder/FolderHeader";
+import { FolderActions } from "@/components/folder/FolderActions";
+import { FolderNoteCard } from "@/components/folder/FolderNoteCard";
 
 const FolderPage = () => {
   const { folderId } = useParams();
@@ -168,122 +154,29 @@ const FolderPage = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
-          <h1 className="text-2xl font-bold mb-6">{folder?.name}</h1>
-          <div className="mb-6">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="search"
-                placeholder="Search notes..."
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 mb-8">
-            {tags && tags.length > 0 && (
-              <div className="flex gap-2">
-                {tags.map((tag) => (
-                  <Badge 
-                    key={tag.id} 
-                    variant="secondary"
-                    style={{ backgroundColor: tag.color }}
-                    className="text-white"
-                  >
-                    {tag.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-sm text-gray-600">Select notes</span>
-              <Switch
-                checked={isSelectionMode}
-                onCheckedChange={setIsSelectionMode}
-              />
-            </div>
-            {isSelectionMode && selectedNotes.length > 0 && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="gap-2">
-                    <Trash2 className="h-4 w-4" />
-                    Delete selected
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Notes</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete {selectedNotes.length} selected notes? This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={deleteSelectedNotes}>
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
+          <FolderHeader folderName={folder?.name || ""} />
+          
+          <FolderActions
+            tags={tags || []}
+            isSelectionMode={isSelectionMode}
+            setIsSelectionMode={setIsSelectionMode}
+            selectedNotes={selectedNotes}
+            onDeleteSelected={deleteSelectedNotes}
+          />
 
           {isLoading ? (
             <div>Loading...</div>
           ) : notes && notes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {notes.map((note) => (
-                <div
+                <FolderNoteCard
                   key={note.id}
-                  className="bg-white p-6 rounded-lg border cursor-pointer hover:shadow-md transition-shadow relative"
-                  onClick={() =>
-                    isSelectionMode
-                      ? toggleNoteSelection(note.id)
-                      : navigate(`/app/notes/${note.id}`)
-                  }
-                >
-                  {isSelectionMode && (
-                    <div className="absolute top-4 right-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedNotes.includes(note.id)}
-                        onChange={() => toggleNoteSelection(note.id)}
-                        className="h-4 w-4"
-                      />
-                    </div>
-                  )}
-                  <h3 className="font-medium mb-2">{note.title}</h3>
-                  <p className="text-gray-600 text-sm line-clamp-3">
-                    {note.original_transcript || "No transcript available"}
-                  </p>
-                  <div className="mt-4 space-y-2">
-                    {note.tags && note.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {note.tags.map((tag) => (
-                          <Badge 
-                            key={tag.id}
-                            style={{ backgroundColor: tag.color }}
-                            className="text-white"
-                          >
-                            {tag.name}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center text-xs text-gray-500">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {formatDuration(note.duration)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {formatDate(note.created_at)}
-                        </span>
-                      </div>
-                      <Badge>Note</Badge>
-                    </div>
-                  </div>
-                </div>
+                  note={note}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedNotes.includes(note.id)}
+                  onClick={() => navigate(`/app/notes/${note.id}`)}
+                  onToggleSelection={() => toggleNoteSelection(note.id)}
+                />
               ))}
             </div>
           ) : (
