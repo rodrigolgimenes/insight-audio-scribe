@@ -25,25 +25,9 @@ export const useAudioProcessing = () => {
         duration: durationInMs
       });
 
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('audio_recordings')
-        .upload(fileName, blob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: blob.type
-        });
-
-      if (uploadError) {
-        throw new Error(`Failed to upload audio: ${uploadError.message}`);
-      }
-
-      if (!uploadData?.path) {
-        throw new Error('Upload successful but file path is missing');
-      }
-
-      console.log('[useAudioProcessing] Audio file uploaded:', uploadData);
-
-      const { error: dbError, data: recordingData } = await supabase.from('recordings')
+      // First create the recording entry
+      const { error: dbError, data: recordingData } = await supabase
+        .from('recordings')
         .insert({
           user_id: userId,
           title: `Recording ${new Date().toLocaleString()}`,
@@ -55,32 +39,58 @@ export const useAudioProcessing = () => {
         .single();
 
       if (dbError) {
-        await supabase.storage
-          .from('audio_recordings')
-          .remove([fileName]);
-        throw new Error(`Failed to save recording: ${dbError.message}`);
+        throw new Error(`Failed to create recording entry: ${dbError.message}`);
       }
 
       console.log('[useAudioProcessing] Recording entry created:', recordingData);
 
-      // Create a FormData object to send the file to the transcribe-upload function
+      // Then upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: 'audio/webm'
+        });
+
+      if (uploadError) {
+        // Delete the recording entry if file upload fails
+        await supabase
+          .from('recordings')
+          .delete()
+          .eq('id', recordingData.id);
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
+      }
+
+      console.log('[useAudioProcessing] Audio file uploaded successfully');
+
+      // Create a FormData object with the necessary information
       const formData = new FormData();
-      formData.append('file', blob, 'audio.webm');
       formData.append('recordingId', recordingData.id);
       formData.append('duration', durationInMs.toString());
 
-      const { error: uploadFunctionError } = await supabase.functions
-        .invoke('transcribe-upload', {
-          body: formData,
+      // Call the transcribe-upload function
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { recordingId: recordingData.id }
         });
 
-      if (uploadFunctionError) {
-        throw new Error(`Upload processing failed: ${uploadFunctionError.message}`);
+      if (processError) {
+        console.error('[useAudioProcessing] Processing error:', processError);
+        // Update recording status to error
+        await supabase
+          .from('recordings')
+          .update({ 
+            status: 'error',
+            error_message: processError.message 
+          })
+          .eq('id', recordingData.id);
+        throw new Error(`Processing failed: ${processError.message}`);
       }
 
       toast({
-        title: "Sucesso",
-        description: "Gravação salva com sucesso! A transcrição começará em breve.",
+        title: "Success",
+        description: "Recording saved and processing started!",
       });
 
       navigate("/app");
@@ -88,8 +98,8 @@ export const useAudioProcessing = () => {
     } catch (error) {
       console.error('[useAudioProcessing] Error saving recording:', error);
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Falha ao salvar a gravação. Por favor, tente novamente.",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
         variant: "destructive",
       });
       return false;

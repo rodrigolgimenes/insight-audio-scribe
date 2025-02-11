@@ -40,13 +40,20 @@ export const useFileUpload = () => {
       return;
     }
 
-    // Set loading states immediately after file validation
     setIsUploading(true);
     setIsProcessing(true);
 
     try {
       console.log('Getting media duration...');
-      const durationInMs = await getMediaDuration(file);
+      let durationInMs = 0;
+      
+      try {
+        durationInMs = await getMediaDuration(file);
+      } catch (durationError) {
+        console.log('Timeout while getting media duration');
+        // Default to 0 if we can't get duration
+      }
+      
       console.log('Media duration in milliseconds:', durationInMs);
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -54,13 +61,16 @@ export const useFileUpload = () => {
         throw new Error('User not authenticated');
       }
 
+      const fileName = `${user.id}/${Date.now()}_${file.name.replace(/[^\x00-\x7F]/g, '')}`;
+
+      // First create recording entry
       console.log('Creating initial recording entry...');
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           user_id: user.id,
           title: file.name || `Recording ${new Date().toLocaleString()}`,
-          file_path: 'pending',
+          file_path: fileName,
           status: 'pending',
           duration: durationInMs
         })
@@ -72,28 +82,38 @@ export const useFileUpload = () => {
       }
       console.log('Recording entry created:', recordingData);
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('recordingId', recordingData.id);
-      formData.append('duration', durationInMs.toString());
+      // Then upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        });
 
-      console.log('Invoking transcribe-upload function...');
-      const { data, error: functionError } = await supabase.functions.invoke('transcribe-upload', {
-        body: formData,
-      });
-
-      if (functionError) {
-        throw new Error(`Error processing file: ${functionError.message}`);
+      if (uploadError) {
+        // Clean up the recording entry if upload fails
+        await supabase
+          .from('recordings')
+          .delete()
+          .eq('id', recordingData.id);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
 
-      if (!data?.success) {
-        throw new Error(data?.error || 'Failed to process file');
+      // Process the recording
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { recordingId: recordingData.id }
+        });
+
+      if (processError) {
+        throw new Error(`Error processing file: ${processError.message}`);
       }
 
       console.log('File processed successfully');
       toast({
         title: "Success",
-        description: "File processed successfully!",
+        description: "File uploaded and processing started!",
       });
 
       setShouldNavigate(true);
@@ -109,7 +129,6 @@ export const useFileUpload = () => {
         variant: "destructive",
       });
     } finally {
-      // Reset states
       setIsUploading(false);
       setIsProcessing(false);
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
