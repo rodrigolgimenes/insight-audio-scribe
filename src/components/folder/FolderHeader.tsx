@@ -122,7 +122,7 @@ export const FolderHeader = ({
                     What would you like to do with the notes in this folder?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-col items-center gap-2 mt-4">
+                <div className="flex flex-col items-center gap-2 mt-4">
                   <AlertDialogAction
                     onClick={() => onDelete(false)}
                     disabled={isDeleting}
@@ -140,7 +140,7 @@ export const FolderHeader = ({
                   <AlertDialogCancel className="w-auto px-6 mt-0 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
                     Cancel
                   </AlertDialogCancel>
-                </AlertDialogFooter>
+                </div>
               </AlertDialogContent>
             </AlertDialog>
           </div>
