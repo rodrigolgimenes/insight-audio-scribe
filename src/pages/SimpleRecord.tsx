@@ -28,13 +28,11 @@ const SimpleRecord = () => {
     mediaStream,
     isSaving,
     isTranscribing,
-    isSystemAudio,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
     handleDelete,
-    setIsSystemAudio,
   } = useRecording();
 
   const handleTimeLimit = () => {
@@ -144,14 +142,12 @@ const SimpleRecord = () => {
                     isPaused={isPaused}
                     audioUrl={audioUrl}
                     mediaStream={mediaStream}
-                    isSystemAudio={isSystemAudio}
                     handleStartRecording={handleStartRecording}
                     handleStopRecording={handleStopRecording}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
                     handleTimeLimit={handleTimeLimit}
-                    setIsSystemAudio={setIsSystemAudio}
                   />
 
                   <div className="flex flex-col items-center gap-4">
