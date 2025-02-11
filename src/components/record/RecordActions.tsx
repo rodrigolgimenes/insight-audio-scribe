@@ -1,16 +1,13 @@
+
 import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { useState } from "react";
 import { RecordSettingsDialog } from "./RecordSettingsDialog";
-import { Style } from "@/types/styles";
 
 interface RecordActionsProps {
   onSave: () => void;
   isSaving: boolean;
   isRecording: boolean;
-  styles: Style[];
-  selectedStyleId: string | null;
-  onStyleSelect: (styleId: string) => void;
   keepAudio: boolean;
   onKeepAudioChange: (keep: boolean) => void;
 }
@@ -19,9 +16,6 @@ export const RecordActions = ({
   onSave, 
   isSaving, 
   isRecording,
-  styles,
-  selectedStyleId,
-  onStyleSelect,
   keepAudio,
   onKeepAudioChange,
 }: RecordActionsProps) => {
@@ -48,9 +42,6 @@ export const RecordActions = ({
       <RecordSettingsDialog
         open={isSettingsOpen}
         onOpenChange={setIsSettingsOpen}
-        selectedStyleId={selectedStyleId}
-        onStyleSelect={onStyleSelect}
-        styles={styles}
         keepAudio={keepAudio}
         onKeepAudioChange={onKeepAudioChange}
         onSave={() => {

@@ -1,16 +1,12 @@
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Style } from "@/types/styles";
 
 interface RecordSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedStyleId: string | null;
-  onStyleSelect: (styleId: string) => void;
-  styles: Style[];
   keepAudio: boolean;
   onKeepAudioChange: (keep: boolean) => void;
   onSave: () => void;
@@ -19,9 +15,6 @@ interface RecordSettingsDialogProps {
 export const RecordSettingsDialog = ({
   open,
   onOpenChange,
-  selectedStyleId,
-  onStyleSelect,
-  styles,
   keepAudio,
   onKeepAudioChange,
   onSave,
@@ -34,50 +27,6 @@ export const RecordSettingsDialog = ({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          <div className="space-y-4">
-            <h3 className="font-medium">Output</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="style">Style of the note:</Label>
-              <Select value={selectedStyleId || undefined} onValueChange={onStyleSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a style" />
-                </SelectTrigger>
-                <SelectContent>
-                  {styles.map((style) => (
-                    <SelectItem key={style.id} value={style.id}>
-                      {style.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="inputLang">Input language (you speak in):</Label>
-              <Select defaultValue="auto" disabled>
-                <SelectTrigger>
-                  <SelectValue>Auto</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Auto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="outputLang">Output Language:</Label>
-              <Select defaultValue="auto" disabled>
-                <SelectTrigger>
-                  <SelectValue>Auto</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Auto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           <div className="space-y-4">
             <h3 className="font-medium">Privacy</h3>
             
