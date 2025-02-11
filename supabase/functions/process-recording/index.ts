@@ -63,8 +63,12 @@ serve(async (req) => {
 
     console.log('Found recording:', recording);
 
+    if (!recording.file_path) {
+      throw new Error('Recording file path is missing');
+    }
+
     // Download the audio file
-    console.log('Downloading audio file...');
+    console.log('Downloading audio file from path:', recording.file_path);
     const { data: audioData, error: downloadError } = await supabase.storage
       .from('audio_recordings')
       .download(recording.file_path);
@@ -156,7 +160,7 @@ Please format your response in a clear, structured way with headers for each sec
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4-turbo-preview',
         messages: [
           { role: 'user', content: gptPrompt }
         ],
@@ -201,7 +205,9 @@ Please format your response in a clear, structured way with headers for each sec
         recording_id: recordingId,
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
         original_transcript: transcriptionResult.text,
-        processed_content: processedContent
+        processed_content: processedContent,
+        audio_url: recording.audio_url,
+        duration: recording.duration
       });
 
     if (noteError) {
