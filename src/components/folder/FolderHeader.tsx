@@ -110,29 +110,33 @@ export const FolderHeader = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Folder</AlertDialogTitle>
-                  <AlertDialogDescription>
+              <AlertDialogContent className="max-w-sm mx-auto p-6 gap-6">
+                <AlertDialogHeader className="space-y-3">
+                  <AlertDialogTitle className="text-xl font-semibold text-center">
+                    Delete Folder
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-center text-gray-600">
                     What would you like to do with the notes in this folder?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex-col space-y-2 sm:space-y-0">
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogFooter className="flex flex-col gap-2 sm:gap-2 mt-4">
                   <AlertDialogAction
                     onClick={() => onDelete(false)}
                     disabled={isDeleting}
-                    className="bg-yellow-500 hover:bg-yellow-600"
+                    className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white font-medium py-2 px-4 rounded-lg transition-colors"
                   >
                     Move notes to Uncategorized
                   </AlertDialogAction>
                   <AlertDialogAction
                     onClick={() => onDelete(true)}
                     disabled={isDeleting}
-                    className="bg-red-500 hover:bg-red-600"
+                    className="w-full bg-[#ea384c] hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                   >
                     Delete folder and all notes
                   </AlertDialogAction>
+                  <AlertDialogCancel className="w-full mt-2 text-gray-600 hover:bg-gray-100 font-medium py-2 px-4 rounded-lg transition-colors">
+                    Cancel
+                  </AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -152,3 +156,4 @@ export const FolderHeader = ({
     </>
   );
 };
+
