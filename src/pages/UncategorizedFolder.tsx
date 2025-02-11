@@ -7,13 +7,37 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
 import { FolderEmptyState } from "@/components/folder/FolderEmptyState";
 import { Switch } from "@/components/ui/switch";
-import { FolderActions } from "@/components/folder/FolderActions";
 import { useToast } from "@/hooks/use-toast";
+import { BulkActions } from "@/components/dashboard/BulkActions";
+import { FolderDialog } from "@/components/dashboard/FolderDialog";
+import { useFolderActions } from "@/hooks/notes/useFolderActions";
+import { Note } from "@/integrations/supabase/types/notes";
 
 const UncategorizedFolder = () => {
-  const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
+  const [selectedNotes, setSelectedNotes] = useState<Note[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { toast } = useToast();
+  const {
+    isFolderDialogOpen,
+    setIsFolderDialogOpen,
+    newFolderName,
+    setNewFolderName,
+    createNewFolder,
+    handleMoveToFolder,
+  } = useFolderActions();
+
+  const { data: folders } = useQuery({
+    queryKey: ["folders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const { data: notes, isLoading } = useQuery({
     queryKey: ["uncategorized-notes"],
@@ -41,10 +65,13 @@ const UncategorizedFolder = () => {
   });
 
   const toggleNoteSelection = (noteId: string) => {
+    const note = notes?.find((n) => n.id === noteId);
+    if (!note) return;
+
     setSelectedNotes((prev) =>
-      prev.includes(noteId)
-        ? prev.filter((id) => id !== noteId)
-        : [...prev, noteId]
+      prev.some((n) => n.id === noteId)
+        ? prev.filter((n) => n.id !== noteId)
+        : [...prev, note]
     );
   };
 
@@ -53,7 +80,7 @@ const UncategorizedFolder = () => {
       const { error } = await supabase
         .from("notes")
         .delete()
-        .in("id", selectedNotes);
+        .in("id", selectedNotes.map(note => note.id));
 
       if (error) throw error;
 
@@ -74,6 +101,31 @@ const UncategorizedFolder = () => {
     }
   };
 
+  const handleMoveNotes = () => {
+    setIsFolderDialogOpen(true);
+  };
+
+  const handleSelectFolder = async (folderId: string) => {
+    try {
+      await handleMoveToFolder(selectedNotes, folderId);
+      setSelectedNotes([]);
+      setIsSelectionMode(false);
+      setIsFolderDialogOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Notes moved to folder successfully.",
+      });
+    } catch (error) {
+      console.error("Error moving notes:", error);
+      toast({
+        title: "Error",
+        description: "Failed to move notes. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
@@ -85,7 +137,9 @@ const UncategorizedFolder = () => {
             </h1>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Select notes</span>
+                <span className="text-sm text-gray-600">
+                  {isSelectionMode ? "Exit selection mode" : "Select multiple notes"}
+                </span>
                 <Switch
                   checked={isSelectionMode}
                   onCheckedChange={setIsSelectionMode}
@@ -95,12 +149,10 @@ const UncategorizedFolder = () => {
           </div>
 
           {isSelectionMode && selectedNotes.length > 0 && (
-            <FolderActions
-              tags={[]}
-              isSelectionMode={isSelectionMode}
-              setIsSelectionMode={setIsSelectionMode}
+            <BulkActions
               selectedNotes={selectedNotes}
-              onDeleteSelected={handleDeleteNotes}
+              onMoveToFolder={handleMoveNotes}
+              onDelete={handleDeleteNotes}
             />
           )}
 
@@ -110,12 +162,23 @@ const UncategorizedFolder = () => {
             <FolderNotesGrid
               notes={notes}
               isSelectionMode={isSelectionMode}
-              selectedNotes={selectedNotes}
+              selectedNotes={selectedNotes.map(note => note.id)}
               toggleNoteSelection={toggleNoteSelection}
             />
           ) : (
             <FolderEmptyState />
           )}
+
+          <FolderDialog
+            isOpen={isFolderDialogOpen}
+            onOpenChange={setIsFolderDialogOpen}
+            folders={folders || []}
+            currentFolderId={null}
+            newFolderName={newFolderName}
+            onNewFolderNameChange={setNewFolderName}
+            onCreateNewFolder={createNewFolder}
+            onSelectFolder={handleSelectFolder}
+          />
         </main>
       </div>
     </SidebarProvider>
