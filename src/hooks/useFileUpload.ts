@@ -109,7 +109,7 @@ export const useFileUpload = () => {
         variant: "destructive",
       });
     } finally {
-      // Reset states and clear input
+      // Reset states
       setIsUploading(false);
       setIsProcessing(false);
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
