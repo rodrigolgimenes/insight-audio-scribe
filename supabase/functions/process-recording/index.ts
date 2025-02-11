@@ -36,18 +36,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Update recording status to processing
-    console.log('Updating recording status to processing...');
-    const { error: statusError } = await supabase
-      .from('recordings')
-      .update({ status: 'processing' })
-      .eq('id', recordingId);
-
-    if (statusError) {
-      console.error('Error updating recording status:', statusError);
-      throw new Error(`Failed to update recording status: ${statusError.message}`);
-    }
-
     // Get recording details
     console.log('Fetching recording details...');
     const { data: recording, error: recordingError } = await supabase
@@ -67,6 +55,18 @@ serve(async (req) => {
       throw new Error('Recording file path is missing');
     }
 
+    // Update recording status to processing
+    console.log('Updating recording status to processing...');
+    const { error: statusError } = await supabase
+      .from('recordings')
+      .update({ status: 'processing' })
+      .eq('id', recordingId);
+
+    if (statusError) {
+      console.error('Error updating recording status:', statusError);
+      throw new Error(`Failed to update recording status: ${statusError.message}`);
+    }
+
     // Download the audio file
     console.log('Downloading audio file from path:', recording.file_path);
     const { data: audioData, error: downloadError } = await supabase.storage
@@ -75,6 +75,12 @@ serve(async (req) => {
 
     if (downloadError) {
       console.error('Error downloading audio:', downloadError);
+      // Log detailed error information
+      console.error('Download error details:', {
+        error: downloadError,
+        filePath: recording.file_path,
+        recordingId: recordingId
+      });
       throw new Error(`Failed to download audio: ${downloadError.message}`);
     }
 
@@ -160,7 +166,7 @@ Please format your response in a clear, structured way with headers for each sec
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',
         messages: [
           { role: 'user', content: gptPrompt }
         ],
@@ -179,6 +185,11 @@ Please format your response in a clear, structured way with headers for each sec
     const processedContent = gptResult.choices[0].message.content;
     console.log('GPT processed content:', processedContent.substring(0, 100) + '...');
 
+    // Get a public URL for the audio file
+    const { data: { publicUrl } } = supabase.storage
+      .from('audio_recordings')
+      .getPublicUrl(recording.file_path);
+
     // Update recording with transcription and processed content
     console.log('Updating recording with transcription and processed content...');
     const { error: transcriptionUpdateError } = await supabase
@@ -187,7 +198,8 @@ Please format your response in a clear, structured way with headers for each sec
         transcription: transcriptionResult.text,
         processed_content: processedContent,
         status: 'completed',
-        processed_at: new Date().toISOString()
+        processed_at: new Date().toISOString(),
+        audio_url: publicUrl
       })
       .eq('id', recordingId);
 
@@ -206,7 +218,7 @@ Please format your response in a clear, structured way with headers for each sec
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
         original_transcript: transcriptionResult.text,
         processed_content: processedContent,
-        audio_url: recording.audio_url,
+        audio_url: publicUrl,
         duration: recording.duration
       });
 
