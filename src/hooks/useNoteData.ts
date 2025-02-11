@@ -20,7 +20,7 @@ export const useNoteData = () => {
       variant: "destructive",
     });
     navigate("/app");
-    return { note: null, isLoadingNote: false, folders: [], currentFolder: null };
+    return { note: null, isLoadingNote: false, folders: [], currentFolder: null, tags: [] };
   }
 
   const { data: note, isLoading: isLoadingNote } = useQuery({
@@ -31,8 +31,12 @@ export const useNoteData = () => {
         .from("notes")
         .select(`
           *,
-          notes_tags(tag_id),
-          notes_folders(folder_id),
+          notes_tags!left(
+            tags:tag_id(*)
+          ),
+          notes_folders!left(
+            folders:folder_id(*)
+          ),
           recordings!inner (duration)
         `)
         .eq("id", noteId)
@@ -52,6 +56,8 @@ export const useNoteData = () => {
         navigate("/app");
         return null;
       }
+
+      console.log("Note data from database:", data);
 
       // Transform the data to match the Note interface
       const transformedNote: Note = {
@@ -73,6 +79,43 @@ export const useNoteData = () => {
     retry: false,
   });
 
+  const { data: tags } = useQuery({
+    queryKey: ["note-tags", noteId],
+    queryFn: async () => {
+      console.log("Fetching tags for note:", noteId);
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*, notes_tags!inner(note_id)")
+        .eq("notes_tags.note_id", noteId);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!noteId && isValidUUID,
+  });
+
+  const { data: currentFolder } = useQuery({
+    queryKey: ["note-folder", noteId],
+    queryFn: async () => {
+      console.log("Fetching current folder for note:", noteId);
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*")
+        .inner_join("notes_folders", { 
+          foreignTable: "notes_folders",
+          filter: { note_id: noteId }
+        })
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching folder:", error);
+        throw error;
+      }
+      return data;
+    },
+    enabled: !!noteId && isValidUUID,
+  });
+
   const { data: folders } = useQuery({
     queryKey: ["folders"],
     queryFn: async () => {
@@ -88,29 +131,11 @@ export const useNoteData = () => {
     enabled: !!noteId && isValidUUID,
   });
 
-  const { data: currentFolder } = useQuery({
-    queryKey: ["note-folder", noteId],
-    queryFn: async () => {
-      console.log("Fetching current folder for note:", noteId);
-      const { data, error } = await supabase
-        .from("notes_folders")
-        .select("folder_id")
-        .eq("note_id", noteId)
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching folder:", error);
-        throw error;
-      }
-      return data;
-    },
-    enabled: !!noteId && isValidUUID,
-  });
-
   return {
     note,
     isLoadingNote,
     folders,
     currentFolder,
+    tags,
   };
 };

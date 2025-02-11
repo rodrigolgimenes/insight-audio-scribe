@@ -11,4 +11,14 @@ export interface Note {
   user_id: string;
   duration: number | null;
   audio_url: string | null;
+  folder?: {
+    id: string;
+    name: string;
+    description: string | null;
+  } | null;
+  tags?: Array<{
+    id: string;
+    name: string;
+    color: string | null;
+  }>;
 }

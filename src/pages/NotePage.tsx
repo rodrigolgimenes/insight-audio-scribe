@@ -23,11 +23,11 @@ import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { supabase } from "@/integrations/supabase/client";
 import { NotePageHeader } from "@/components/notes/NotePageHeader";
 import { useNavigate } from "react-router-dom";
+import { NoteTags } from "@/components/notes/NoteTags";
 
 const NotePage = () => {
   const { noteId } = useParams();
   const navigate = useNavigate();
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -35,7 +35,7 @@ const NotePage = () => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { note, isLoadingNote, folders, currentFolder } = useNoteData();
+  const { note, isLoadingNote, folders, currentFolder, tags } = useNoteData();
   const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
 
   useEffect(() => {
@@ -92,12 +92,15 @@ const NotePage = () => {
                 title={note.title}
                 createdAt={note.created_at}
                 duration={note.duration}
+                folder={currentFolder}
                 onRenameNote={renameNote}
                 onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
                 onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
                 onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
               />
               
+              {noteId && <NoteTags noteId={noteId} />}
+
               <div className="mt-8">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <NoteContent note={note} />
@@ -110,7 +113,7 @@ const NotePage = () => {
             isOpen={isMoveDialogOpen}
             onOpenChange={setIsMoveDialogOpen}
             folders={folders || []}
-            currentFolderId={currentFolder?.folder_id || null}
+            currentFolderId={currentFolder?.id || null}
             onMoveToFolder={moveNoteToFolder}
           />
 
@@ -118,7 +121,7 @@ const NotePage = () => {
             isOpen={isTagsDialogOpen}
             onOpenChange={setIsTagsDialogOpen}
             onAddTag={addTagToNote}
-            selectedTags={selectedTags}
+            selectedTags={tags?.map(tag => tag.id) || []}
           />
 
           <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
