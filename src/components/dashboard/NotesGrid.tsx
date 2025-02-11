@@ -3,7 +3,7 @@ import { Note } from "@/integrations/supabase/types/notes";
 import { NoteCard } from "./NoteCard";
 import { EmptyState } from "./EmptyState";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { FolderOpen, Trash2 } from "lucide-react";
 
 interface NotesGridProps {
   notes: Note[];
@@ -11,6 +11,7 @@ interface NotesGridProps {
   selectedNotes: Note[];
   onNoteClick: (note: Note) => void;
   onDeleteSelected?: () => void;
+  onMoveToFolder?: () => void;
 }
 
 export const NotesGrid = ({ 
@@ -18,7 +19,8 @@ export const NotesGrid = ({
   isSelectionMode, 
   selectedNotes, 
   onNoteClick,
-  onDeleteSelected
+  onDeleteSelected,
+  onMoveToFolder
 }: NotesGridProps) => {
   if (!notes || notes.length === 0) {
     return <EmptyState />;
@@ -31,15 +33,26 @@ export const NotesGrid = ({
           <span className="text-sm text-gray-600">
             {selectedNotes.length} notes selected
           </span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onDeleteSelected}
-            className="gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete selected
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onMoveToFolder}
+              className="gap-2"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Move to folder
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onDeleteSelected}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete selected
+            </Button>
+          </div>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

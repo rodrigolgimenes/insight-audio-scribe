@@ -1,3 +1,4 @@
+
 import { Note } from "@/integrations/supabase/types/notes";
 import { useNavigate } from "react-router-dom";
 import { BulkActions } from "./BulkActions";
@@ -39,44 +40,6 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Fetch current folder for the selected notes (if they're all in the same folder)
-  const { data: currentFolder, isLoading: isLoadingCurrentFolder } = useQuery({
-    queryKey: ["notes-current-folder", selectedNotes.map(note => note.id)],
-    queryFn: async () => {
-      if (selectedNotes.length === 0) return null;
-
-      try {
-        const { data, error } = await supabase
-          .from("notes_folders")
-          .select(`
-            folder:folders (
-              id,
-              name
-            )
-          `)
-          .eq("note_id", selectedNotes[0].id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching current folder:", error);
-          toast({
-            title: "Error",
-            description: "Failed to fetch current folder",
-            variant: "destructive",
-          });
-          return null;
-        }
-        
-        return data?.folder || null;
-      } catch (error) {
-        console.error("Error in current folder query:", error);
-        return null;
-      }
-    },
-    enabled: selectedNotes.length > 0,
-    retry: 1,
-  });
 
   // Fetch available folders
   const { data: folders = [], isLoading: isLoadingFolders } = useQuery({
@@ -138,26 +101,20 @@ export const DashboardContent = ({
 
   return (
     <>
-      {isSelectionMode && selectedNotes.length > 0 && (
-        <BulkActions
-          selectedNotes={selectedNotes}
-          onMoveToFolder={() => setIsFolderDialogOpen(true)}
-          onDelete={onDeleteNotes}
-        />
-      )}
-
       <NotesGrid
         notes={notes}
         isSelectionMode={isSelectionMode}
         selectedNotes={selectedNotes}
         onNoteClick={handleNoteClick}
+        onDeleteSelected={onDeleteNotes}
+        onMoveToFolder={() => setIsFolderDialogOpen(true)}
       />
 
       <FolderDialog
         isOpen={isFolderDialogOpen}
         onOpenChange={setIsFolderDialogOpen}
         folders={folders}
-        currentFolderId={currentFolder?.id || null}
+        currentFolderId={null}
         newFolderName={newFolderName}
         onNewFolderNameChange={setNewFolderName}
         onCreateNewFolder={onCreateNewFolder}
