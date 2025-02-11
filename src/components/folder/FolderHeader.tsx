@@ -96,7 +96,7 @@ export const FolderHeader = ({
               size="icon"
               variant="ghost"
               onClick={() => {
-                setEditedName(folderName); // Set current folder name when starting edit
+                setEditedName(folderName);
                 setIsEditing(true);
               }}
               className="h-9 w-9"
@@ -113,31 +113,31 @@ export const FolderHeader = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="sm:max-w-[425px]">
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="text-center text-xl font-semibold">
+              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6">
+                <AlertDialogHeader className="space-y-3">
+                  <AlertDialogTitle className="text-xl font-semibold text-center">
                     Delete Folder
                   </AlertDialogTitle>
-                  <AlertDialogDescription className="text-center">
+                  <AlertDialogDescription className="text-center text-gray-600">
                     What would you like to do with the notes in this folder?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-col gap-2 sm:gap-2">
+                <AlertDialogFooter className="flex flex-col gap-2 sm:gap-2 mt-4">
                   <AlertDialogAction
                     onClick={() => onDelete(false)}
                     disabled={isDeleting}
-                    className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white font-medium"
+                    className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white font-medium py-2.5 rounded-lg transition-colors"
                   >
                     Move notes to Uncategorized
                   </AlertDialogAction>
                   <AlertDialogAction
                     onClick={() => onDelete(true)}
                     disabled={isDeleting}
-                    className="w-full bg-[#ea384c] hover:bg-red-600 text-white font-medium"
+                    className="w-full bg-[#ea384c] hover:bg-red-600 text-white font-medium py-2.5 rounded-lg transition-colors"
                   >
                     Delete folder and all notes
                   </AlertDialogAction>
-                  <AlertDialogCancel className="w-full mt-0">
+                  <AlertDialogCancel className="w-full mt-0 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
                     Cancel
                   </AlertDialogCancel>
                 </AlertDialogFooter>
