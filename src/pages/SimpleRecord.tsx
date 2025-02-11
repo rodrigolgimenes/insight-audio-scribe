@@ -38,6 +38,8 @@ const SimpleRecord = () => {
     setIsSystemAudio,
   } = useRecording();
 
+  const isLoading = isTranscribing || isSaving || isUploading || isProcessing;
+
   const { data: styles } = useQuery({
     queryKey: ['styles'],
     queryFn: async () => {
@@ -158,13 +160,13 @@ const SimpleRecord = () => {
                       <Button 
                         className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
                         onClick={handleSave}
-                        disabled={isSaving || isUploading || isProcessing}
+                        disabled={isLoading}
                       >
                         <Mic className="w-4 h-4" />
                         {isSaving ? 'Salvando...' : 'Criar nota'}
                       </Button>
 
-                      <FileUploadSection />
+                      <FileUploadSection isDisabled={isLoading} />
                     </div>
                   </div>
                 </>
@@ -182,7 +184,7 @@ const SimpleRecord = () => {
           </main>
         </div>
       </div>
-      {(isTranscribing || isSaving || isUploading || isProcessing) && <TranscriptionLoading />}
+      {isLoading && <TranscriptionLoading />}
     </SidebarProvider>
   );
 };

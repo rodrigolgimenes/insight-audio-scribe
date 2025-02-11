@@ -4,7 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import { useFileUpload } from "@/hooks/useFileUpload";
 
-export const FileUploadSection = () => {
+interface FileUploadSectionProps {
+  isDisabled?: boolean;
+}
+
+export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
   const { isUploading, handleFileUpload } = useFileUpload();
 
   return (
@@ -16,12 +20,12 @@ export const FileUploadSection = () => {
         id="file-upload"
         name="file-upload"
         onChange={handleFileUpload}
-        disabled={isUploading}
+        disabled={isUploading || isDisabled}
       />
       <Button 
         className="bg-[#2196F3] hover:bg-[#1976D2] gap-2"
         onClick={() => document.getElementById('file-upload')?.click()}
-        disabled={isUploading}
+        disabled={isUploading || isDisabled}
       >
         <Upload className="w-4 h-4" />
         {isUploading ? 'Enviando...' : 'Upload'}
