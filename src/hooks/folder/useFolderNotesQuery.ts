@@ -33,8 +33,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
           )
         `)
         .eq("notes_folders.folder_id", folderId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error("Error fetching folder notes:", error);

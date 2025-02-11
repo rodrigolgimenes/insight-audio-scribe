@@ -20,7 +20,7 @@ export const useTagNotesQuery = (tagId: string | undefined) => {
           recordings (
             duration
           ),
-          notes_tags!left (
+          notes_tags!inner (
             tags:tag_id (
               id,
               name,
