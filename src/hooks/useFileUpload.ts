@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -8,8 +8,17 @@ import { getMediaDuration } from "@/utils/mediaUtils";
 export const useFileUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shouldNavigate, setShouldNavigate] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Handle navigation in useEffect
+  useEffect(() => {
+    if (shouldNavigate) {
+      navigate("/app");
+      setShouldNavigate(false);
+    }
+  }, [shouldNavigate, navigate]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -91,7 +100,8 @@ export const useFileUpload = () => {
         description: "Arquivo processado com sucesso!",
       });
 
-      navigate("/app");
+      // Set flag to navigate instead of directly calling navigate
+      setShouldNavigate(true);
 
     } catch (error) {
       console.error('Error uploading file:', error);
