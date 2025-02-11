@@ -67,18 +67,15 @@ const FolderPage = () => {
     },
   });
 
-  const { data: tags } = useQuery({
-    queryKey: ["tags"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tags")
-        .select("*")
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Get unique tags from notes in this folder
+  const folderTags = notes?.reduce((acc: any[], note) => {
+    note.tags.forEach((tag: any) => {
+      if (!acc.some(existingTag => existingTag.id === tag.id)) {
+        acc.push(tag);
+      }
+    });
+    return acc;
+  }, []) || [];
 
   const toggleNoteSelection = (noteId: string) => {
     setSelectedNotes((prev) =>
@@ -161,7 +158,7 @@ const FolderPage = () => {
           <FolderHeader folderName={folder?.name || ""} />
           
           <FolderActions
-            tags={tags || []}
+            tags={folderTags}
             isSelectionMode={isSelectionMode}
             setIsSelectionMode={setIsSelectionMode}
             selectedNotes={selectedNotes}
