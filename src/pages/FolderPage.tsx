@@ -10,9 +10,12 @@ import { useFolderQuery } from "@/hooks/folder/useFolderQuery";
 import { useFolderNotesQuery } from "@/hooks/folder/useFolderNotesQuery";
 import { useFolderNoteSelection } from "@/hooks/folder/useFolderNoteSelection";
 import { useFolderOperations } from "@/hooks/folder/useFolderOperations";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const FolderPage = () => {
   const { folderId } = useParams();
+  const queryClient = useQueryClient();
   
   const { data: folder, isLoading: folderLoading } = useFolderQuery(folderId);
   const { data: notes, isLoading: notesLoading } = useFolderNotesQuery(folderId);
@@ -29,6 +32,11 @@ const FolderPage = () => {
     toggleNoteSelection,
     deleteSelectedNotes,
   } = useFolderNoteSelection();
+
+  // Refetch data when component mounts or becomes active
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["folder-notes", folderId] });
+  }, [queryClient, folderId]);
 
   const folderTags = notes?.reduce((acc: any[], note) => {
     note.tags.forEach((tag: any) => {

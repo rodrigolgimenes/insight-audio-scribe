@@ -1,9 +1,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 
 export const useFolderNotesQuery = (folderId: string | undefined) => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ["folder-notes", folderId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -36,7 +37,32 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
         tags: item.note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0, // Set to 0 to always fetch fresh data when query is refetched
     gcTime: 1000 * 60 * 30,
   });
+
+  useEffect(() => {
+    // Subscribe to notes_tags changes for real-time updates
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'notes_tags'
+        },
+        () => {
+          // Refetch data when any notes_tags changes occur
+          query.refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [query.refetch]);
+
+  return query;
 };
