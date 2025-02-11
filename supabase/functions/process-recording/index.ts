@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -62,60 +63,24 @@ serve(async (req) => {
 
     if (downloadError) {
       console.error('Error downloading audio:', downloadError);
-      // Update recording status to indicate no audio was captured
-      await supabase
-        .from('recordings')
-        .update({
-          status: 'completed',
-          transcription: 'No audio was captured in this recording.',
-          summary: 'This recording contains no audio data.'
-        })
-        .eq('id', recordingId);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: 'No audio data available',
-          transcription: 'No audio was captured in this recording.',
-          processedContent: 'This recording contains no audio data.'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error(`Failed to download audio: ${downloadError.message}`);
     }
 
-    if (!audioData || audioData.size === 0) {
-      console.log('Audio file is empty');
-      // Update recording status to indicate empty audio
-      await supabase
-        .from('recordings')
-        .update({
-          status: 'completed',
-          transcription: 'The recording is empty. No audio was captured.',
-          summary: 'This recording contains no audio data.'
-        })
-        .eq('id', recordingId);
-
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          message: 'Empty audio file',
-          transcription: 'The recording is empty. No audio was captured.',
-          processedContent: 'This recording contains no audio data.'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!audioData) {
+      console.error('No audio data found');
+      throw new Error('No audio data found');
     }
 
     console.log('Successfully downloaded audio file');
 
-    // Continue with normal processing for valid audio files
-    console.log('Transcribing audio with Whisper...');
+    // Create FormData for OpenAI
     const formData = new FormData();
     formData.append('file', audioData, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
-    const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    console.log('Sending audio to OpenAI for transcription...');
+    const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
@@ -123,21 +88,25 @@ serve(async (req) => {
       body: formData,
     });
 
-    if (!whisperResponse.ok) {
-      const errorData = await whisperResponse.json();
-      console.error('Whisper API error:', errorData);
-      throw new Error(`Transcription failed: ${errorData.error?.message || whisperResponse.statusText}`);
+    if (!transcriptionResponse.ok) {
+      const errorData = await transcriptionResponse.json();
+      console.error('OpenAI transcription error:', errorData);
+      throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
     }
 
-    const transcription = await whisperResponse.json();
-    console.log('Transcription received:', transcription.text?.substring(0, 100) + '...');
+    const transcriptionResult = await transcriptionResponse.json();
+    console.log('Transcription received:', transcriptionResult.text?.substring(0, 100) + '...');
+
+    if (!transcriptionResult.text) {
+      throw new Error('No transcription text received');
+    }
 
     // Update recording with transcription
     console.log('Updating recording with transcription...');
     const { error: transcriptionUpdateError } = await supabase
       .from('recordings')
       .update({
-        transcription: transcription.text,
+        transcription: transcriptionResult.text,
         status: 'transcribed'
       })
       .eq('id', recordingId);
@@ -149,19 +118,15 @@ serve(async (req) => {
 
     // Process with GPT
     console.log('Processing transcription with GPT...');
-    const gptPrompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
+    const gptPrompt = `Please analyze the following transcript and provide a structured response with:
 
 1. Summary
-2. Project Background
-3. Anticipated Challenges
-4. Potential Solutions
-5. Risks
-6. Preventative Actions
-7. Assigning Responsibility
-8. Next Steps
+2. Key Points
+3. Action Items
+4. Next Steps
 
 Transcript:
-${transcription.text}
+${transcriptionResult.text}
 
 Please format your response in a clear, structured way with headers for each section.`;
 
@@ -172,7 +137,7 @@ Please format your response in a clear, structured way with headers for each sec
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'user', content: gptPrompt }
         ],
@@ -183,39 +148,62 @@ Please format your response in a clear, structured way with headers for each sec
 
     if (!gptResponse.ok) {
       const errorData = await gptResponse.json();
-      console.error('GPT API error:', errorData);
+      console.error('GPT processing error:', errorData);
       throw new Error(`GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`);
     }
 
-    const gptData = await gptResponse.json();
-    const processedContent = gptData.choices[0].message.content;
+    const gptResult = await gptResponse.json();
+    const processedContent = gptResult.choices[0].message.content;
     console.log('GPT processed content:', processedContent.substring(0, 100) + '...');
 
-    // Update recording with processed content
-    console.log('Updating recording with processed content...');
-    const { error: updateError } = await supabase
+    // Update recording with processed content and create note
+    console.log('Creating note with processed content...');
+    const { error: noteError } = await supabase
+      .from('notes')
+      .insert({
+        user_id: recording.user_id,
+        recording_id: recordingId,
+        title: recording.title || `Note from ${new Date().toLocaleString()}`,
+        original_transcript: transcriptionResult.text,
+        processed_content: processedContent,
+      });
+
+    if (noteError) {
+      console.error('Error creating note:', noteError);
+      throw new Error(`Failed to create note: ${noteError.message}`);
+    }
+
+    // Update recording status to completed
+    const { error: finalUpdateError } = await supabase
       .from('recordings')
       .update({
+        status: 'completed',
         summary: processedContent,
-        status: 'completed'
       })
       .eq('id', recordingId);
 
-    if (updateError) {
-      console.error('Error updating recording:', updateError);
-      throw new Error(`Failed to update recording: ${updateError.message}`);
+    if (finalUpdateError) {
+      console.error('Error updating recording status:', finalUpdateError);
+      throw new Error(`Failed to update recording status: ${finalUpdateError.message}`);
     }
 
-    console.log('Successfully updated recording with processed content');
+    console.log('Processing completed successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        transcription: transcription.text,
+        message: 'Recording processed successfully',
+        transcription: transcriptionResult.text,
         processedContent
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json' 
+        }
+      }
     );
+
   } catch (error) {
     console.error('Error in process-recording function:', error);
     
@@ -224,6 +212,7 @@ Please format your response in a clear, structured way with headers for each sec
       if (recordingId) {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
           await supabase
@@ -246,7 +235,7 @@ Please format your response in a clear, structured way with headers for each sec
       }), 
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
   }
