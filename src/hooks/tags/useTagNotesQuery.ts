@@ -51,8 +51,8 @@ export const useTagNotesQuery = (tagId: string | undefined) => {
       return processedNotes;
     },
     enabled: !!tagId,
-    staleTime: 1000 * 60, // Cache for 1 minute
-    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    staleTime: 0, // Desabilita o cache para sempre buscar dados frescos
+    refetchOnWindowFocus: true, // Atualiza quando a janela recebe foco
   });
 
   useEffect(() => {

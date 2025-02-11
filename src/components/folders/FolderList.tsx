@@ -22,7 +22,7 @@ export function FolderList() {
       const { data, error } = await supabase
         .from("folders")
         .select("*")
-        .order("created_at", { ascending: true });
+        .order("name", { ascending: true }); // Ordenação alfabética por nome
 
       if (error) {
         console.error("Error fetching folders:", error);

@@ -30,7 +30,7 @@ export function TagList() {
         .from("tags")
         .select("*")
         .eq('user_id', session.user.id)
-        .order("name", { ascending: true });
+        .order("name", { ascending: true }); // Ordenação alfabética por nome
 
       if (error) {
         console.error("Error fetching tags:", error);
