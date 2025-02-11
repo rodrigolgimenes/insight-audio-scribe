@@ -113,7 +113,7 @@ export const FolderHeader = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6 pb-10">
+              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6 pb-8">
                 <AlertDialogHeader className="space-y-3">
                   <AlertDialogTitle className="text-xl font-semibold text-center">
                     Delete Folder
@@ -122,7 +122,7 @@ export const FolderHeader = ({
                     What would you like to do with the notes in this folder?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="flex flex-col gap-2 sm:gap-2 mt-4">
+                <AlertDialogFooter className="flex flex-col gap-2 mt-4">
                   <AlertDialogAction
                     onClick={() => onDelete(false)}
                     disabled={isDeleting}
