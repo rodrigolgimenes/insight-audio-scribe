@@ -1,14 +1,17 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { FileText, Search, Trash2 } from "lucide-react";
+import { FileText, Search, Trash2, Clock, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { formatDuration } from "@/utils/formatDuration";
+import { formatDate } from "@/utils/formatDate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,13 +56,37 @@ const FolderPage = () => {
             id,
             title,
             original_transcript,
-            created_at
+            created_at,
+            duration,
+            notes_tags!left (
+              tags:tag_id (
+                id,
+                name,
+                color
+              )
+            )
           )
         `)
         .eq("folder_id", folderId);
 
       if (error) throw error;
-      return data.map((item) => item.note);
+      return data.map((item) => ({
+        ...item.note,
+        tags: item.note.notes_tags?.map((nt: any) => nt.tags) || []
+      }));
+    },
+  });
+
+  const { data: tags } = useQuery({
+    queryKey: ["tags"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -153,11 +180,21 @@ const FolderPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-4 mb-8">
-            <div className="flex gap-2">
-              <Badge variant="secondary">note</Badge>
-              <Badge variant="secondary">tasklist</Badge>
-            </div>
-            <div className="flex items-center gap-2">
+            {tags && tags.length > 0 && (
+              <div className="flex gap-2">
+                {tags.map((tag) => (
+                  <Badge 
+                    key={tag.id} 
+                    variant="secondary"
+                    style={{ backgroundColor: tag.color }}
+                    className="text-white"
+                  >
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
               <span className="text-sm text-gray-600">Select notes</span>
               <Switch
                 checked={isSelectionMode}
@@ -218,11 +255,33 @@ const FolderPage = () => {
                   <p className="text-gray-600 text-sm line-clamp-3">
                     {note.original_transcript || "No transcript available"}
                   </p>
-                  <div className="mt-4 flex justify-between items-center">
-                    <span className="text-xs text-gray-500">
-                      {new Date(note.created_at).toLocaleDateString()}
-                    </span>
-                    <Badge>Note</Badge>
+                  <div className="mt-4 space-y-2">
+                    {note.tags && note.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {note.tags.map((tag) => (
+                          <Badge 
+                            key={tag.id}
+                            style={{ backgroundColor: tag.color }}
+                            className="text-white"
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center text-xs text-gray-500">
+                      <div className="flex items-center gap-4">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {formatDuration(note.duration)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {formatDate(note.created_at)}
+                        </span>
+                      </div>
+                      <Badge>Note</Badge>
+                    </div>
                   </div>
                 </div>
               ))}
