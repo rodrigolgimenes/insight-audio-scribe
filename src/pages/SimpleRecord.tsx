@@ -164,7 +164,7 @@ const SimpleRecord = () => {
                         disabled={isSaving}
                       >
                         <Mic className="w-4 h-4" />
-                        {isSaving ? 'Salvando...' : 'Criar nota'}
+                        {isSaving ? 'Saving...' : 'Create note'}
                       </Button>
 
                       <FileUploadSection />
@@ -185,7 +185,12 @@ const SimpleRecord = () => {
           </main>
         </div>
       </div>
-      {(isTranscribing || isSaving || isUploading || isProcessing) && <TranscriptionLoading />}
+      {(isTranscribing || isSaving || isUploading || isProcessing) && 
+        <TranscriptionLoading 
+          isUploading={isUploading}
+          isProcessing={isProcessing}
+        />
+      }
     </SidebarProvider>
   );
 };
