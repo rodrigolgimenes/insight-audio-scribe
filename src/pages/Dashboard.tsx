@@ -1,3 +1,4 @@
+
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SearchHeader } from "@/components/dashboard/SearchHeader";
@@ -24,7 +25,6 @@ const Dashboard = () => {
   } = useNoteManagement();
 
   if (error) {
-    console.error("Dashboard error:", error);
     return (
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />

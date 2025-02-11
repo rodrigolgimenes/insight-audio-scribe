@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Edit2, Check, Trash2 } from "lucide-react";
+import { Edit2, Check, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -145,16 +145,6 @@ export const FolderHeader = ({
             </AlertDialog>
           </div>
         )}
-      </div>
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <Input
-            type="search"
-            placeholder="Search notes..."
-            className="pl-10"
-          />
-        </div>
       </div>
     </>
   );
