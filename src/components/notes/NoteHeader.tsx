@@ -94,7 +94,7 @@ export const NoteHeader = ({
               <span>Duration: {formatDuration(duration)}</span>
             )}
             <span>
-              Folder: {folder ? folder.name : "Uncategorized"}
+              Folder: <span className="font-bold">{folder ? folder.name : "Uncategorized"}</span>
             </span>
           </div>
         </div>
