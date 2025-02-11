@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useTagQuery } from "@/hooks/tags/useTagQuery";
@@ -105,7 +104,7 @@ export default function TagPage() {
       });
 
       queryClient.invalidateQueries({ queryKey: ["tags"] });
-      navigate("/app/notes");
+      navigate("/app");
     } catch (error: any) {
       toast({
         title: "Error deleting tag",
@@ -234,4 +233,3 @@ export default function TagPage() {
     </SidebarProvider>
   );
 }
-
