@@ -330,8 +330,8 @@ export type Database = {
           id: string
           processed_at: string | null
           processed_audio_url: string | null
+          processed_content: string | null
           status: string | null
-          summary: string | null
           title: string
           transcription: string | null
           updated_at: string
@@ -345,8 +345,8 @@ export type Database = {
           id?: string
           processed_at?: string | null
           processed_audio_url?: string | null
+          processed_content?: string | null
           status?: string | null
-          summary?: string | null
           title: string
           transcription?: string | null
           updated_at?: string
@@ -360,8 +360,8 @@ export type Database = {
           id?: string
           processed_at?: string | null
           processed_audio_url?: string | null
+          processed_content?: string | null
           status?: string | null
-          summary?: string | null
           title?: string
           transcription?: string | null
           updated_at?: string
