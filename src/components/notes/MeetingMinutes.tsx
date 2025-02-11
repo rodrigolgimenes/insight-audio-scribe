@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,8 +114,6 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
             />
           </div>
         )}
-
-        <h1 className="text-2xl font-bold mb-6">{minutes ? "Ata de Reunião" : "Gerando Ata..."}</h1>
 
         {minutes && (
           <div className="mb-6">
