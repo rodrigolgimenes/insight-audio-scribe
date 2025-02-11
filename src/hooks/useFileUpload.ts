@@ -66,7 +66,7 @@ export const useFileUpload = () => {
           title: file.name || `Recording ${new Date().toLocaleString()}`,
           file_path: 'pending',
           status: 'pending',
-          duration: durationInMs
+          duration: durationInMs  // This is already in milliseconds
         })
         .select()
         .single();
@@ -80,7 +80,7 @@ export const useFileUpload = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('recordingId', recordingData.id);
-      formData.append('duration', durationInMs.toString());
+      formData.append('duration', durationInMs.toString());  // Pass as string but keep in milliseconds
 
       console.log('Invoking transcribe-upload function...');
       const { data, error: functionError } = await supabase.functions.invoke('transcribe-upload', {
