@@ -20,7 +20,7 @@ export const useNotesQuery = () => {
               duration
             )
           `)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false });  // This ensures newest notes appear first
 
         if (error) {
           console.error("Error fetching notes:", error);
