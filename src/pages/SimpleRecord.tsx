@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -60,8 +61,8 @@ const SimpleRecord = () => {
   const handleSave = async () => {
     if (!styles || styles.length === 0) {
       toast({
-        title: "Erro",
-        description: "Nenhum estilo encontrado para processamento",
+        title: "Error",
+        description: "No styles found for processing",
         variant: "destructive",
       });
       return;
@@ -112,8 +113,8 @@ const SimpleRecord = () => {
       console.log('Processing initiated');
 
       toast({
-        title: "Sucesso",
-        description: "Gravação salva e processamento iniciado!",
+        title: "Success",
+        description: "Recording saved and processing initiated!",
       });
       
       navigate("/app");
@@ -121,8 +122,8 @@ const SimpleRecord = () => {
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao salvar a gravação",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error saving recording",
         variant: "destructive",
       });
     }
