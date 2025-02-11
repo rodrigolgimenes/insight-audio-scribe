@@ -15,26 +15,25 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
       console.log("Fetching notes for folder:", folderId);
       
       const { data, error } = await supabase
-        .from("notes_folders")
+        .from("notes")
         .select(`
-          notes (
-            id,
-            title,
-            original_transcript,
-            created_at,
-            recordings (
-              duration
-            ),
-            notes_tags!left (
-              tags:tag_id (
-                id,
-                name,
-                color
-              )
+          id,
+          title,
+          original_transcript,
+          created_at,
+          recordings (
+            duration
+          ),
+          notes_tags!left (
+            tags:tag_id (
+              id,
+              name,
+              color
             )
           )
         `)
-        .eq("folder_id", folderId)
+        .eq("notes_folders.folder_id", folderId)
+        .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) {
@@ -44,17 +43,11 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
 
       console.log("Raw folder notes data:", data);
 
-      const processedNotes = data
-        .filter(item => item.notes) // Filter out any null notes
-        .map(item => ({
-          ...item.notes,
-          duration: item.notes.recordings?.duration || null,
-          tags: item.notes.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
-        }))
-        .sort((a, b) => {
-          // Sort by created_at in descending order (newest first)
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
+      const processedNotes = data.map(note => ({
+        ...note,
+        duration: note.recordings?.duration || null,
+        tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
+      }));
 
       console.log("Processed notes:", processedNotes);
       return processedNotes;

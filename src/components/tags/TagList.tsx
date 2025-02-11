@@ -19,41 +19,59 @@ export function TagList() {
   const { data: tags, refetch: refetchTags } = useQuery({
     queryKey: ["tags"],
     queryFn: async () => {
+      if (!session?.user?.id) {
+        console.log("No user session found");
+        return [];
+      }
+
+      console.log("Fetching tags for user:", session.user.id);
+
       const { data, error } = await supabase
         .from("tags")
         .select("*")
-        .order("created_at", { ascending: true });
+        .eq('user_id', session.user.id)
+        .order("name", { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching tags:", error);
+        throw error;
+      }
+
+      console.log("Fetched tags:", data);
       return data;
     },
+    enabled: !!session?.user?.id,
   });
 
   const createTag = async () => {
     if (!newTagName.trim() || !session?.user.id) return;
 
-    const { error } = await supabase.from("tags").insert({
-      name: newTagName.trim(),
-      user_id: session.user.id,
-    });
+    try {
+      const { error } = await supabase.from("tags").insert({
+        name: newTagName.trim(),
+        user_id: session.user.id,
+      });
 
-    if (error) {
+      if (error) {
+        console.error("Error creating tag:", error);
+        throw error;
+      }
+
+      toast({
+        title: "Tag created",
+        description: "Your tag has been created successfully.",
+      });
+
+      setNewTagName("");
+      setIsCreating(false);
+      refetchTags();
+    } catch (error: any) {
       toast({
         title: "Error creating tag",
         description: error.message,
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Tag created",
-      description: "Your tag has been created successfully.",
-    });
-
-    setNewTagName("");
-    setIsCreating(false);
-    refetchTags();
   };
 
   return (
