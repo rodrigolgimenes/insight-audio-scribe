@@ -13,7 +13,8 @@ export const getMediaDuration = async (file: File): Promise<number> => {
     
     media.onloadedmetadata = () => {
       window.URL.revokeObjectURL(media.src);
-      resolve(Math.round(media.duration));
+      // Convert seconds to milliseconds
+      resolve(Math.round(media.duration * 1000));
     };
 
     media.onerror = (e) => {
