@@ -35,7 +35,6 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
           )
         `)
         .eq("folder_id", folderId)
-        .order("created_at", { ascending: false, foreignTable: "notes" })
         .limit(50);
 
       if (error) {
@@ -51,7 +50,11 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
           ...item.notes,
           duration: item.notes.recordings?.duration || null,
           tags: item.notes.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
-        }));
+        }))
+        .sort((a, b) => {
+          // Sort by created_at in descending order (newest first)
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
 
       console.log("Processed notes:", processedNotes);
       return processedNotes;
@@ -72,9 +75,9 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
           schema: 'public',
           table: 'notes_folders'
         },
-        (payload) => {
+        (payload: any) => {
           console.log("notes_folders change detected:", payload);
-          if (payload.new.folder_id === folderId) {
+          if (payload.new && payload.new.folder_id === folderId) {
             query.refetch();
           }
         }
