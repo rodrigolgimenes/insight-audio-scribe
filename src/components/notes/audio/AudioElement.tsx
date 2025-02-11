@@ -25,7 +25,6 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.error('[AudioElement] Audio src:', target.src);
       console.error('[AudioElement] Network state:', target.networkState);
       console.error('[AudioElement] Ready state:', target.readyState);
-      console.error('[AudioElement] MIME type:', target.canPlayType('audio/webm'));
       
       let errorMessage = "Erro ao carregar arquivo de áudio";
       if (target.error) {
@@ -52,14 +51,24 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       });
     };
 
+    const getAudioType = (url: string): string => {
+      if (url.includes('.mp3')) return 'audio/mpeg';
+      if (url.includes('.webm')) return 'audio/webm';
+      // Default to webm if no extension found
+      return 'audio/webm';
+    };
+
     const handleLoadStart = () => {
       if (!src) return;
       
+      const audioType = getAudioType(src);
       console.log('[AudioElement] Load started:', { 
         src,
+        audioType,
         ref: ref as React.MutableRefObject<HTMLAudioElement>,
         mimeTypes: {
-          webm: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/webm')
+          webm: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/webm'),
+          mp3: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/mpeg')
         }
       });
     };
@@ -73,7 +82,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
           duration: audioEl.current.duration,
           readyState: audioEl.current.readyState,
           networkState: audioEl.current.networkState,
-          type: audioEl.current.canPlayType('audio/webm')
+          src: audioEl.current.src
         });
       }
     };
@@ -113,6 +122,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       return null;
     }
 
+    const audioType = getAudioType(src);
+
     return (
       <audio
         ref={ref}
@@ -125,7 +136,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         onProgress={handleProgress}
         preload="metadata"
       >
-        <source src={src} type="audio/webm" />
+        <source src={src} type={audioType} />
         Your browser does not support the audio element.
       </audio>
     );
