@@ -7,43 +7,78 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
   const query = useQuery({
     queryKey: ["folder-notes", folderId],
     queryFn: async () => {
+      if (!folderId) {
+        console.log("No folder ID provided");
+        return [];
+      }
+
+      console.log("Fetching notes for folder:", folderId);
+      
       const { data, error } = await supabase
-        .from("notes")
+        .from("notes_folders")
         .select(`
-          id,
-          title,
-          original_transcript,
-          created_at,
-          recordings (
-            duration
-          ),
-          notes_tags!left (
-            tags:tag_id (
-              id,
-              name,
-              color
+          notes (
+            id,
+            title,
+            original_transcript,
+            created_at,
+            recordings (
+              duration
+            ),
+            notes_tags!left (
+              tags:tag_id (
+                id,
+                name,
+                color
+              )
             )
           )
         `)
-        .eq("notes_folders.folder_id", folderId)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .eq("folder_id", folderId)
+        .order("created_at", { ascending: false, foreignTable: "notes" })
+        .limit(50);
 
-      if (error) throw error;
-      return data.map((note) => ({
-        ...note,
-        duration: note.recordings?.duration || null,
-        tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
-      }));
+      if (error) {
+        console.error("Error fetching folder notes:", error);
+        throw error;
+      }
+
+      console.log("Raw folder notes data:", data);
+
+      const processedNotes = data
+        .filter(item => item.notes) // Filter out any null notes
+        .map(item => ({
+          ...item.notes,
+          duration: item.notes.recordings?.duration || null,
+          tags: item.notes.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
+        }));
+
+      console.log("Processed notes:", processedNotes);
+      return processedNotes;
     },
-    staleTime: 0,
-    gcTime: 0, // This ensures immediate garbage collection and refetching
+    enabled: !!folderId,
+    staleTime: 1000 * 60, // Cache for 1 minute
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
   });
 
   useEffect(() => {
-    // Subscribe to notes_tags changes for real-time updates
+    // Subscribe to relevant table changes for real-time updates
     const channel = supabase
       .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notes_folders'
+        },
+        (payload) => {
+          console.log("notes_folders change detected:", payload);
+          if (payload.new.folder_id === folderId) {
+            query.refetch();
+          }
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -52,16 +87,17 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
           table: 'notes'
         },
         () => {
-          // Refetch data when any changes occur
+          console.log("notes change detected, refetching...");
           query.refetch();
         }
       )
       .subscribe();
 
     return () => {
+      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
-  }, [query]);
+  }, [folderId, query]);
 
   return query;
 };
