@@ -402,6 +402,42 @@ export type Database = {
           },
         ]
       }
+      suggestions: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string
+          email: string
+          id: string
+          name: string
+          status: string
+          upvotes: number | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description: string
+          email: string
+          id?: string
+          name: string
+          status?: string
+          upvotes?: number | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          name?: string
+          status?: string
+          upvotes?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string | null

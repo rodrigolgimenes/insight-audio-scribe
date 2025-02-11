@@ -15,6 +15,8 @@ import { Mic, FileText, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FolderList } from "./folders/FolderList";
 import { TagList } from "./tags/TagList";
+import { useState } from "react";
+import { SuggestionDialog } from "./suggestions/SuggestionDialog";
 
 interface AppSidebarProps {
   activePage?: string;
@@ -22,6 +24,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activePage }: AppSidebarProps) {
   const navigate = useNavigate();
+  const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
   
   const menuItems = [
     { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
@@ -84,11 +87,21 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
             <a href="#" className="block py-1 hover:text-gray-900">What's new</a>
             <a href="#" className="block py-1 hover:text-gray-900">Support</a>
             <a href="#" className="block py-1 hover:text-gray-900">Guide</a>
-            <a href="#" className="block py-1 hover:text-gray-900">Suggest an idea</a>
+            <button 
+              onClick={() => setIsSuggestionDialogOpen(true)}
+              className="block w-full text-left py-1 hover:text-gray-900"
+            >
+              Suggest an idea
+            </button>
             <a href="#" className="block py-1 hover:text-gray-900">Report a bug</a>
           </div>
         </div>
       </SidebarFooter>
+
+      <SuggestionDialog 
+        open={isSuggestionDialogOpen}
+        onOpenChange={setIsSuggestionDialogOpen}
+      />
     </Sidebar>
   );
 }
