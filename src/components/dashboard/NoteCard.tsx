@@ -128,6 +128,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         transcript={note.original_transcript}
         duration={note.duration}
         createdAt={note.created_at}
+        folder={currentFolder}
       />
 
       <RenameNoteDialog
