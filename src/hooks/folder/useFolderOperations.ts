@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 export const useFolderOperations = (folderId: string) => {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const queryClient } = useQueryClient();
   const navigate = useNavigate();
 
   const { mutateAsync: renameFolder, isPending: isRenaming } = useMutation({
@@ -72,7 +72,8 @@ export const useFolderOperations = (folderId: string) => {
         description: "The folder has been deleted successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ["folders"] });
-      navigate("/app/notes");
+      // Immediately navigate to dashboard after successful deletion
+      navigate("/app", { replace: true });
     },
     onError: (error) => {
       toast({
