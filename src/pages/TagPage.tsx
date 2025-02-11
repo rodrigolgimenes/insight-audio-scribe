@@ -1,10 +1,11 @@
+
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useTagQuery } from "@/hooks/tags/useTagQuery";
 import { useTagNotesQuery } from "@/hooks/tags/useTagNotesQuery";
 import { FolderEmptyState } from "@/components/folder/FolderEmptyState";
 import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Edit2, Trash2, Check, X } from "lucide-react";
@@ -38,6 +39,36 @@ export default function TagPage() {
   
   const { data: tag, isLoading: isTagLoading } = useTagQuery(tagId);
   const { data: notes, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
+
+  // Set up real-time subscription for notes_tags changes
+  useEffect(() => {
+    if (!tagId) return;
+
+    console.log("Setting up real-time subscription for tag:", tagId);
+    
+    const channel = supabase
+      .channel('tag-notes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notes_tags',
+          filter: `tag_id=eq.${tagId}`
+        },
+        async (payload) => {
+          console.log("notes_tags change detected:", payload);
+          // Invalidate and refetch the notes query
+          await queryClient.invalidateQueries({ queryKey: ["tag-notes", tagId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("Cleaning up real-time subscription");
+      supabase.removeChannel(channel);
+    };
+  }, [tagId, queryClient]);
 
   const toggleNoteSelection = (noteId: string) => {
     setSelectedNotes(prev =>

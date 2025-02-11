@@ -61,25 +61,11 @@ export const useTagNotesQuery = (tagId: string | undefined) => {
         {
           event: '*',
           schema: 'public',
-          table: 'notes_tags'
+          table: 'notes_tags',
+          filter: tagId ? `tag_id=eq.${tagId}` : undefined
         },
         (payload: any) => {
           console.log("notes_tags change detected:", payload);
-          if (payload.old?.tag_id === tagId || payload.new?.tag_id === tagId) {
-            console.log("Relevant tag change detected, refetching...");
-            query.refetch();
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notes'
-        },
-        () => {
-          console.log("notes change detected, refetching...");
           query.refetch();
         }
       )
