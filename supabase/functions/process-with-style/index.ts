@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -18,18 +19,14 @@ serve(async (req) => {
       throw new Error('Transcript is required');
     }
 
-    const prompt = `Please analyze the following meeting transcript and provide a structured response with the following sections:
+    const prompt = `Por favor, analise a seguinte transcrição e forneça um resumo estruturado com as seguintes seções:
 
-1. Summary
-2. Project Background
-3. Anticipated Challenges
-4. Potential Solutions
-5. Risks
-6. Preventative Actions
-7. Assigning Responsibility
-8. Next Steps
+1. Resumo
+2. Pontos Principais
+3. Próximos Passos
+4. Ações Necessárias
 
-Transcript:
+Transcrição:
 ${transcript}`;
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -39,7 +36,7 @@ ${transcript}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',
         messages: [
           { role: 'user', content: prompt }
         ],

@@ -18,7 +18,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 const SimpleRecord = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [processedContent, setProcessedContent] = useState<{ title: string; content: string; styleId: string } | null>(null);
+  const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const { isUploading, isProcessing } = useFileUpload();
 
@@ -46,28 +46,7 @@ const SimpleRecord = () => {
 
   const isLoading = isTranscribing || isSaving || isUploading || isProcessing;
 
-  const { data: styles } = useQuery({
-    queryKey: ['styles'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('styles')
-        .select('*')
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const handleSave = async () => {
-    if (!styles || styles.length === 0) {
-      toast({
-        title: "Error",
-        description: "No styles found for processing",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       // Stop the recording first if it's still active
       if (isRecording) {
