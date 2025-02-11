@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 export const useFolderOperations = (folderId: string) => {
   const { toast } = useToast();
-  const queryClient } = useQueryClient();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const { mutateAsync: renameFolder, isPending: isRenaming } = useMutation({
