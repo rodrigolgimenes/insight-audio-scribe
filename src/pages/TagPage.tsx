@@ -25,14 +25,23 @@ export default function TagPage() {
   };
 
   if (isTagLoading || isNotesLoading) {
-    return <div>Loading...</div>;
+    return (
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
+          <AppSidebar />
+          <main className="flex-1 p-8">
+            <div>Loading...</div>
+          </main>
+        </div>
+      </SidebarProvider>
+    );
   }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <main className="flex-1 overflow-y-auto p-6">
+      <div className="min-h-screen flex w-full bg-gray-50">
+        <AppSidebar activePage="notes" />
+        <main className="flex-1 p-8">
           <div className="mb-6">
             <h1 className="text-2xl font-semibold text-gray-900">
               Tag: {tag?.name}
