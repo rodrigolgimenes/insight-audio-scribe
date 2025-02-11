@@ -40,10 +40,11 @@ export const useFileUpload = () => {
       return;
     }
 
-    try {
-      setIsUploading(true);
-      setIsProcessing(true);
+    // Set loading states immediately after file validation
+    setIsUploading(true);
+    setIsProcessing(true);
 
+    try {
       console.log('Getting media duration...');
       const durationInMs = await getMediaDuration(file);
       console.log('Media duration in milliseconds:', durationInMs);
@@ -89,6 +90,7 @@ export const useFileUpload = () => {
         throw new Error(data?.error || 'Failed to process file');
       }
 
+      console.log('File processed successfully');
       toast({
         title: "Success",
         description: "File processed successfully!",
@@ -107,6 +109,7 @@ export const useFileUpload = () => {
         variant: "destructive",
       });
     } finally {
+      // Reset states and clear input
       setIsUploading(false);
       setIsProcessing(false);
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
