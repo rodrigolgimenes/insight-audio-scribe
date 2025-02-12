@@ -1,14 +1,47 @@
 
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MIC_CONSTRAINTS } from "./audioConfig";
 import { useSystemAudio } from "./useSystemAudio";
 import { handleAudioError } from "./audioErrorHandler";
 
+export interface AudioDevice {
+  deviceId: string;
+  label: string;
+  kind: MediaDeviceInfo['kind'];
+}
+
 export const useAudioCapture = () => {
   const { toast } = useToast();
   const { captureSystemAudio } = useSystemAudio();
+  const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
 
-  const requestMicrophoneAccess = async (isSystemAudio: boolean): Promise<MediaStream | null> => {
+  const getAudioDevices = async (): Promise<AudioDevice[]> => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices
+        .filter(device => device.kind === 'audioinput')
+        .map(device => ({
+          deviceId: device.deviceId,
+          label: device.label || `Microfone ${device.deviceId.slice(0, 5)}...`,
+          kind: device.kind
+        }));
+
+      setAudioDevices(audioInputs);
+      return audioInputs;
+    } catch (error) {
+      console.error('[useAudioCapture] Error getting audio devices:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível listar os dispositivos de áudio",
+        variant: "destructive",
+      });
+      return [];
+    }
+  };
+
+  const requestMicrophoneAccess = async (deviceId: string | null, isSystemAudio: boolean): Promise<MediaStream | null> => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Seu navegador não suporta captura de áudio');
@@ -25,10 +58,21 @@ export const useAudioCapture = () => {
 
       let micStream: MediaStream;
       try {
-        micStream = await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
+        const constraints = {
+          ...MIC_CONSTRAINTS,
+          audio: {
+            ...MIC_CONSTRAINTS.audio,
+            deviceId: deviceId ? { exact: deviceId } : undefined
+          }
+        };
+
+        micStream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (micError) {
         console.warn('[useAudioCapture] Failed with advanced constraints, trying basic config:', micError);
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        micStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+          video: false 
+        });
       }
 
       if (isSystemAudio) {
@@ -64,5 +108,7 @@ export const useAudioCapture = () => {
 
   return {
     requestMicrophoneAccess,
+    getAudioDevices,
+    audioDevices,
   };
 };

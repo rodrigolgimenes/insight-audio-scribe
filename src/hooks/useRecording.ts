@@ -1,5 +1,5 @@
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AudioRecorder } from "@/utils/audio/audioRecorder";
@@ -27,7 +27,8 @@ export const useRecording = () => {
     setIsSystemAudio,
   } = useRecordingState();
 
-  const { requestMicrophoneAccess } = useAudioCapture();
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const { requestMicrophoneAccess, getAudioDevices, audioDevices } = useAudioCapture();
   const { saveRecording } = useAudioProcessing();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,6 +38,7 @@ export const useRecording = () => {
   const logger = useRef(new RecordingLogger());
 
   useEffect(() => {
+    getAudioDevices();
     // Add the logger observer when the component mounts
     audioRecorder.current.addObserver(logger.current);
     
@@ -59,7 +61,7 @@ export const useRecording = () => {
       return;
     }
 
-    const stream = await requestMicrophoneAccess(isSystemAudio);
+    const stream = await requestMicrophoneAccess(selectedDeviceId, isSystemAudio);
     if (!stream) return;
 
     setMediaStream(stream);
@@ -145,6 +147,8 @@ export const useRecording = () => {
     handleResumeRecording,
     handleDelete,
     setIsSystemAudio,
+    audioDevices,
+    selectedDeviceId,
+    setSelectedDeviceId,
   };
 };
-
