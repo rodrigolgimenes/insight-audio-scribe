@@ -66,15 +66,36 @@ serve(async (req) => {
       .update({ status: 'processing' })
       .eq('id', recordingId);
 
-    // Download the audio file
+    // Download the audio file with retries
     console.log('Downloading audio file...');
-    const { data: audioData, error: downloadError } = await supabase.storage
-      .from('audio_recordings')
-      .download(recording.file_path);
+    let audioData: Blob | null = null;
+    let downloadError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const { data, error } = await supabase.storage
+          .from('audio_recordings')
+          .download(recording.file_path);
 
-    if (downloadError || !audioData) {
-      console.error('Error downloading audio:', downloadError);
-      throw new Error(`Failed to download audio: ${downloadError?.message || 'Unknown error'}`);
+        if (error) {
+          console.error(`Download attempt ${attempt} failed:`, error);
+          downloadError = error;
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          continue;
+        }
+
+        audioData = data;
+        downloadError = null;
+        break;
+      } catch (error) {
+        console.error(`Download attempt ${attempt} failed with exception:`, error);
+        downloadError = error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+
+    if (!audioData || downloadError) {
+      throw new Error(`Failed to download audio after retries: ${downloadError?.message || 'Unknown error'}`);
     }
 
     console.log('Audio file downloaded successfully:', {
