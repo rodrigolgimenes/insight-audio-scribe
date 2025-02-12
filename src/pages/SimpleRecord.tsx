@@ -29,18 +29,20 @@ const SimpleRecord = () => {
     mediaStream,
     isSaving,
     isTranscribing,
+    isSystemAudio,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
     handleDelete,
+    setIsSystemAudio,
   } = useRecording();
 
   const handleTimeLimit = () => {
     handleStopRecording();
     toast({
-      title: "Time Limit Reached",
-      description: "Recording stopped after reaching the 25-minute limit.",
+      title: "Tempo Limite Atingido",
+      description: "A gravação foi interrompida após atingir o limite de 25 minutos.",
     });
   };
 
@@ -48,7 +50,6 @@ const SimpleRecord = () => {
 
   const handleSave = async () => {
     try {
-      // Stop the recording first if it's still active
       if (isRecording) {
         await handleStopRecording();
       }
@@ -56,12 +57,10 @@ const SimpleRecord = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      // Generate a unique filename
       const fileName = `${user.id}/${Date.now()}.webm`;
       
       console.log('Creating recording with user ID:', user.id);
 
-      // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
@@ -81,7 +80,6 @@ const SimpleRecord = () => {
 
       console.log('Recording saved:', recordingData);
 
-      // Upload the audio file
       if (audioUrl) {
         const response = await fetch(audioUrl);
         const blob = await response.blob();
@@ -97,7 +95,6 @@ const SimpleRecord = () => {
           throw new Error(`Failed to upload audio: ${uploadError.message}`);
         }
 
-        // Update the recording with the correct file path
         const { error: updateError } = await supabase
           .from('recordings')
           .update({
@@ -111,7 +108,6 @@ const SimpleRecord = () => {
         }
       }
 
-      // Process the recording
       const { error: processError } = await supabase.functions
         .invoke('process-recording', {
           body: { recordingId: recordingData.id },
@@ -125,8 +121,8 @@ const SimpleRecord = () => {
       console.log('Processing initiated');
 
       toast({
-        title: "Success",
-        description: "Recording saved and processing initiated!",
+        title: "Sucesso",
+        description: "Gravação salva e processamento iniciado!",
       });
       
       navigate("/app");
@@ -134,8 +130,8 @@ const SimpleRecord = () => {
     } catch (error) {
       console.error('Error saving recording:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error saving recording",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar gravação",
         variant: "destructive",
       });
     }
@@ -155,12 +151,14 @@ const SimpleRecord = () => {
                     isPaused={isPaused}
                     audioUrl={audioUrl}
                     mediaStream={mediaStream}
+                    isSystemAudio={isSystemAudio}
                     handleStartRecording={handleStartRecording}
                     handleStopRecording={handleStopRecording}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
                     handleTimeLimit={handleTimeLimit}
+                    onSystemAudioChange={setIsSystemAudio}
                   />
 
                   <div className="flex flex-col items-center gap-4">
@@ -171,7 +169,7 @@ const SimpleRecord = () => {
                         disabled={isLoading}
                       >
                         <Mic className="w-4 h-4" />
-                        {isSaving ? 'Saving...' : 'Create Note'}
+                        {isSaving ? 'Salvando...' : 'Criar Nota'}
                       </Button>
 
                       <FileUploadSection isDisabled={isLoading} />

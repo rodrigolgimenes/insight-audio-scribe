@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export const useAudioCapture = () => {
@@ -7,21 +6,35 @@ export const useAudioCapture = () => {
 
   const requestMicrophoneAccess = async (isSystemAudio: boolean): Promise<MediaStream | null> => {
     try {
-      let stream: MediaStream;
+      let micStream: MediaStream | null = null;
+      let systemStream: MediaStream | null = null;
       
       // Primeiro, verifica se o navegador suporta getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Seu navegador não suporta captura de áudio');
       }
 
+      // Captura o áudio do microfone
+      console.log('[useAudioCapture] Requesting microphone access with constraints');
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false
+      };
+
+      micStream = await navigator.mediaDevices.getUserMedia(constraints);
+
       if (isSystemAudio) {
         console.log('[useAudioCapture] Requesting system audio');
-        // Verificar se o navegador suporta getDisplayMedia
         if (!navigator.mediaDevices.getDisplayMedia) {
           throw new Error('Seu navegador não suporta captura de áudio do sistema');
         }
 
-        stream = await navigator.mediaDevices.getDisplayMedia({ 
+        // Captura o áudio do sistema
+        systemStream = await navigator.mediaDevices.getDisplayMedia({ 
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -29,33 +42,37 @@ export const useAudioCapture = () => {
           },
           video: false 
         });
-      } else {
-        console.log('[useAudioCapture] Requesting microphone access with constraints');
-        const constraints: MediaStreamConstraints = {
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: false
+
+        // Combina os streams usando Web Audio API
+        const audioContext = new AudioContext();
+        const micSource = audioContext.createMediaStreamSource(micStream);
+        const systemSource = audioContext.createMediaStreamSource(systemStream);
+        const merger = audioContext.createChannelMerger(2);
+        const destination = audioContext.createMediaStreamDestination();
+
+        micSource.connect(merger, 0, 0);
+        systemSource.connect(merger, 0, 1);
+        merger.connect(destination);
+
+        // Usa o stream combinado
+        micStream = destination.stream;
+
+        // Monitora quando o compartilhamento de tela é interrompido
+        systemStream.getAudioTracks()[0].onended = () => {
+          console.log('[useAudioCapture] System audio sharing stopped');
+          toast({
+            title: "Aviso",
+            description: "O compartilhamento de áudio do sistema foi interrompido.",
+            variant: "default",
+          });
         };
-
-        console.log('[useAudioCapture] Audio constraints:', constraints);
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      }
-
-      console.log('[useAudioCapture] Checking audio tracks...');
-      const audioTracks = stream.getAudioTracks();
-      
-      if (!audioTracks || audioTracks.length === 0) {
-        throw new Error('Nenhuma fonte de áudio detectada');
       }
 
       console.log('[useAudioCapture] Audio stream details:', {
-        id: stream.id,
-        active: stream.active,
-        trackCount: audioTracks.length,
-        tracks: audioTracks.map(track => ({
+        id: micStream.id,
+        active: micStream.active,
+        trackCount: micStream.getAudioTracks().length,
+        tracks: micStream.getAudioTracks().map(track => ({
           label: track.label,
           enabled: track.enabled,
           muted: track.muted,
@@ -64,50 +81,10 @@ export const useAudioCapture = () => {
         }))
       });
 
-      // Verificar se o stream está ativo
-      if (!stream.active) {
-        throw new Error('O stream de áudio não está ativo');
-      }
-
-      // Teste rápido para verificar se o stream está funcionando
-      const testTrack = audioTracks[0];
-      if (!testTrack.enabled || testTrack.muted) {
-        console.warn('[useAudioCapture] Audio track may be disabled or muted:', {
-          enabled: testTrack.enabled,
-          muted: testTrack.muted
-        });
-      }
-
-      // Adicionar listeners para monitorar o estado do stream
-      audioTracks.forEach(track => {
-        track.onended = () => {
-          console.log('[useAudioCapture] Audio track ended:', track.label);
-          toast({
-            title: "Aviso",
-            description: "A captura de áudio foi interrompida.",
-            variant: "default",
-          });
-        };
-
-        track.onmute = () => {
-          console.log('[useAudioCapture] Audio track muted:', track.label);
-          toast({
-            title: "Aviso",
-            description: "O áudio foi silenciado.",
-            variant: "default",
-          });
-        };
-
-        track.onunmute = () => {
-          console.log('[useAudioCapture] Audio track unmuted:', track.label);
-        };
-      });
-
-      return stream;
+      return micStream;
     } catch (error) {
       console.error('[useAudioCapture] Error accessing audio:', error);
       
-      // Tratamento específico para erros de permissão
       let errorMessage = 'Erro desconhecido';
       
       if (error instanceof Error) {
