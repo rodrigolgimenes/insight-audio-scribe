@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
     headers: {
-      'Service-Worker-Allowed': '/'
+      'Service-Worker-Allowed': '/',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
     }
   },
   plugins: [
@@ -32,6 +34,9 @@ export default defineConfig(({ mode }) => ({
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-slot'],
         }
       }
-    }
+    },
+    assetsInlineLimit: 0,
+    // Ensure service worker files are copied to the build output
+    copyPublicDir: true
   }
 }));
