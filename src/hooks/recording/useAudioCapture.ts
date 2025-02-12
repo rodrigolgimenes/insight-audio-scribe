@@ -29,6 +29,7 @@ export const useAudioCapture = () => {
         }));
 
       setAudioDevices(audioInputs);
+      console.log('[useAudioCapture] Available audio devices:', audioInputs);
       return audioInputs;
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
@@ -47,17 +48,14 @@ export const useAudioCapture = () => {
         throw new Error('Seu navegador não suporta captura de áudio');
       }
 
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = devices.filter(device => device.kind === 'audioinput');
-      
-      console.log('[useAudioCapture] Available audio devices:', audioInputs);
-
-      if (audioInputs.length === 0) {
-        throw new Error('Nenhum dispositivo de áudio encontrado');
-      }
+      console.log('[useAudioCapture] Requesting microphone access:', {
+        deviceId,
+        isSystemAudio
+      });
 
       let micStream: MediaStream;
       try {
+        // Use existing MIC_CONSTRAINTS from audioConfig
         const audioConstraints: MediaTrackConstraints = {
           ...MIC_CONSTRAINTS.audio as MediaTrackConstraints,
           deviceId: deviceId ? { exact: deviceId } : undefined
@@ -66,6 +64,14 @@ export const useAudioCapture = () => {
         micStream = await navigator.mediaDevices.getUserMedia({
           audio: audioConstraints,
           video: false
+        });
+        
+        console.log('[useAudioCapture] Microphone stream obtained:', {
+          tracks: micStream.getAudioTracks().map(track => ({
+            label: track.label,
+            enabled: track.enabled,
+            settings: track.getSettings()
+          }))
         });
       } catch (micError) {
         console.warn('[useAudioCapture] Failed with advanced constraints, trying basic config:', micError);
@@ -76,21 +82,36 @@ export const useAudioCapture = () => {
       }
 
       if (isSystemAudio) {
-        const systemStream = await captureSystemAudio(micStream);
-        if (systemStream) {
-          micStream = systemStream;
+        try {
+          console.log('[useAudioCapture] Attempting to capture system audio...');
+          const systemStream = await captureSystemAudio(micStream);
+          if (systemStream) {
+            console.log('[useAudioCapture] System audio captured successfully');
+            micStream = systemStream;
+          }
+        } catch (systemError) {
+          console.error('[useAudioCapture] Failed to capture system audio:', systemError);
+          toast({
+            title: "Aviso",
+            description: "Não foi possível capturar o áudio do sistema. Usando apenas o microfone.",
+            variant: "default",
+          });
         }
+      }
+
+      const audioTracks = micStream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        throw new Error('Nenhuma fonte de áudio disponível');
       }
 
       console.log('[useAudioCapture] Final audio stream details:', {
         id: micStream.id,
         active: micStream.active,
-        trackCount: micStream.getAudioTracks().length,
-        tracks: micStream.getAudioTracks().map(track => ({
+        trackCount: audioTracks.length,
+        tracks: audioTracks.map(track => ({
           label: track.label,
           enabled: track.enabled,
           muted: track.muted,
-          readyState: track.readyState,
           settings: track.getSettings()
         }))
       });
