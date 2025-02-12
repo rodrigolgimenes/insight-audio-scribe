@@ -142,7 +142,7 @@ export const useRecordingSave = () => {
         toast({
           title: "Aviso",
           description: "Gravação salva, mas houve um erro no processamento. O sistema tentará processar novamente em breve.",
-          variant: "warning",
+          variant: "destructive", // Changed from "warning" to "destructive" to match allowed types
         });
       } else {
         toast({
