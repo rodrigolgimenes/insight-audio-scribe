@@ -36,6 +36,9 @@ const SimpleRecord = () => {
     handleResumeRecording,
     handleDelete,
     setIsSystemAudio,
+    audioDevices,
+    selectedDeviceId,
+    setSelectedDeviceId,
   } = useRecording();
 
   const handleTimeLimit = () => {
@@ -166,6 +169,9 @@ const SimpleRecord = () => {
                     handleDelete={handleDelete}
                     handleTimeLimit={handleTimeLimit}
                     onSystemAudioChange={setIsSystemAudio}
+                    audioDevices={audioDevices}
+                    selectedDeviceId={selectedDeviceId}
+                    onDeviceSelect={setSelectedDeviceId}
                   />
 
                   <div className="flex flex-col items-center gap-4">

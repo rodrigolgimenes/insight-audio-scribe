@@ -58,15 +58,15 @@ export const useAudioCapture = () => {
 
       let micStream: MediaStream;
       try {
-        const constraints = {
-          ...MIC_CONSTRAINTS,
-          audio: {
-            ...MIC_CONSTRAINTS.audio,
-            deviceId: deviceId ? { exact: deviceId } : undefined
-          }
+        const audioConstraints: MediaTrackConstraints = {
+          ...MIC_CONSTRAINTS.audio as MediaTrackConstraints,
+          deviceId: deviceId ? { exact: deviceId } : undefined
         };
 
-        micStream = await navigator.mediaDevices.getUserMedia(constraints);
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: audioConstraints,
+          video: false
+        });
       } catch (micError) {
         console.warn('[useAudioCapture] Failed with advanced constraints, trying basic config:', micError);
         micStream = await navigator.mediaDevices.getUserMedia({ 
@@ -76,7 +76,10 @@ export const useAudioCapture = () => {
       }
 
       if (isSystemAudio) {
-        micStream = await captureSystemAudio(micStream);
+        const systemStream = await captureSystemAudio(micStream);
+        if (systemStream) {
+          micStream = systemStream;
+        }
       }
 
       console.log('[useAudioCapture] Final audio stream details:', {
