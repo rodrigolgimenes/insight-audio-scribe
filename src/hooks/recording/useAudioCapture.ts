@@ -33,8 +33,7 @@ export const useAudioCapture = () => {
           autoGainControl: { ideal: true },
           channelCount: { ideal: 2 },
           sampleRate: { ideal: 48000 },
-          sampleSize: { ideal: 16 },
-          latency: { ideal: 0.01 },
+          sampleSize: { ideal: 16 }
         },
         video: false
       };
