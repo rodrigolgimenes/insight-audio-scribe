@@ -61,6 +61,13 @@ const SimpleRecord = () => {
       
       console.log('Creating recording with user ID:', user.id);
 
+      // Stop screen sharing if active
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => {
+          track.stop();
+        });
+      }
+
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
