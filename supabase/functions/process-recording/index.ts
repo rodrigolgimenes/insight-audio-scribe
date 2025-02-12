@@ -20,7 +20,7 @@ serve(async (req) => {
     const { recordingId: receivedRecordingId } = await req.json();
     recordingId = receivedRecordingId;
     
-    console.log('Processing recording:', recordingId);
+    console.log('[process-recording] Processing recording:', recordingId);
     
     if (!recordingId) {
       throw new Error('Recording ID is required');
@@ -37,19 +37,23 @@ serve(async (req) => {
     supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get recording details
-    console.log('Fetching recording details...');
+    console.log('[process-recording] Fetching recording details...');
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
       .select('*')
       .eq('id', recordingId)
       .single();
 
-    if (recordingError || !recording) {
-      console.error('Error fetching recording:', recordingError);
+    if (recordingError) {
+      console.error('[process-recording] Error fetching recording:', recordingError);
+      throw new Error(`Recording fetch failed: ${recordingError.message}`);
+    }
+
+    if (!recording) {
       throw new Error('Recording not found');
     }
 
-    console.log('Found recording:', {
+    console.log('[process-recording] Found recording:', {
       id: recording.id,
       file_path: recording.file_path,
       status: recording.status
@@ -60,62 +64,78 @@ serve(async (req) => {
     }
 
     // Update recording status to processing
-    console.log('Updating recording status to processing...');
-    await supabase
+    console.log('[process-recording] Updating recording status to processing...');
+    const { error: statusError } = await supabase
       .from('recordings')
       .update({ status: 'processing' })
       .eq('id', recordingId);
 
+    if (statusError) {
+      console.error('[process-recording] Error updating status:', statusError);
+      throw new Error(`Failed to update status: ${statusError.message}`);
+    }
+
     // Download the audio file with retries
-    console.log('Downloading audio file...');
+    console.log('[process-recording] Attempting to download audio file...');
     let audioData: Blob | null = null;
     let downloadError: Error | null = null;
     
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        console.log(`[process-recording] Download attempt ${attempt}...`);
         const { data, error } = await supabase.storage
           .from('audio_recordings')
           .download(recording.file_path);
 
         if (error) {
-          console.error(`Download attempt ${attempt} failed:`, error);
+          console.error(`[process-recording] Download attempt ${attempt} failed:`, error);
           downloadError = error;
-          // Add a delay between retries
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          if (attempt < 3) {
+            const delay = 1000 * attempt;
+            console.log(`[process-recording] Waiting ${delay}ms before next attempt...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
           continue;
         }
 
         if (!data) {
+          console.error('[process-recording] No data received from storage');
           throw new Error('No data received from storage');
         }
 
         audioData = data;
         downloadError = null;
-        console.log('Audio file downloaded successfully on attempt', attempt);
+        console.log('[process-recording] Audio file downloaded successfully:', {
+          attempt,
+          size: data.size,
+          type: data.type
+        });
         break;
       } catch (error) {
-        console.error(`Download attempt ${attempt} failed with exception:`, error);
+        console.error(`[process-recording] Download attempt ${attempt} exception:`, error);
         downloadError = error instanceof Error ? error : new Error(String(error));
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        if (attempt < 3) {
+          const delay = 1000 * attempt;
+          console.log(`[process-recording] Waiting ${delay}ms before next attempt...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
     }
 
-    if (!audioData || downloadError) {
-      throw new Error(`Failed to download audio after retries: ${downloadError?.message || 'Unknown error'}`);
+    if (!audioData) {
+      const errorMessage = downloadError?.message || 'Unknown error';
+      console.error('[process-recording] All download attempts failed:', errorMessage);
+      throw new Error(`Failed to download audio after all attempts: ${errorMessage}`);
     }
 
-    console.log('Audio file downloaded successfully:', {
-      size: audioData.size,
-      type: audioData.type
-    });
-
     // Create FormData for OpenAI
+    console.log('[process-recording] Preparing audio for OpenAI...');
     const formData = new FormData();
     formData.append('file', audioData, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
-    console.log('Sending audio to OpenAI...');
+    console.log('[process-recording] Sending audio to OpenAI...');
     const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
@@ -126,21 +146,21 @@ serve(async (req) => {
 
     if (!transcriptionResponse.ok) {
       const errorData = await transcriptionResponse.json();
-      console.error('OpenAI API error:', errorData);
+      console.error('[process-recording] OpenAI API error:', errorData);
       throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
     }
 
     const transcriptionResult = await transcriptionResponse.json();
     
     if (!transcriptionResult.text) {
-      console.error('No transcription text in response:', transcriptionResult);
+      console.error('[process-recording] No transcription text in response:', transcriptionResult);
       throw new Error('No transcription text received from OpenAI');
     }
 
-    console.log('Transcription received:', transcriptionResult.text.substring(0, 100) + '...');
+    console.log('[process-recording] Transcription received');
 
     // Process with GPT
-    console.log('Processing with GPT...');
+    console.log('[process-recording] Processing with GPT...');
     const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -148,7 +168,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
@@ -171,14 +191,15 @@ Format your response clearly with headers for each section.`
 
     if (!gptResponse.ok) {
       const errorData = await gptResponse.json();
+      console.error('[process-recording] GPT API error:', errorData);
       throw new Error(`GPT processing failed: ${errorData.error?.message}`);
     }
 
     const gptResult = await gptResponse.json();
     const processedContent = gptResult.choices[0].message.content;
 
-    // Update recording
-    console.log('Updating recording...');
+    // Update recording with results
+    console.log('[process-recording] Updating recording with results...');
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
@@ -190,11 +211,12 @@ Format your response clearly with headers for each section.`
       .eq('id', recordingId);
 
     if (updateError) {
+      console.error('[process-recording] Error updating recording:', updateError);
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
     // Create note
-    console.log('Creating note...');
+    console.log('[process-recording] Creating note...');
     const { error: noteError } = await supabase
       .from('notes')
       .insert({
@@ -208,9 +230,11 @@ Format your response clearly with headers for each section.`
       });
 
     if (noteError) {
+      console.error('[process-recording] Error creating note:', noteError);
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
+    console.log('[process-recording] Processing completed successfully');
     return new Response(
       JSON.stringify({
         success: true,
@@ -220,7 +244,7 @@ Format your response clearly with headers for each section.`
     );
 
   } catch (error) {
-    console.error('Error in process-recording function:', error);
+    console.error('[process-recording] Error:', error);
     
     if (recordingId && supabase) {
       try {
@@ -232,7 +256,7 @@ Format your response clearly with headers for each section.`
           })
           .eq('id', recordingId);
       } catch (updateError) {
-        console.error('Failed to update recording status:', updateError);
+        console.error('[process-recording] Failed to update recording status:', updateError);
       }
     }
 
