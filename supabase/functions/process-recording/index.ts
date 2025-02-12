@@ -8,6 +8,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
+async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
+  try {
+    console.log('[process-recording] Getting file info...');
+    const { data: fileInfo } = await supabase.storage
+      .from('audio_recordings')
+      .getPublicUrl(path);
+
+    console.log('[process-recording] Downloading file in chunks...');
+    const response = await fetch(fileInfo.publicUrl);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    return await response.blob();
+  } catch (error) {
+    console.error('[process-recording] Error in downloadLargeFile:', error);
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -75,48 +95,63 @@ serve(async (req) => {
       throw new Error(`Failed to update status: ${statusError.message}`);
     }
 
-    // Download the audio file using fetch
-    console.log('[process-recording] Downloading audio file...');
-    const { data: fileData, error: downloadError } = await supabase
-      .storage
-      .from('audio_recordings')
-      .download(recording.file_path);
-
-    if (downloadError) {
-      console.error('[process-recording] Error downloading file:', downloadError);
-      throw new Error(`Failed to download audio: ${downloadError.message}`);
-    }
-
-    // Create FormData for OpenAI
-    console.log('[process-recording] Preparing audio for OpenAI...');
-    const formData = new FormData();
-    formData.append('file', fileData, 'audio.webm');
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'pt');
-
-    console.log('[process-recording] Sending audio to OpenAI...');
-    const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-      },
-      body: formData,
+    // Download the audio file using chunked download
+    console.log('[process-recording] Starting chunked download of audio file...');
+    const audioBlob = await downloadLargeFile(supabase, recording.file_path);
+    
+    console.log('[process-recording] Audio file downloaded successfully:', {
+      size: audioBlob.size,
+      type: audioBlob.type
     });
 
-    if (!transcriptionResponse.ok) {
-      const errorData = await transcriptionResponse.json();
-      console.error('[process-recording] OpenAI API error:', errorData);
-      throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
+    // Split audio if it's too large
+    let audioChunks: Blob[] = [];
+    if (audioBlob.size > MAX_CHUNK_SIZE) {
+      console.log('[process-recording] Splitting large audio file into chunks...');
+      const totalChunks = Math.ceil(audioBlob.size / MAX_CHUNK_SIZE);
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * MAX_CHUNK_SIZE;
+        const end = Math.min(start + MAX_CHUNK_SIZE, audioBlob.size);
+        audioChunks.push(audioBlob.slice(start, end, audioBlob.type));
+      }
+    } else {
+      audioChunks = [audioBlob];
     }
 
-    const transcriptionResult = await transcriptionResponse.json();
+    let fullTranscript = '';
     
-    if (!transcriptionResult.text) {
-      console.error('[process-recording] No transcription text in response:', transcriptionResult);
+    // Process each chunk
+    for (let i = 0; i < audioChunks.length; i++) {
+      console.log(`[process-recording] Processing chunk ${i + 1}/${audioChunks.length}`);
+      
+      const formData = new FormData();
+      formData.append('file', audioChunks[i], 'audio.webm');
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'pt');
+
+      const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!transcriptionResponse.ok) {
+        const errorData = await transcriptionResponse.json();
+        console.error('[process-recording] OpenAI API error:', errorData);
+        throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
+      }
+
+      const transcriptionResult = await transcriptionResponse.json();
+      fullTranscript += (i > 0 ? ' ' : '') + (transcriptionResult.text || '');
+    }
+
+    if (!fullTranscript) {
       throw new Error('No transcription text received from OpenAI');
     }
 
-    console.log('[process-recording] Transcription received');
+    console.log('[process-recording] Full transcription completed');
 
     // Process with GPT
     console.log('[process-recording] Processing with GPT...');
@@ -138,7 +173,7 @@ serve(async (req) => {
 4. Next Steps
 
 Transcript:
-${transcriptionResult.text}
+${fullTranscript}
 
 Format your response clearly with headers for each section.`
           }
@@ -162,7 +197,7 @@ Format your response clearly with headers for each section.`
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
-        transcription: transcriptionResult.text,
+        transcription: fullTranscript,
         processed_content: processedContent,
         status: 'completed',
         processed_at: new Date().toISOString()
@@ -182,7 +217,7 @@ Format your response clearly with headers for each section.`
         user_id: recording.user_id,
         recording_id: recordingId,
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
-        original_transcript: transcriptionResult.text,
+        original_transcript: fullTranscript,
         processed_content: processedContent,
         audio_url: recording.file_path,
         duration: recording.duration
