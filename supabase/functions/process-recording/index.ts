@@ -12,16 +12,38 @@ const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 
 async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
   try {
-    console.log('[process-recording] Getting file info...');
-    const { data: fileInfo } = await supabase.storage
+    console.log('[process-recording] Getting file info...', { path });
+    const { data: fileData, error: urlError } = await supabase.storage
       .from('audio_recordings')
-      .getPublicUrl(path);
+      .createSignedUrl(path, 3600); // 1 hour expiration
 
-    console.log('[process-recording] Downloading file in chunks...');
-    const response = await fetch(fileInfo.publicUrl);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (urlError) {
+      console.error('[process-recording] Error getting signed URL:', urlError);
+      throw new Error(`Failed to get signed URL: ${urlError.message}`);
+    }
+
+    if (!fileData?.signedUrl) {
+      throw new Error('No signed URL generated');
+    }
+
+    console.log('[process-recording] Downloading file...', { signedUrl: fileData.signedUrl });
+    const response = await fetch(fileData.signedUrl);
     
-    return await response.blob();
+    if (!response.ok) {
+      console.error('[process-recording] Download failed:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    console.log('[process-recording] File downloaded successfully:', {
+      size: blob.size,
+      type: blob.type
+    });
+    
+    return blob;
   } catch (error) {
     console.error('[process-recording] Error in downloadLargeFile:', error);
     throw error;
