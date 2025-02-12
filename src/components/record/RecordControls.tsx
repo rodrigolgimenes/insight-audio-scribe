@@ -12,6 +12,7 @@ interface RecordControlsProps {
   onResumeRecording: () => void;
   onDelete: () => void;
   onPlay: () => void;
+  disabled?: boolean;
 }
 
 export const RecordControls = ({
@@ -24,6 +25,7 @@ export const RecordControls = ({
   onResumeRecording,
   onDelete,
   onPlay,
+  disabled = false,
 }: RecordControlsProps) => {
   return (
     <div className="flex items-center justify-center gap-6">
@@ -31,7 +33,7 @@ export const RecordControls = ({
         size="icon"
         variant="outline"
         className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-        disabled={!hasRecording || isRecording}
+        disabled={!hasRecording || isRecording || disabled}
         onClick={onPlay}
       >
         <Play className="w-6 h-6 text-primary" />
@@ -43,6 +45,7 @@ export const RecordControls = ({
           variant="default"
           className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
           onClick={isPaused ? onResumeRecording : onPauseRecording}
+          disabled={disabled}
         >
           {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
         </Button>
@@ -52,6 +55,7 @@ export const RecordControls = ({
           variant="default"
           className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
           onClick={onStartRecording}
+          disabled={disabled}
         >
           <Mic className="w-10 h-10" />
         </Button>
@@ -62,7 +66,7 @@ export const RecordControls = ({
         variant="outline"
         className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
         onClick={onDelete}
-        disabled={isRecording}
+        disabled={isRecording || disabled}
       >
         <Trash className="w-6 h-6 text-primary" />
       </Button>

@@ -52,6 +52,8 @@ export const RecordingSection = ({
   selectedDeviceId,
   onDeviceSelect,
 }: RecordingSectionProps) => {
+  const canStartRecording = !!selectedDeviceId;
+
   return (
     <>
       <RecordStatus isRecording={isRecording} isPaused={isPaused} />
@@ -68,7 +70,7 @@ export const RecordingSection = ({
         <div className="flex items-center justify-between space-x-2">
           <div className="flex items-center space-x-2">
             <Label htmlFor="audio-device" className="text-sm text-gray-700">
-              Selecionar Microfone
+              Select Microphone *
             </Label>
             <TooltipProvider>
               <Tooltip>
@@ -77,7 +79,7 @@ export const RecordingSection = ({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    Escolha qual microfone você deseja usar para a gravação.
+                    Please select a microphone before starting the recording.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -89,7 +91,7 @@ export const RecordingSection = ({
             disabled={isRecording}
           >
             <SelectTrigger className="w-[280px]">
-              <SelectValue placeholder="Selecione um microfone" />
+              <SelectValue placeholder="Select a microphone" />
             </SelectTrigger>
             <SelectContent>
               {audioDevices.map((device) => (
@@ -104,7 +106,7 @@ export const RecordingSection = ({
         <div className="flex items-center justify-between space-x-2">
           <div className="flex items-center space-x-2">
             <Label htmlFor="system-audio" className="text-sm text-gray-700">
-              Gravar Áudio do Sistema
+              If you are using a headset, enable this option
             </Label>
             <TooltipProvider>
               <Tooltip>
@@ -113,8 +115,8 @@ export const RecordingSection = ({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    Ative esta opção para gravar o áudio do sistema (como o som de reuniões) junto com seu microfone.
-                    Você precisará conceder permissão adicional quando solicitado.
+                    Enable this option if you're using a headset to capture system audio (like meeting audio).
+                    You'll need to grant additional permission when prompted.
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -151,6 +153,7 @@ export const RecordingSection = ({
             const audio = document.querySelector('audio');
             if (audio) audio.play();
           }}
+          disabled={!canStartRecording}
         />
       </div>
     </>

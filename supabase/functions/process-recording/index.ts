@@ -80,16 +80,22 @@ serve(async (req) => {
         if (error) {
           console.error(`Download attempt ${attempt} failed:`, error);
           downloadError = error;
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          // Add a delay between retries
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           continue;
+        }
+
+        if (!data) {
+          throw new Error('No data received from storage');
         }
 
         audioData = data;
         downloadError = null;
+        console.log('Audio file downloaded successfully on attempt', attempt);
         break;
       } catch (error) {
         console.error(`Download attempt ${attempt} failed with exception:`, error);
-        downloadError = error;
+        downloadError = error instanceof Error ? error : new Error(String(error));
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
     }
