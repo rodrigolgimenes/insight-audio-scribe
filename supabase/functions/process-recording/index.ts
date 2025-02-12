@@ -17,8 +17,8 @@ serve(async (req) => {
   let supabase: ReturnType<typeof createClient>;
   
   try {
-    const body = await req.json();
-    recordingId = body.recordingId;
+    const { recordingId: receivedRecordingId } = await req.json();
+    recordingId = receivedRecordingId;
     
     console.log('Processing recording:', recordingId);
     
@@ -49,7 +49,11 @@ serve(async (req) => {
       throw new Error('Recording not found');
     }
 
-    console.log('Found recording:', recording);
+    console.log('Found recording:', {
+      id: recording.id,
+      file_path: recording.file_path,
+      status: recording.status
+    });
 
     if (!recording.file_path) {
       throw new Error('Recording file path is missing');
@@ -62,64 +66,28 @@ serve(async (req) => {
       .update({ status: 'processing' })
       .eq('id', recordingId);
 
-    // Get file URL
-    console.log('Getting file URL...');
-    const { data: { publicUrl }, error: urlError } = supabase.storage
-      .from('audio_recordings')
-      .getPublicUrl(recording.file_path);
-
-    if (urlError) {
-      throw new Error(`Failed to get file URL: ${urlError.message}`);
-    }
-
     // Download the audio file
     console.log('Downloading audio file...');
-    const audioResponse = await fetch(publicUrl);
-    
-    if (!audioResponse.ok) {
-      throw new Error(`Failed to download audio: HTTP ${audioResponse.status}`);
+    const { data: audioData, error: downloadError } = await supabase.storage
+      .from('audio_recordings')
+      .download(recording.file_path);
+
+    if (downloadError || !audioData) {
+      console.error('Error downloading audio:', downloadError);
+      throw new Error(`Failed to download audio: ${downloadError?.message || 'Unknown error'}`);
     }
 
-    const audioBlob = await audioResponse.blob();
     console.log('Audio file downloaded successfully:', {
-      size: audioBlob.size,
-      type: audioBlob.type
+      size: audioData.size,
+      type: audioData.type
     });
 
     // Create FormData for OpenAI
     const formData = new FormData();
-    
-    // Determine file type and handle accordingly
-    const fileExtension = recording.file_path.split('.').pop()?.toLowerCase();
-    const mimeType = fileExtension === 'mp3' ? 'audio/mpeg' : 'audio/webm';
-    
-    console.log('Processing file with type:', {
-      fileExtension,
-      mimeType,
-      size: audioBlob.size
-    });
-    
-    formData.append('file', audioBlob, `audio.${fileExtension}`);
+    formData.append('file', audioData, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
-    // Check OpenAI quota
-    console.log('Checking OpenAI API access...');
-    const quotaCheckResponse = await fetch('https://api.openai.com/v1/models', {
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-      },
-    });
-
-    if (!quotaCheckResponse.ok) {
-      const errorData = await quotaCheckResponse.json();
-      if (errorData.error?.type === 'insufficient_quota') {
-        throw new Error('OpenAI API quota exceeded');
-      }
-      throw new Error(`OpenAI API error: ${errorData.error?.message}`);
-    }
-
-    // Send to OpenAI for transcription
     console.log('Sending audio to OpenAI...');
     const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
@@ -131,16 +99,18 @@ serve(async (req) => {
 
     if (!transcriptionResponse.ok) {
       const errorData = await transcriptionResponse.json();
-      throw new Error(`Transcription failed: ${errorData.error?.message}`);
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
     }
 
     const transcriptionResult = await transcriptionResponse.json();
     
     if (!transcriptionResult.text) {
-      throw new Error('No transcription text received');
+      console.error('No transcription text in response:', transcriptionResult);
+      throw new Error('No transcription text received from OpenAI');
     }
 
-    console.log('Transcription received');
+    console.log('Transcription received:', transcriptionResult.text.substring(0, 100) + '...');
 
     // Process with GPT
     console.log('Processing with GPT...');
@@ -188,8 +158,7 @@ Format your response clearly with headers for each section.`
         transcription: transcriptionResult.text,
         processed_content: processedContent,
         status: 'completed',
-        processed_at: new Date().toISOString(),
-        audio_url: publicUrl
+        processed_at: new Date().toISOString()
       })
       .eq('id', recordingId);
 
@@ -207,7 +176,7 @@ Format your response clearly with headers for each section.`
         title: recording.title || `Note from ${new Date().toLocaleString()}`,
         original_transcript: transcriptionResult.text,
         processed_content: processedContent,
-        audio_url: publicUrl,
+        audio_url: recording.file_path,
         duration: recording.duration
       });
 
