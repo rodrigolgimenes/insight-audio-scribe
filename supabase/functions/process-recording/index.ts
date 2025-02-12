@@ -42,7 +42,7 @@ serve(async (req) => {
       .from('recordings')
       .select('*')
       .eq('id', recordingId)
-      .single();
+      .maybeSingle();
 
     if (recordingError) {
       console.error('[process-recording] Error fetching recording:', recordingError);
@@ -75,63 +75,35 @@ serve(async (req) => {
       throw new Error(`Failed to update status: ${statusError.message}`);
     }
 
-    // Download the audio file with retries
-    console.log('[process-recording] Attempting to download audio file...');
-    let audioData: Blob | null = null;
-    let downloadError: Error | null = null;
-    
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        console.log(`[process-recording] Download attempt ${attempt}...`);
-        const { data, error } = await supabase.storage
-          .from('audio_recordings')
-          .download(recording.file_path);
+    // Get the public URL for the audio file
+    console.log('[process-recording] Getting public URL for audio file...');
+    const { data: { publicUrl }, error: urlError } = supabase
+      .storage
+      .from('audio_recordings')
+      .getPublicUrl(recording.file_path);
 
-        if (error) {
-          console.error(`[process-recording] Download attempt ${attempt} failed:`, error);
-          downloadError = error;
-          if (attempt < 3) {
-            const delay = 1000 * attempt;
-            console.log(`[process-recording] Waiting ${delay}ms before next attempt...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-          continue;
-        }
-
-        if (!data) {
-          console.error('[process-recording] No data received from storage');
-          throw new Error('No data received from storage');
-        }
-
-        audioData = data;
-        downloadError = null;
-        console.log('[process-recording] Audio file downloaded successfully:', {
-          attempt,
-          size: data.size,
-          type: data.type
-        });
-        break;
-      } catch (error) {
-        console.error(`[process-recording] Download attempt ${attempt} exception:`, error);
-        downloadError = error instanceof Error ? error : new Error(String(error));
-        if (attempt < 3) {
-          const delay = 1000 * attempt;
-          console.log(`[process-recording] Waiting ${delay}ms before next attempt...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
+    if (urlError) {
+      console.error('[process-recording] Error getting public URL:', urlError);
+      throw new Error(`Failed to get public URL: ${urlError.message}`);
     }
 
-    if (!audioData) {
-      const errorMessage = downloadError?.message || 'Unknown error';
-      console.error('[process-recording] All download attempts failed:', errorMessage);
-      throw new Error(`Failed to download audio after all attempts: ${errorMessage}`);
+    // Download the audio file
+    console.log('[process-recording] Downloading audio file from:', publicUrl);
+    const audioResponse = await fetch(publicUrl);
+    if (!audioResponse.ok) {
+      throw new Error(`Failed to download audio: ${audioResponse.statusText}`);
     }
+
+    const audioBlob = await audioResponse.blob();
+    console.log('[process-recording] Audio file downloaded:', {
+      size: audioBlob.size,
+      type: audioBlob.type
+    });
 
     // Create FormData for OpenAI
     console.log('[process-recording] Preparing audio for OpenAI...');
     const formData = new FormData();
-    formData.append('file', audioData, 'audio.webm');
+    formData.append('file', audioBlob, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
@@ -168,7 +140,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'user',
