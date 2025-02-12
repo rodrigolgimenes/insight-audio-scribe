@@ -75,35 +75,22 @@ serve(async (req) => {
       throw new Error(`Failed to update status: ${statusError.message}`);
     }
 
-    // Get the public URL for the audio file
-    console.log('[process-recording] Getting public URL for audio file...');
-    const { data: { publicUrl }, error: urlError } = supabase
+    // Download the audio file using fetch
+    console.log('[process-recording] Downloading audio file...');
+    const { data: fileData, error: downloadError } = await supabase
       .storage
       .from('audio_recordings')
-      .getPublicUrl(recording.file_path);
+      .download(recording.file_path);
 
-    if (urlError) {
-      console.error('[process-recording] Error getting public URL:', urlError);
-      throw new Error(`Failed to get public URL: ${urlError.message}`);
+    if (downloadError) {
+      console.error('[process-recording] Error downloading file:', downloadError);
+      throw new Error(`Failed to download audio: ${downloadError.message}`);
     }
-
-    // Download the audio file
-    console.log('[process-recording] Downloading audio file from:', publicUrl);
-    const audioResponse = await fetch(publicUrl);
-    if (!audioResponse.ok) {
-      throw new Error(`Failed to download audio: ${audioResponse.statusText}`);
-    }
-
-    const audioBlob = await audioResponse.blob();
-    console.log('[process-recording] Audio file downloaded:', {
-      size: audioBlob.size,
-      type: audioBlob.type
-    });
 
     // Create FormData for OpenAI
     console.log('[process-recording] Preparing audio for OpenAI...');
     const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('file', fileData, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'pt');
 
