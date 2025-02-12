@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 
 interface RecordTimerProps {
@@ -8,7 +9,7 @@ interface RecordTimerProps {
 
 export const RecordTimer = ({ isRecording, isPaused, onTimeLimit }: RecordTimerProps) => {
   const [seconds, setSeconds] = useState(0);
-  const MAX_DURATION = 25 * 60; // 25 minutes in seconds
+  const MAX_DURATION = 60 * 60; // 60 minutes in seconds
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -39,7 +40,7 @@ export const RecordTimer = ({ isRecording, isPaused, onTimeLimit }: RecordTimerP
   return (
     <div className="text-center">
       <div className="text-4xl font-bold mb-2">{formatTime(seconds)}</div>
-      <div className="text-sm text-gray-500">Limit: 25:00</div>
+      <div className="text-sm text-gray-500">Limit: 60:00</div>
     </div>
   );
 };
