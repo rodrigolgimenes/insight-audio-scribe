@@ -95,28 +95,67 @@ ${transcriptionText}
 
 Please format your response in a clear, structured way with headers for each section.`;
 
-  const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+  // First, refine the transcription with GPT-3.5-turbo
+  const refineResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${openAIApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4',
+      model: 'gpt-3.5-turbo',
       messages: [
-        { role: 'user', content: gptPrompt }
+        { 
+          role: 'system', 
+          content: 'You are a transcription refinement specialist. Your task is to improve the clarity and readability of meeting transcriptions while maintaining their original meaning and content.' 
+        },
+        { 
+          role: 'user', 
+          content: `Please refine this transcription for clarity and readability, maintaining all important information: ${transcriptionText}` 
+        }
       ],
-      temperature: 0.7,
-      max_tokens: 2048,
+      temperature: 0.3,
     }),
   });
 
-  if (!gptResponse.ok) {
-    const errorData = await gptResponse.json();
-    console.error('GPT API error:', errorData);
-    throw new Error(`GPT processing failed: ${errorData.error?.message || gptResponse.statusText}`);
+  if (!refineResponse.ok) {
+    const errorData = await refineResponse.json();
+    console.error('GPT-3.5 API error:', errorData);
+    throw new Error(`Transcription refinement failed: ${errorData.error?.message || refineResponse.statusText}`);
   }
 
-  const gptData = await gptResponse.json();
-  return gptData.choices[0].message.content;
+  const refineData = await refineResponse.json();
+  const refinedTranscript = refineData.choices[0].message.content;
+
+  // Then, generate meeting minutes with GPT-4o-mini
+  const minutesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { 
+          role: 'system', 
+          content: 'You are a professional meeting minutes generator. Create clear, structured, and actionable meeting minutes from transcriptions.' 
+        },
+        { 
+          role: 'user', 
+          content: gptPrompt.replace(transcriptionText, refinedTranscript)
+        }
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  if (!minutesResponse.ok) {
+    const errorData = await minutesResponse.json();
+    console.error('GPT-4o-mini API error:', errorData);
+    throw new Error(`Meeting minutes generation failed: ${errorData.error?.message || minutesResponse.statusText}`);
+  }
+
+  const minutesData = await minutesResponse.json();
+  return minutesData.choices[0].message.content;
 }
