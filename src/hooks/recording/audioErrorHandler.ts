@@ -11,6 +11,8 @@ export const handleAudioError = (error: unknown, isSystemAudio: boolean): string
       errorMessage = 'O microfone pode estar sendo usado por outro aplicativo';
     } else if (error.name === 'NotSupportedError') {
       errorMessage = 'Configuração de áudio não suportada. Tente desconectar e reconectar seu dispositivo USB';
+    } else if (error.message.includes('No audio tracks available') || error.message.includes('Nenhuma trilha')) {
+      errorMessage = 'Selecione uma fonte com áudio ao compartilhar a tela';
     } else {
       errorMessage = error.message;
     }
