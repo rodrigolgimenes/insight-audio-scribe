@@ -1,4 +1,3 @@
-
 import { renderHook, act } from '@testing-library/react-hooks';
 import { useRecording } from '@/hooks/useRecording';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -30,8 +29,8 @@ describe('useRecording Hook', () => {
       removeEventListener: vi.fn()
     } as unknown as MediaRecorder;
 
-    // Mock navigator.mediaDevices
-    global.navigator.mediaDevices = {
+    // Mock mediaDevices methods
+    const mockMediaDevices = {
       getUserMedia: vi.fn().mockResolvedValue(mockMediaStream),
       enumerateDevices: vi.fn().mockResolvedValue([
         {
@@ -40,10 +39,22 @@ describe('useRecording Hook', () => {
           label: 'Mock Microphone 1'
         }
       ])
-    } as unknown as MediaDevices;
+    };
 
-    // Mock MediaRecorder global
-    global.MediaRecorder = vi.fn().mockImplementation(() => mockMediaRecorder);
+    // Use Object.defineProperty to mock mediaDevices
+    Object.defineProperty(navigator, 'mediaDevices', {
+      get: () => mockMediaDevices,
+      configurable: true
+    });
+
+    // Mock MediaRecorder constructor and isTypeSupported
+    const MockMediaRecorder = vi.fn(() => mockMediaRecorder) as unknown as {
+      new (stream: MediaStream, options?: MediaRecorderOptions): MediaRecorder;
+      prototype: MediaRecorder;
+      isTypeSupported(type: string): boolean;
+    };
+    MockMediaRecorder.isTypeSupported = vi.fn().mockReturnValue(true);
+    global.MediaRecorder = MockMediaRecorder;
   });
 
   it('should initialize with default values', () => {
