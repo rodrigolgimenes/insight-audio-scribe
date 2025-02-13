@@ -74,13 +74,13 @@ serve(async (req) => {
       stripeCustomerId = stripeCustomer.id;
     }
 
-    // Create checkout session
+    // Create checkout session with redirect to simple-record page
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
       payment_method_types: ['card'],
-      success_url: `${req.headers.get('origin')}/account?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${req.headers.get('origin')}/simple-record?session_id={CHECKOUT_SESSION_ID}&success=true`,
       cancel_url: `${req.headers.get('origin')}/pricing`,
     });
 

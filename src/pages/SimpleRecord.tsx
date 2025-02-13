@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +14,7 @@ import { useRecordingSave } from "@/components/record/useRecordingSave";
 
 const SimpleRecord = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const { isUploading, isProcessing } = useFileUpload();
@@ -37,19 +39,32 @@ const SimpleRecord = () => {
     setSelectedDeviceId,
   } = useRecording();
 
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const sessionId = searchParams.get('session_id');
+    
+    if (success === 'true' && sessionId) {
+      toast({
+        title: "Subscription Activated",
+        description: "Your subscription has been successfully activated. You can now start recording!",
+        duration: 5000,
+      });
+    }
+  }, [searchParams, toast]);
+
   const handleTimeLimit = () => {
     handleStopRecording();
     toast({
-      title: "Tempo Limite Atingido",
-      description: "A gravação foi interrompida após atingir o limite de 25 minutos.",
+      title: "Time Limit Reached",
+      description: "Recording was stopped after reaching the 25-minute limit.",
     });
   };
-
-  const isLoading = isTranscribing || isSaving || isUploading || isProcessing;
 
   const handleSave = () => {
     saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
   };
+
+  const isLoading = isTranscribing || isSaving || isUploading || isProcessing;
 
   return (
     <SidebarProvider>
