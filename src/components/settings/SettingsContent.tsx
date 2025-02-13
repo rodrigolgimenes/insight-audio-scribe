@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,35 +98,24 @@ export const SettingsContent = () => {
   const { data: preferences = defaultPreferences } = useQuery({
     queryKey: ['user_preferences'],
     queryFn: async () => {
-      type PreferencesResponse = {
-        data: UserPreferences | null;
-        error: any;
-      };
+      const { data, error } = await (supabase as any)
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', session?.user?.id)
+        .maybeSingle();
 
-      try {
-        const response: PreferencesResponse = await supabase
-          .from('user_preferences')
-          .select()
-          .eq('user_id', session?.user?.id)
-          .maybeSingle();
-
-        if (response.error && response.error.code !== 'PGRST116') {
-          throw response.error;
-        }
-
-        if (response.data) {
-          return response.data as UserPreferences;
-        }
-
-        // Return default preferences if no data exists
-        return {
-          ...defaultPreferences,
-          user_id: session?.user?.id as string,
-        };
-      } catch (error) {
-        console.error('Error fetching preferences:', error);
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
+
+      if (data) {
+        return data as UserPreferences;
+      }
+
+      return {
+        ...defaultPreferences,
+        user_id: session?.user?.id as string,
+      };
     },
     enabled: !!session?.user?.id,
   });
@@ -208,23 +198,18 @@ export const SettingsContent = () => {
   // Update preferences mutation
   const updatePreferences = useMutation({
     mutationFn: async (newPreferences: Partial<UserPreferences>) => {
-      try {
-        const dataToUpdate = {
-          ...preferences,
-          ...newPreferences,
-          user_id: session?.user?.id,
-          updated_at: new Date().toISOString(),
-        } as UserPreferences;
+      const dataToUpdate = {
+        ...preferences,
+        ...newPreferences,
+        user_id: session?.user?.id,
+        updated_at: new Date().toISOString(),
+      } as UserPreferences;
 
-        const { error } = await supabase
-          .from('user_preferences')
-          .upsert(dataToUpdate);
+      const { error } = await (supabase as any)
+        .from('user_preferences')
+        .upsert(dataToUpdate);
 
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error updating preferences:', error);
-        throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({
