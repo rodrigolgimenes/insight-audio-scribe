@@ -1,39 +1,14 @@
+
 import React, { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import type { UserPreferences, UserProfile, Subscription } from './types';
+import type { UserProfile, Subscription } from './types';
 import { AccountInfo } from './sections/AccountInfo';
 import { PasswordSection } from './sections/PasswordSection';
-import { PreferencesSection } from './sections/PreferencesSection';
 import { SubscriptionSection } from './sections/SubscriptionSection';
 import { OtherActions } from './sections/OtherActions';
 import { MeetingPersonaSection } from './sections/MeetingPersonaSection';
-
-const defaultPreferences: UserPreferences = {
-  user_id: '',
-  preferred_language: 'auto',
-  default_style: 'note',
-  custom_words: '',
-  default_microphone: null,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-};
-
-const languageOptions = [
-  { value: 'auto', label: 'Auto Detect' },
-  { value: 'en', label: 'English' },
-  { value: 'es', label: 'Spanish' },
-  { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' },
-  { value: 'pt', label: 'Portuguese' },
-];
-
-const styleOptions = [
-  { value: 'note', label: 'Note' },
-  { value: 'meeting', label: 'Meeting Minutes' },
-  { value: 'summary', label: 'Summary' },
-];
 
 export const SettingsContent = () => {
   const { session } = useAuth();
@@ -69,31 +44,6 @@ export const SettingsContent = () => {
     enabled: !!session?.user?.id,
   });
 
-  const { data: preferences = defaultPreferences } = useQuery({
-    queryKey: ['user_preferences'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', session?.user?.id)
-        .maybeSingle();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        return data as UserPreferences;
-      }
-
-      return {
-        ...defaultPreferences,
-        user_id: session?.user?.id as string,
-      };
-    },
-    enabled: !!session?.user?.id,
-  });
-
   const { data: subscription } = useQuery<Subscription>({
     queryKey: ['subscription'],
     queryFn: async () => {
@@ -107,23 +57,6 @@ export const SettingsContent = () => {
       return data || { status: 'inactive', price_id: null };
     },
     enabled: !!session?.user?.id,
-  });
-
-  const updatePreferences = useMutation({
-    mutationFn: async (newPreferences: Partial<UserPreferences>) => {
-      const dataToUpdate = {
-        ...preferences,
-        ...newPreferences,
-        user_id: session?.user?.id,
-        updated_at: new Date().toISOString(),
-      } as UserPreferences;
-
-      const { error } = await (supabase as any)
-        .from('user_preferences')
-        .upsert(dataToUpdate);
-
-      if (error) throw error;
-    },
   });
 
   const isFreePlan = !subscription || subscription.status !== 'active';
@@ -150,13 +83,6 @@ export const SettingsContent = () => {
         confirmPassword={confirmPassword}
         onNewPasswordChange={setNewPassword}
         onConfirmPasswordChange={setConfirmPassword}
-      />
-
-      <PreferencesSection
-        preferences={preferences}
-        onPreferencesChange={(newPrefs) => updatePreferences.mutate(newPrefs)}
-        languageOptions={languageOptions}
-        styleOptions={styleOptions}
       />
 
       <MeetingPersonaSection />
