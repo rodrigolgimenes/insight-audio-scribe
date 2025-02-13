@@ -72,6 +72,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Check for existing minutes
     const { data: existingMinutes } = await supabase
       .from('meeting_minutes')
       .select('content')
@@ -84,8 +85,46 @@ serve(async (req) => {
       });
     }
 
+    // Get the user ID from the note
+    const { data: noteData, error: noteError } = await supabase
+      .from('notes')
+      .select('user_id')
+      .eq('id', noteId)
+      .single();
+
+    if (noteError) {
+      throw new Error('Failed to fetch note data');
+    }
+
+    // Fetch the user's meeting persona
+    const { data: personaData, error: personaError } = await supabase
+      .from('meeting_personas')
+      .select('*')
+      .eq('user_id', noteData.user_id)
+      .maybeSingle();
+
+    if (personaError && personaError.code !== 'PGRST116') {
+      console.error('Error fetching persona:', personaError);
+    }
+
     const dateTime = extractDateTime(transcript);
     console.log('Extracted date and time:', dateTime);
+
+    // Build the persona-aware prompt
+    let personaPrompt = '';
+    if (personaData) {
+      const roleContext = personaData.custom_role || personaData.primary_role;
+      const focusAreas = personaData.focus_areas?.join(', ') || '';
+      const vocabulary = personaData.custom_vocabulary?.join('; ') || '';
+
+      personaPrompt = `Como um especialista em análise de reuniões com experiência específica em adaptar conteúdo para profissionais de ${roleContext}, cujas áreas de foco incluem ${focusAreas}, por favor gere uma ata de reunião que:
+
+1. Destaque insights técnicos e implicações estratégicas relevantes para este papel.
+2. Utilize terminologia específica da indústria quando apropriado, incluindo os seguintes termos técnicos onde relevante: ${vocabulary}
+3. Priorize a discussão de tópicos alinhados com as áreas de foco do profissional.
+
+`;
+    }
 
     // First, refine the transcript with GPT-3.5-turbo
     const refineResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -118,7 +157,7 @@ serve(async (req) => {
     const refinedTranscript = refineData.choices[0].message.content;
 
     // Generate minutes with GPT-4o-mini
-    const prompt = `Você é um assistente especializado em análise de reuniões e transcrições. A seguir, analise a transcrição da reunião que vou fornecer e, utilizando sua capacidade de cadeia de pensamento dinâmica, gere um resumo estruturado com os seguintes elementos – adaptando e criando seções conforme o conteúdo, sem utilizar tópicos pré-definidos se o conteúdo não os justificar:
+    const basePrompt = `Você é um assistente especializado em análise de reuniões e transcrições. A seguir, analise a transcrição da reunião que vou fornecer e, utilizando sua capacidade de cadeia de pensamento dinâmica, gere um resumo estruturado com os seguintes elementos – adaptando e criando seções conforme o conteúdo, sem utilizar tópicos pré-definidos se o conteúdo não os justificar:
 
 Principais Tópicos e Temas: Identifique os assuntos centrais e as nuances discutidas, agrupando informações relacionadas.
 
@@ -128,13 +167,17 @@ Prazos, Datas e Marcos Temporais: Extraia e organize datas, prazos e marcos rele
 
 Dúvidas, Preocupações e Pontos de Atenção: Identifique e resuma as principais preocupações, dúvidas ou pontos de alerta levantados durante a reunião.
 
-Contexto e Informações Complementares: Inclua detalhes contextuais que auxiliem na compreensão do andamento dos projetos ou processos discutidos.
+Contexto e Informações Complementares: Inclua detalhes contextuais que auxiliem na compreensão do andamento dos projetos ou processos discutidos.`;
+
+    const finalPrompt = `${personaPrompt}${basePrompt}
 
 Utilize uma abordagem de raciocínio em cadeia para explorar e conectar as informações, garantindo que cada seção do resumo seja gerada dinamicamente com base no conteúdo. Não crie seções desnecessárias; apenas produza aquelas que fazem sentido conforme a transcrição fornecida.
 
 Finalmente, apresente o resumo final de forma clara, objetiva e estruturada, sem expor seu processo de pensamento. Agora, processe a seguinte transcrição:
 
 ${refinedTranscript}`;
+
+    console.log('Using persona-aware prompt for meeting minutes generation');
 
     const minutesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -146,7 +189,7 @@ ${refinedTranscript}`;
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: 'You are a helpful assistant that generates meeting minutes in Portuguese using markdown formatting.' },
-          { role: 'user', content: prompt }
+          { role: 'user', content: finalPrompt }
         ],
       }),
     });
