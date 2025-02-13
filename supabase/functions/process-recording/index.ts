@@ -14,27 +14,52 @@ async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path
   try {
     console.log('[process-recording] Attempting to download file:', { path });
     
-    // Primeiro, vamos tentar baixar o arquivo diretamente
-    const { data: fileData, error: downloadError } = await supabase.storage
+    // Primeiro verifica se o arquivo existe
+    const { data: fileExists, error: listError } = await supabase.storage
       .from('audio_recordings')
-      .download(path);
+      .list(path.split('/').slice(0, -1).join('/'), {
+        limit: 1,
+        search: path.split('/').pop()
+      });
 
-    if (downloadError) {
-      console.error('[process-recording] Direct download failed:', downloadError);
-      throw new Error(`Failed to download file: ${downloadError.message}`);
+    if (listError) {
+      console.error('[process-recording] Error checking file existence:', listError);
+      throw new Error(`Failed to check file existence: ${listError.message}`);
     }
 
-    if (!fileData) {
-      throw new Error('No file data received');
+    if (!fileExists || fileExists.length === 0) {
+      console.error('[process-recording] File not found in storage:', path);
+      throw new Error(`File not found in storage: ${path}`);
     }
 
+    console.log('[process-recording] File found in storage:', fileExists[0]);
+
+    // Tenta obter a URL pública primeiro
+    const { data: publicUrlData } = supabase.storage
+      .from('audio_recordings')
+      .getPublicUrl(path);
+
+    if (!publicUrlData?.publicUrl) {
+      console.error('[process-recording] Failed to get public URL');
+      throw new Error('Failed to get public URL');
+    }
+
+    console.log('[process-recording] Got public URL:', publicUrlData.publicUrl);
+
+    // Baixa o arquivo usando fetch
+    const response = await fetch(publicUrlData.publicUrl);
+    if (!response.ok) {
+      console.error('[process-recording] Failed to download file from public URL:', response.statusText);
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
     console.log('[process-recording] File downloaded successfully:', {
-      size: fileData.size,
-      type: fileData.type
+      size: blob.size,
+      type: blob.type
     });
 
-    return fileData;
-
+    return blob;
   } catch (error) {
     console.error('[process-recording] Error in downloadLargeFile:', error);
     throw error;
