@@ -45,6 +45,9 @@ export const PricingCard = ({
     onSubscribeClick();
   };
 
+  const isYearlyPlan = interval === 'year' && price === 90;
+  const monthlyEquivalent = isYearlyPlan ? 7.50 : null;
+
   return (
     <Card className={`w-full max-w-sm ${isPopular ? 'border-primary shadow-lg relative' : ''}`}>
       <CardHeader>
@@ -58,9 +61,23 @@ export const PricingCard = ({
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <span className="text-4xl font-bold">${price}</span>
-          {interval && (
-            <span className="text-muted-foreground">/{interval}</span>
+          {isYearlyPlan ? (
+            <div className="space-y-2">
+              <div className="text-4xl font-bold text-primary">
+                ${monthlyEquivalent.toFixed(2)}
+                <span className="text-lg font-normal text-muted-foreground">/month</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Billed annually (${price.toFixed(2)}/year)
+              </div>
+            </div>
+          ) : (
+            <div>
+              <span className="text-4xl font-bold">${price}</span>
+              {interval && (
+                <span className="text-muted-foreground">/{interval}</span>
+              )}
+            </div>
           )}
         </div>
         <ul className="space-y-2">
