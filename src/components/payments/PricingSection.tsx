@@ -181,9 +181,9 @@ export const PricingSection = () => {
           const isFree = price.unit_amount === 0;
           const isYearly = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX';
           
-          let name = isYearly ? 'InsightScribe Plus - Annual' : 
+          let name = isYearly ? 'InsightScribe Plus - Unlimited' : 
                     isFree ? 'InsightScribe Free' : 
-                    'InsightScribe Plus - Monthly';
+                    'InsightScribe Plus - Unlimited';
           
           let description = isFree ? '100% Free' : 
                            isYearly ? 'Save 50% with annual billing' : 
