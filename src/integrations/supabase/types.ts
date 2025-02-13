@@ -163,14 +163,14 @@ export type Database = {
           {
             foreignKeyName: "meeting_minutes_note_id_fkey"
             columns: ["note_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "notes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "meeting_minutes_note_id_fkey"
             columns: ["note_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "notes_without_folders"
             referencedColumns: ["id"]
           },

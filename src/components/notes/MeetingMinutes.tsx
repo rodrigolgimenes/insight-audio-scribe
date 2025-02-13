@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
 import { AudioControlBar } from "./AudioControlBar";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 
 interface MeetingMinutesProps {
   transcript: string | null;
@@ -23,119 +23,120 @@ export const MeetingMinutes = ({
   initialContent,
   isLoadingInitialContent 
 }: MeetingMinutesProps) => {
-  const [minutes, setMinutes] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Atualiza o estado local quando o conteúdo inicial muda
-  useEffect(() => {
-    console.log('Initial content changed:', { initialContent });
-    if (initialContent !== undefined) {
-      setMinutes(initialContent);
+  // Fetch meeting minutes with improved caching
+  const { data: minutes, isLoading: isLoadingMinutes } = useQuery({
+    queryKey: ['meeting-minutes', noteId],
+    queryFn: async () => {
+      console.log('Fetching meeting minutes for note:', noteId);
+      const { data, error } = await supabase
+        .from('meeting_minutes')
+        .select('content')
+        .eq('note_id', noteId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching meeting minutes:', error);
+        throw error;
+      }
+
+      console.log('Meeting minutes data:', data);
+      return data?.content || null;
+    },
+    initialData: initialContent || undefined,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
+  });
+
+  // Mutation for generating/regenerating minutes
+  const { mutate: generateMinutes, isLoading: isGenerating } = useMutation({
+    mutationFn: async ({ isRegeneration = false }: { isRegeneration: boolean }) => {
+      if (!transcript) {
+        throw new Error("No transcript available to generate minutes.");
+      }
+
+      console.log('Generating minutes with params:', {
+        hasTranscript: !!transcript,
+        transcriptLength: transcript.length,
+        noteId,
+        isRegeneration
+      });
+
+      const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
+        body: { 
+          transcript,
+          noteId,
+          isRegeneration
+        },
+      });
+
+      if (functionError || !data?.minutes) {
+        console.error('Error from edge function:', functionError);
+        throw new Error(functionError?.message || "Failed to generate meeting minutes");
+      }
+
+      return data.minutes;
+    },
+    onSuccess: (newMinutes) => {
+      // Invalidate and update cache immediately
+      queryClient.setQueryData(['meeting-minutes', noteId], newMinutes);
+      
+      toast({
+        title: "Success",
+        description: "Meeting minutes generated successfully",
+      });
+    },
+    onError: (error) => {
+      console.error('Error generating meeting minutes:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate meeting minutes",
+        variant: "destructive",
+      });
     }
-  }, [initialContent]);
+  });
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
   };
 
-  const generateMinutes = async (isRegeneration: boolean = false) => {
-    if (!transcript) {
-      setError("No transcript available to generate minutes.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      console.log('Sending transcript to OpenAI...', transcript.substring(0, 100) + '...');
-      
-      const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
-        body: { 
-          transcript: transcript,
-          noteId: noteId,
-          isRegeneration: isRegeneration
-        },
-      });
-
-      console.log('Response from generate-meeting-minutes:', { data, functionError });
-
-      if (functionError) {
-        console.error('Error from edge function:', functionError);
-        throw new Error(functionError.message || "Error generating meeting minutes");
-      }
-
-      if (!data?.minutes) {
-        throw new Error("Invalid response from server");
-      }
-
-      // Update local state
-      setMinutes(data.minutes);
-      
-      // Update database directly to ensure persistence
-      const { error: updateError } = await supabase
-        .from('meeting_minutes')
-        .upsert({
-          note_id: noteId,
-          content: data.minutes,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-
-      if (updateError) {
-        console.error('Error saving meeting minutes:', updateError);
-        throw new Error("Failed to save meeting minutes");
-      }
-
-      // Invalidate and refetch the meeting minutes query
-      queryClient.invalidateQueries({ queryKey: ['meeting-minutes', noteId] });
-      
-      toast({
-        title: "Success",
-        description: isRegeneration ? "Meeting minutes regenerated successfully" : "Meeting minutes generated successfully",
-      });
-    } catch (err) {
-      console.error('Error generating meeting minutes:', err);
-      setError("Failed to generate meeting minutes. Please try again.");
-      toast({
-        title: "Error",
-        description: "Failed to generate meeting minutes",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Só gera as atas se não houver conteúdo salvo e não estiver carregando
+  // Auto-generate minutes only if needed
   useEffect(() => {
     const shouldGenerateMinutes = 
       !isLoadingInitialContent && // Não está carregando o conteúdo inicial
-      initialContent === null && // Não existe conteúdo inicial (importante: diferente de undefined)
-      !minutes && // Não tem minutos no estado local
+      !isLoadingMinutes && // Não está carregando minutos do cache
+      !minutes && // Não tem minutos no cache
       transcript && // Tem transcrição disponível
-      !isLoading; // Não está gerando minutos no momento
+      !isGenerating; // Não está gerando minutos no momento
 
-    console.log('Checking generation conditions:', {
+    console.log('Checking auto-generation conditions:', {
       isLoadingInitialContent,
-      initialContent,
+      isLoadingMinutes,
       hasMinutes: !!minutes,
       hasTranscript: !!transcript,
-      isLoading,
+      isGenerating,
       shouldGenerate: shouldGenerateMinutes
     });
 
     if (shouldGenerateMinutes) {
-      console.log('Generating new minutes');
-      generateMinutes(false);
+      console.log('Auto-generating new minutes');
+      generateMinutes({ isRegeneration: false });
     }
-  }, [isLoadingInitialContent, initialContent, minutes, transcript, isLoading]);
+  }, [
+    isLoadingInitialContent,
+    isLoadingMinutes,
+    minutes,
+    transcript,
+    isGenerating,
+    generateMinutes
+  ]);
 
-  if (isLoadingInitialContent) {
+  if (isLoadingInitialContent || isLoadingMinutes) {
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -160,27 +161,21 @@ export const MeetingMinutes = ({
         {minutes && (
           <div className="mb-6">
             <Button
-              onClick={() => generateMinutes(true)}
-              disabled={isLoading || !transcript}
+              onClick={() => generateMinutes({ isRegeneration: true })}
+              disabled={isGenerating || !transcript}
               className="gap-2"
               variant="outline"
             >
-              {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isGenerating && <Loader2 className="h-4 w-4 animate-spin" />}
               Regenerate Meeting Minutes
             </Button>
           </div>
         )}
 
-        {isLoading && !minutes && (
+        {isGenerating && !minutes && (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
             <span className="ml-2 text-gray-600">Generating Minutes...</span>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-lg">
-            {error}
           </div>
         )}
 
