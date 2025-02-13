@@ -23,7 +23,7 @@ export const MeetingMinutes = ({
   initialContent,
   isLoadingInitialContent 
 }: MeetingMinutesProps) => {
-  const [minutes, setMinutes] = useState<string | null>(null);
+  const [minutes, setMinutes] = useState<string | null>(initialContent || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -112,23 +112,16 @@ export const MeetingMinutes = ({
 
   // Só gera as atas se não houver conteúdo inicial e não estiver carregando
   useEffect(() => {
-    const shouldGenerateMinutes = !isLoadingInitialContent && 
-                                 !minutes && 
-                                 !initialContent && 
-                                 transcript && 
-                                 !isLoading;
-
-    if (shouldGenerateMinutes) {
-      console.log('Generating minutes because:', {
+    if (!isLoadingInitialContent && !minutes && !initialContent && transcript) {
+      console.log('Checking if should generate minutes:', {
         isLoadingInitialContent,
-        minutes,
-        initialContent,
-        hasTranscript: !!transcript,
-        isLoading
+        hasMinutes: !!minutes,
+        hasInitialContent: !!initialContent,
+        hasTranscript: !!transcript
       });
       generateMinutes(false);
     }
-  }, [isLoadingInitialContent, minutes, initialContent, transcript, isLoading]);
+  }, [isLoadingInitialContent, minutes, initialContent, transcript]);
 
   if (isLoadingInitialContent) {
     return (

@@ -7,11 +7,17 @@ import { TranscriptAccordion } from "./TranscriptAccordion";
 
 interface NoteContentProps {
   note: Note;
+  audioUrl: string | null;
   meetingMinutes?: string | null;
   isLoadingMinutes?: boolean;
 }
 
-export const NoteContent = ({ note, meetingMinutes, isLoadingMinutes }: NoteContentProps) => {
+export const NoteContent = ({ 
+  note, 
+  audioUrl, 
+  meetingMinutes, 
+  isLoadingMinutes 
+}: NoteContentProps) => {
   return (
     <div className="space-y-8">
       <div className="pb-4 border-b border-gray-200">
@@ -30,7 +36,7 @@ export const NoteContent = ({ note, meetingMinutes, isLoadingMinutes }: NoteCont
       <MeetingMinutes
         noteId={note.id}
         transcript={note.original_transcript}
-        audioUrl={note.audio_url}
+        audioUrl={audioUrl}
         initialContent={meetingMinutes}
         isLoadingInitialContent={isLoadingMinutes}
       />

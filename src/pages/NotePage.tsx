@@ -29,10 +29,26 @@ const NotePage = () => {
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const { note, isLoadingNote, folders, currentFolder, tags } = useNoteData();
   const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
+
+  // Fetch audio URL with improved caching
+  const { data: audioUrl } = useQuery({
+    queryKey: ['audio-url', note?.audio_url],
+    queryFn: async () => {
+      if (!note?.audio_url) return null;
+      console.log("Fetching audio URL for:", note.audio_url);
+      const { data: { publicUrl } } = supabase
+        .storage
+        .from('audio_recordings')
+        .getPublicUrl(note.audio_url);
+      return publicUrl;
+    },
+    enabled: !!note?.audio_url,
+    staleTime: Infinity, // Audio URLs don't change, so we can cache them indefinitely
+    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
+  });
 
   // Fetch meeting minutes with improved caching
   const { data: meetingMinutes, isLoading: isLoadingMinutes } = useQuery({
@@ -59,27 +75,6 @@ const NotePage = () => {
     refetchOnMount: true,
     refetchOnWindowFocus: false
   });
-
-  useEffect(() => {
-    const loadAudioUrl = async () => {
-      if (note?.audio_url) {
-        try {
-          console.log("Original audio_url:", note.audio_url);
-          const { data: { publicUrl } } = supabase
-            .storage
-            .from('audio_recordings')
-            .getPublicUrl(note.audio_url);
-          
-          console.log("Generated publicUrl:", publicUrl);
-          setAudioUrl(publicUrl);
-        } catch (error) {
-          console.error("Error getting audio URL:", error);
-        }
-      }
-    };
-
-    loadAudioUrl();
-  }, [note?.audio_url]);
 
   if (!noteId) {
     return <div>Note ID is required</div>;
@@ -124,6 +119,7 @@ const NotePage = () => {
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <NoteContent 
                     note={note}
+                    audioUrl={audioUrl}
                     meetingMinutes={meetingMinutes}
                     isLoadingMinutes={isLoadingMinutes}
                   />
