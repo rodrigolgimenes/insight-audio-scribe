@@ -9,51 +9,124 @@ const corsHeaders = {
 };
 
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+const MAX_RETRIES = 5;
+const INITIAL_RETRY_DELAY = 2000; // 2 segundos
 
-async function getSignedUrl(supabase: ReturnType<typeof createClient>, path: string): Promise<string> {
-  console.log('[process-recording] Getting signed URL for:', path);
+async function waitForFileAvailability(
+  supabase: ReturnType<typeof createClient>,
+  path: string,
+  maxRetries = MAX_RETRIES,
+  initialDelay = INITIAL_RETRY_DELAY
+): Promise<void> {
+  console.log('[process-recording] Waiting for file availability:', path);
   
-  const { data, error } = await supabase.storage
-    .from('audio_recordings')
-    .createSignedUrl(path, 3600); // URL válida por 1 hora
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const delay = initialDelay * Math.pow(2, attempt);
+      console.log(`[process-recording] Attempt ${attempt + 1}/${maxRetries}, waiting ${delay}ms`);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      const { data: fileExists, error } = await supabase.storage
+        .from('audio_recordings')
+        .list(path.split('/')[0], {
+          limit: 1,
+          search: path.split('/')[1]
+        });
 
-  if (error) {
-    console.error('[process-recording] Error getting signed URL:', error);
-    throw new Error(`Failed to get signed URL: ${error.message}`);
+      if (error) {
+        console.error(`[process-recording] Error checking file (attempt ${attempt + 1}):`, error);
+        continue;
+      }
+
+      if (fileExists && fileExists.length > 0) {
+        console.log('[process-recording] File found after waiting:', fileExists[0]);
+        return;
+      }
+
+      console.log(`[process-recording] File not found yet (attempt ${attempt + 1})`);
+    } catch (error) {
+      console.error(`[process-recording] Error in attempt ${attempt + 1}:`, error);
+    }
   }
 
-  if (!data?.signedUrl) {
-    throw new Error('No signed URL received');
+  throw new Error(`File not available after ${maxRetries} attempts: ${path}`);
+}
+
+async function downloadWithRetry(
+  url: string,
+  maxRetries = MAX_RETRIES,
+  initialDelay = INITIAL_RETRY_DELAY
+): Promise<Blob> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+
+      console.log('[process-recording] Download successful:', {
+        size: blob.size,
+        type: blob.type,
+        attempt: attempt + 1
+      });
+
+      return blob;
+    } catch (error) {
+      console.error(`[process-recording] Download attempt ${attempt + 1} failed:`, error);
+      
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      const delay = initialDelay * Math.pow(2, attempt);
+      console.log(`[process-recording] Waiting ${delay}ms before next attempt`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
 
-  console.log('[process-recording] Successfully got signed URL');
-  return data.signedUrl;
+  throw new Error('All download attempts failed');
 }
 
 async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
   try {
     console.log('[process-recording] Starting download process for:', path);
 
-    // Tenta obter a URL assinada
-    const signedUrl = await getSignedUrl(supabase, path);
-    
-    // Tenta baixar o arquivo usando a URL assinada
-    const response = await fetch(signedUrl);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const blob = await response.blob();
-    console.log('[process-recording] Successfully downloaded file:', {
-      size: blob.size,
-      type: blob.type
-    });
-    
-    if (blob.size === 0) {
-      throw new Error('Downloaded file is empty');
+    // Primeiro, espera o arquivo estar disponível
+    await waitForFileAvailability(supabase, path);
+
+    // Tenta obter o arquivo usando download direto primeiro
+    try {
+      console.log('[process-recording] Attempting direct download');
+      const { data, error } = await supabase.storage
+        .from('audio_recordings')
+        .download(path);
+
+      if (!error && data) {
+        console.log('[process-recording] Direct download successful');
+        return data;
+      }
+    } catch (error) {
+      console.warn('[process-recording] Direct download failed, falling back to signed URL:', error);
     }
 
-    return blob;
+    // Fallback para URL assinada
+    console.log('[process-recording] Getting signed URL');
+    const { data: urlData, error: urlError } = await supabase.storage
+      .from('audio_recordings')
+      .createSignedUrl(path, 3600);
+
+    if (urlError || !urlData?.signedUrl) {
+      throw new Error('Failed to get signed URL');
+    }
+
+    // Download com retry
+    return await downloadWithRetry(urlData.signedUrl);
   } catch (error) {
     console.error('[process-recording] Error in downloadLargeFile:', error);
     throw new Error(`Failed to download file: ${error.message}`);
@@ -158,18 +231,6 @@ serve(async (req) => {
       .from('recordings')
       .update({ status: 'processing' })
       .eq('id', recordingId);
-
-    // Verifica se o arquivo existe antes de tentar baixar
-    const { data: fileExists } = await supabase.storage
-      .from('audio_recordings')
-      .list(recording.file_path.split('/')[0], {
-        limit: 1,
-        search: recording.file_path.split('/')[1]
-      });
-
-    if (!fileExists || fileExists.length === 0) {
-      throw new Error(`File not found in storage: ${recording.file_path}`);
-    }
 
     const audioBlob = await downloadLargeFile(supabase, recording.file_path);
 
