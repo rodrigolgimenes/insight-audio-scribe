@@ -68,13 +68,23 @@ serve(async (req) => {
       customer = { stripe_customer_id: stripeCustomer.id };
     }
 
+    // Adiciona logs para debug
+    console.log('Creating checkout session with:', {
+      customerId: customer.stripe_customer_id,
+      priceId: priceId
+    });
+
     const session = await stripe.checkout.sessions.create({
       customer: customer.stripe_customer_id,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
+      currency: 'usd', // Especifica explicitamente a moeda como USD
+      payment_method_types: ['card'],
       success_url: `${req.headers.get('origin')}/account?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get('origin')}/pricing`,
     });
+
+    console.log('Checkout session created:', session.id);
 
     return new Response(
       JSON.stringify({ url: session.url }),
