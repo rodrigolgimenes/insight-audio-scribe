@@ -1,0 +1,78 @@
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+export const useMeetingMinutes = (noteId: string, initialContent?: string | null) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: minutes, isLoading: isLoadingMinutes } = useQuery({
+    queryKey: ['meeting-minutes', noteId],
+    queryFn: async () => {
+      console.log('Fetching meeting minutes for note:', noteId);
+      const { data, error } = await supabase
+        .from('meeting_minutes')
+        .select('content')
+        .eq('note_id', noteId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching meeting minutes:', error);
+        throw error;
+      }
+
+      console.log('Meeting minutes data:', data);
+      return data?.content || null;
+    },
+    initialData: initialContent || undefined,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
+  });
+
+  const { mutate: generateMinutes, isPending: isGenerating } = useMutation({
+    mutationFn: async ({ isRegeneration = false }: { isRegeneration: boolean }) => {
+      if (!noteId) {
+        throw new Error("Note ID is required to generate minutes.");
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
+        body: { 
+          noteId,
+          isRegeneration
+        },
+      });
+
+      if (functionError || !data?.minutes) {
+        console.error('Error from edge function:', functionError);
+        throw new Error(functionError?.message || "Failed to generate meeting minutes");
+      }
+
+      return data.minutes;
+    },
+    onSuccess: (newMinutes) => {
+      queryClient.setQueryData(['meeting-minutes', noteId], newMinutes);
+      toast({
+        title: "Success",
+        description: "Meeting minutes generated successfully",
+      });
+    },
+    onError: (error) => {
+      console.error('Error generating meeting minutes:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate meeting minutes",
+        variant: "destructive",
+      });
+    }
+  });
+
+  return {
+    minutes,
+    isLoadingMinutes,
+    generateMinutes,
+    isGenerating
+  };
+};
