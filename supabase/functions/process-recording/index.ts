@@ -8,14 +8,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+const URL_EXPIRATION = 12 * 3600; // 12 hours in seconds
 
 async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
   try {
     console.log('[process-recording] Getting file info...', { path });
     const { data: fileData, error: urlError } = await supabase.storage
       .from('audio_recordings')
-      .createSignedUrl(path, 3600); // 1 hour expiration
+      .createSignedUrl(path, URL_EXPIRATION);
 
     if (urlError) {
       console.error('[process-recording] Error getting signed URL:', urlError);
@@ -27,27 +28,81 @@ async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path
     }
 
     console.log('[process-recording] Downloading file...', { signedUrl: fileData.signedUrl });
-    const response = await fetch(fileData.signedUrl);
     
-    if (!response.ok) {
-      console.error('[process-recording] Download failed:', {
-        status: response.status,
-        statusText: response.statusText
+    // Add timeout and retry mechanism for large files
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000); // 1 minute timeout
+    
+    try {
+      const response = await fetch(fileData.signedUrl, {
+        signal: controller.signal
       });
-      throw new Error(`HTTP error! status: ${response.status}`);
+      
+      clearTimeout(timeout);
+      
+      if (!response.ok) {
+        console.error('[process-recording] Download failed:', {
+          status: response.status,
+          statusText: response.statusText
+        });
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('[process-recording] File downloaded successfully:', {
+        size: blob.size,
+        type: blob.type
+      });
+      
+      return blob;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Download timeout - file may be too large');
+      }
+      throw error;
     }
-    
-    const blob = await response.blob();
-    console.log('[process-recording] File downloaded successfully:', {
-      size: blob.size,
-      type: blob.type
-    });
-    
-    return blob;
   } catch (error) {
     console.error('[process-recording] Error in downloadLargeFile:', error);
     throw error;
   }
+}
+
+async function processAudioChunk(chunk: Blob, openAIApiKey: string): Promise<string> {
+  const retryCount = 3;
+  let lastError;
+
+  for (let attempt = 0; attempt < retryCount; attempt++) {
+    try {
+      const formData = new FormData();
+      formData.append('file', chunk, 'audio.webm');
+      formData.append('model', 'whisper-1');
+      formData.append('language', 'pt');
+
+      const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+        },
+        body: formData,
+      });
+
+      if (!transcriptionResponse.ok) {
+        const errorData = await transcriptionResponse.json();
+        throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
+      }
+
+      const transcriptionResult = await transcriptionResponse.json();
+      return transcriptionResult.text || '';
+    } catch (error) {
+      console.error(`[process-recording] Attempt ${attempt + 1} failed:`, error);
+      lastError = error;
+      if (attempt < retryCount - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 serve(async (req) => {
@@ -95,88 +150,36 @@ serve(async (req) => {
       throw new Error('Recording not found');
     }
 
-    console.log('[process-recording] Found recording:', {
-      id: recording.id,
-      file_path: recording.file_path,
-      status: recording.status
-    });
-
-    if (!recording.file_path) {
-      throw new Error('Recording file path is missing');
-    }
-
     // Update recording status to processing
-    console.log('[process-recording] Updating recording status to processing...');
-    const { error: statusError } = await supabase
+    await supabase
       .from('recordings')
       .update({ status: 'processing' })
       .eq('id', recordingId);
 
-    if (statusError) {
-      console.error('[process-recording] Error updating status:', statusError);
-      throw new Error(`Failed to update status: ${statusError.message}`);
-    }
-
-    // Download the audio file using chunked download
-    console.log('[process-recording] Starting chunked download of audio file...');
     const audioBlob = await downloadLargeFile(supabase, recording.file_path);
-    
-    console.log('[process-recording] Audio file downloaded successfully:', {
-      size: audioBlob.size,
-      type: audioBlob.type
-    });
 
-    // Split audio if it's too large
-    let audioChunks: Blob[] = [];
-    if (audioBlob.size > MAX_CHUNK_SIZE) {
-      console.log('[process-recording] Splitting large audio file into chunks...');
-      const totalChunks = Math.ceil(audioBlob.size / MAX_CHUNK_SIZE);
-      for (let i = 0; i < totalChunks; i++) {
-        const start = i * MAX_CHUNK_SIZE;
-        const end = Math.min(start + MAX_CHUNK_SIZE, audioBlob.size);
-        audioChunks.push(audioBlob.slice(start, end, audioBlob.type));
-      }
-    } else {
-      audioChunks = [audioBlob];
+    // Split audio into smaller chunks
+    const chunks: Blob[] = [];
+    let offset = 0;
+    while (offset < audioBlob.size) {
+      const chunk = audioBlob.slice(offset, offset + MAX_CHUNK_SIZE);
+      chunks.push(chunk);
+      offset += MAX_CHUNK_SIZE;
     }
 
-    let fullTranscript = '';
-    
-    // Process each chunk
-    for (let i = 0; i < audioChunks.length; i++) {
-      console.log(`[process-recording] Processing chunk ${i + 1}/${audioChunks.length}`);
-      
-      const formData = new FormData();
-      formData.append('file', audioChunks[i], 'audio.webm');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'pt');
+    console.log(`[process-recording] Split audio into ${chunks.length} chunks`);
 
-      const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-        },
-        body: formData,
-      });
-
-      if (!transcriptionResponse.ok) {
-        const errorData = await transcriptionResponse.json();
-        console.error('[process-recording] OpenAI API error:', errorData);
-        throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
-      }
-
-      const transcriptionResult = await transcriptionResponse.json();
-      fullTranscript += (i > 0 ? ' ' : '') + (transcriptionResult.text || '');
+    // Process chunks with retries and collect transcriptions
+    const transcriptions: string[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      console.log(`[process-recording] Processing chunk ${i + 1}/${chunks.length}`);
+      const transcription = await processAudioChunk(chunks[i], openAIApiKey);
+      transcriptions.push(transcription);
     }
 
-    if (!fullTranscript) {
-      throw new Error('No transcription text received from OpenAI');
-    }
+    const fullTranscript = transcriptions.join(' ');
 
-    console.log('[process-recording] Full transcription completed');
-
-    // Process with GPT
-    console.log('[process-recording] Processing with GPT...');
+    // Process with GPT-3.5-turbo
     const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -207,7 +210,6 @@ Format your response clearly with headers for each section.`
 
     if (!gptResponse.ok) {
       const errorData = await gptResponse.json();
-      console.error('[process-recording] GPT API error:', errorData);
       throw new Error(`GPT processing failed: ${errorData.error?.message}`);
     }
 
@@ -215,8 +217,7 @@ Format your response clearly with headers for each section.`
     const processedContent = gptResult.choices[0].message.content;
 
     // Update recording with results
-    console.log('[process-recording] Updating recording with results...');
-    const { error: updateError } = await supabase
+    await supabase
       .from('recordings')
       .update({
         transcription: fullTranscript,
@@ -226,14 +227,8 @@ Format your response clearly with headers for each section.`
       })
       .eq('id', recordingId);
 
-    if (updateError) {
-      console.error('[process-recording] Error updating recording:', updateError);
-      throw new Error(`Failed to update recording: ${updateError.message}`);
-    }
-
     // Create note
-    console.log('[process-recording] Creating note...');
-    const { error: noteError } = await supabase
+    await supabase
       .from('notes')
       .insert({
         user_id: recording.user_id,
@@ -245,12 +240,6 @@ Format your response clearly with headers for each section.`
         duration: recording.duration
       });
 
-    if (noteError) {
-      console.error('[process-recording] Error creating note:', noteError);
-      throw new Error(`Failed to create note: ${noteError.message}`);
-    }
-
-    console.log('[process-recording] Processing completed successfully');
     return new Response(
       JSON.stringify({
         success: true,
@@ -263,17 +252,13 @@ Format your response clearly with headers for each section.`
     console.error('[process-recording] Error:', error);
     
     if (recordingId && supabase) {
-      try {
-        await supabase
-          .from('recordings')
-          .update({ 
-            status: 'error',
-            error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
-          })
-          .eq('id', recordingId);
-      } catch (updateError) {
-        console.error('[process-recording] Failed to update recording status:', updateError);
-      }
+      await supabase
+        .from('recordings')
+        .update({ 
+          status: 'error',
+          error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
+        })
+        .eq('id', recordingId);
     }
 
     return new Response(
