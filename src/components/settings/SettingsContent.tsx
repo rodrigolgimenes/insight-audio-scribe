@@ -49,16 +49,17 @@ export const SettingsContent = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, email')
+        .select('first_name, last_name, email')
         .eq('id', session?.user?.id)
         .single();
 
       if (error) throw error;
       
-      if (data?.full_name) {
-        const [first, ...rest] = data.full_name.split(' ');
-        setFirstName(first);
-        setLastName(rest.join(' '));
+      if (data?.first_name) {
+        setFirstName(data.first_name);
+      }
+      if (data?.last_name) {
+        setLastName(data.last_name);
       }
       if (data?.email) {
         setEmail(data.email);

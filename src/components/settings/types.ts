@@ -10,7 +10,8 @@ export interface UserPreferences {
 }
 
 export interface UserProfile {
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
 }
 
