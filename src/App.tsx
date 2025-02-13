@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
+import { AuthCallback } from "@/components/auth/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
@@ -35,6 +37,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route
                 path="/settings"
                 element={
