@@ -45,6 +45,11 @@ export const LoginPage = () => {
             providers={["google"]}
             redirectTo={`${window.location.origin}/auth/callback`}
             onlyThirdPartyProviders={true}
+            queryParams={{
+              access_type: 'offline',
+              prompt: 'consent',
+              scope: 'openid email profile'
+            }}
           />
         </div>
       </div>
