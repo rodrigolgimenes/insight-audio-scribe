@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,7 @@ import FolderPage from "./pages/FolderPage";
 import TagPage from "./pages/TagPage";
 import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
+import Settings from "./pages/Settings";
 import UncategorizedFolder from "./pages/UncategorizedFolder";
 import { useState } from "react";
 
@@ -35,6 +35,14 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/app"
                 element={
