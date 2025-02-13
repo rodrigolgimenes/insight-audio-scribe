@@ -23,13 +23,14 @@ export const MeetingMinutes = ({
   initialContent,
   isLoadingInitialContent 
 }: MeetingMinutesProps) => {
-  const [minutes, setMinutes] = useState<string | null>(initialContent || null);
+  const [minutes, setMinutes] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Atualiza o estado local quando o conteúdo inicial muda
   useEffect(() => {
     if (initialContent !== undefined) {
       setMinutes(initialContent);
@@ -79,7 +80,9 @@ export const MeetingMinutes = ({
         .from('meeting_minutes')
         .upsert({
           note_id: noteId,
-          content: data.minutes
+          content: data.minutes,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
 
       if (updateError) {
@@ -107,11 +110,25 @@ export const MeetingMinutes = ({
     }
   };
 
+  // Só gera as atas se não houver conteúdo inicial e não estiver carregando
   useEffect(() => {
-    if (!minutes && !initialContent && transcript && !isLoadingInitialContent) {
+    const shouldGenerateMinutes = !isLoadingInitialContent && 
+                                 !minutes && 
+                                 !initialContent && 
+                                 transcript && 
+                                 !isLoading;
+
+    if (shouldGenerateMinutes) {
+      console.log('Generating minutes because:', {
+        isLoadingInitialContent,
+        minutes,
+        initialContent,
+        hasTranscript: !!transcript,
+        isLoading
+      });
       generateMinutes(false);
     }
-  }, [noteId, transcript, initialContent, isLoadingInitialContent]);
+  }, [isLoadingInitialContent, minutes, initialContent, transcript, isLoading]);
 
   if (isLoadingInitialContent) {
     return (
