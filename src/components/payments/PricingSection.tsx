@@ -1,10 +1,10 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PricingCard } from './PricingCard';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useNavigate } from 'react-router-dom';
+import { EditablePricingText } from './EditablePricingText';
 
 interface Product {
   name: string | null;
@@ -22,9 +22,29 @@ interface Subscription {
   status: string;
 }
 
+interface PlanText {
+  name: string;
+  description: string;
+}
+
 export const PricingSection = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
+  
+  const [planTexts, setPlanTexts] = useState<Record<string, PlanText>>({
+    free: {
+      name: 'InsightScribe Free',
+      description: '100% Free'
+    },
+    monthly: {
+      name: 'InsightScribe Plus - Unlimited',
+      description: 'Full features, billed monthly'
+    },
+    yearly: {
+      name: 'InsightScribe Plus - Unlimited',
+      description: 'Full features, billed yearly'
+    }
+  });
 
   const { data: prices, isLoading: isPricesLoading } = useQuery<Price[]>({
     queryKey: ['prices'],
@@ -127,6 +147,16 @@ export const PricingSection = () => {
     }
   };
 
+  const handlePlanTextUpdate = (planType: string, field: 'name' | 'description', value: string) => {
+    setPlanTexts(prev => ({
+      ...prev,
+      [planType]: {
+        ...prev[planType],
+        [field]: value
+      }
+    }));
+  };
+
   const hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
 
   if (isPricesLoading || isSubscriptionLoading) {
@@ -181,22 +211,28 @@ export const PricingSection = () => {
           const isFree = price.unit_amount === 0;
           const isYearly = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX';
           
-          let name = isYearly ? 'InsightScribe Plus - Unlimited' : 
-                    isFree ? 'InsightScribe Free' : 
-                    'InsightScribe Plus - Unlimited';
-          
-          let description = isFree ? '100% Free' : 
-                           isYearly ? 'Full features, billed yearly' : 
-                           'Full features, billed monthly';
+          const planType = isFree ? 'free' : (isYearly ? 'yearly' : 'monthly');
+          const currentPlanText = planTexts[planType];
 
-          let displayPrice = isFree ? 0 : 
-                           isYearly ? 7.50 : 15;
+          let displayPrice = isFree ? 0 : isYearly ? 7.50 : 15;
 
           return (
             <PricingCard
               key={price.id}
-              name={name}
-              description={description}
+              name={
+                <EditablePricingText
+                  initialText={currentPlanText.name}
+                  className="text-xl font-bold"
+                  onSave={(newText) => handlePlanTextUpdate(planType, 'name', newText)}
+                />
+              }
+              description={
+                <EditablePricingText
+                  initialText={currentPlanText.description}
+                  className="text-sm mt-2"
+                  onSave={(newText) => handlePlanTextUpdate(planType, 'description', newText)}
+                />
+              }
               price={displayPrice}
               interval={isYearly ? 'month' : (price.interval || '')}
               features={getPlanFeatures(price.id)}

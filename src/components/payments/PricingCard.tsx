@@ -6,8 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle } from 'lucide-react';
 
 interface PricingCardProps {
-  name: string;
-  description: string;
+  name: React.ReactNode;
+  description: React.ReactNode;
   price: number;
   interval: string;
   features: string[];
