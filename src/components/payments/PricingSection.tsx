@@ -48,7 +48,7 @@ export const PricingSection = () => {
           'Uploads up to 30 minutes per file',
           'Lower priority processing'
         ];
-      case 'price_1Oq1ZSHUWJYWYdiNMHWZWjMS': // ID do plano mensal
+      case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // ID correto do plano mensal
         return [
           'Unlimited transcriptions',
           'Uploads up to 10 hours / 5GB per file',
