@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,7 +47,6 @@ export const PricingSection = () => {
         console.error('Error fetching prices:', error);
         throw error;
       }
-      console.log('Fetched prices:', data);
       return data;
     },
   });
@@ -70,27 +70,29 @@ export const PricingSection = () => {
     switch (priceId) {
       case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan
         return [
-          '3 Transcripts Daily',
-          '30 Minute Uploads',
-          'Lower Priority Processing'
+          '✅ 3 daily transcriptions',
+          '⏳ Files up to 30 minutes',
+          '⚡ Lower priority processing'
         ];
       case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan
         return [
-          'Unlimited transcriptions',
-          'Files up to 10 hours in length',
-          'Advanced AI summarization',
-          'Priority processing',
-          'Real-time collaboration',
-          'Custom vocabulary support',
-          'Premium support via chat/email'
+          '🔄 Unlimited transcriptions',
+          '⏳ Files up to 10 hours in length',
+          '🤖 Advanced AI summarization',
+          '🚀 Priority processing',
+          '🤝 Real-time collaboration',
+          '📖 Custom vocabulary support',
+          '🎟️ Premium support via chat/email'
         ];
       case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
         return [
           '🔄 Unlimited transcriptions',
-          '⏳ Uploads up to 10 hours / 5GB per file',
-          '🚀 Highest priority processing',
-          '🌎 Translation into 134+ languages',
-          '💰 50% discount on yearly subscription'
+          '⏳ Files up to 10 hours in length',
+          '🤖 Advanced AI summarization',
+          '🚀 Priority processing',
+          '🤝 Real-time collaboration',
+          '📖 Custom vocabulary support',
+          '🎟️ Premium support via chat/email'
         ];
       default:
         return [];
@@ -103,7 +105,6 @@ export const PricingSection = () => {
       return;
     }
 
-    // For free plan, redirect to simple-record directly
     if (priceId === 'price_1Qs49tRepqC8oahubgFsDuHf') {
       navigate('/simple-record');
       return;
@@ -112,7 +113,7 @@ export const PricingSection = () => {
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
-          priceId: priceId === 'price_1Qs3tpRepqC8oahuh0kSILbX' ? 'prod_Rlb6RWk7O8GE6M' : priceId 
+          priceId: priceId === 'price_1Qs3tpRepqC8oahuh0kSILbX' ? 'prod_Rlb6RWk7O8GE6M' : 'prod_Rlb3WhzzS78RUa'
         }
       });
 
@@ -157,7 +158,7 @@ export const PricingSection = () => {
     return null;
   }
 
-  // Reorder prices with yearly plan in the middle
+  // Organize prices in the correct order
   const orderedPrices = [...prices].sort((a, b) => {
     if (a.id === 'price_1Qs3tpRepqC8oahuh0kSILbX') return 0; // Yearly plan in middle
     if (a.unit_amount === 0) return -1; // Free plan first
@@ -174,32 +175,34 @@ export const PricingSection = () => {
           Choose the plan that best fits your needs
         </p>
       </div>
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto items-start">
         {orderedPrices.map((price) => {
-          const isPopular = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX'; // Yearly plan is popular
+          const isPopular = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX';
           const isFree = price.unit_amount === 0;
-          const buttonText = isFree ? 'Get Started' : 'Subscribe Now';
-          const isYearly = price.interval === 'year';
-
-          let name = 'InsightScribe Plus';
-          let description = 'Unlock unlimited transcriptions and premium features';
+          const isYearly = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX';
           
-          if (isFree) {
-            name = 'InsightScribe Free';
-            description = 'Start transcribing with our free plan';
-          }
+          let name = isYearly ? 'InsightScribe Plus - Annual' : 
+                    isFree ? 'InsightScribe Free' : 
+                    'InsightScribe Plus - Monthly';
+          
+          let description = isFree ? '100% Free' : 
+                           isYearly ? 'Save 50% with annual billing' : 
+                           'Full features, billed monthly';
+
+          let displayPrice = isFree ? 0 : 
+                           isYearly ? 7.50 : 15;
 
           return (
             <PricingCard
               key={price.id}
               name={name}
               description={description}
-              price={isYearly ? 7.50 : (price.unit_amount ? price.unit_amount / 100 : 0)}
+              price={displayPrice}
               interval={isYearly ? 'month' : (price.interval || '')}
               features={getPlanFeatures(price.id)}
               priceId={price.id}
               isPopular={isPopular}
-              buttonText={buttonText}
+              buttonText={isFree ? 'Get Started' : 'Subscribe Now'}
               hasActiveSubscription={hasActiveSubscription}
               onSubscribeClick={() => handleSubscribeClick(price.id)}
             />

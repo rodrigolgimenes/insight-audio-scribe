@@ -46,24 +46,29 @@ export const PricingCard = ({
   };
 
   const isYearlyPlan = priceId === 'price_1Qs3tpRepqC8oahuh0kSILbX';
+  const isFree = price === 0;
 
   return (
-    <Card className={`w-full max-w-sm ${isPopular ? 'border-primary shadow-lg relative' : ''}`}>
+    <Card 
+      className={`w-full transform transition-all duration-200 hover:translate-y-[-4px] ${
+        isPopular ? 'border-primary shadow-lg relative scale-105 lg:scale-110' : ''
+      }`}
+    >
       <CardHeader>
         {isPopular && (
           <div className="px-3 py-1 text-sm text-primary-foreground bg-primary rounded-full w-fit mb-2">
             Most Popular
           </div>
         )}
-        <CardTitle>{name}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle className="text-xl font-bold">{name}</CardTitle>
+        <CardDescription className="text-sm mt-2">{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
+        <div className="mb-6">
           {isYearlyPlan ? (
             <div className="space-y-2">
               <div className="text-4xl font-bold text-primary">
-                ${price}
+                ${price.toFixed(2)}
                 <span className="text-lg font-normal text-muted-foreground">/month</span>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -71,31 +76,38 @@ export const PricingCard = ({
               </div>
             </div>
           ) : (
-            <div>
-              <span className="text-4xl font-bold">${price}</span>
-              {interval && (
-                <span className="text-muted-foreground">/{interval}</span>
+            <div className="text-4xl font-bold">
+              ${price}
+              {!isFree && interval && (
+                <span className="text-lg font-normal text-muted-foreground">/{interval}</span>
               )}
             </div>
           )}
         </div>
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {features.map((feature, index) => (
-            <li key={index} className="flex items-center">
-              <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-              {feature}
+            <li key={index} className="flex items-center text-sm">
+              <CheckCircle className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />
+              <span>{feature}</span>
             </li>
           ))}
         </ul>
       </CardContent>
       <CardFooter>
         <Button
-          className={`w-full ${isPopular ? 'bg-primary hover:bg-primary/90' : ''}`}
+          className={`w-full transition-all duration-200 ${
+            isPopular 
+              ? 'bg-primary hover:bg-primary/90 text-white shadow-md hover:shadow-lg' 
+              : 'hover:bg-gray-100'
+          }`}
           variant={isPopular ? "default" : "outline"}
           onClick={handleSubscribe}
           disabled={hasActiveSubscription && priceId !== 'price_1Qs49tRepqC8oahubgFsDuHf'}
+          size="lg"
         >
-          {hasActiveSubscription && priceId !== 'price_1Qs49tRepqC8oahubgFsDuHf' ? 'Already Subscribed' : buttonText}
+          {hasActiveSubscription && priceId !== 'price_1Qs49tRepqC8oahubgFsDuHf' 
+            ? 'Already Subscribed' 
+            : buttonText}
         </Button>
       </CardFooter>
     </Card>
