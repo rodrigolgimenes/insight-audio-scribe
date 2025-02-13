@@ -10,59 +10,53 @@ const corsHeaders = {
 
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
 
+async function getSignedUrl(supabase: ReturnType<typeof createClient>, path: string): Promise<string> {
+  console.log('[process-recording] Getting signed URL for:', path);
+  
+  const { data, error } = await supabase.storage
+    .from('audio_recordings')
+    .createSignedUrl(path, 3600); // URL válida por 1 hora
+
+  if (error) {
+    console.error('[process-recording] Error getting signed URL:', error);
+    throw new Error(`Failed to get signed URL: ${error.message}`);
+  }
+
+  if (!data?.signedUrl) {
+    throw new Error('No signed URL received');
+  }
+
+  console.log('[process-recording] Successfully got signed URL');
+  return data.signedUrl;
+}
+
 async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
   try {
-    console.log('[process-recording] Attempting to download file:', { path });
+    console.log('[process-recording] Starting download process for:', path);
+
+    // Tenta obter a URL assinada
+    const signedUrl = await getSignedUrl(supabase, path);
     
-    // Primeiro verifica se o arquivo existe
-    const { data: fileExists, error: listError } = await supabase.storage
-      .from('audio_recordings')
-      .list(path.split('/').slice(0, -1).join('/'), {
-        limit: 1,
-        search: path.split('/').pop()
-      });
-
-    if (listError) {
-      console.error('[process-recording] Error checking file existence:', listError);
-      throw new Error(`Failed to check file existence: ${listError.message}`);
-    }
-
-    if (!fileExists || fileExists.length === 0) {
-      console.error('[process-recording] File not found in storage:', path);
-      throw new Error(`File not found in storage: ${path}`);
-    }
-
-    console.log('[process-recording] File found in storage:', fileExists[0]);
-
-    // Tenta obter a URL pública primeiro
-    const { data: publicUrlData } = supabase.storage
-      .from('audio_recordings')
-      .getPublicUrl(path);
-
-    if (!publicUrlData?.publicUrl) {
-      console.error('[process-recording] Failed to get public URL');
-      throw new Error('Failed to get public URL');
-    }
-
-    console.log('[process-recording] Got public URL:', publicUrlData.publicUrl);
-
-    // Baixa o arquivo usando fetch
-    const response = await fetch(publicUrlData.publicUrl);
+    // Tenta baixar o arquivo usando a URL assinada
+    const response = await fetch(signedUrl);
     if (!response.ok) {
-      console.error('[process-recording] Failed to download file from public URL:', response.statusText);
-      throw new Error(`Failed to download file: ${response.statusText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-
+    
     const blob = await response.blob();
-    console.log('[process-recording] File downloaded successfully:', {
+    console.log('[process-recording] Successfully downloaded file:', {
       size: blob.size,
       type: blob.type
     });
+    
+    if (blob.size === 0) {
+      throw new Error('Downloaded file is empty');
+    }
 
     return blob;
   } catch (error) {
     console.error('[process-recording] Error in downloadLargeFile:', error);
-    throw error;
+    throw new Error(`Failed to download file: ${error.message}`);
   }
 }
 
@@ -138,7 +132,6 @@ serve(async (req) => {
     supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get recording details
-    console.log('[process-recording] Fetching recording details...');
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
       .select('*')
@@ -165,6 +158,18 @@ serve(async (req) => {
       .from('recordings')
       .update({ status: 'processing' })
       .eq('id', recordingId);
+
+    // Verifica se o arquivo existe antes de tentar baixar
+    const { data: fileExists } = await supabase.storage
+      .from('audio_recordings')
+      .list(recording.file_path.split('/')[0], {
+        limit: 1,
+        search: recording.file_path.split('/')[1]
+      });
+
+    if (!fileExists || fileExists.length === 0) {
+      throw new Error(`File not found in storage: ${recording.file_path}`);
+    }
 
     const audioBlob = await downloadLargeFile(supabase, recording.file_path);
 
