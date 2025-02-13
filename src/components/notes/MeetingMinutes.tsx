@@ -6,20 +6,35 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
 import { AudioControlBar } from "./AudioControlBar";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface MeetingMinutesProps {
   transcript: string | null;
   noteId: string;
   audioUrl?: string | null;
   initialContent?: string | null;
+  isLoadingInitialContent?: boolean;
 }
 
-export const MeetingMinutes = ({ transcript, noteId, audioUrl, initialContent }: MeetingMinutesProps) => {
+export const MeetingMinutes = ({ 
+  transcript, 
+  noteId, 
+  audioUrl, 
+  initialContent,
+  isLoadingInitialContent 
+}: MeetingMinutesProps) => {
   const [minutes, setMinutes] = useState<string | null>(initialContent || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (initialContent !== undefined) {
+      setMinutes(initialContent);
+    }
+  }, [initialContent]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -71,6 +86,9 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl, initialContent }:
         console.error('Error saving meeting minutes:', updateError);
         throw new Error("Failed to save meeting minutes");
       }
+
+      // Invalidate and refetch the meeting minutes query
+      queryClient.invalidateQueries({ queryKey: ['meeting-minutes', noteId] });
       
       toast({
         title: "Success",
@@ -90,10 +108,19 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl, initialContent }:
   };
 
   useEffect(() => {
-    if (!minutes && !initialContent && transcript) {
+    if (!minutes && !initialContent && transcript && !isLoadingInitialContent) {
       generateMinutes(false);
     }
-  }, [noteId, transcript, initialContent]);
+  }, [noteId, transcript, initialContent, isLoadingInitialContent]);
+
+  if (isLoadingInitialContent) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <span className="ml-2 text-gray-600">Loading meeting minutes...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

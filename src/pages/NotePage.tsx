@@ -34,10 +34,11 @@ const NotePage = () => {
   const { note, isLoadingNote, folders, currentFolder, tags } = useNoteData();
   const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
 
-  // Fetch meeting minutes
-  const { data: meetingMinutes } = useQuery({
+  // Fetch meeting minutes with improved caching
+  const { data: meetingMinutes, isLoading: isLoadingMinutes } = useQuery({
     queryKey: ['meeting-minutes', noteId],
     queryFn: async () => {
+      console.log('Fetching meeting minutes for note:', noteId);
       const { data, error } = await supabase
         .from('meeting_minutes')
         .select('content')
@@ -49,9 +50,14 @@ const NotePage = () => {
         throw error;
       }
 
+      console.log('Meeting minutes data:', data);
       return data?.content || null;
     },
-    enabled: !!noteId
+    enabled: !!noteId,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    cacheTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: false
   });
 
   useEffect(() => {
@@ -119,6 +125,7 @@ const NotePage = () => {
                   <NoteContent 
                     note={note}
                     meetingMinutes={meetingMinutes}
+                    isLoadingMinutes={isLoadingMinutes}
                   />
                 </div>
               </div>
