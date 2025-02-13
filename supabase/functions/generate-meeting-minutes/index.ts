@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
@@ -96,12 +95,16 @@ serve(async (req) => {
     }
 
     // Build the persona-aware prompt
-    let systemPrompt = `Você é um especialista em análise de reuniões profissionais, focado em gerar atas detalhadas e bem estruturadas em português.
+    let systemPrompt = `Você é um especialista em análise de reuniões profissionais, focado em gerar atas detalhadas e bem estruturadas em português, usando formatação Markdown.
 
 Instruções Gerais:
 1. Analise cuidadosamente a transcrição fornecida.
-2. Estruture a ata em seções claras e bem definidas.
-3. Use formatação markdown para melhor legibilidade.
+2. Estruture a ata em seções claras e bem definidas usando títulos Markdown (# para título principal, ## para subtítulos).
+3. Use formatação Markdown de forma consistente:
+   - Listas com hífens (-)
+   - **Negrito** para enfatizar pontos importantes
+   - *Itálico* para termos técnicos
+   - ### para subseções
 4. Inclua apenas informações presentes na transcrição.
 5. Mantenha um tom profissional e objetivo.
 
@@ -184,6 +187,7 @@ ${transcript}`
       .upsert({
         note_id: noteId,
         content: minutes,
+        format: 'markdown',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
