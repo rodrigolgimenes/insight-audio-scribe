@@ -9,58 +9,32 @@ const corsHeaders = {
 };
 
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
-const URL_EXPIRATION = 12 * 3600; // 12 hours in seconds
 
 async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
   try {
-    console.log('[process-recording] Getting file info...', { path });
-    const { data: fileData, error: urlError } = await supabase.storage
+    console.log('[process-recording] Attempting to download file:', { path });
+    
+    // Primeiro, vamos tentar baixar o arquivo diretamente
+    const { data: fileData, error: downloadError } = await supabase.storage
       .from('audio_recordings')
-      .createSignedUrl(path, URL_EXPIRATION);
+      .download(path);
 
-    if (urlError) {
-      console.error('[process-recording] Error getting signed URL:', urlError);
-      throw new Error(`Failed to get signed URL: ${urlError.message}`);
+    if (downloadError) {
+      console.error('[process-recording] Direct download failed:', downloadError);
+      throw new Error(`Failed to download file: ${downloadError.message}`);
     }
 
-    if (!fileData?.signedUrl) {
-      throw new Error('No signed URL generated');
+    if (!fileData) {
+      throw new Error('No file data received');
     }
 
-    console.log('[process-recording] Downloading file...', { signedUrl: fileData.signedUrl });
-    
-    // Add timeout and retry mechanism for large files
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000); // 1 minute timeout
-    
-    try {
-      const response = await fetch(fileData.signedUrl, {
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeout);
-      
-      if (!response.ok) {
-        console.error('[process-recording] Download failed:', {
-          status: response.status,
-          statusText: response.statusText
-        });
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      console.log('[process-recording] File downloaded successfully:', {
-        size: blob.size,
-        type: blob.type
-      });
-      
-      return blob;
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        throw new Error('Download timeout - file may be too large');
-      }
-      throw error;
-    }
+    console.log('[process-recording] File downloaded successfully:', {
+      size: fileData.size,
+      type: fileData.type
+    });
+
+    return fileData;
+
   } catch (error) {
     console.error('[process-recording] Error in downloadLargeFile:', error);
     throw error;
@@ -73,6 +47,8 @@ async function processAudioChunk(chunk: Blob, openAIApiKey: string): Promise<str
 
   for (let attempt = 0; attempt < retryCount; attempt++) {
     try {
+      console.log(`[process-recording] Processing chunk attempt ${attempt + 1}, size: ${chunk.size} bytes`);
+      
       const formData = new FormData();
       formData.append('file', chunk, 'audio.webm');
       formData.append('model', 'whisper-1');
@@ -92,12 +68,15 @@ async function processAudioChunk(chunk: Blob, openAIApiKey: string): Promise<str
       }
 
       const transcriptionResult = await transcriptionResponse.json();
+      console.log('[process-recording] Chunk processed successfully');
       return transcriptionResult.text || '';
     } catch (error) {
-      console.error(`[process-recording] Attempt ${attempt + 1} failed:`, error);
+      console.error(`[process-recording] Chunk processing attempt ${attempt + 1} failed:`, error);
       lastError = error;
       if (attempt < retryCount - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+        const delay = 1000 * Math.pow(2, attempt);
+        console.log(`[process-recording] Waiting ${delay}ms before next attempt`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
@@ -117,7 +96,7 @@ serve(async (req) => {
     const { recordingId: receivedRecordingId } = await req.json();
     recordingId = receivedRecordingId;
     
-    console.log('[process-recording] Processing recording:', recordingId);
+    console.log('[process-recording] Starting processing for recording:', recordingId);
     
     if (!recordingId) {
       throw new Error('Recording ID is required');
@@ -150,6 +129,12 @@ serve(async (req) => {
       throw new Error('Recording not found');
     }
 
+    console.log('[process-recording] Recording found:', {
+      id: recording.id,
+      file_path: recording.file_path,
+      duration: recording.duration
+    });
+
     // Update recording status to processing
     await supabase
       .from('recordings')
@@ -172,14 +157,16 @@ serve(async (req) => {
     // Process chunks with retries and collect transcriptions
     const transcriptions: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      console.log(`[process-recording] Processing chunk ${i + 1}/${chunks.length}`);
+      console.log(`[process-recording] Processing chunk ${i + 1}/${chunks.length}, size: ${chunks[i].size} bytes`);
       const transcription = await processAudioChunk(chunks[i], openAIApiKey);
       transcriptions.push(transcription);
     }
 
     const fullTranscript = transcriptions.join(' ');
+    console.log('[process-recording] Full transcript generated, length:', fullTranscript.length);
 
     // Process with GPT-3.5-turbo
+    console.log('[process-recording] Starting GPT processing');
     const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -216,6 +203,8 @@ Format your response clearly with headers for each section.`
     const gptResult = await gptResponse.json();
     const processedContent = gptResult.choices[0].message.content;
 
+    console.log('[process-recording] GPT processing completed');
+
     // Update recording with results
     await supabase
       .from('recordings')
@@ -239,6 +228,8 @@ Format your response clearly with headers for each section.`
         audio_url: recording.file_path,
         duration: recording.duration
       });
+
+    console.log('[process-recording] Processing completed successfully');
 
     return new Response(
       JSON.stringify({
