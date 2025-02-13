@@ -71,9 +71,19 @@ export const PricingSection = () => {
     switch (priceId) {
       case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan
         return [
-          '3 daily transcriptions',
-          'Uploads up to 30 minutes per file',
-          'Lower priority processing'
+          '3 Transcripts Daily',
+          '30 Minute Uploads',
+          'Lower Priority Processing'
+        ];
+      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
+        return [
+          'Unlimited transcriptions',
+          'Files up to 10 hours in length',
+          'Advanced AI summarization',
+          'Priority processing',
+          'Real-time collaboration',
+          'Custom vocabulary support',
+          'Premium support via chat/email'
         ];
       case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan
         return [
@@ -84,14 +94,6 @@ export const PricingSection = () => {
           'Real-time collaboration',
           'Custom vocabulary support',
           'Premium support via chat/email'
-        ];
-      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
-        return [
-          '🔄 Unlimited transcriptions',
-          '⏳ Uploads up to 10 hours / 5GB per file',
-          '🚀 Highest priority processing',
-          '🌎 Translation into 134+ languages',
-          '💰 50% discount on yearly subscription'
         ];
       default:
         return [];
@@ -181,11 +183,19 @@ export const PricingSection = () => {
           const isFree = price.unit_amount === 0;
           const buttonText = isFree ? 'Get Started' : 'Subscribe Now';
 
+          let name = 'InsightScribe Plus';
+          let description = 'Unlock unlimited transcriptions and premium features';
+          
+          if (isFree) {
+            name = 'InsightScribe Free';
+            description = 'Start transcribing with our free plan';
+          }
+
           return (
             <PricingCard
               key={price.id}
-              name={price.product?.name || ''}
-              description={price.product?.description || ''}
+              name={name}
+              description={description}
               price={price.unit_amount ? price.unit_amount / 100 : 0}
               interval={price.interval || ''}
               features={getPlanFeatures(price.id)}
