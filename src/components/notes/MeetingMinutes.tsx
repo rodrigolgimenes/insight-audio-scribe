@@ -23,7 +23,7 @@ export const MeetingMinutes = ({
   initialContent,
   isLoadingInitialContent 
 }: MeetingMinutesProps) => {
-  const [minutes, setMinutes] = useState<string | null>(initialContent || null);
+  const [minutes, setMinutes] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -32,6 +32,7 @@ export const MeetingMinutes = ({
 
   // Atualiza o estado local quando o conteúdo inicial muda
   useEffect(() => {
+    console.log('Initial content changed:', { initialContent });
     if (initialContent !== undefined) {
       setMinutes(initialContent);
     }
@@ -110,18 +111,29 @@ export const MeetingMinutes = ({
     }
   };
 
-  // Só gera as atas se não houver conteúdo inicial e não estiver carregando
+  // Só gera as atas se não houver conteúdo salvo e não estiver carregando
   useEffect(() => {
-    if (!isLoadingInitialContent && !minutes && !initialContent && transcript) {
-      console.log('Checking if should generate minutes:', {
-        isLoadingInitialContent,
-        hasMinutes: !!minutes,
-        hasInitialContent: !!initialContent,
-        hasTranscript: !!transcript
-      });
+    const shouldGenerateMinutes = 
+      !isLoadingInitialContent && // Não está carregando o conteúdo inicial
+      initialContent === null && // Não existe conteúdo inicial (importante: diferente de undefined)
+      !minutes && // Não tem minutos no estado local
+      transcript && // Tem transcrição disponível
+      !isLoading; // Não está gerando minutos no momento
+
+    console.log('Checking generation conditions:', {
+      isLoadingInitialContent,
+      initialContent,
+      hasMinutes: !!minutes,
+      hasTranscript: !!transcript,
+      isLoading,
+      shouldGenerate: shouldGenerateMinutes
+    });
+
+    if (shouldGenerateMinutes) {
+      console.log('Generating new minutes');
       generateMinutes(false);
     }
-  }, [isLoadingInitialContent, minutes, initialContent, transcript]);
+  }, [isLoadingInitialContent, initialContent, minutes, transcript, isLoading]);
 
   if (isLoadingInitialContent) {
     return (
