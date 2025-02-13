@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface MinutesData {
   content: string;
-  format?: 'plain' | 'markdown' | 'html';
+  format: 'plain' | 'markdown' | 'html';
 }
 
 export const useMeetingMinutes = (noteId: string, initialContent?: string | null) => {
@@ -18,7 +18,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       console.log('Fetching meeting minutes for note:', noteId);
       const { data, error } = await supabase
         .from('meeting_minutes')
-        .select('content')
+        .select('content, format')
         .eq('note_id', noteId)
         .maybeSingle();
 
@@ -81,6 +81,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
         .upsert({
           note_id: noteId,
           content,
+          format: 'markdown',
           updated_at: new Date().toISOString()
         });
 
