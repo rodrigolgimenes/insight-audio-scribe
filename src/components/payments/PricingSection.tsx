@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -157,6 +158,13 @@ export const PricingSection = () => {
     return null;
   }
 
+  // Reorder prices to put yearly plan in the middle
+  const orderedPrices = [...prices].sort((a, b) => {
+    if (a.id === 'price_1Qs3tpRepqC8oahuh0kSILbX') return 0; // Yearly plan in middle
+    if (a.unit_amount === 0) return -1; // Free plan first
+    return 1; // Monthly plan last
+  });
+
   return (
     <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="text-center mb-12">
@@ -168,8 +176,8 @@ export const PricingSection = () => {
         </p>
       </div>
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
-        {prices.map((price, index) => {
-          const isPopular = index === 1;
+        {orderedPrices.map((price) => {
+          const isPopular = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX'; // Yearly plan is popular
           const isFree = price.unit_amount === 0;
           const buttonText = isFree ? 'Get Started' : 'Subscribe Now';
 
