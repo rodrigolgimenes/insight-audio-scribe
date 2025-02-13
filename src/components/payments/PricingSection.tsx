@@ -65,20 +65,20 @@ export const PricingSection = () => {
 
   const getPlanFeatures = (priceId: string) => {
     switch (priceId) {
-      case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan price ID
+      case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan
         return [
           '3 daily transcriptions',
           'Uploads up to 30 minutes per file',
           'Lower priority processing'
         ];
-      case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan price ID
+      case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan
         return [
           'Unlimited transcriptions',
           'Uploads up to 10 hours / 5GB per file',
           'Highest priority processing',
           'Translation into 134+ languages'
         ];
-      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan price ID
+      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
         return [
           'Unlimited transcriptions',
           'Uploads up to 10 hours / 5GB per file',
@@ -91,10 +91,30 @@ export const PricingSection = () => {
     }
   };
 
-  const handleSubscribeClick = () => {
+  const handleSubscribeClick = async (priceId: string) => {
     if (!session) {
       navigate('/login');
       return;
+    }
+
+    // For free plan, redirect to simple-record directly
+    if (priceId === 'price_1Qs49tRepqC8oahubgFsDuHf') {
+      navigate('/simple-record');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { priceId }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
     }
   };
 
@@ -115,21 +135,27 @@ export const PricingSection = () => {
         </p>
       </div>
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
-        {prices?.map((price, index) => (
-          <PricingCard
-            key={price.id}
-            name={price.product?.name || ''}
-            description={price.product?.description || ''}
-            price={price.unit_amount ? price.unit_amount / 100 : 0}
-            interval={price.interval || ''}
-            features={getPlanFeatures(price.id)}
-            priceId={price.id}
-            isPopular={index === 1}
-            buttonText={price.id === 'price_1Qs49tRepqC8oahubgFsDuHf' ? 'Get Started' : 'Subscribe Now'}
-            hasActiveSubscription={hasActiveSubscription}
-            onSubscribeClick={handleSubscribeClick}
-          />
-        ))}
+        {prices?.map((price, index) => {
+          const isPopular = index === 1;
+          const isFree = price.unit_amount === 0;
+          const buttonText = isFree ? 'Get Started' : 'Subscribe Now';
+
+          return (
+            <PricingCard
+              key={price.id}
+              name={price.product?.name || ''}
+              description={price.product?.description || ''}
+              price={price.unit_amount ? price.unit_amount / 100 : 0}
+              interval={price.interval || ''}
+              features={getPlanFeatures(price.id)}
+              priceId={price.id}
+              isPopular={isPopular}
+              buttonText={buttonText}
+              hasActiveSubscription={hasActiveSubscription}
+              onSubscribeClick={() => handleSubscribeClick(price.id)}
+            />
+          );
+        })}
       </div>
     </section>
   );
