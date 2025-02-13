@@ -92,6 +92,24 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          created_at: string
+          id: string
+          stripe_customer_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          stripe_customer_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stripe_customer_id?: string | null
+        }
+        Relationships: []
+      }
       folders: {
         Row: {
           created_at: string
@@ -287,6 +305,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      prices: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          id: string
+          interval: string | null
+          interval_count: number | null
+          metadata: Json | null
+          product_id: string | null
+          trial_period_days: number | null
+          type: string | null
+          unit_amount: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id: string
+          interval?: string | null
+          interval_count?: number | null
+          metadata?: Json | null
+          product_id?: string | null
+          trial_period_days?: number | null
+          type?: string | null
+          unit_amount?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          interval?: string | null
+          interval_count?: number | null
+          metadata?: Json | null
+          product_id?: string | null
+          trial_period_days?: number | null
+          type?: string | null
+          unit_amount?: number | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          description: string | null
+          id: string
+          image: string | null
+          metadata: Json | null
+          name: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          description?: string | null
+          id: string
+          image?: string | null
+          metadata?: Json | null
+          name?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image?: string | null
+          metadata?: Json | null
+          name?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
