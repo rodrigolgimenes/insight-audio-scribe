@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,14 +86,11 @@ export const PricingSection = () => {
         ];
       case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
         return [
-          'All Plus features included',
-          'Files up to 10 hours in length',
-          'Advanced AI summarization',
-          'Priority processing',
-          'Real-time collaboration',
-          'Custom vocabulary support',
-          'Premium support via chat/email',
-          '50% savings with annual billing'
+          '🔄 Unlimited transcriptions',
+          '⏳ Uploads up to 10 hours / 5GB per file',
+          '🚀 Highest priority processing',
+          '🌎 Translation into 134+ languages',
+          '💰 50% discount on yearly subscription'
         ];
       default:
         return [];
@@ -115,7 +111,9 @@ export const PricingSection = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { priceId }
+        body: { 
+          priceId: priceId === 'price_1Qs3tpRepqC8oahuh0kSILbX' ? 'prod_Rlb6RWk7O8GE6M' : priceId 
+        }
       });
 
       if (error) throw error;
