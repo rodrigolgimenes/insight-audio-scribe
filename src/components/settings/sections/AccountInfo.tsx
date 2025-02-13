@@ -35,7 +35,8 @@ export const AccountInfo = ({
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: `${firstName} ${lastName}`.trim(),
+          first_name: firstName,
+          last_name: lastName,
           email,
           updated_at: new Date().toISOString(),
         })

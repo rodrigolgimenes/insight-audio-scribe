@@ -1,3 +1,4 @@
+
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,10 +30,21 @@ export const LoginPage = () => {
         <div className="mt-8">
           <Auth
             supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
+            appearance={{ 
+              theme: ThemeSupa,
+              variables: {
+                default: {
+                  colors: {
+                    brand: '#4285F4',
+                    brandAccent: '#3367D6',
+                  },
+                },
+              },
+            }}
             theme="light"
             providers={["google"]}
             redirectTo={`${window.location.origin}/auth/callback`}
+            onlyThirdPartyProviders={true}
           />
         </div>
       </div>

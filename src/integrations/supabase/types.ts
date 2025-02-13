@@ -395,8 +395,9 @@ export type Database = {
           billing_address: Json | null
           created_at: string
           email: string
-          full_name: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           payment_method: Json | null
           updated_at: string
         }
@@ -405,8 +406,9 @@ export type Database = {
           billing_address?: Json | null
           created_at?: string
           email: string
-          full_name?: string | null
+          first_name?: string | null
           id: string
+          last_name?: string | null
           payment_method?: Json | null
           updated_at?: string
         }
@@ -415,8 +417,9 @@ export type Database = {
           billing_address?: Json | null
           created_at?: string
           email?: string
-          full_name?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           payment_method?: Json | null
           updated_at?: string
         }

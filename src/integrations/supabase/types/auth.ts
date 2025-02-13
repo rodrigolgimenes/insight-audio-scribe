@@ -6,7 +6,8 @@ export interface AuthTables {
     Row: {
       id: string;
       email: string;
-      full_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
       avatar_url: string | null;
       billing_address: Json | null;
       payment_method: Json | null;
@@ -16,7 +17,8 @@ export interface AuthTables {
     Insert: {
       id: string;
       email: string;
-      full_name?: string | null;
+      first_name?: string | null;
+      last_name?: string | null;
       avatar_url?: string | null;
       billing_address?: Json | null;
       payment_method?: Json | null;
@@ -26,7 +28,8 @@ export interface AuthTables {
     Update: {
       id?: string;
       email?: string;
-      full_name?: string | null;
+      first_name?: string | null;
+      last_name?: string | null;
       avatar_url?: string | null;
       billing_address?: Json | null;
       payment_method?: Json | null;
