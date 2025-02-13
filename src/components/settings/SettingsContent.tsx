@@ -18,10 +18,13 @@ interface UserProfile {
 }
 
 interface UserPreferences {
+  user_id: string;
   default_microphone: string | null;
   preferred_language: string;
   default_style: string;
   custom_words: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Subscription {
@@ -81,7 +84,7 @@ export const SettingsContent = () => {
   });
 
   // Fetch user preferences
-  const { data: preferences } = useQuery({
+  const { data: preferences } = useQuery<UserPreferences>({
     queryKey: ['preferences'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -92,9 +95,13 @@ export const SettingsContent = () => {
 
       if (error && error.code !== 'PGRST116') throw error;
       return data || {
+        user_id: session?.user?.id as string,
         preferred_language: 'auto',
         default_style: 'note',
         custom_words: '',
+        default_microphone: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
     },
     enabled: !!session?.user?.id,
@@ -181,8 +188,13 @@ export const SettingsContent = () => {
       const { error } = await supabase
         .from('user_preferences')
         .upsert({
-          user_id: session?.user?.id,
-          ...preferences,
+          user_id: session?.user?.id as string,
+          ...(preferences || {
+            preferred_language: 'auto',
+            default_style: 'note',
+            custom_words: '',
+            default_microphone: null,
+          }),
           ...newPreferences,
           updated_at: new Date().toISOString(),
         });
