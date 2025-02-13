@@ -11,10 +11,11 @@ interface MeetingMinutesProps {
   transcript: string | null;
   noteId: string;
   audioUrl?: string | null;
+  initialContent?: string | null;
 }
 
-export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesProps) => {
-  const [minutes, setMinutes] = useState<string | null>(null);
+export const MeetingMinutes = ({ transcript, noteId, audioUrl, initialContent }: MeetingMinutesProps) => {
+  const [minutes, setMinutes] = useState<string | null>(initialContent || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -89,32 +90,10 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
   };
 
   useEffect(() => {
-    const fetchExistingMinutes = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('meeting_minutes')
-          .select('content')
-          .eq('note_id', noteId)
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error fetching meeting minutes:', error);
-          return;
-        }
-
-        if (data) {
-          setMinutes(data.content);
-        } else {
-          // Generate minutes automatically if they don't exist
-          await generateMinutes(false);
-        }
-      } catch (err) {
-        console.error('Error fetching meeting minutes:', err);
-      }
-    };
-
-    fetchExistingMinutes();
-  }, [noteId]);
+    if (!minutes && !initialContent && transcript) {
+      generateMinutes(false);
+    }
+  }, [noteId, transcript, initialContent]);
 
   return (
     <div className="space-y-4">

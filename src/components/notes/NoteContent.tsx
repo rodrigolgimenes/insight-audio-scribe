@@ -1,16 +1,16 @@
 
 import { useState } from "react";
 import { MeetingMinutes } from "./MeetingMinutes";
-import { NoteTags } from "./NoteTags";
 import { Note } from "@/integrations/supabase/types/notes";
 import { TranscriptChat } from "./TranscriptChat";
 import { TranscriptAccordion } from "./TranscriptAccordion";
 
 interface NoteContentProps {
   note: Note;
+  meetingMinutes?: string | null;
 }
 
-export const NoteContent = ({ note }: NoteContentProps) => {
+export const NoteContent = ({ note, meetingMinutes }: NoteContentProps) => {
   return (
     <div className="space-y-8">
       <div className="pb-4 border-b border-gray-200">
@@ -30,6 +30,7 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         noteId={note.id}
         transcript={note.original_transcript}
         audioUrl={note.audio_url}
+        initialContent={meetingMinutes}
       />
 
       <TranscriptAccordion transcript={note.original_transcript} />

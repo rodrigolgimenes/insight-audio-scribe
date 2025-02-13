@@ -1,9 +1,8 @@
 
 import { useState, useRef, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { AudioControlBar } from "@/components/notes/AudioControlBar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,8 +20,8 @@ import { TagsDialog } from "@/components/notes/TagsDialog";
 import { useNoteData } from "@/hooks/useNoteData";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { NoteTags } from "@/components/notes/NoteTags";
+import { useQuery } from "@tanstack/react-query";
 
 const NotePage = () => {
   const { noteId } = useParams();
@@ -30,12 +29,30 @@ const NotePage = () => {
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { note, isLoadingNote, folders, currentFolder, tags } = useNoteData();
   const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
+
+  // Fetch meeting minutes
+  const { data: meetingMinutes } = useQuery({
+    queryKey: ['meeting-minutes', noteId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('meeting_minutes')
+        .select('content')
+        .eq('note_id', noteId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching meeting minutes:', error);
+        throw error;
+      }
+
+      return data?.content || null;
+    },
+    enabled: !!noteId
+  });
 
   useEffect(() => {
     const loadAudioUrl = async () => {
@@ -99,7 +116,10 @@ const NotePage = () => {
 
               <div className="mt-8">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <NoteContent note={note} />
+                  <NoteContent 
+                    note={note}
+                    meetingMinutes={meetingMinutes}
+                  />
                 </div>
               </div>
             </div>
