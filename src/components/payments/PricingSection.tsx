@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,7 +43,11 @@ export const PricingSection = () => {
         .eq('active', true)
         .order('unit_amount');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching prices:', error);
+        throw error;
+      }
+      console.log('Fetched prices:', data);
       return data;
     },
   });
@@ -149,6 +154,11 @@ export const PricingSection = () => {
     );
   }
 
+  if (!prices || prices.length === 0) {
+    console.log('No prices available');
+    return null;
+  }
+
   return (
     <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="text-center mb-12">
@@ -160,7 +170,7 @@ export const PricingSection = () => {
         </p>
       </div>
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
-        {prices?.map((price, index) => {
+        {prices.map((price, index) => {
           const isPopular = index === 1;
           const isFree = price.unit_amount === 0;
           const buttonText = isFree ? 'Get Started' : 'Subscribe Now';
