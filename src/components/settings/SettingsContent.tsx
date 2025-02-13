@@ -32,6 +32,16 @@ interface Subscription {
   price_id: string | null;
 }
 
+const defaultPreferences: UserPreferences = {
+  user_id: '',
+  preferred_language: 'auto',
+  default_style: 'note',
+  custom_words: '',
+  default_microphone: null,
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 const languageOptions = [
   { value: 'auto', label: 'Auto Detect' },
   { value: 'en', label: 'English' },
@@ -78,34 +88,44 @@ export const SettingsContent = () => {
         setEmail(data.email);
       }
       
-      return data;
+      return data as UserProfile;
     },
     enabled: !!session?.user?.id,
   });
 
-  // Fetch user preferences
-  const { data: preferences } = useQuery<UserPreferences>({
+  // Fetch user preferences with proper type casting
+  const { data: preferences = defaultPreferences } = useQuery({
     queryKey: ['user_preferences'],
     queryFn: async () => {
-      const result = await supabase
-        .from('user_preferences')
-        .select()
-        .eq('user_id', session?.user?.id)
-        .maybeSingle();
-
-      if (result.error && result.error.code !== 'PGRST116') throw result.error;
-
-      const defaultPreferences: UserPreferences = {
-        user_id: session?.user?.id as string,
-        preferred_language: 'auto',
-        default_style: 'note',
-        custom_words: '',
-        default_microphone: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      type PreferencesResponse = {
+        data: UserPreferences | null;
+        error: any;
       };
 
-      return result.data || defaultPreferences;
+      try {
+        const response: PreferencesResponse = await supabase
+          .from('user_preferences')
+          .select()
+          .eq('user_id', session?.user?.id)
+          .maybeSingle();
+
+        if (response.error && response.error.code !== 'PGRST116') {
+          throw response.error;
+        }
+
+        if (response.data) {
+          return response.data as UserPreferences;
+        }
+
+        // Return default preferences if no data exists
+        return {
+          ...defaultPreferences,
+          user_id: session?.user?.id as string,
+        };
+      } catch (error) {
+        console.error('Error fetching preferences:', error);
+        throw error;
+      }
     },
     enabled: !!session?.user?.id,
   });
@@ -188,16 +208,23 @@ export const SettingsContent = () => {
   // Update preferences mutation
   const updatePreferences = useMutation({
     mutationFn: async (newPreferences: Partial<UserPreferences>) => {
-      const result = await supabase
-        .from('user_preferences')
-        .upsert({
+      try {
+        const dataToUpdate = {
           ...preferences,
           ...newPreferences,
-          user_id: session?.user?.id as string,
+          user_id: session?.user?.id,
           updated_at: new Date().toISOString(),
-        } as UserPreferences);
+        } as UserPreferences;
 
-      if (result.error) throw result.error;
+        const { error } = await supabase
+          .from('user_preferences')
+          .upsert(dataToUpdate);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error updating preferences:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({
