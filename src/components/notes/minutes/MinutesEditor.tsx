@@ -14,15 +14,25 @@ import {
   Heading2,
   Undo,
   Redo,
+  Save,
+  X,
 } from 'lucide-react';
 
 interface MinutesEditorProps {
   content: string;
   onChange?: (content: string) => void;
+  onSave?: () => void;
+  onCancel?: () => void;
   readOnly?: boolean;
 }
 
-export const MinutesEditor = ({ content, onChange, readOnly = false }: MinutesEditorProps) => {
+export const MinutesEditor = ({ 
+  content, 
+  onChange, 
+  onSave, 
+  onCancel, 
+  readOnly = false 
+}: MinutesEditorProps) => {
   const { toast } = useToast();
   
   const editor = useEditor({
@@ -137,6 +147,28 @@ export const MinutesEditor = ({ content, onChange, readOnly = false }: MinutesEd
             <Copy className="h-4 w-4" />
             Copy All
           </Button>
+          {onSave && onCancel && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancel}
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onSave}
+                className="gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+            </>
+          )}
         </div>
       )}
       <EditorContent 

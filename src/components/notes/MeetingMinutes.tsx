@@ -5,6 +5,8 @@ import { useMeetingMinutes } from "./minutes/useMeetingMinutes";
 import { MinutesContent } from "./minutes/MinutesContent";
 import { RegenerateButton } from "./minutes/RegenerateButton";
 import { LoadingSpinner } from "./minutes/LoadingSpinner";
+import { Button } from "@/components/ui/button";
+import { Edit2 } from "lucide-react";
 
 interface MeetingMinutesProps {
   transcript: string | null;
@@ -22,6 +24,8 @@ export const MeetingMinutes = ({
   isLoadingInitialContent 
 }: MeetingMinutesProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftContent, setDraftContent] = useState<string | null>(null);
   
   const {
     minutes,
@@ -36,8 +40,26 @@ export const MeetingMinutes = ({
     setIsPlaying(!isPlaying);
   };
 
+  const handleStartEditing = () => {
+    setDraftContent(minutes || '');
+    setIsEditing(true);
+  };
+
   const handleContentChange = (newContent: string) => {
-    updateMinutes(newContent);
+    setDraftContent(newContent);
+  };
+
+  const handleSave = () => {
+    if (draftContent !== null) {
+      updateMinutes(draftContent);
+      setIsEditing(false);
+      setDraftContent(null);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setDraftContent(null);
   };
 
   // Auto-generate minutes only if needed
@@ -88,15 +110,27 @@ export const MeetingMinutes = ({
           </div>
         )}
 
-        {minutes && (
-          <div className="mb-6">
+        <div className="mb-6 flex gap-2">
+          {minutes && !isEditing && (
+            <Button
+              onClick={handleStartEditing}
+              variant="outline"
+              className="gap-2"
+              disabled={isGenerating}
+            >
+              <Edit2 className="h-4 w-4" />
+              Edit Meeting Minutes
+            </Button>
+          )}
+          
+          {minutes && (
             <RegenerateButton
               onRegenerate={() => generateMinutes({ isRegeneration: true })}
               isGenerating={isGenerating}
-              disabled={!transcript}
+              disabled={!transcript || isEditing}
             />
-          </div>
-        )}
+          )}
+        </div>
 
         {isGenerating && !minutes && (
           <LoadingSpinner message="Generating Minutes..." />
@@ -104,9 +138,11 @@ export const MeetingMinutes = ({
 
         {minutes && (
           <MinutesContent 
-            content={minutes} 
+            content={isEditing ? (draftContent || minutes) : minutes}
             onChange={handleContentChange}
-            readOnly={isUpdating || isGenerating}
+            onSave={isEditing ? handleSave : undefined}
+            onCancel={isEditing ? handleCancel : undefined}
+            readOnly={!isEditing || isUpdating || isGenerating}
           />
         )}
       </div>
