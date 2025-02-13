@@ -1,14 +1,29 @@
+
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleGetStarted = () => {
     navigate("/login");
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    if (location.pathname !== '/') {
+      navigate('/?section=' + sectionId);
+      return;
+    }
+    
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+    setIsMenuOpen(false);
   };
 
   return (
@@ -21,18 +36,30 @@ export const Header = () => {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-gray-600 hover:text-primary transition-colors">
+            <button
+              onClick={() => scrollToSection('features')}
+              className="text-gray-600 hover:text-primary transition-colors"
+            >
               Features
-            </a>
-            <a href="#use-cases" className="text-gray-600 hover:text-primary transition-colors">
+            </button>
+            <button
+              onClick={() => scrollToSection('use-cases')}
+              className="text-gray-600 hover:text-primary transition-colors"
+            >
               Use Cases
-            </a>
-            <a href="#pricing" className="text-gray-600 hover:text-primary transition-colors">
+            </button>
+            <button
+              onClick={() => scrollToSection('pricing')}
+              className="text-gray-600 hover:text-primary transition-colors"
+            >
               Pricing
-            </a>
-            <a href="#faq" className="text-gray-600 hover:text-primary transition-colors">
+            </button>
+            <button
+              onClick={() => scrollToSection('faq')}
+              className="text-gray-600 hover:text-primary transition-colors"
+            >
               FAQ
-            </a>
+            </button>
             <Button 
               variant="default" 
               className="bg-primary hover:bg-primary-dark"
@@ -55,27 +82,30 @@ export const Header = () => {
         {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden py-4 space-y-4">
-            <a
-              href="#features"
-              className="block text-gray-600 hover:text-primary transition-colors"
+            <button
+              onClick={() => scrollToSection('features')}
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
               Features
-            </a>
-            <a
-              href="#use-cases"
-              className="block text-gray-600 hover:text-primary transition-colors"
+            </button>
+            <button
+              onClick={() => scrollToSection('use-cases')}
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
               Use Cases
-            </a>
-            <a
-              href="#pricing"
-              className="block text-gray-600 hover:text-primary transition-colors"
+            </button>
+            <button
+              onClick={() => scrollToSection('pricing')}
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
               Pricing
-            </a>
-            <a href="#faq" className="block text-gray-600 hover:text-primary transition-colors">
+            </button>
+            <button
+              onClick={() => scrollToSection('faq')}
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
+            >
               FAQ
-            </a>
+            </button>
             <Button 
               variant="default" 
               className="w-full bg-primary hover:bg-primary-dark"

@@ -3,6 +3,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PricingCard } from './PricingCard';
+import { Rocket, Clock, Globe, Infinity } from 'lucide-react';
 
 interface Product {
   name: string | null;
@@ -39,14 +40,44 @@ export const PricingSection = () => {
     },
   });
 
+  const getPlanFeatures = (priceId: string) => {
+    switch (priceId) {
+      case 'price_free':
+        return [
+          '3 daily transcriptions',
+          'Uploads up to 30 minutes per file',
+          'Lower priority processing'
+        ];
+      case 'prod_Rlb3WhzzS78RUa':
+        return [
+          'Unlimited transcriptions',
+          'Uploads up to 10 hours / 5GB per file',
+          'Highest priority processing',
+          'Translation into 134+ languages'
+        ];
+      case 'prod_Rlb6RWk7O8GE6M':
+        return [
+          'Unlimited transcriptions',
+          'Uploads up to 10 hours / 5GB per file',
+          'Highest priority processing',
+          'Translation into 134+ languages',
+          'Save 50% with yearly billing'
+        ];
+      default:
+        return [];
+    }
+  };
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading pricing...</div>;
   }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8">
+    <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="text-center mb-12">
-        <h2 className="text-3xl font-bold tracking-tight">Simple, transparent pricing</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+          Simple, transparent pricing
+        </h2>
         <p className="mt-4 text-lg text-muted-foreground">
           Choose the plan that best fits your needs
         </p>
@@ -58,17 +89,14 @@ export const PricingSection = () => {
             name={price.product?.name || ''}
             description={price.product?.description || ''}
             price={price.unit_amount ? price.unit_amount / 100 : 0}
-            interval={price.interval || 'month'}
-            features={[
-              'Feature 1',
-              'Feature 2',
-              'Feature 3',
-            ]}
+            interval={price.interval || ''}
+            features={getPlanFeatures(price.id)}
             priceId={price.id}
             isPopular={index === 1}
+            buttonText={price.id === 'price_free' ? 'Get Started' : 'Subscribe Now'}
           />
         ))}
       </div>
-    </div>
+    </section>
   );
 };
