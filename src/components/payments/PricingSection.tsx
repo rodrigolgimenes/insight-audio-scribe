@@ -13,7 +13,7 @@ interface Price {
   id: string;
   unit_amount: number | null;
   interval: string | null;
-  products: Product;
+  product: Product | null;
 }
 
 export const PricingSection = () => {
@@ -26,7 +26,7 @@ export const PricingSection = () => {
           id,
           unit_amount,
           interval,
-          products (
+          product:product_id (
             name,
             description
           )
@@ -55,8 +55,8 @@ export const PricingSection = () => {
         {prices?.map((price, index) => (
           <PricingCard
             key={price.id}
-            name={price.products?.name || ''}
-            description={price.products?.description || ''}
+            name={price.product?.name || ''}
+            description={price.product?.description || ''}
             price={price.unit_amount ? price.unit_amount / 100 : 0}
             interval={price.interval || 'month'}
             features={[
