@@ -4,6 +4,7 @@ import { MeetingMinutes } from "./MeetingMinutes";
 import { NoteTags } from "./NoteTags";
 import { Note } from "@/integrations/supabase/types/notes";
 import { TranscriptChat } from "./TranscriptChat";
+import { TranscriptAccordion } from "./TranscriptAccordion";
 
 interface NoteContentProps {
   note: Note;
@@ -30,6 +31,8 @@ export const NoteContent = ({ note }: NoteContentProps) => {
         transcript={note.original_transcript}
         audioUrl={note.audio_url}
       />
+
+      <TranscriptAccordion transcript={note.original_transcript} />
 
       <TranscriptChat note={note} />
     </div>
