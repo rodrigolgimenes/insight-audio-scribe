@@ -1,21 +1,18 @@
 
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import {
   Bold,
   Italic,
   List,
   ListOrdered,
-  Copy,
-  Heading1,
   Heading2,
+  Heading3,
   Undo,
   Redo,
-  Save,
-  X,
+  MinusSquare,
 } from 'lucide-react';
 
 interface MinutesEditorProps {
@@ -26,155 +23,131 @@ interface MinutesEditorProps {
   readOnly?: boolean;
 }
 
-export const MinutesEditor = ({ 
-  content, 
-  onChange, 
-  onSave, 
-  onCancel, 
-  readOnly = false 
+const MenuButton = ({ 
+  onClick, 
+  isActive = false, 
+  disabled = false,
+  children 
+}: { 
+  onClick: () => void; 
+  isActive?: boolean; 
+  disabled?: boolean;
+  children: React.ReactNode;
+}) => (
+  <Button
+    type="button"
+    variant="ghost"
+    size="sm"
+    onClick={onClick}
+    className={`${isActive ? 'bg-muted' : ''} p-2 h-8`}
+    disabled={disabled}
+  >
+    {children}
+  </Button>
+);
+
+export const MinutesEditor = ({
+  content,
+  onChange,
+  readOnly = false
 }: MinutesEditorProps) => {
-  const { toast } = useToast();
-  
   const editor = useEditor({
     extensions: [StarterKit],
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
-      onChange?.(editor.getHTML());
+      // Convert the editor content to markdown when it changes
+      const markdown = editor.storage.markdown.getMarkdown();
+      onChange?.(markdown);
     },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-blue max-w-none min-h-[200px] p-4 border rounded-lg focus:outline-none'
+      }
+    }
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    if (editor && content !== editor.storage.markdown.getMarkdown()) {
       editor.commands.setContent(content);
     }
   }, [content, editor]);
 
-  const copyContent = async () => {
-    if (!editor) return;
-    
-    try {
-      await navigator.clipboard.writeText(editor.getHTML());
-      toast({
-        title: "Success",
-        description: "Meeting minutes copied to clipboard",
-      });
-    } catch (error) {
-      console.error('Failed to copy content:', error);
-      toast({
-        title: "Error",
-        description: "Failed to copy meeting minutes",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (!editor) return null;
+
+  const addHeadingLevel = (level: number) => {
+    editor.chain().focus().toggleHeading({ level }).run();
+  };
 
   return (
     <div className="border rounded-lg bg-white">
       {!readOnly && (
         <div className="border-b p-2 flex flex-wrap gap-2 bg-gray-50">
-          <Button
-            variant="ghost"
-            size="sm"
+          <MenuButton
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={editor.isActive('bold') ? 'bg-gray-200' : ''}
+            isActive={editor.isActive('bold')}
           >
             <Bold className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </MenuButton>
+          
+          <MenuButton
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={editor.isActive('italic') ? 'bg-gray-200' : ''}
+            isActive={editor.isActive('italic')}
           >
             <Italic className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </MenuButton>
+          
+          <MenuButton
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={editor.isActive('bulletList') ? 'bg-gray-200' : ''}
+            isActive={editor.isActive('bulletList')}
           >
             <List className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </MenuButton>
+          
+          <MenuButton
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={editor.isActive('orderedList') ? 'bg-gray-200' : ''}
+            isActive={editor.isActive('orderedList')}
           >
             <ListOrdered className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={editor.isActive('heading', { level: 1 }) ? 'bg-gray-200' : ''}
-          >
-            <Heading1 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={editor.isActive('heading', { level: 2 }) ? 'bg-gray-200' : ''}
+          </MenuButton>
+          
+          <MenuButton
+            onClick={() => addHeadingLevel(2)}
+            isActive={editor.isActive('heading', { level: 2 })}
           >
             <Heading2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </MenuButton>
+          
+          <MenuButton
+            onClick={() => addHeadingLevel(3)}
+            isActive={editor.isActive('heading', { level: 3 })}
+          >
+            <Heading3 className="h-4 w-4" />
+          </MenuButton>
+          
+          <MenuButton
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          >
+            <MinusSquare className="h-4 w-4" />
+          </MenuButton>
+          
+          <MenuButton
             onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
           >
             <Undo className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
+          </MenuButton>
+          
+          <MenuButton
             onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
           >
             <Redo className="h-4 w-4" />
-          </Button>
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copyContent}
-            className="gap-2"
-          >
-            <Copy className="h-4 w-4" />
-            Copy All
-          </Button>
-          {onSave && onCancel && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onCancel}
-                className="gap-2"
-              >
-                <X className="h-4 w-4" />
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onSave}
-                className="gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Save Changes
-              </Button>
-            </>
-          )}
+          </MenuButton>
         </div>
       )}
-      <EditorContent 
-        editor={editor} 
-        className="prose prose-sm md:prose-base lg:prose-lg max-w-none p-4"
-      />
+      
+      <EditorContent editor={editor} />
     </div>
   );
 };

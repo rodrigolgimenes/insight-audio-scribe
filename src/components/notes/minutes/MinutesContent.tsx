@@ -1,5 +1,7 @@
 
-import { MinutesEditor } from './MinutesEditor';
+import { useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { MinutesEditor } from "@/components/notes/minutes/MinutesEditor";
 import ReactMarkdown from 'react-markdown';
 
 interface MinutesContentProps {
@@ -10,22 +12,47 @@ interface MinutesContentProps {
   readOnly?: boolean;
 }
 
-export const MinutesContent = ({ content, onChange, onSave, onCancel, readOnly = false }: MinutesContentProps) => {
-  if (readOnly) {
+export const MinutesContent = ({
+  content,
+  onChange,
+  onSave,
+  onCancel,
+  readOnly = false
+}: MinutesContentProps) => {
+  // Se estiver em modo de edição, use o editor
+  if (!readOnly && onChange) {
     return (
-      <div className="prose prose-sm md:prose-base lg:prose-lg max-w-none p-4 border rounded-lg bg-white">
-        <ReactMarkdown>{content}</ReactMarkdown>
+      <div className="space-y-4">
+        <MinutesEditor 
+          content={content}
+          onChange={onChange}
+          onSave={onSave}
+          onCancel={onCancel}
+          readOnly={readOnly}
+        />
+        
+        <div className="flex justify-end gap-2 mt-4">
+          {onCancel && (
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+          {onSave && (
+            <Button onClick={onSave}>
+              Save Changes
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
 
+  // Se for apenas leitura, renderize o markdown
   return (
-    <MinutesEditor 
-      content={content} 
-      onChange={onChange} 
-      onSave={onSave}
-      onCancel={onCancel}
-      readOnly={readOnly} 
-    />
+    <div className="prose prose-blue max-w-none">
+      <ReactMarkdown>
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 };
