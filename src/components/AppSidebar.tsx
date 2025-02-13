@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Mic, FileText, Settings } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FolderList } from "./folders/FolderList";
 import { TagList } from "./tags/TagList";
 import { useState } from "react";
@@ -25,13 +25,14 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activePage }: AppSidebarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
   const [isBugReportDialogOpen, setIsBugReportDialogOpen] = useState(false);
   
   const menuItems = [
     { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
     { icon: FileText, label: "Notes", href: "/app", id: "notes" },
-    { icon: Settings, label: "Settings", href: "#", id: "settings" },
+    { icon: Settings, label: "Settings", href: "/settings", id: "settings" },
   ];
 
   return (
@@ -53,20 +54,27 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    asChild
-                    data-active={activePage === item.id}
-                    onClick={() => navigate(item.href)}
-                  >
-                    <button>
-                      <item.icon className={activePage === item.id ? "text-[#E91E63]" : ""} />
-                      <span className={activePage === item.id ? "text-[#E91E63]" : ""}>{item.label}</span>
-                    </button>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {menuItems.map((item) => {
+                const isActive = 
+                  (activePage === item.id) || 
+                  (location.pathname === item.href) ||
+                  (item.href === '/simple-record' && location.pathname === '/simple-record');
+                
+                return (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      asChild
+                      data-active={isActive}
+                      onClick={() => navigate(item.href)}
+                    >
+                      <button>
+                        <item.icon className={isActive ? "text-[#E91E63]" : ""} />
+                        <span className={isActive ? "text-[#E91E63]" : ""}>{item.label}</span>
+                      </button>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

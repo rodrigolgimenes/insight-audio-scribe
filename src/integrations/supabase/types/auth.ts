@@ -1,3 +1,4 @@
+
 import { Json } from './common';
 
 export interface AuthTables {
