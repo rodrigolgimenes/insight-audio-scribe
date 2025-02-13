@@ -1,6 +1,7 @@
 
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Markdown from 'tiptap-markdown';
 import { useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,11 +53,17 @@ export const MinutesEditor = ({
   readOnly = false
 }: MinutesEditorProps) => {
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Markdown.configure({
+        html: false,
+        transformPastedText: true,
+        transformCopiedText: true
+      })
+    ],
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
-      // Convert the editor content to markdown when it changes
       const markdown = editor.storage.markdown.getMarkdown();
       onChange?.(markdown);
     },
@@ -75,7 +82,7 @@ export const MinutesEditor = ({
 
   if (!editor) return null;
 
-  const addHeadingLevel = (level: number) => {
+  const addHeadingLevel = (level: 2 | 3) => {
     editor.chain().focus().toggleHeading({ level }).run();
   };
 
