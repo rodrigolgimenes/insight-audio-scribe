@@ -11,20 +11,14 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { User, Lock, Mic, Globe, Text, CreditCard, LogOut, Trash2 } from 'lucide-react';
+import { Database } from '@/integrations/supabase/types';
+
+type Tables = Database['public']['Tables'];
+type UserPreferences = Tables['user_preferences']['Row'];
 
 interface UserProfile {
   full_name: string | null;
   email: string;
-}
-
-interface UserPreferences {
-  user_id: string;
-  default_microphone: string | null;
-  preferred_language: string;
-  default_style: string;
-  custom_words: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 interface Subscription {
@@ -85,16 +79,17 @@ export const SettingsContent = () => {
 
   // Fetch user preferences
   const { data: preferences } = useQuery<UserPreferences>({
-    queryKey: ['preferences'],
+    queryKey: ['user_preferences'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_preferences')
         .select('*')
         .eq('user_id', session?.user?.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') throw error;
-      return data || {
+
+      const defaultPreferences: UserPreferences = {
         user_id: session?.user?.id as string,
         preferred_language: 'auto',
         default_style: 'note',
@@ -103,6 +98,8 @@ export const SettingsContent = () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+
+      return data || defaultPreferences;
     },
     enabled: !!session?.user?.id,
   });
@@ -188,14 +185,9 @@ export const SettingsContent = () => {
       const { error } = await supabase
         .from('user_preferences')
         .upsert({
-          user_id: session?.user?.id as string,
-          ...(preferences || {
-            preferred_language: 'auto',
-            default_style: 'note',
-            custom_words: '',
-            default_microphone: null,
-          }),
+          ...preferences,
           ...newPreferences,
+          user_id: session?.user?.id as string,
           updated_at: new Date().toISOString(),
         });
 
