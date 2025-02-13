@@ -40,12 +40,9 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
       <SidebarHeader>
         <div className="p-4">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8">
-              <img src="/lovable-uploads/02103839-f9d2-494b-bd64-c1489cc429d3.png" alt="Logo" className="w-full h-full object-contain" />
-            </div>
-            <span className="font-semibold">TalkNotes</span>
+            <span className="text-xl font-semibold text-primary">InsightScribe</span>
           </div>
-          <Button className="w-full bg-[#E91E63] hover:bg-[#D81B60] text-white">
+          <Button className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white">
             Upgrade Now
           </Button>
         </div>
@@ -68,8 +65,8 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
                       onClick={() => navigate(item.href)}
                     >
                       <button>
-                        <item.icon className={isActive ? "text-[#E91E63]" : ""} />
-                        <span className={isActive ? "text-[#E91E63]" : ""}>{item.label}</span>
+                        <item.icon className={isActive ? "text-[#9b87f5]" : ""} />
+                        <span className={isActive ? "text-[#9b87f5]" : ""}>{item.label}</span>
                       </button>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
