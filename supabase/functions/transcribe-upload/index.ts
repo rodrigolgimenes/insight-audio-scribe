@@ -21,6 +21,7 @@ serve(async (req) => {
 
   let formData;
   let recordingId;
+  let userId;
   
   try {
     console.log('Starting file processing...');
@@ -107,13 +108,26 @@ serve(async (req) => {
       throw new Error('No transcription text received from OpenAI');
     }
 
+    // Create note and get user ID
+    userId = await createNoteFromTranscription(supabase, recordingId as string, transcription.text, '');
+
     console.log('Processing with GPT...');
-    const processedContent = await processWithGPT(transcription.text, openAIApiKey);
+    const processedContent = await processWithGPT(transcription.text, openAIApiKey, userId);
     console.log('GPT processing completed');
 
-    // Update recording and create note
+    // Update recording and note with processed content
     await updateRecordingWithTranscription(supabase, recordingId as string, transcription.text, processedContent);
-    await createNoteFromTranscription(supabase, recordingId as string, transcription.text, processedContent);
+    
+    // Update the note with processed content
+    const { error: noteUpdateError } = await supabase
+      .from('notes')
+      .update({ processed_content: processedContent })
+      .eq('recording_id', recordingId);
+
+    if (noteUpdateError) {
+      console.error('Error updating note with processed content:', noteUpdateError);
+      throw new Error(`Failed to update note with processed content: ${noteUpdateError.message}`);
+    }
 
     console.log('Processing completed successfully');
 

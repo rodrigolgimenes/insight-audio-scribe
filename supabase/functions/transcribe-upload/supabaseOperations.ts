@@ -80,16 +80,19 @@ export async function createNoteFromTranscription(
   transcriptionText: string,
   processedContent: string
 ) {
-  const { data: recordingData } = await supabase
+  // First get the recording data to get the user_id
+  const { data: recordingData, error: recordingError } = await supabase
     .from('recordings')
     .select('user_id, file_path, duration')
     .eq('id', recordingId)
     .single();
 
-  if (!recordingData) {
+  if (recordingError || !recordingData) {
+    console.error('Error fetching recording:', recordingError);
     throw new Error('Recording not found');
   }
 
+  // Create the note with the user's id
   const { error: noteError } = await supabase
     .from('notes')
     .insert({
@@ -106,4 +109,6 @@ export async function createNoteFromTranscription(
     console.error('Error creating note:', noteError);
     throw new Error(`Failed to create note: ${noteError.message}`);
   }
+
+  return recordingData.user_id;
 }
