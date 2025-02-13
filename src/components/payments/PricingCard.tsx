@@ -13,6 +13,7 @@ interface PricingCardProps {
   features: string[];
   priceId: string;
   isPopular?: boolean;
+  buttonText: string;  // Adicionando a nova prop
 }
 
 export const PricingCard = ({
@@ -23,6 +24,7 @@ export const PricingCard = ({
   features,
   priceId,
   isPopular = false,
+  buttonText,
 }: PricingCardProps) => {
   const { toast } = useToast();
 
@@ -101,7 +103,7 @@ export const PricingCard = ({
           variant={isPopular ? "default" : "outline"}
           onClick={handleSubscribe}
         >
-          Subscribe Now
+          {buttonText}
         </Button>
       </CardFooter>
     </Card>
