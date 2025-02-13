@@ -18,9 +18,9 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       console.log('Fetching meeting minutes for note:', noteId);
       const { data, error } = await supabase
         .from('meeting_minutes')
-        .select<'meeting_minutes', MinutesData>('content, format')
+        .select('content, format')
         .eq('note_id', noteId)
-        .maybeSingle();
+        .maybeSingle<MinutesData>();
 
       if (error) {
         console.error('Error fetching meeting minutes:', error);
