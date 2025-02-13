@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,11 +66,9 @@ export const PricingSection = () => {
     switch (priceId) {
       case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan
         return [
-          'Up to 3 transcriptions per day',
-          'Files up to 30 minutes in length',
-          'Basic AI summarization',
-          'Standard processing speed',
-          'Email support'
+          '3 daily transcriptions',
+          'Uploads up to 30 minutes per file',
+          'Lower priority processing'
         ];
       case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan
         return [
