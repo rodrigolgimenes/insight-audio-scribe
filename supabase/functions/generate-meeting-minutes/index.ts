@@ -1,3 +1,4 @@
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
@@ -70,17 +71,28 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
+    console.log('Starting minutes generation with:', {
+      hasTranscript: !!transcript,
+      noteId,
+      isRegeneration,
+      transcriptLength: transcript?.length
+    });
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Check for existing minutes if not regenerating
     if (!isRegeneration) {
-      const { data: existingMinutes } = await supabase
+      console.log('Checking for existing minutes...');
+      const { data: existingMinutes, error: existingError } = await supabase
         .from('meeting_minutes')
         .select('content')
         .eq('note_id', noteId)
         .maybeSingle();
 
-      if (existingMinutes) {
+      if (existingError) {
+        console.error('Error checking existing minutes:', existingError);
+      } else if (existingMinutes) {
+        console.log('Found existing minutes, returning them');
         return new Response(JSON.stringify({ minutes: existingMinutes.content }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -95,6 +107,7 @@ serve(async (req) => {
       .single();
 
     if (noteError) {
+      console.error('Error fetching note data:', noteError);
       throw new Error('Failed to fetch note data');
     }
 
@@ -136,6 +149,7 @@ serve(async (req) => {
     });
 
     if (!contextAnalysisResponse.ok) {
+      console.error('Context analysis failed:', await contextAnalysisResponse.text());
       throw new Error('Failed to analyze transcript context');
     }
 
@@ -143,103 +157,55 @@ serve(async (req) => {
     const contextAnalysis = contextData.choices[0].message.content;
     console.log('Context analysis:', contextAnalysis);
 
-    // Build the persona-aware prompt with conditional vocabulary usage
-    let personaPrompt = '';
+    // Build the persona-aware prompt
+    let systemPrompt = `Você é um especialista em análise de reuniões profissionais, focado em gerar atas detalhadas e bem estruturadas em português.
+
+Instruções Gerais:
+1. Analise cuidadosamente a transcrição fornecida.
+2. Estruture a ata em seções claras e bem definidas.
+3. Use formatação markdown para melhor legibilidade.
+4. Inclua apenas informações presentes na transcrição.
+5. Mantenha um tom profissional e objetivo.
+
+Estrutura da Ata:
+# Ata de Reunião${dateTime ? ` - ${dateTime}` : ''}
+
+## Contexto e Objetivos
+[Resumo do contexto e objetivos principais da reunião]
+
+## Principais Tópicos Discutidos
+[Liste e detalhe os principais assuntos abordados]
+
+## Decisões e Encaminhamentos
+[Liste as decisões tomadas e próximos passos definidos]
+
+## Pontos de Ação
+[Liste as ações acordadas, responsáveis e prazos quando mencionados]
+
+## Informações Adicionais
+[Outras informações relevantes mencionadas na reunião]`;
+
+    // Add persona context if available
     if (personaData) {
       const roleContext = personaData.custom_role || personaData.primary_role;
       const focusAreas = personaData.focus_areas?.join(', ') || '';
       const vocabulary = personaData.custom_vocabulary?.join('; ') || '';
 
-      personaPrompt = `Como um especialista em análise de reuniões com experiência específica em adaptar conteúdo para profissionais de ${roleContext}, você irá gerar uma ata de reunião personalizada.
+      systemPrompt += `
 
 Contexto do Profissional:
 - Função: ${roleContext}
 - Áreas de Foco: ${focusAreas}
-- Vocabulário Técnico Disponível: ${vocabulary}
+- Vocabulário Técnico: ${vocabulary}
 
-Instruções de Contextualização:
-1. Analise primeiro o contexto geral da reunião e identifique se ela aborda temas relacionados às áreas de foco do profissional.
-2. Destaque insights técnicos e implicações estratégicas relevantes para este papel profissional específico.
-3. Utilize o vocabulário técnico fornecido APENAS quando naturalmente aplicável ao contexto da discussão. Não force o uso de termos técnicos se o assunto da reunião não os justificar.
-4. Priorize a discussão de tópicos alinhados com as áreas de foco do profissional, mas mantenha um equilíbrio com outros temas importantes discutidos.
-
-`;
+Adaptações Específicas:
+1. Destaque aspectos relevantes para ${roleContext}
+2. Priorize informações relacionadas a: ${focusAreas}
+3. Utilize o vocabulário técnico apropriado quando relevante
+4. Mantenha o foco nas implicações práticas para este perfil profissional`;
     }
 
-    // Refine the transcript
-    const refineResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a transcription refinement specialist. Your task is to improve the clarity and readability of meeting transcriptions while maintaining their original meaning and content.'
-          },
-          {
-            role: 'user',
-            content: `Please refine this transcription for clarity and readability, maintaining all important information: ${transcript}`
-          }
-        ],
-        temperature: 0.3,
-      }),
-    });
-
-    if (!refineResponse.ok) {
-      throw new Error('Failed to refine transcript with GPT-3.5-turbo');
-    }
-
-    const refineData = await refineResponse.json();
-    const refinedTranscript = refineData.choices[0].message.content;
-
-    // Generate minutes with GPT-4o-mini using enhanced base prompt
-    const basePrompt = `Você é um assistente especializado em análise de reuniões e transcrições. Utilizando uma abordagem analítica estruturada, gere uma ata de reunião que inclua as seguintes seções (adaptando-as conforme necessário e omitindo aquelas que não se aplicam ao contexto):
-
-Principais Tópicos e Temas:
-- Identifique e agrupe os assuntos centrais discutidos
-- Destaque as nuances e pontos-chave de cada tema
-- Estabeleça conexões entre tópicos relacionados
-
-Decisões e Atribuições:
-- Liste as decisões tomadas com clareza
-- Identifique responsáveis por ações específicas
-- Documente os próximos passos acordados
-
-Prazos, Datas e Marcos Temporais:
-- Organize cronologicamente os compromissos estabelecidos
-- Destaque deadlines importantes
-- Registre marcos e datas-chave mencionados
-
-Dúvidas, Preocupações e Pontos de Atenção:
-- Documente questões levantadas que precisam de esclarecimento
-- Liste preocupações expressas pelos participantes
-- Identifique possíveis riscos ou pontos de atenção
-
-Contexto e Informações Complementares:
-- Forneça contexto adicional necessário para entendimento
-- Inclua referências a projetos ou iniciativas relacionadas
-- Adicione informações de background relevantes`;
-
-    const finalPrompt = `${personaPrompt}${basePrompt}
-
-Análise de Contexto da Reunião:
-${contextAnalysis}
-
-Instruções Finais:
-1. Utilize uma abordagem de raciocínio em cadeia para conectar informações e criar um documento coeso.
-2. Gere apenas as seções que são relevantes para o conteúdo desta reunião específica.
-3. Mantenha o foco na clareza e objetividade, sem expor seu processo de pensamento.
-4. Utilize formatação markdown para melhor estruturação do conteúdo.
-
-Agora, por favor, processe a seguinte transcrição:
-
-${refinedTranscript}`;
-
-    console.log('Using enhanced persona-aware prompt for meeting minutes generation');
+    console.log('Generating minutes with GPT-4...');
 
     const minutesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -250,18 +216,32 @@ ${refinedTranscript}`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a helpful assistant that generates meeting minutes in Portuguese using markdown formatting.' },
-          { role: 'user', content: finalPrompt }
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: `Por favor, gere uma ata detalhada para esta reunião com base na seguinte transcrição:
+
+${transcript}
+
+Análise de Contexto:
+${contextAnalysis}`
+          }
         ],
       }),
     });
 
     if (!minutesResponse.ok) {
+      console.error('Minutes generation failed:', await minutesResponse.text());
       throw new Error('Failed to generate minutes with GPT-4o-mini');
     }
 
     const minutesData = await minutesResponse.json();
     const minutes = minutesData.choices[0].message.content;
+
+    console.log('Minutes generated successfully, saving to database...');
 
     // If regenerating, update existing record; otherwise insert new one
     const { error: upsertError } = await supabase
@@ -269,12 +249,16 @@ ${refinedTranscript}`;
       .upsert({
         note_id: noteId,
         content: minutes,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       });
 
     if (upsertError) {
       console.error('Error saving meeting minutes:', upsertError);
       throw new Error('Failed to save meeting minutes');
     }
+
+    console.log('Minutes saved successfully');
 
     return new Response(JSON.stringify({ minutes }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
