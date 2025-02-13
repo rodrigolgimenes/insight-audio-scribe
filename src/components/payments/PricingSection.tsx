@@ -4,14 +4,28 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PricingCard } from './PricingCard';
 
+interface Product {
+  name: string | null;
+  description: string | null;
+}
+
+interface Price {
+  id: string;
+  unit_amount: number | null;
+  interval: string | null;
+  products: Product;
+}
+
 export const PricingSection = () => {
-  const { data: prices, isLoading } = useQuery({
+  const { data: prices, isLoading } = useQuery<Price[]>({
     queryKey: ['prices'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('prices')
         .select(`
-          *,
+          id,
+          unit_amount,
+          interval,
           products (
             name,
             description
@@ -41,8 +55,8 @@ export const PricingSection = () => {
         {prices?.map((price, index) => (
           <PricingCard
             key={price.id}
-            name={price.products.name || ''}
-            description={price.products.description || ''}
+            name={price.products?.name || ''}
+            description={price.products?.description || ''}
             price={price.unit_amount ? price.unit_amount / 100 : 0}
             interval={price.interval || 'month'}
             features={[
