@@ -186,7 +186,7 @@ export const PricingSection = () => {
                     'InsightScribe Plus - Unlimited';
           
           let description = isFree ? '100% Free' : 
-                           isYearly ? 'Save 50% with annual billing' : 
+                           isYearly ? 'Full features, billed yearly' : 
                            'Full features, billed monthly';
 
           let displayPrice = isFree ? 0 : 
