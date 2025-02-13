@@ -67,24 +67,32 @@ export const PricingSection = () => {
     switch (priceId) {
       case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan
         return [
-          '3 daily transcriptions',
-          'Uploads up to 30 minutes per file',
-          'Lower priority processing'
+          'Up to 3 transcriptions per day',
+          'Files up to 30 minutes in length',
+          'Basic AI summarization',
+          'Standard processing speed',
+          'Email support'
         ];
       case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan
         return [
           'Unlimited transcriptions',
-          'Uploads up to 10 hours / 5GB per file',
-          'Highest priority processing',
-          'Translation into 134+ languages'
+          'Files up to 10 hours in length',
+          'Advanced AI summarization',
+          'Priority processing',
+          'Real-time collaboration',
+          'Custom vocabulary support',
+          'Premium support via chat/email'
         ];
       case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
         return [
-          'Unlimited transcriptions',
-          'Uploads up to 10 hours / 5GB per file',
-          'Highest priority processing',
-          'Translation into 134+ languages',
-          'Save 50% with yearly billing'
+          'All Plus features included',
+          'Files up to 10 hours in length',
+          'Advanced AI summarization',
+          'Priority processing',
+          'Real-time collaboration',
+          'Custom vocabulary support',
+          'Premium support via chat/email',
+          '50% savings with annual billing'
         ];
       default:
         return [];
@@ -121,7 +129,27 @@ export const PricingSection = () => {
   const hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
 
   if (isPricesLoading || isSubscriptionLoading) {
-    return <div className="flex justify-center p-8">Loading pricing...</div>;
+    return (
+      <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+            Simple, transparent pricing
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Choose the plan that best fits your needs
+          </p>
+        </div>
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white p-6 rounded-xl shadow-sm animate-pulse">
+              <div className="h-8 bg-gray-200 rounded mb-4"></div>
+              <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   }
 
   return (
