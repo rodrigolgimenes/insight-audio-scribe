@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,16 +74,6 @@ export const PricingSection = () => {
           '30 Minute Uploads',
           'Lower Priority Processing'
         ];
-      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
-        return [
-          'Unlimited transcriptions',
-          'Files up to 10 hours in length',
-          'Advanced AI summarization',
-          'Priority processing',
-          'Real-time collaboration',
-          'Custom vocabulary support',
-          'Premium support via chat/email'
-        ];
       case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan
         return [
           'Unlimited transcriptions',
@@ -94,6 +83,14 @@ export const PricingSection = () => {
           'Real-time collaboration',
           'Custom vocabulary support',
           'Premium support via chat/email'
+        ];
+      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan
+        return [
+          '🔄 Unlimited transcriptions',
+          '⏳ Uploads up to 10 hours / 5GB per file',
+          '🚀 Highest priority processing',
+          '🌎 Translation into 134+ languages',
+          '💰 50% discount on yearly subscription'
         ];
       default:
         return [];
@@ -160,7 +157,7 @@ export const PricingSection = () => {
     return null;
   }
 
-  // Reorder prices to put yearly plan in the middle
+  // Reorder prices with yearly plan in the middle
   const orderedPrices = [...prices].sort((a, b) => {
     if (a.id === 'price_1Qs3tpRepqC8oahuh0kSILbX') return 0; // Yearly plan in middle
     if (a.unit_amount === 0) return -1; // Free plan first
@@ -182,6 +179,7 @@ export const PricingSection = () => {
           const isPopular = price.id === 'price_1Qs3tpRepqC8oahuh0kSILbX'; // Yearly plan is popular
           const isFree = price.unit_amount === 0;
           const buttonText = isFree ? 'Get Started' : 'Subscribe Now';
+          const isYearly = price.interval === 'year';
 
           let name = 'InsightScribe Plus';
           let description = 'Unlock unlimited transcriptions and premium features';
@@ -196,8 +194,8 @@ export const PricingSection = () => {
               key={price.id}
               name={name}
               description={description}
-              price={price.unit_amount ? price.unit_amount / 100 : 0}
-              interval={price.interval || ''}
+              price={isYearly ? 7.50 : (price.unit_amount ? price.unit_amount / 100 : 0)}
+              interval={isYearly ? 'month' : (price.interval || '')}
               features={getPlanFeatures(price.id)}
               priceId={price.id}
               isPopular={isPopular}
