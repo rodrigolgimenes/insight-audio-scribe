@@ -141,6 +141,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          format: string
           id: string
           note_id: string
           updated_at: string
@@ -148,6 +149,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          format?: string
           id?: string
           note_id: string
           updated_at?: string
@@ -155,6 +157,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          format?: string
           id?: string
           note_id?: string
           updated_at?: string
