@@ -27,11 +27,17 @@ export const MeetingMinutes = ({
     minutes,
     isLoadingMinutes,
     generateMinutes,
-    isGenerating
+    isGenerating,
+    updateMinutes,
+    isUpdating
   } = useMeetingMinutes(noteId, initialContent);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
+  };
+
+  const handleContentChange = (newContent: string) => {
+    updateMinutes(newContent);
   };
 
   // Auto-generate minutes only if needed
@@ -96,7 +102,13 @@ export const MeetingMinutes = ({
           <LoadingSpinner message="Generating Minutes..." />
         )}
 
-        {minutes && <MinutesContent content={minutes} />}
+        {minutes && (
+          <MinutesContent 
+            content={minutes} 
+            onChange={handleContentChange}
+            readOnly={isUpdating || isGenerating}
+          />
+        )}
       </div>
     </div>
   );

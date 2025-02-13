@@ -69,10 +69,42 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
     }
   });
 
+  const { mutate: updateMinutes, isPending: isUpdating } = useMutation({
+    mutationFn: async (content: string) => {
+      const { error } = await supabase
+        .from('meeting_minutes')
+        .upsert({
+          note_id: noteId,
+          content,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      return content;
+    },
+    onSuccess: (newContent) => {
+      queryClient.setQueryData(['meeting-minutes', noteId], newContent);
+      toast({
+        title: "Success",
+        description: "Meeting minutes updated successfully",
+      });
+    },
+    onError: (error) => {
+      console.error('Error updating meeting minutes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update meeting minutes",
+        variant: "destructive",
+      });
+    }
+  });
+
   return {
     minutes,
     isLoadingMinutes,
     generateMinutes,
-    isGenerating
+    isGenerating,
+    updateMinutes,
+    isUpdating
   };
 };
