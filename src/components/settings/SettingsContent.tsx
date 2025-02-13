@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -9,6 +8,7 @@ import { PasswordSection } from './sections/PasswordSection';
 import { PreferencesSection } from './sections/PreferencesSection';
 import { SubscriptionSection } from './sections/SubscriptionSection';
 import { OtherActions } from './sections/OtherActions';
+import { MeetingPersonaSection } from './sections/MeetingPersonaSection';
 
 const defaultPreferences: UserPreferences = {
   user_id: '',
@@ -43,7 +43,6 @@ export const SettingsContent = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Fetch user profile
   const { data: profile } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
@@ -70,7 +69,6 @@ export const SettingsContent = () => {
     enabled: !!session?.user?.id,
   });
 
-  // Fetch user preferences
   const { data: preferences = defaultPreferences } = useQuery({
     queryKey: ['user_preferences'],
     queryFn: async () => {
@@ -96,7 +94,6 @@ export const SettingsContent = () => {
     enabled: !!session?.user?.id,
   });
 
-  // Fetch subscription status
   const { data: subscription } = useQuery<Subscription>({
     queryKey: ['subscription'],
     queryFn: async () => {
@@ -112,7 +109,6 @@ export const SettingsContent = () => {
     enabled: !!session?.user?.id,
   });
 
-  // Update preferences mutation
   const updatePreferences = useMutation({
     mutationFn: async (newPreferences: Partial<UserPreferences>) => {
       const dataToUpdate = {
@@ -162,6 +158,8 @@ export const SettingsContent = () => {
         languageOptions={languageOptions}
         styleOptions={styleOptions}
       />
+
+      <MeetingPersonaSection />
 
       <SubscriptionSection isFreePlan={isFreePlan} />
 

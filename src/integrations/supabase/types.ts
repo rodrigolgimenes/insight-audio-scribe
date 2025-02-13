@@ -176,6 +176,36 @@ export type Database = {
           },
         ]
       }
+      meeting_personas: {
+        Row: {
+          created_at: string
+          custom_role: string | null
+          custom_vocabulary: string[] | null
+          focus_areas: string[] | null
+          primary_role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_role?: string | null
+          custom_vocabulary?: string[] | null
+          focus_areas?: string[] | null
+          primary_role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_role?: string | null
+          custom_vocabulary?: string[] | null
+          focus_areas?: string[] | null
+          primary_role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           audio_url: string | null
