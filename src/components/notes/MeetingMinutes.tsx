@@ -26,7 +26,7 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
 
   const generateMinutes = async (isRegeneration: boolean = false) => {
     if (!transcript) {
-      setError("Não há transcrição disponível para gerar a ata.");
+      setError("No transcript available to generate minutes.");
       return;
     }
 
@@ -48,25 +48,39 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
 
       if (functionError) {
         console.error('Error from edge function:', functionError);
-        throw new Error(functionError.message || "Erro ao gerar ata da reunião");
+        throw new Error(functionError.message || "Error generating meeting minutes");
       }
 
       if (!data?.minutes) {
-        throw new Error("Resposta inválida do servidor");
+        throw new Error("Invalid response from server");
       }
 
+      // Update local state
       setMinutes(data.minutes);
       
+      // Update database directly to ensure persistence
+      const { error: updateError } = await supabase
+        .from('meeting_minutes')
+        .upsert({
+          note_id: noteId,
+          content: data.minutes
+        });
+
+      if (updateError) {
+        console.error('Error saving meeting minutes:', updateError);
+        throw new Error("Failed to save meeting minutes");
+      }
+      
       toast({
-        title: "Sucesso",
-        description: isRegeneration ? "Ata da reunião regenerada com sucesso" : "Ata da reunião gerada com sucesso",
+        title: "Success",
+        description: isRegeneration ? "Meeting minutes regenerated successfully" : "Meeting minutes generated successfully",
       });
     } catch (err) {
       console.error('Error generating meeting minutes:', err);
-      setError("Erro ao gerar a ata da reunião. Por favor, tente novamente.");
+      setError("Failed to generate meeting minutes. Please try again.");
       toast({
-        title: "Erro",
-        description: "Falha ao gerar a ata da reunião",
+        title: "Error",
+        description: "Failed to generate meeting minutes",
         variant: "destructive",
       });
     } finally {
@@ -91,7 +105,7 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
         if (data) {
           setMinutes(data.content);
         } else {
-          // Se não existir ata, gera automaticamente
+          // Generate minutes automatically if they don't exist
           await generateMinutes(false);
         }
       } catch (err) {
@@ -124,7 +138,7 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
               variant="outline"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Regerar Ata de Reunião
+              Regenerate Meeting Minutes
             </Button>
           </div>
         )}
@@ -132,7 +146,7 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
         {isLoading && !minutes && (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="ml-2 text-gray-600">Gerando Ata...</span>
+            <span className="ml-2 text-gray-600">Generating Minutes...</span>
           </div>
         )}
 

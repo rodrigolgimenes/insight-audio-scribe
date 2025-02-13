@@ -10,11 +10,11 @@ interface Message {
   content: string;
 }
 
-interface TranscriptChatProps {
+interface ChatComponentProps {
   note: Note;
 }
 
-export const TranscriptChat = ({ note }: TranscriptChatProps) => {
+export const TranscriptChat = ({ note }: ChatComponentProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -124,7 +124,7 @@ export const TranscriptChat = ({ note }: TranscriptChatProps) => {
 
   return (
     <div className="mt-8 max-w-3xl mx-auto">
-      <h2 className="text-xl font-semibold text-gray-700 mb-4">Chat com a Transcrição</h2>
+      <h2 className="text-xl font-semibold text-gray-700 mb-4">Chat with Transcript</h2>
       
       <div className="border rounded-lg shadow-lg bg-white overflow-hidden">
         <ChatMessages messages={messages} isLoading={isLoading} />
