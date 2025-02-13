@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CheckCircle } from 'lucide-react';
 
 interface PricingCardProps {
   name: string;
@@ -13,7 +14,9 @@ interface PricingCardProps {
   features: string[];
   priceId: string;
   isPopular?: boolean;
-  buttonText: string;  // Adicionando a nova prop
+  buttonText: string;
+  hasActiveSubscription: boolean;
+  onSubscribeClick: () => void;
 }
 
 export const PricingCard = ({
@@ -25,19 +28,32 @@ export const PricingCard = ({
   priceId,
   isPopular = false,
   buttonText,
+  hasActiveSubscription,
+  onSubscribeClick,
 }: PricingCardProps) => {
   const { toast } = useToast();
 
   const handleSubscribe = async () => {
+    if (hasActiveSubscription) {
+      toast({
+        title: "Active Subscription",
+        description: "You already have an active subscription. Visit your account settings to manage your subscription.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        toast({
-          title: "Not logged in",
-          description: "Please log in to subscribe",
-          variant: "destructive",
-        });
+        onSubscribeClick();
+        return;
+      }
+
+      // For free plan, redirect to simple-record directly
+      if (priceId === 'price_1Qs49tRepqC8oahubgFsDuHf') {
+        window.location.href = '/simple-record';
         return;
       }
 
@@ -79,19 +95,7 @@ export const PricingCard = ({
         <ul className="space-y-2">
           {features.map((feature, index) => (
             <li key={index} className="flex items-center">
-              <svg
-                className="w-4 h-4 mr-2 text-green-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
               {feature}
             </li>
           ))}
@@ -102,8 +106,9 @@ export const PricingCard = ({
           className="w-full"
           variant={isPopular ? "default" : "outline"}
           onClick={handleSubscribe}
+          disabled={hasActiveSubscription && priceId !== 'price_1Qs49tRepqC8oahubgFsDuHf'}
         >
-          {buttonText}
+          {hasActiveSubscription && priceId !== 'price_1Qs49tRepqC8oahubgFsDuHf' ? 'Already Subscribed' : buttonText}
         </Button>
       </CardFooter>
     </Card>

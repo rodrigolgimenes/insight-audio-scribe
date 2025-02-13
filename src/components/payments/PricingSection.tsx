@@ -3,7 +3,8 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PricingCard } from './PricingCard';
-import { Rocket, Clock, Globe, Infinity } from 'lucide-react';
+import { useAuth } from '@/components/auth/AuthProvider';
+import { useNavigate } from 'react-router-dom';
 
 interface Product {
   name: string | null;
@@ -17,8 +18,15 @@ interface Price {
   product: Product | null;
 }
 
+interface Subscription {
+  status: string;
+}
+
 export const PricingSection = () => {
-  const { data: prices, isLoading } = useQuery<Price[]>({
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  const { data: prices, isLoading: isPricesLoading } = useQuery<Price[]>({
     queryKey: ['prices'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,22 +48,37 @@ export const PricingSection = () => {
     },
   });
 
+  const { data: subscription, isLoading: isSubscriptionLoading } = useQuery<Subscription | null>({
+    queryKey: ['subscription'],
+    enabled: !!session?.user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('status')
+        .eq('workspace_id', session?.user?.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const getPlanFeatures = (priceId: string) => {
     switch (priceId) {
-      case 'price_free':
+      case 'price_1Qs49tRepqC8oahubgFsDuHf': // Free plan price ID
         return [
           '3 daily transcriptions',
           'Uploads up to 30 minutes per file',
           'Lower priority processing'
         ];
-      case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // ID correto do plano mensal
+      case 'price_1Qs3rZRepqC8oahuQ4vCb2Eb': // Monthly plan price ID
         return [
           'Unlimited transcriptions',
           'Uploads up to 10 hours / 5GB per file',
           'Highest priority processing',
           'Translation into 134+ languages'
         ];
-      case 'price_1Oq1ZsHUWJYWYdiNr0eteIMS': // ID do plano anual
+      case 'price_1Qs3tpRepqC8oahuh0kSILbX': // Yearly plan price ID
         return [
           'Unlimited transcriptions',
           'Uploads up to 10 hours / 5GB per file',
@@ -68,7 +91,16 @@ export const PricingSection = () => {
     }
   };
 
-  if (isLoading) {
+  const handleSubscribeClick = () => {
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+  };
+
+  const hasActiveSubscription = subscription?.status === 'active' || subscription?.status === 'trialing';
+
+  if (isPricesLoading || isSubscriptionLoading) {
     return <div className="flex justify-center p-8">Loading pricing...</div>;
   }
 
@@ -93,7 +125,9 @@ export const PricingSection = () => {
             features={getPlanFeatures(price.id)}
             priceId={price.id}
             isPopular={index === 1}
-            buttonText={price.id === 'price_free' ? 'Get Started' : 'Subscribe Now'}
+            buttonText={price.id === 'price_1Qs49tRepqC8oahubgFsDuHf' ? 'Get Started' : 'Subscribe Now'}
+            hasActiveSubscription={hasActiveSubscription}
+            onSubscribeClick={handleSubscribeClick}
           />
         ))}
       </div>
