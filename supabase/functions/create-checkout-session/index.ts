@@ -14,6 +14,7 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,27 +27,29 @@ serve(async (req) => {
       throw new Error('No authorization header');
     }
 
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
+    // Validate user
+    const userResponse = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (userResponse.error || !userResponse.data.user) {
       throw new Error('Invalid user token');
     }
+    const user = userResponse.data.user;
 
-    // Get or create Stripe customer
-    let { data: customer } = await supabaseClient
+    // Get or create customer
+    const { data: customerData } = await supabaseClient
       .from('customers')
       .select('stripe_customer_id')
       .eq('id', user.id)
       .single();
 
-    if (!customer?.stripe_customer_id) {
+    let stripeCustomerId = customerData?.stripe_customer_id;
+
+    if (!stripeCustomerId) {
       const { data: userData } = await supabaseClient
         .from('profiles')
         .select('email, full_name')
@@ -54,7 +57,7 @@ serve(async (req) => {
         .single();
 
       const stripeCustomer = await stripe.customers.create({
-        email: userData?.email,
+        email: userData?.email || user.email,
         name: userData?.full_name,
         metadata: {
           supabaseUUID: user.id,
@@ -63,28 +66,23 @@ serve(async (req) => {
 
       await supabaseClient
         .from('customers')
-        .insert([{ id: user.id, stripe_customer_id: stripeCustomer.id }]);
+        .insert([{ 
+          id: user.id, 
+          stripe_customer_id: stripeCustomer.id 
+        }]);
 
-      customer = { stripe_customer_id: stripeCustomer.id };
+      stripeCustomerId = stripeCustomer.id;
     }
 
-    // Adiciona logs para debug
-    console.log('Creating checkout session with:', {
-      customerId: customer.stripe_customer_id,
-      priceId: priceId
-    });
-
+    // Create checkout session
     const session = await stripe.checkout.sessions.create({
-      customer: customer.stripe_customer_id,
+      customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: 'subscription',
-      currency: 'usd', // Especifica explicitamente a moeda como USD
       payment_method_types: ['card'],
       success_url: `${req.headers.get('origin')}/account?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get('origin')}/pricing`,
     });
-
-    console.log('Checkout session created:', session.id);
 
     return new Response(
       JSON.stringify({ url: session.url }),
@@ -94,7 +92,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error creating checkout session:', error);
+    console.error('Error in checkout session:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       {
