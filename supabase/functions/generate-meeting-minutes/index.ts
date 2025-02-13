@@ -1,4 +1,3 @@
-
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
@@ -10,6 +9,7 @@ const corsHeaders = {
 interface RequestBody {
   transcript: string;
   noteId: string;
+  isRegeneration?: boolean;
 }
 
 function extractDateTime(transcript: string): string | null {
@@ -56,7 +56,7 @@ serve(async (req) => {
   }
 
   try {
-    const { transcript, noteId } = await req.json() as RequestBody;
+    const { transcript, noteId, isRegeneration } = await req.json() as RequestBody;
 
     if (!transcript || !noteId) {
       throw new Error('Transcript and noteId are required');
@@ -72,17 +72,19 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check for existing minutes
-    const { data: existingMinutes } = await supabase
-      .from('meeting_minutes')
-      .select('content')
-      .eq('note_id', noteId)
-      .maybeSingle();
+    // Check for existing minutes if not regenerating
+    if (!isRegeneration) {
+      const { data: existingMinutes } = await supabase
+        .from('meeting_minutes')
+        .select('content')
+        .eq('note_id', noteId)
+        .maybeSingle();
 
-    if (existingMinutes) {
-      return new Response(JSON.stringify({ minutes: existingMinutes.content }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (existingMinutes) {
+        return new Response(JSON.stringify({ minutes: existingMinutes.content }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Get the user ID from the note
@@ -96,7 +98,7 @@ serve(async (req) => {
       throw new Error('Failed to fetch note data');
     }
 
-    // Fetch the user's meeting persona
+    // Always fetch fresh persona data
     const { data: personaData, error: personaError } = await supabase
       .from('meeting_personas')
       .select('*')
@@ -261,16 +263,16 @@ ${refinedTranscript}`;
     const minutesData = await minutesResponse.json();
     const minutes = minutesData.choices[0].message.content;
 
-    // Save the generated minutes to the database
-    const { error: insertError } = await supabase
+    // If regenerating, update existing record; otherwise insert new one
+    const { error: upsertError } = await supabase
       .from('meeting_minutes')
-      .insert({
+      .upsert({
         note_id: noteId,
         content: minutes,
       });
 
-    if (insertError) {
-      console.error('Error saving meeting minutes:', insertError);
+    if (upsertError) {
+      console.error('Error saving meeting minutes:', upsertError);
       throw new Error('Failed to save meeting minutes');
     }
 

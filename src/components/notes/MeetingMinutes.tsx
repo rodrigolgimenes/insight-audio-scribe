@@ -121,6 +121,7 @@ export const MeetingMinutes = ({ transcript, noteId, audioUrl }: MeetingMinutesP
               onClick={() => generateMinutes(true)}
               disabled={isLoading || !transcript}
               className="gap-2"
+              variant="outline"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               Regerar Ata de Reunião
