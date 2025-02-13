@@ -70,7 +70,7 @@ const SimpleRecord = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar activePage="recorder" />
-        <div className="flex-1 bg-white">
+        <div className="flex-1">
           <main className="container mx-auto px-4 py-8">
             <div className="max-w-3xl mx-auto">
               {!processedContent ? (

@@ -9,8 +9,10 @@ const Settings = () => {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar activePage="settings" />
-        <div className="flex-1 p-6">
-          <SettingsContent />
+        <div className="flex-1">
+          <div className="p-6">
+            <SettingsContent />
+          </div>
         </div>
       </div>
     </SidebarProvider>
