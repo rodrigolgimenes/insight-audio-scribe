@@ -1,8 +1,9 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { RecordingCard } from "./RecordingCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Recording {
   id: string;
@@ -24,41 +25,39 @@ export const RecordingsGrid = ({
   onPlay,
 }: RecordingsGridProps) => {
   const { toast } = useToast();
-  const [recordingsWithProgress, setRecordingsWithProgress] = useState<Map<string, number>>(new Map());
-  const [processedRecordingIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
+  const processedIds = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    // Fetch initial progress for all recordings
-    const fetchInitialProgress = async () => {
+  // Use React Query to manage recording progress state
+  const { data: recordingsWithProgress = new Map() } = useQuery({
+    queryKey: ['recordings-progress'],
+    queryFn: async () => {
       const newProgress = new Map<string, number>();
       
       for (const recording of recordings) {
-        // Skip if we've already processed this recording
-        if (processedRecordingIds.has(recording.id)) continue;
+        if (processedIds.current.has(recording.id)) continue;
 
         const { data } = await supabase
           .from('notes')
-          .select('processing_progress')
+          .select('processing_progress, status')
           .eq('recording_id', recording.id)
           .single();
         
         if (data) {
           newProgress.set(recording.id, data.processing_progress || 0);
-          processedRecordingIds.add(recording.id);
+          if (data.status === 'completed') {
+            processedIds.current.add(recording.id);
+          }
         }
       }
       
-      setRecordingsWithProgress(prev => {
-        const updated = new Map(prev);
-        for (const [key, value] of newProgress) {
-          updated.set(key, value);
-        }
-        return updated;
-      });
-    };
+      return newProgress;
+    },
+    staleTime: 1000 * 60, // Consider data fresh for 1 minute
+    cacheTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+  });
 
-    fetchInitialProgress();
-
+  useEffect(() => {
     // Subscribe to notes updates
     const channel = supabase
       .channel('notes-changes')
@@ -71,22 +70,28 @@ export const RecordingsGrid = ({
         },
         (payload: any) => {
           console.log('Note update received:', payload);
+          
           if (payload.new && payload.new.recording_id) {
-            // Only update if we haven't processed this recording yet
-            if (!processedRecordingIds.has(payload.new.recording_id)) {
-              setRecordingsWithProgress(prev => {
-                const newMap = new Map(prev);
-                newMap.set(payload.new.recording_id, payload.new.processing_progress || 0);
-                return newMap;
+            const recordingId = payload.new.recording_id;
+            
+            // Only process if we haven't marked this recording as completed
+            if (!processedIds.current.has(recordingId)) {
+              // Update the query cache
+              queryClient.setQueryData(['recordings-progress'], (old: Map<string, number>) => {
+                const updated = new Map(old);
+                updated.set(recordingId, payload.new.processing_progress || 0);
+                return updated;
               });
 
-              // Show toast messages for important status changes
-              if (payload.new.status === 'completed' && payload.old?.status !== 'completed') {
+              // Mark as processed if completed
+              if (payload.new.status === 'completed') {
+                processedIds.current.add(recordingId);
+                
                 toast({
                   title: "Transcription completed",
                   description: "Your recording has been successfully transcribed.",
                 });
-              } else if (payload.new.status === 'error' && payload.old?.status !== 'error') {
+              } else if (payload.new.status === 'error') {
                 toast({
                   title: "Transcription error",
                   description: "There was an error processing your recording. Please try again.",
@@ -102,7 +107,7 @@ export const RecordingsGrid = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [recordings, toast, processedRecordingIds]);
+  }, [queryClient, toast]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
