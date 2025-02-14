@@ -15,8 +15,12 @@ import {
   Redo,
   MinusSquare,
   Save,
-  X
+  X,
+  Copy,
+  Check
 } from 'lucide-react';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface MinutesEditorProps {
   content: string;
@@ -58,6 +62,9 @@ export const MinutesEditor = ({
   onCancel,
   readOnly = false
 }: MinutesEditorProps) => {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -122,6 +129,28 @@ export const MinutesEditor = ({
       editor.commands.setContent(content);
     }
   }, [content, editor]);
+
+  const handleCopy = async () => {
+    if (editor) {
+      const markdown = editor.storage.markdown.getMarkdown();
+      await navigator.clipboard.writeText(markdown);
+      setCopied(true);
+      toast({
+        title: "Copied!",
+        description: "Text copied to clipboard",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleSave = () => {
+    if (editor && onSave) {
+      const markdown = editor.storage.markdown.getMarkdown();
+      console.log('Saving content:', markdown);
+      onChange?.(markdown); // Ensure content is updated before saving
+      onSave();
+    }
+  };
 
   if (!editor) return null;
 
@@ -191,6 +220,14 @@ export const MinutesEditor = ({
             >
               <Redo className="h-4 w-4" />
             </MenuButton>
+
+            <MenuButton
+              onClick={handleCopy}
+              variant="ghost"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Copied!' : 'Copy'}
+            </MenuButton>
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -201,7 +238,7 @@ export const MinutesEditor = ({
               </MenuButton>
             )}
             {onSave && (
-              <MenuButton onClick={onSave} variant="default">
+              <MenuButton onClick={handleSave} variant="default">
                 <Save className="h-4 w-4" />
                 Save
               </MenuButton>
