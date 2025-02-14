@@ -16,21 +16,28 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
     queryKey: ['meeting-minutes', noteId],
     queryFn: async () => {
       console.log('Fetching meeting minutes for note:', noteId);
-      const { data, error } = await supabase
-        .from('meeting_minutes')
-        .select('content, format')
-        .eq('note_id', noteId)
-        .maybeSingle<MinutesData>();
+      try {
+        const { data, error } = await supabase
+          .from('meeting_minutes')
+          .select('content, format')
+          .eq('note_id', noteId)
+          .maybeSingle<MinutesData>();
 
-      if (error) {
-        console.error('Error fetching meeting minutes:', error);
+        if (error) {
+          console.error('Error fetching meeting minutes:', error);
+          throw error;
+        }
+
+        console.log('Meeting minutes data:', data);
+        return data?.content || '';
+      } catch (error) {
+        console.error('Error in queryFn:', error);
         throw error;
       }
-
-      console.log('Meeting minutes data:', data);
-      return data?.content || null;
     },
-    initialData: initialContent || undefined
+    initialData: initialContent || '',
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
   });
 
   const { mutate: generateMinutes, isPending: isGenerating } = useMutation({
@@ -73,20 +80,27 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
   const { mutate: updateMinutes, isPending: isUpdating } = useMutation({
     mutationFn: async (content: string) => {
       console.log('Updating minutes with content:', content);
-      const { error } = await supabase
-        .from('meeting_minutes')
-        .upsert({
-          note_id: noteId,
-          content,
-          format: 'markdown',
-          updated_at: new Date().toISOString()
-        });
+      try {
+        const { error } = await supabase
+          .from('meeting_minutes')
+          .upsert({
+            note_id: noteId,
+            content: content || '',
+            format: 'markdown',
+            updated_at: new Date().toISOString()
+          });
 
-      if (error) {
-        console.error('Error updating meeting minutes:', error);
+        if (error) {
+          console.error('Error updating meeting minutes:', error);
+          throw error;
+        }
+        
+        console.log('Minutes updated successfully');
+        return content;
+      } catch (error) {
+        console.error('Error in updateMinutes mutation:', error);
         throw error;
       }
-      return content;
     },
     onSuccess: (newContent) => {
       queryClient.setQueryData(['meeting-minutes', noteId], newContent);

@@ -62,15 +62,25 @@ export const MinutesEditor = ({
     extensions: [
       StarterKit.configure({
         bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
+          HTMLAttributes: {
+            class: 'list-disc ml-4 space-y-2',
+          },
         },
         orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
+          HTMLAttributes: {
+            class: 'list-decimal ml-4 space-y-2',
+          },
         },
         heading: {
           levels: [1, 2, 3],
+          HTMLAttributes: {
+            class: 'font-bold',
+          },
+        },
+        paragraph: {
+          HTMLAttributes: {
+            class: 'mb-4',
+          },
         },
       }),
       Markdown.configure({
@@ -79,23 +89,36 @@ export const MinutesEditor = ({
         transformCopiedText: true,
       }),
     ],
-    content,
+    content: content || '',
     editable: !readOnly,
+    onCreate: ({ editor }) => {
+      // Ensure initial content is properly formatted
+      if (content) {
+        editor.commands.setContent(content);
+      }
+    },
     onUpdate: ({ editor }) => {
-      if (onChange) {
-        const markdown = editor.storage.markdown.getMarkdown();
-        onChange(markdown);
+      try {
+        if (onChange) {
+          const markdown = editor.storage.markdown.getMarkdown();
+          console.log('Generated markdown:', markdown);
+          onChange(markdown);
+        }
+      } catch (error) {
+        console.error('Error in onUpdate:', error);
       }
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-blue max-w-none min-h-[200px] p-4 border rounded-lg focus:outline-none prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2'
-      }
-    }
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl max-w-none min-h-[200px] p-4 focus:outline-none',
+      },
+    },
   });
 
+  // Update content when prop changes
   useEffect(() => {
     if (editor && content !== editor.storage.markdown.getMarkdown()) {
+      console.log('Content updated:', content);
       editor.commands.setContent(content);
     }
   }, [content, editor]);
@@ -187,10 +210,12 @@ export const MinutesEditor = ({
         </div>
       )}
       
-      <EditorContent 
-        editor={editor} 
-        className="prose-ul:list-disc prose-ol:list-decimal"
-      />
+      <div className="min-h-[200px] [&_.ProseMirror]:min-h-[200px] [&_.ProseMirror]:p-4 [&_.ProseMirror]:focus:outline-none">
+        <EditorContent 
+          editor={editor}
+          className="[&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:my-4 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:my-3 [&_p]:my-2"
+        />
+      </div>
     </div>
   );
 };
