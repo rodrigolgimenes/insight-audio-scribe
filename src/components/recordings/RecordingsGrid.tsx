@@ -28,15 +28,22 @@ export const RecordingsGrid = ({
   const queryClient = useQueryClient();
   const processedIds = useRef<Set<string>>(new Set());
 
-  // Use React Query to manage recording progress state
+  // Use React Query para gerenciar o estado de progresso das gravações
   const { data: recordingsWithProgress = new Map() } = useQuery({
     queryKey: ['recordings-progress'],
     queryFn: async () => {
-      const newProgress = new Map<string, number>();
+      console.log('Fetching progress for recordings:', recordings.map(r => r.id));
+      const existingProgress = queryClient.getQueryData(['recordings-progress']) as Map<string, number> || new Map();
+      const newProgress = new Map(existingProgress);
       
       for (const recording of recordings) {
-        if (processedIds.current.has(recording.id)) continue;
+        // Pula se já temos o progresso para esta gravação
+        if (newProgress.has(recording.id)) {
+          console.log('Using cached progress for recording:', recording.id);
+          continue;
+        }
 
+        console.log('Fetching progress for recording:', recording.id);
         const { data } = await supabase
           .from('notes')
           .select('processing_progress, status')
@@ -53,12 +60,11 @@ export const RecordingsGrid = ({
       
       return newProgress;
     },
-    staleTime: 1000 * 60, // Consider data fresh for 1 minute
-    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes (formerly cacheTime)
+    staleTime: 1000 * 60, // Dados considerados frescos por 1 minuto
+    gcTime: 1000 * 60 * 5, // Manter no cache por 5 minutos
   });
 
   useEffect(() => {
-    // Subscribe to notes updates
     const channel = supabase
       .channel('notes-changes')
       .on(
@@ -74,19 +80,23 @@ export const RecordingsGrid = ({
           if (payload.new && payload.new.recording_id) {
             const recordingId = payload.new.recording_id;
             
-            // Only process if we haven't marked this recording as completed
+            // Atualiza o cache apenas se a nota não estiver completa
             if (!processedIds.current.has(recordingId)) {
-              // Update the query cache
-              queryClient.setQueryData(['recordings-progress'], (old: Map<string, number>) => {
-                const updated = new Map(old);
-                updated.set(recordingId, payload.new.processing_progress || 0);
+              queryClient.setQueryData(['recordings-progress'], (old: Map<string, number> | undefined) => {
+                const updated = new Map(old || new Map());
+                const newProgress = payload.new.processing_progress || 0;
+                
+                // Só atualiza se o progresso for maior
+                if (!updated.has(recordingId) || newProgress > (updated.get(recordingId) || 0)) {
+                  console.log(`Updating progress for ${recordingId}:`, newProgress);
+                  updated.set(recordingId, newProgress);
+                }
+                
                 return updated;
               });
 
-              // Mark as processed if completed
               if (payload.new.status === 'completed') {
                 processedIds.current.add(recordingId);
-                
                 toast({
                   title: "Transcription completed",
                   description: "Your recording has been successfully transcribed.",
@@ -105,6 +115,7 @@ export const RecordingsGrid = ({
       .subscribe();
 
     return () => {
+      console.log('Cleaning up subscription');
       supabase.removeChannel(channel);
     };
   }, [queryClient, toast]);
