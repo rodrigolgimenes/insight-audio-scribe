@@ -3,11 +3,14 @@ import { AlertCircle, Calendar, Folder } from "lucide-react";
 import { CardContent } from "@/components/ui/card";
 import { NoteDuration } from "./NoteDuration";
 import { formatDate } from "@/utils/formatDate";
+import { TranscriptionStatus } from "@/components/notes/TranscriptionStatus";
 
 interface NoteCardContentProps {
   transcript: string | null;
   duration: number | null;
   createdAt: string;
+  status?: string;
+  progress?: number;
   folder?: {
     id: string;
     name: string;
@@ -18,10 +21,16 @@ export const NoteCardContent = ({
   transcript,
   duration,
   createdAt,
+  status = 'completed',
+  progress = 100,
   folder,
 }: NoteCardContentProps) => {
   return (
     <CardContent className="space-y-4">
+      {status !== 'completed' && (
+        <TranscriptionStatus status={status} progress={progress} />
+      )}
+
       {folder ? (
         <div className="flex items-center gap-2 text-gray-700">
           <Folder className="h-4 w-4" />

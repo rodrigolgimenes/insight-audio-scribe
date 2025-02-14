@@ -48,7 +48,7 @@ export const RecordingsGrid = ({
 
     fetchInitialProgress();
 
-    // Subscribe to note updates
+    // Subscribe to notes updates
     const channel = supabase
       .channel('notes-changes')
       .on(
@@ -70,13 +70,13 @@ export const RecordingsGrid = ({
             // Show toast messages for important status changes
             if (payload.new.status === 'completed' && payload.old?.status !== 'completed') {
               toast({
-                title: "Transcription complete",
-                description: "Your recording has been successfully transcribed.",
+                title: "Transcrição concluída",
+                description: "Sua gravação foi transcrita com sucesso.",
               });
             } else if (payload.new.status === 'error' && payload.old?.status !== 'error') {
               toast({
-                title: "Transcription failed",
-                description: "There was an error processing your recording. Please try again.",
+                title: "Erro na transcrição",
+                description: "Houve um erro ao processar sua gravação. Por favor, tente novamente.",
                 variant: "destructive",
               });
             }
