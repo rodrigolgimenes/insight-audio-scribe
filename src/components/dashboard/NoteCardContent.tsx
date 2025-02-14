@@ -21,13 +21,16 @@ export const NoteCardContent = ({
   transcript,
   duration,
   createdAt,
-  status = 'completed',
+  status,
   progress = 100,
   folder,
 }: NoteCardContentProps) => {
+  // Só mostrar o status se tiver transcrição em andamento
+  const showProgress = status && status !== 'completed' && status !== 'error' && transcript === null;
+
   return (
     <CardContent className="space-y-4">
-      {status !== 'completed' && (
+      {showProgress && (
         <TranscriptionStatus status={status} progress={progress} />
       )}
 
@@ -50,12 +53,13 @@ export const NoteCardContent = ({
           <AlertCircle className="h-4 w-4" />
           <span>No audio was captured in this recording</span>
         </div>
-      ) : (
+      ) : transcript ? (
         <div className="text-sm text-gray-600">
           <h3 className="font-semibold mb-1">Transcription:</h3>
           <p className="line-clamp-3">{transcript}</p>
         </div>
-      )}
+      ) : null}
+
       <div className="flex items-center gap-4 text-sm text-gray-500">
         <NoteDuration duration={duration} />
         <span className="flex items-center gap-1">

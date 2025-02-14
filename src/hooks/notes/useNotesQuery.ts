@@ -18,19 +18,37 @@ export const useNotesQuery = () => {
         )
       `)
       .eq('user_id', user.id)
-      // Só buscar notas que tenham conteúdo
-      .not('original_transcript', 'is', null)
+      // Filtrar notas vazias ou em processamento inicial
+      .or('original_transcript.neq.null,status.eq.processing')
       .order("created_at", { ascending: false });
 
     if (error) {
       throw error;
     }
 
-    return data as Note[];
+    // Filtrar notas que estão em processamento há muito tempo (possível erro)
+    const TWO_HOURS = 2 * 60 * 60 * 1000; // 2 horas em milissegundos
+    return (data as Note[]).filter(note => {
+      if (note.status === 'processing') {
+        const createdAt = new Date(note.created_at).getTime();
+        const now = new Date().getTime();
+        return now - createdAt < TWO_HOURS;
+      }
+      return true;
+    });
   };
 
   return useQuery({
     queryKey: ["notes"],
-    queryFn: fetchNotes
+    queryFn: fetchNotes,
+    // Reduzir a frequência de atualizações
+    refetchInterval: (data) => {
+      // Se houver notas em processamento, atualizar a cada 5 segundos
+      if (data?.some(note => note.status === 'processing')) {
+        return 5000;
+      }
+      // Caso contrário, não atualizar automaticamente
+      return false;
+    }
   });
 };
