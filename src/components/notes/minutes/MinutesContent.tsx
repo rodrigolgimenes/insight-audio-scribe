@@ -27,9 +27,12 @@ export const MinutesContent = ({
       <div className="space-y-4">
         <MinutesEditor 
           content={content || ''}
-          onChange={onChange}
+          onChange={(newContent) => {
+            console.log('MinutesContent onChange:', newContent);
+            onChange(newContent);
+          }}
           onSave={() => {
-            console.log('MinutesEditor save triggered');
+            console.log('MinutesContent onSave triggered');
             onSave?.();
           }}
           onCancel={onCancel}

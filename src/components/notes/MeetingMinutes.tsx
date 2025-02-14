@@ -7,6 +7,7 @@ import { RegenerateButton } from "./minutes/RegenerateButton";
 import { LoadingSpinner } from "./minutes/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import { Edit2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface MeetingMinutesProps {
   transcript: string | null;
@@ -26,6 +27,7 @@ export const MeetingMinutes = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draftContent, setDraftContent] = useState<string | null>(null);
+  const { toast } = useToast();
   
   const {
     minutes,
@@ -50,12 +52,25 @@ export const MeetingMinutes = ({
     setDraftContent(newContent);
   };
 
-  const handleSave = () => {
-    console.log('Saving draft content:', draftContent);
-    if (draftContent !== null) {
-      updateMinutes(draftContent);
-      setIsEditing(false);
-      setDraftContent(null);
+  const handleSave = async () => {
+    try {
+      console.log('Saving draft content:', draftContent);
+      if (draftContent !== null) {
+        await updateMinutes(draftContent);
+        toast({
+          title: "Success",
+          description: "Meeting minutes saved successfully",
+        });
+        setIsEditing(false);
+        setDraftContent(null);
+      }
+    } catch (error) {
+      console.error('Error saving minutes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save meeting minutes",
+        variant: "destructive",
+      });
     }
   };
 

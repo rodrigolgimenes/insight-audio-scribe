@@ -36,8 +36,8 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       }
     },
     initialData: initialContent || '',
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    staleTime: 5 * 60 * 1000, 
+    gcTime: 30 * 60 * 1000,
   });
 
   const { mutate: generateMinutes, isPending: isGenerating } = useMutation({
@@ -81,21 +81,23 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
     mutationFn: async (content: string) => {
       console.log('Updating minutes with content:', content);
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('meeting_minutes')
           .upsert({
             note_id: noteId,
-            content: content || '',
+            content,
             format: 'markdown',
             updated_at: new Date().toISOString()
-          });
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('Error updating meeting minutes:', error);
           throw error;
         }
-        
-        console.log('Minutes updated successfully');
+
+        console.log('Minutes updated successfully:', data);
         return content;
       } catch (error) {
         console.error('Error in updateMinutes mutation:', error);
@@ -104,18 +106,10 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
     },
     onSuccess: (newContent) => {
       queryClient.setQueryData(['meeting-minutes', noteId], newContent);
-      toast({
-        title: "Success",
-        description: "Meeting minutes updated successfully",
-      });
     },
     onError: (error) => {
       console.error('Error updating meeting minutes:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update meeting minutes",
-        variant: "destructive",
-      });
+      throw error; // Propagar o erro para ser tratado no componente
     }
   });
 
