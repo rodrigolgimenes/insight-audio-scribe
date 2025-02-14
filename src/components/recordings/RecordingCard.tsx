@@ -1,7 +1,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Clock, Calendar, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Recording {
   id: string;
@@ -22,6 +26,65 @@ export const RecordingCard = ({
   recording,
   onPlay,
 }: RecordingCardProps) => {
+  const { toast } = useToast();
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    // Subscribe to note updates to get progress
+    const channel = supabase
+      .channel(`note-progress-${recording.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes',
+          filter: `recording_id=eq.${recording.id}`
+        },
+        (payload: any) => {
+          console.log('Note update received:', payload);
+          const newProgress = payload.new.processing_progress || 0;
+          const newStatus = payload.new.status;
+          
+          setProgress(newProgress);
+
+          // Show toast messages for important status changes
+          if (newStatus === 'completed' && payload.old.status !== 'completed') {
+            toast({
+              title: "Transcription complete",
+              description: "Your recording has been successfully transcribed.",
+            });
+          } else if (newStatus === 'error' && payload.old.status !== 'error') {
+            toast({
+              title: "Transcription failed",
+              description: "There was an error processing your recording. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Fetch initial progress
+    const fetchProgress = async () => {
+      const { data } = await supabase
+        .from('notes')
+        .select('processing_progress')
+        .eq('recording_id', recording.id)
+        .single();
+      
+      if (data) {
+        setProgress(data.processing_progress || 0);
+      }
+    };
+
+    fetchProgress();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [recording.id, toast]);
+
   const formatDuration = (duration: number | null) => {
     if (!duration) return "Unknown duration";
     const minutes = Math.floor(duration / 60);
@@ -44,21 +107,21 @@ export const RecordingCard = ({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing...</span>
+            <span>Processing... {progress}%</span>
           </div>
         );
       case 'processing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing audio...</span>
+            <span>Processing audio... {progress}%</span>
           </div>
         );
       case 'transcribing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcribing...</span>
+            <span>Transcribing... {progress}%</span>
           </div>
         );
       case 'completed':
@@ -90,6 +153,11 @@ export const RecordingCard = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {getStatusMessage(recording)}
+        
+        {recording.status !== 'completed' && recording.status !== 'error' && (
+          <Progress value={progress} className="w-full" />
+        )}
+
         {recording.status === 'completed' && !recording.transcription?.includes('No audio was captured') && (
           <>
             <div className="text-sm text-gray-600">
