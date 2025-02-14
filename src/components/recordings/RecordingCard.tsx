@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Clock, Calendar, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Recording {
   id: string;
@@ -25,6 +28,21 @@ export const RecordingCard = ({
   progress,
   onPlay,
 }: RecordingCardProps) => {
+  const navigate = useNavigate();
+
+  // Fetch the associated note ID for this recording
+  const { data: noteData } = useQuery({
+    queryKey: ['note-id', recording.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('notes')
+        .select('id')
+        .eq('recording_id', recording.id)
+        .single();
+      return data;
+    },
+  });
+
   const formatDuration = (duration: number | null) => {
     if (!duration) return "0:00";
     const minutes = Math.floor(duration / (60 * 1000));
@@ -85,10 +103,24 @@ export const RecordingCard = ({
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // If status is completed and we have a note ID, navigate to note page
+    if (recording.status === 'completed' && noteData?.id) {
+      e.preventDefault();
+      e.stopPropagation();
+      navigate(`/notes/${noteData.id}`);
+    } else if (recording.status !== 'completed') {
+      // If not completed, just play the recording
+      onPlay(recording.id);
+    }
+  };
+
+  const cursorClass = recording.status === 'completed' ? 'cursor-pointer' : 'cursor-default';
+
   return (
     <Card 
-      className="hover:shadow-lg transition-shadow cursor-pointer hover:bg-gray-50"
-      onClick={() => onPlay(recording.id)}
+      className={`hover:shadow-lg transition-shadow ${cursorClass} hover:bg-gray-50`}
+      onClick={handleCardClick}
     >
       <CardHeader>
         <CardTitle className="text-xl">{recording.title}</CardTitle>
