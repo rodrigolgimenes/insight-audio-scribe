@@ -3,9 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Clock, Calendar, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface Recording {
   id: string;
@@ -19,80 +16,23 @@ interface Recording {
 
 interface RecordingCardProps {
   recording: Recording;
+  progress: number;
   onPlay: (id: string) => void;
 }
 
 export const RecordingCard = ({
   recording,
+  progress,
   onPlay,
 }: RecordingCardProps) => {
-  const { toast } = useToast();
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    // Subscribe to note updates to get progress
-    const channel = supabase
-      .channel(`note-progress-${recording.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notes',
-          filter: `recording_id=eq.${recording.id}`
-        },
-        (payload: any) => {
-          console.log('Note update received:', payload);
-          const newProgress = payload.new.processing_progress || 0;
-          const newStatus = payload.new.status;
-          
-          setProgress(newProgress);
-
-          // Show toast messages for important status changes
-          if (newStatus === 'completed' && payload.old.status !== 'completed') {
-            toast({
-              title: "Transcription complete",
-              description: "Your recording has been successfully transcribed.",
-            });
-          } else if (newStatus === 'error' && payload.old.status !== 'error') {
-            toast({
-              title: "Transcription failed",
-              description: "There was an error processing your recording. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    // Fetch initial progress
-    const fetchProgress = async () => {
-      const { data } = await supabase
-        .from('notes')
-        .select('processing_progress')
-        .eq('recording_id', recording.id)
-        .single();
-      
-      if (data) {
-        setProgress(data.processing_progress || 0);
-      }
-    };
-
-    fetchProgress();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [recording.id, toast]);
-
   const formatDuration = (duration: number | null) => {
     if (!duration) return "Unknown duration";
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
+    const minutes = Math.floor(duration / (60 * 1000));
+    const seconds = Math.floor((duration % (60 * 1000)) / 1000);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  const getStatusMessage = (recording: Recording) => {
+  const getStatusMessage = (recording: Recording, progress: number) => {
     if (recording.status === 'completed' && recording.transcription?.includes('No audio was captured')) {
       return (
         <div className="flex items-center gap-2 text-yellow-600">
@@ -104,12 +44,6 @@ export const RecordingCard = ({
 
     switch (recording.status) {
       case 'pending':
-        return (
-          <div className="flex items-center gap-2 text-blue-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing... {progress}%</span>
-          </div>
-        );
       case 'processing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
@@ -152,9 +86,9 @@ export const RecordingCard = ({
         <CardTitle className="text-xl">{recording.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {getStatusMessage(recording)}
+        {getStatusMessage(recording, progress)}
         
-        {recording.status !== 'completed' && recording.status !== 'error' && (
+        {recording.status !== 'completed' && recording.status !== 'error' && progress > 0 && (
           <Progress value={progress} className="w-full" />
         )}
 
