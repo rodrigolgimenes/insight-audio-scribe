@@ -28,7 +28,9 @@ export const useNotesQuery = () => {
 
     // Filtrar notas que estão em processamento há muito tempo (possível erro)
     const TWO_HOURS = 2 * 60 * 60 * 1000; // 2 horas em milissegundos
-    return (data as Note[]).filter(note => {
+    const notes = data as Note[];
+    
+    return notes.filter(note => {
       if (note.status === 'processing') {
         const createdAt = new Date(note.created_at).getTime();
         const now = new Date().getTime();
@@ -42,7 +44,7 @@ export const useNotesQuery = () => {
     queryKey: ["notes"],
     queryFn: fetchNotes,
     // Reduzir a frequência de atualizações
-    refetchInterval: (data) => {
+    refetchInterval: (data: Note[] | undefined) => {
       // Se houver notas em processamento, atualizar a cada 5 segundos
       if (data?.some(note => note.status === 'processing')) {
         return 5000;
