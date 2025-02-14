@@ -46,10 +46,12 @@ export const MeetingMinutes = ({
   };
 
   const handleContentChange = (newContent: string) => {
+    console.log('Content changed:', newContent);
     setDraftContent(newContent);
   };
 
   const handleSave = () => {
+    console.log('Saving draft content:', draftContent);
     if (draftContent !== null) {
       updateMinutes(draftContent);
       setIsEditing(false);
@@ -139,7 +141,7 @@ export const MeetingMinutes = ({
         {minutes && (
           <MinutesContent 
             content={isEditing ? (draftContent || minutes) : minutes}
-            onChange={handleContentChange}
+            onChange={isEditing ? handleContentChange : undefined}
             onSave={isEditing ? handleSave : undefined}
             onCancel={isEditing ? handleCancel : undefined}
             readOnly={!isEditing || isUpdating || isGenerating}

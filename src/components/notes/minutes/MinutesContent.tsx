@@ -18,13 +18,20 @@ export const MinutesContent = ({
   onCancel,
   readOnly = false
 }: MinutesContentProps) => {
+  useEffect(() => {
+    console.log('MinutesContent received content:', content);
+  }, [content]);
+
   if (!readOnly && onChange) {
     return (
       <div className="space-y-4">
         <MinutesEditor 
-          content={content}
+          content={content || ''}
           onChange={onChange}
-          onSave={onSave}
+          onSave={() => {
+            console.log('MinutesEditor save triggered');
+            onSave?.();
+          }}
           onCancel={onCancel}
           readOnly={readOnly}
         />
@@ -48,7 +55,7 @@ export const MinutesContent = ({
           hr: ({ node, ...props }) => <hr className="my-6 border-t border-gray-300" {...props} />,
         }}
       >
-        {content}
+        {content || ''}
       </ReactMarkdown>
     </div>
   );
