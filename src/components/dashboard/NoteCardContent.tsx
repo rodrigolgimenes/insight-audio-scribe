@@ -1,72 +1,89 @@
 
-import { AlertCircle, Calendar, Folder } from "lucide-react";
-import { CardContent } from "@/components/ui/card";
-import { NoteDuration } from "./NoteDuration";
+import { Progress } from "@/components/ui/progress";
 import { formatDate } from "@/utils/formatDate";
-import { TranscriptionStatus } from "@/components/notes/TranscriptionStatus";
+import { formatDuration } from "@/utils/formatDuration";
+import { Loader2, Clock, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface NoteCardContentProps {
   transcript: string | null;
   duration: number | null;
   createdAt: string;
+  folder?: { id: string; name: string } | null;
   status?: string;
   progress?: number;
-  folder?: {
-    id: string;
-    name: string;
-  } | null;
 }
 
-export const NoteCardContent = ({
-  transcript,
-  duration,
-  createdAt,
-  status,
-  progress = 100,
+export const NoteCardContent = ({ 
+  transcript, 
+  duration, 
+  createdAt, 
   folder,
+  status = 'pending',
+  progress = 0
 }: NoteCardContentProps) => {
-  // Só mostrar o status se tiver transcrição em andamento
-  const showProgress = status && status !== 'completed' && status !== 'error' && transcript === null;
+  const getStatusDisplay = () => {
+    switch (status) {
+      case 'completed':
+        return (
+          <div className="flex items-center gap-2 text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Ready</span>
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="flex items-center gap-2 text-red-600">
+            <AlertCircle className="h-4 w-4" />
+            <span>Error processing note</span>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Processing... {progress}%</span>
+          </div>
+        );
+    }
+  };
 
   return (
-    <CardContent className="space-y-4">
-      {showProgress && (
-        <TranscriptionStatus status={status} progress={progress} />
+    <div className="p-6 space-y-4">
+      {/* Status and Progress */}
+      <div className="space-y-2">
+        {getStatusDisplay()}
+        {status !== 'completed' && status !== 'error' && (
+          <Progress value={progress} className="h-2" />
+        )}
+      </div>
+
+      {/* Content */}
+      {status === 'completed' && transcript && (
+        <p className="text-sm text-gray-600 line-clamp-3">{transcript}</p>
       )}
 
-      {folder ? (
-        <div className="flex items-center gap-2 text-gray-700">
-          <Folder className="h-4 w-4" />
-          <span className="text-sm">
-            FOLDER: <span className="font-bold">{folder.name}</span>
-          </span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-gray-500">
-          <Folder className="h-4 w-4" />
-          <span className="text-sm">Uncategorized</span>
-        </div>
-      )}
-
-      {transcript?.includes('No audio was captured') ? (
-        <div className="flex items-center gap-2 text-yellow-600">
-          <AlertCircle className="h-4 w-4" />
-          <span>No audio was captured in this recording</span>
-        </div>
-      ) : transcript ? (
-        <div className="text-sm text-gray-600">
-          <h3 className="font-semibold mb-1">Transcription:</h3>
-          <p className="line-clamp-3">{transcript}</p>
-        </div>
-      ) : null}
-
+      {/* Metadata */}
       <div className="flex items-center gap-4 text-sm text-gray-500">
-        <NoteDuration duration={duration} />
+        {duration !== null && (
+          <span className="flex items-center gap-1">
+            <Clock className="h-4 w-4" />
+            {formatDuration(duration)}
+          </span>
+        )}
         <span className="flex items-center gap-1">
           <Calendar className="h-4 w-4" />
           {formatDate(createdAt)}
         </span>
       </div>
-    </CardContent>
+
+      {/* Folder */}
+      {folder && (
+        <div className="text-sm text-gray-500">
+          <span className="px-2 py-1 bg-gray-100 rounded-md">
+            {folder.name}
+          </span>
+        </div>
+      )}
+    </div>
   );
 };
