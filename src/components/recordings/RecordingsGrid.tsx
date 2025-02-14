@@ -44,24 +44,33 @@ export const RecordingsGrid = ({
         }
 
         console.log('Fetching progress for recording:', recording.id);
-        const { data } = await supabase
-          .from('notes')
-          .select('processing_progress, status')
-          .eq('recording_id', recording.id)
-          .single();
-        
-        if (data) {
-          newProgress.set(recording.id, data.processing_progress || 0);
-          if (data.status === 'completed') {
-            processedIds.current.add(recording.id);
+        try {
+          const { data, error } = await supabase
+            .from('notes')
+            .select('processing_progress, status')
+            .eq('recording_id', recording.id)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching note progress:', error);
+            continue;
           }
+          
+          if (data) {
+            newProgress.set(recording.id, data.processing_progress || 0);
+            if (data.status === 'completed') {
+              processedIds.current.add(recording.id);
+            }
+          }
+        } catch (err) {
+          console.error('Error processing recording:', recording.id, err);
         }
       }
       
       return newProgress;
     },
     staleTime: 1000 * 60, // Dados considerados frescos por 1 minuto
-    gcTime: 1000 * 60 * 5, // Manter no cache por 5 minutos
+    initialData: new Map()
   });
 
   useEffect(() => {
@@ -100,6 +109,11 @@ export const RecordingsGrid = ({
                 toast({
                   title: "Transcription completed",
                   description: "Your recording has been successfully transcribed.",
+                });
+                
+                // Força uma revalidação dos dados
+                queryClient.invalidateQueries({
+                  queryKey: ['recordings-progress']
                 });
               } else if (payload.new.status === 'error') {
                 toast({
