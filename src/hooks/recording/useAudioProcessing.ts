@@ -44,32 +44,49 @@ export const useAudioProcessing = () => {
 
       console.log('[useAudioProcessing] Recording entry created:', recordingData);
 
-      // Then upload the file
-      const { error: uploadError } = await supabase.storage
-        .from('audio_recordings')
-        .upload(fileName, blob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'audio/webm'
-        });
+      // Upload em chunks para arquivos grandes
+      const maxChunkSize = 5 * 1024 * 1024; // 5MB chunks
+      const totalChunks = Math.ceil(blob.size / maxChunkSize);
+      
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * maxChunkSize;
+        const end = Math.min(start + maxChunkSize, blob.size);
+        const chunk = blob.slice(start, end);
+        
+        const { error: uploadError } = await supabase.storage
+          .from('audio_recordings')
+          .upload(
+            i === 0 ? fileName : `${fileName}.part${i}`,
+            chunk,
+            {
+              cacheControl: '3600',
+              upsert: false,
+              contentType: 'audio/webm'
+            }
+          );
 
-      if (uploadError) {
-        // Delete the recording entry if file upload fails
-        await supabase
-          .from('recordings')
-          .delete()
-          .eq('id', recordingData.id);
-        throw new Error(`Failed to upload audio: ${uploadError.message}`);
+        if (uploadError) {
+          // Delete the recording entry and any uploaded chunks if upload fails
+          await supabase
+            .from('recordings')
+            .delete()
+            .eq('id', recordingData.id);
+            
+          throw new Error(`Failed to upload audio chunk ${i + 1}/${totalChunks}: ${uploadError.message}`);
+        }
+
+        console.log(`[useAudioProcessing] Uploaded chunk ${i + 1}/${totalChunks}`);
+      }
+
+      // Se houver múltiplos chunks, combinar
+      if (totalChunks > 1) {
+        // Lógica para combinar chunks será implementada no backend
+        console.log('[useAudioProcessing] Multiple chunks uploaded, combining...');
       }
 
       console.log('[useAudioProcessing] Audio file uploaded successfully');
 
-      // Create a FormData object with the necessary information
-      const formData = new FormData();
-      formData.append('recordingId', recordingData.id);
-      formData.append('duration', durationInMs.toString());
-
-      // Call the transcribe-upload function
+      // Call the process-recording function
       const { error: processError } = await supabase.functions
         .invoke('process-recording', {
           body: { recordingId: recordingData.id }

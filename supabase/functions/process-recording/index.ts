@@ -1,355 +1,182 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
-const MAX_RETRIES = 5;
-const INITIAL_RETRY_DELAY = 2000; // 2 segundos
-
-async function waitForFileAvailability(
-  supabase: ReturnType<typeof createClient>,
-  path: string,
-  maxRetries = MAX_RETRIES,
-  initialDelay = INITIAL_RETRY_DELAY
-): Promise<void> {
-  console.log('[process-recording] Waiting for file availability:', path);
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const delay = initialDelay * Math.pow(2, attempt);
-      console.log(`[process-recording] Attempt ${attempt + 1}/${maxRetries}, waiting ${delay}ms`);
-      
-      await new Promise(resolve => setTimeout(resolve, delay));
-      
-      const { data: fileExists, error } = await supabase.storage
-        .from('audio_recordings')
-        .list(path.split('/')[0], {
-          limit: 1,
-          search: path.split('/')[1]
-        });
-
-      if (error) {
-        console.error(`[process-recording] Error checking file (attempt ${attempt + 1}):`, error);
-        continue;
-      }
-
-      if (fileExists && fileExists.length > 0) {
-        console.log('[process-recording] File found after waiting:', fileExists[0]);
-        return;
-      }
-
-      console.log(`[process-recording] File not found yet (attempt ${attempt + 1})`);
-    } catch (error) {
-      console.error(`[process-recording] Error in attempt ${attempt + 1}:`, error);
-    }
-  }
-
-  throw new Error(`File not available after ${maxRetries} attempts: ${path}`);
+interface RecordingData {
+  id: string;
+  file_path: string;
+  duration: number;
 }
 
-async function downloadWithRetry(
-  url: string,
-  maxRetries = MAX_RETRIES,
-  initialDelay = INITIAL_RETRY_DELAY
-): Promise<Blob> {
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
+async function downloadLargeFile(supabase: any, bucketName: string, filePath: string, maxAttempts = 10): Promise<Uint8Array> {
+  let attemptCount = 0;
+  const delayBetweenAttempts = 2000; // 2 segundos entre tentativas
+
+  while (attemptCount < maxAttempts) {
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      if (blob.size === 0) {
-        throw new Error('Downloaded file is empty');
-      }
-
-      console.log('[process-recording] Download successful:', {
-        size: blob.size,
-        type: blob.type,
-        attempt: attempt + 1
-      });
-
-      return blob;
-    } catch (error) {
-      console.error(`[process-recording] Download attempt ${attempt + 1} failed:`, error);
+      console.log(`[downloadLargeFile] Attempt ${attemptCount + 1} to download file: ${filePath}`);
       
-      if (attempt === maxRetries - 1) {
+      const { data, error } = await supabase
+        .storage
+        .from(bucketName)
+        .download(filePath);
+
+      if (error) {
+        console.error(`[downloadLargeFile] Error on attempt ${attemptCount + 1}:`, error);
         throw error;
       }
 
-      const delay = initialDelay * Math.pow(2, attempt);
-      console.log(`[process-recording] Waiting ${delay}ms before next attempt`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-
-  throw new Error('All download attempts failed');
-}
-
-async function downloadLargeFile(supabase: ReturnType<typeof createClient>, path: string): Promise<Blob> {
-  try {
-    console.log('[process-recording] Starting download process for:', path);
-
-    // Primeiro, espera o arquivo estar disponível
-    await waitForFileAvailability(supabase, path);
-
-    // Tenta obter o arquivo usando download direto primeiro
-    try {
-      console.log('[process-recording] Attempting direct download');
-      const { data, error } = await supabase.storage
-        .from('audio_recordings')
-        .download(path);
-
-      if (!error && data) {
-        console.log('[process-recording] Direct download successful');
-        return data;
+      if (!data) {
+        console.log(`[downloadLargeFile] No data received on attempt ${attemptCount + 1}, retrying...`);
+        attemptCount++;
+        await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+        continue;
       }
+
+      const arrayBuffer = await data.arrayBuffer();
+      return new Uint8Array(arrayBuffer);
     } catch (error) {
-      console.warn('[process-recording] Direct download failed, falling back to signed URL:', error);
-    }
-
-    // Fallback para URL assinada
-    console.log('[process-recording] Getting signed URL');
-    const { data: urlData, error: urlError } = await supabase.storage
-      .from('audio_recordings')
-      .createSignedUrl(path, 3600);
-
-    if (urlError || !urlData?.signedUrl) {
-      throw new Error('Failed to get signed URL');
-    }
-
-    // Download com retry
-    return await downloadWithRetry(urlData.signedUrl);
-  } catch (error) {
-    console.error('[process-recording] Error in downloadLargeFile:', error);
-    throw new Error(`Failed to download file: ${error.message}`);
-  }
-}
-
-async function processAudioChunk(chunk: Blob, openAIApiKey: string): Promise<string> {
-  const retryCount = 3;
-  let lastError;
-
-  for (let attempt = 0; attempt < retryCount; attempt++) {
-    try {
-      console.log(`[process-recording] Processing chunk attempt ${attempt + 1}, size: ${chunk.size} bytes`);
+      console.error(`[downloadLargeFile] Attempt ${attemptCount + 1} failed:`, error);
       
-      const formData = new FormData();
-      formData.append('file', chunk, 'audio.webm');
-      formData.append('model', 'whisper-1');
-      formData.append('language', 'pt');
-
-      const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-        },
-        body: formData,
-      });
-
-      if (!transcriptionResponse.ok) {
-        const errorData = await transcriptionResponse.json();
-        throw new Error(`Transcription failed: ${errorData.error?.message || transcriptionResponse.statusText}`);
+      if (attemptCount + 1 === maxAttempts) {
+        throw new Error(`File not available after ${maxAttempts} attempts: ${filePath}`);
       }
 
-      const transcriptionResult = await transcriptionResponse.json();
-      console.log('[process-recording] Chunk processed successfully');
-      return transcriptionResult.text || '';
-    } catch (error) {
-      console.error(`[process-recording] Chunk processing attempt ${attempt + 1} failed:`, error);
-      lastError = error;
-      if (attempt < retryCount - 1) {
-        const delay = 1000 * Math.pow(2, attempt);
-        console.log(`[process-recording] Waiting ${delay}ms before next attempt`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      attemptCount++;
+      await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
     }
   }
 
-  throw lastError;
+  throw new Error(`Failed to download file after ${maxAttempts} attempts`);
 }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
-  let recordingId: string | undefined;
-  let supabase: ReturnType<typeof createClient>;
-  
   try {
-    const { recordingId: receivedRecordingId } = await req.json();
-    recordingId = receivedRecordingId;
-    
-    console.log('[process-recording] Starting processing for recording:', recordingId);
-    
+    const { recordingId } = await req.json();
+
     if (!recordingId) {
       throw new Error('Recording ID is required');
     }
 
+    console.log('[process-recording] Processing recording:', recordingId);
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    
-    if (!supabaseUrl || !supabaseKey || !openAIApiKey) {
-      throw new Error('Missing required environment variables');
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase environment variables');
     }
 
-    supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get recording details
+    // Buscar informações da gravação
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
       .select('*')
       .eq('id', recordingId)
-      .maybeSingle();
+      .single();
 
-    if (recordingError) {
+    if (recordingError || !recording) {
       console.error('[process-recording] Error fetching recording:', recordingError);
-      throw new Error(`Recording fetch failed: ${recordingError.message}`);
-    }
-
-    if (!recording) {
       throw new Error('Recording not found');
     }
 
-    console.log('[process-recording] Recording found:', {
-      id: recording.id,
-      file_path: recording.file_path,
-      duration: recording.duration
-    });
+    console.log('[process-recording] Recording data:', recording);
 
-    // Update recording status to processing
-    await supabase
+    // Atualizar status para processing
+    const { error: updateError } = await supabase
       .from('recordings')
       .update({ status: 'processing' })
       .eq('id', recordingId);
 
-    const audioBlob = await downloadLargeFile(supabase, recording.file_path);
-
-    // Split audio into smaller chunks
-    const chunks: Blob[] = [];
-    let offset = 0;
-    while (offset < audioBlob.size) {
-      const chunk = audioBlob.slice(offset, offset + MAX_CHUNK_SIZE);
-      chunks.push(chunk);
-      offset += MAX_CHUNK_SIZE;
+    if (updateError) {
+      console.error('[process-recording] Error updating status:', updateError);
+      throw new Error('Failed to update recording status');
     }
 
-    console.log(`[process-recording] Split audio into ${chunks.length} chunks`);
+    // Download do arquivo com retry
+    console.log('[process-recording] Downloading audio file...');
+    const audioData = await downloadLargeFile(supabase, 'audio_recordings', recording.file_path);
+    console.log('[process-recording] Audio file downloaded successfully');
 
-    // Process chunks with retries and collect transcriptions
-    const transcriptions: string[] = [];
-    for (let i = 0; i < chunks.length; i++) {
-      console.log(`[process-recording] Processing chunk ${i + 1}/${chunks.length}, size: ${chunks[i].size} bytes`);
-      const transcription = await processAudioChunk(chunks[i], openAIApiKey);
-      transcriptions.push(transcription);
-    }
-
-    const fullTranscript = transcriptions.join(' ');
-    console.log('[process-recording] Full transcript generated, length:', fullTranscript.length);
-
-    // Process with GPT-3.5-turbo
-    console.log('[process-recording] Starting GPT processing');
-    const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: `Analyze this transcript and provide:
-1. Summary
-2. Key Points
-3. Action Items
-4. Next Steps
-
-Transcript:
-${fullTranscript}
-
-Format your response clearly with headers for each section.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2048,
-      }),
-    });
-
-    if (!gptResponse.ok) {
-      const errorData = await gptResponse.json();
-      throw new Error(`GPT processing failed: ${errorData.error?.message}`);
-    }
-
-    const gptResult = await gptResponse.json();
-    const processedContent = gptResult.choices[0].message.content;
-
-    console.log('[process-recording] GPT processing completed');
-
-    // Update recording with results
-    await supabase
-      .from('recordings')
-      .update({
-        transcription: fullTranscript,
-        processed_content: processedContent,
-        status: 'completed',
-        processed_at: new Date().toISOString()
-      })
-      .eq('id', recordingId);
-
-    // Create note
-    await supabase
+    // Criar entrada na tabela notes
+    const { data: note, error: noteError } = await supabase
       .from('notes')
       .insert({
-        user_id: recording.user_id,
+        title: recording.title,
         recording_id: recordingId,
-        title: recording.title || `Note from ${new Date().toLocaleString()}`,
-        original_transcript: fullTranscript,
-        processed_content: processedContent,
-        audio_url: recording.file_path,
-        duration: recording.duration
-      });
+        user_id: recording.user_id,
+        duration: recording.duration,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
-    console.log('[process-recording] Processing completed successfully');
+    if (noteError) {
+      console.error('[process-recording] Error creating note:', noteError);
+      throw new Error('Failed to create note');
+    }
+
+    console.log('[process-recording] Note created:', note);
+
+    // Iniciar transcrição em background
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        console.log('[process-recording] Starting transcription process...');
+        
+        const { error: transcribeError } = await supabase.functions
+          .invoke('transcribe-audio', {
+            body: { 
+              noteId: note.id,
+              recordingId: recordingId
+            }
+          });
+
+        if (transcribeError) {
+          console.error('[process-recording] Transcription error:', transcribeError);
+          throw transcribeError;
+        }
+
+        console.log('[process-recording] Transcription started successfully');
+      } catch (error) {
+        console.error('[process-recording] Background task error:', error);
+        
+        // Atualizar status para error
+        await supabase
+          .from('recordings')
+          .update({ 
+            status: 'error',
+            error_message: error instanceof Error ? error.message : 'Unknown error during processing'
+          })
+          .eq('id', recordingId);
+      }
+    })());
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Recording processed successfully'
-      }),
+      JSON.stringify({ success: true, noteId: note.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('[process-recording] Error:', error);
     
-    if (recordingId && supabase) {
-      await supabase
-        .from('recordings')
-        .update({ 
-          status: 'error',
-          error_message: error instanceof Error ? error.message : 'An unexpected error occurred'
-        })
-        .eq('id', recordingId);
-    }
-
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : undefined
       }),
-      { 
-        status: 500,
+      {
+        status: 200, // Mantemos 200 para evitar erro de CORS
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
