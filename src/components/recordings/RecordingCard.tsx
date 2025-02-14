@@ -39,7 +39,7 @@ export const RecordingCard = ({
       return (
         <div className="flex items-center gap-2 text-yellow-600">
           <AlertCircle className="h-4 w-4" />
-          <span>Nenhum áudio foi capturado</span>
+          <span>No audio was captured</span>
         </div>
       );
     }
@@ -51,35 +51,35 @@ export const RecordingCard = ({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processando áudio... {Math.round(progress)}%</span>
+            <span>Processing audio... {Math.round(progress)}%</span>
           </div>
         );
       case 'transcribing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcrevendo... {Math.round(progress)}%</span>
+            <span>Transcribing... {Math.round(progress)}%</span>
           </div>
         );
       case 'completed':
         return (
           <div className="flex items-center gap-2 text-green-600">
             <CheckCircle2 className="h-4 w-4" />
-            <span>Pronto</span>
+            <span>Ready</span>
           </div>
         );
       case 'error':
         return (
           <div className="flex items-center gap-2 text-red-600">
             <AlertCircle className="h-4 w-4" />
-            <span>Erro ao processar gravação</span>
+            <span>Error processing recording</span>
           </div>
         );
       default:
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processando... {Math.round(progress)}%</span>
+            <span>Processing... {Math.round(progress)}%</span>
           </div>
         );
     }
@@ -103,7 +103,7 @@ export const RecordingCard = ({
         {recording.status === 'completed' && !recording.transcription?.includes('No audio was captured') && (
           <>
             <div className="text-sm text-gray-600">
-              <h3 className="font-semibold mb-1">Transcrição:</h3>
+              <h3 className="font-semibold mb-1">Transcription:</h3>
               <p className="line-clamp-3">{recording.transcription}</p>
             </div>
           </>

@@ -16,37 +16,37 @@ export const TranscriptionStatus = ({
     switch (status) {
       case 'processing':
         return {
-          message: "Processando áudio",
+          message: "Processing audio",
           icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
           color: "text-blue-600"
         };
       case 'transcribing':
         return {
-          message: "Transcrevendo áudio",
+          message: "Transcribing audio",
           icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
           color: "text-blue-600"
         };
       case 'generating_minutes':
         return {
-          message: "Gerando ata de reunião",
+          message: "Generating meeting minutes",
           icon: <FileText className="h-5 w-5 text-blue-600" />,
           color: "text-blue-600"
         };
       case 'completed':
         return {
-          message: "Processamento concluído",
+          message: "Processing completed",
           icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
           color: "text-green-600"
         };
       case 'error':
         return {
-          message: "Erro no processamento",
+          message: "Processing error",
           icon: <AlertCircle className="h-5 w-5 text-red-600" />,
           color: "text-red-600"
         };
       default:
         return {
-          message: "Aguardando processamento",
+          message: "Waiting for processing",
           icon: <Loader2 className="h-5 w-5 animate-spin text-gray-600" />,
           color: "text-gray-600"
         };
