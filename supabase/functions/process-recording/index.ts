@@ -55,7 +55,7 @@ serve(async (req) => {
       throw new Error('Failed to update recording status');
     }
 
-    // Criar entrada na tabela notes sem esperar pelo download do arquivo
+    // Start a database transaction for note creation
     const { data: note, error: noteError } = await supabase
       .from('notes')
       .insert({
@@ -63,6 +63,9 @@ serve(async (req) => {
         recording_id: recordingId,
         user_id: recording.user_id,
         duration: recording.duration,
+        processed_content: '', // Use the new default value
+        status: 'processing',
+        processing_progress: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -80,6 +83,15 @@ serve(async (req) => {
     EdgeRuntime.waitUntil((async () => {
       try {
         console.log('[process-recording] Starting transcription process...');
+        
+        // Update note status to transcribing
+        await supabase
+          .from('notes')
+          .update({ 
+            status: 'transcribing',
+            processing_progress: 10 
+          })
+          .eq('id', note.id);
         
         // Dar um tempo para o Storage processar o arquivo
         await new Promise(resolve => setTimeout(resolve, 5000));
@@ -101,14 +113,23 @@ serve(async (req) => {
       } catch (error) {
         console.error('[process-recording] Background task error:', error);
         
-        // Atualizar status para error
-        await supabase
-          .from('recordings')
-          .update({ 
-            status: 'error',
-            error_message: error instanceof Error ? error.message : 'Unknown error during processing'
-          })
-          .eq('id', recordingId);
+        // Update note and recording status to error
+        await Promise.all([
+          supabase
+            .from('recordings')
+            .update({ 
+              status: 'error',
+              error_message: error instanceof Error ? error.message : 'Unknown error during processing'
+            })
+            .eq('id', recordingId),
+          supabase
+            .from('notes')
+            .update({ 
+              status: 'error',
+              processing_progress: 0
+            })
+            .eq('id', note.id)
+        ]);
       }
     })());
 

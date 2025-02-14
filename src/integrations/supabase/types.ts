@@ -218,7 +218,9 @@ export type Database = {
           id: string
           original_transcript: string | null
           processed_content: string
+          processing_progress: number | null
           recording_id: string
+          status: string
           title: string
           updated_at: string
           user_id: string
@@ -230,8 +232,10 @@ export type Database = {
           full_prompt?: string | null
           id?: string
           original_transcript?: string | null
-          processed_content: string
+          processed_content?: string
+          processing_progress?: number | null
           recording_id: string
+          status?: string
           title: string
           updated_at?: string
           user_id: string
@@ -244,7 +248,9 @@ export type Database = {
           id?: string
           original_transcript?: string | null
           processed_content?: string
+          processing_progress?: number | null
           recording_id?: string
+          status?: string
           title?: string
           updated_at?: string
           user_id?: string
