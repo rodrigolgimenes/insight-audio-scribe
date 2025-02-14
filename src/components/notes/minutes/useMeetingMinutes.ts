@@ -28,17 +28,9 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       }
 
       console.log('Meeting minutes data:', data);
-      // If no data is found, return null
-      if (!data) return null;
-      
-      // Return just the content since that's what the rest of the code expects
-      return data.content;
+      return data?.content || null;
     },
-    initialData: initialContent || undefined,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false
+    initialData: initialContent || undefined
   });
 
   const { mutate: generateMinutes, isPending: isGenerating } = useMutation({
@@ -80,6 +72,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
 
   const { mutate: updateMinutes, isPending: isUpdating } = useMutation({
     mutationFn: async (content: string) => {
+      console.log('Updating minutes with content:', content);
       const { error } = await supabase
         .from('meeting_minutes')
         .upsert({
@@ -89,7 +82,10 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
           updated_at: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating meeting minutes:', error);
+        throw error;
+      }
       return content;
     },
     onSuccess: (newContent) => {

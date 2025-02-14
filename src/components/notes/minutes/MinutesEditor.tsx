@@ -44,7 +44,7 @@ const MenuButton = ({
     variant={variant}
     size="sm"
     onClick={onClick}
-    className={`${isActive ? 'bg-muted' : ''} h-8`}
+    className={`${isActive ? 'bg-muted' : ''} h-8 flex items-center gap-1`}
     disabled={disabled}
   >
     {children}
@@ -82,12 +82,14 @@ export const MinutesEditor = ({
     content,
     editable: !readOnly,
     onUpdate: ({ editor }) => {
-      const markdown = editor.storage.markdown.getMarkdown();
-      onChange?.(markdown);
+      if (onChange) {
+        const markdown = editor.storage.markdown.getMarkdown();
+        onChange(markdown);
+      }
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-blue max-w-none min-h-[200px] p-4 border rounded-lg focus:outline-none'
+        class: 'prose prose-blue max-w-none min-h-[200px] p-4 border rounded-lg focus:outline-none prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2'
       }
     }
   });
@@ -168,16 +170,16 @@ export const MinutesEditor = ({
             </MenuButton>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             {onCancel && (
               <MenuButton onClick={onCancel} variant="ghost">
-                <X className="h-4 w-4 mr-1" />
+                <X className="h-4 w-4" />
                 Cancel
               </MenuButton>
             )}
             {onSave && (
               <MenuButton onClick={onSave} variant="default">
-                <Save className="h-4 w-4 mr-1" />
+                <Save className="h-4 w-4" />
                 Save
               </MenuButton>
             )}
@@ -185,7 +187,10 @@ export const MinutesEditor = ({
         </div>
       )}
       
-      <EditorContent editor={editor} />
+      <EditorContent 
+        editor={editor} 
+        className="prose-ul:list-disc prose-ol:list-decimal"
+      />
     </div>
   );
 };
