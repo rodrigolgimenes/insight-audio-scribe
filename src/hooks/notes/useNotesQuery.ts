@@ -19,7 +19,7 @@ export const useNotesQuery = () => {
         )
       `)
       .eq('user_id', user.id)
-      // Filtrar notas vazias ou em processamento inicial
+      // Filtrar notas vazias ou em processamento
       .or('original_transcript.neq.null,status.eq.processing')
       .order("created_at", { ascending: false });
 

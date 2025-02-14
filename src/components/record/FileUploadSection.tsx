@@ -3,14 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { TranscriptionLoading } from "@/components/record/TranscriptionLoading";
 
 interface FileUploadSectionProps {
   isDisabled?: boolean;
 }
 
 export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
-  const { isUploading, isProcessing, handleFileUpload } = useFileUpload();
+  const { isUploading, handleFileUpload } = useFileUpload();
 
   return (
     <div className="relative">
@@ -31,8 +30,6 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
         <Upload className="w-4 h-4" />
         {isUploading ? 'Uploading...' : 'Upload File'}
       </Button>
-
-      {(isUploading || isProcessing) && <TranscriptionLoading />}
     </div>
   );
 };

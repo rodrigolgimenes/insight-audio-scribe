@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { TranscriptionLoading } from "@/components/record/TranscriptionLoading";
 import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
@@ -17,7 +16,7 @@ const SimpleRecord = () => {
   const [searchParams] = useSearchParams();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
-  const { isUploading, isProcessing: isFileProcessing } = useFileUpload();
+  const { isUploading } = useFileUpload();
   const { saveRecording, isProcessing: isSaveProcessing } = useRecordingSave();
 
   const {
@@ -64,7 +63,7 @@ const SimpleRecord = () => {
     await saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
   };
 
-  const isLoading = isTranscribing || isSaving || isUploading || isFileProcessing || isSaveProcessing;
+  const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
 
   return (
     <SidebarProvider>
@@ -113,7 +112,6 @@ const SimpleRecord = () => {
           </main>
         </div>
       </div>
-      {isLoading && <TranscriptionLoading />}
     </SidebarProvider>
   );
 };
