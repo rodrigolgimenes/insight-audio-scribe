@@ -28,7 +28,7 @@ export const RecordingsGrid = ({
   const queryClient = useQueryClient();
   const processedIds = useRef<Set<string>>(new Set());
 
-  // Use React Query para gerenciar o estado de progresso das gravações
+  // Use React Query to manage recordings progress state
   const { data: recordingsWithProgress = new Map() } = useQuery({
     queryKey: ['recordings-progress'],
     queryFn: async () => {
@@ -37,7 +37,7 @@ export const RecordingsGrid = ({
       const newProgress = new Map(existingProgress);
       
       for (const recording of recordings) {
-        // Pula se já temos o progresso para esta gravação
+        // Skip if we already have progress for this recording
         if (newProgress.has(recording.id)) {
           console.log('Using cached progress for recording:', recording.id);
           continue;
@@ -69,10 +69,11 @@ export const RecordingsGrid = ({
       
       return newProgress;
     },
-    staleTime: 1000 * 60, // Dados considerados frescos por 1 minuto
+    staleTime: 1000 * 60, // Consider data fresh for 1 minute
     initialData: new Map()
   });
 
+  // Set up real-time updates
   useEffect(() => {
     const channel = supabase
       .channel('notes-changes')
@@ -89,13 +90,13 @@ export const RecordingsGrid = ({
           if (payload.new && payload.new.recording_id) {
             const recordingId = payload.new.recording_id;
             
-            // Atualiza o cache apenas se a nota não estiver completa
+            // Only update cache if note is not complete
             if (!processedIds.current.has(recordingId)) {
               queryClient.setQueryData(['recordings-progress'], (old: Map<string, number> | undefined) => {
                 const updated = new Map(old || new Map());
                 const newProgress = payload.new.processing_progress || 0;
                 
-                // Só atualiza se o progresso for maior
+                // Only update if progress is higher
                 if (!updated.has(recordingId) || newProgress > (updated.get(recordingId) || 0)) {
                   console.log(`Updating progress for ${recordingId}:`, newProgress);
                   updated.set(recordingId, newProgress);
@@ -109,9 +110,10 @@ export const RecordingsGrid = ({
                 toast({
                   title: "Transcription completed",
                   description: "Your recording has been successfully transcribed.",
+                  duration: 5000,
                 });
                 
-                // Força uma revalidação dos dados
+                // Force data revalidation
                 queryClient.invalidateQueries({
                   queryKey: ['recordings-progress']
                 });

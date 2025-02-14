@@ -37,6 +37,13 @@ export const NoteCardContent = ({
             <span>Error processing note</span>
           </div>
         );
+      case 'transcribing':
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Transcribing... {progress}%</span>
+          </div>
+        );
       default:
         return (
           <div className="flex items-center gap-2 text-blue-600">
