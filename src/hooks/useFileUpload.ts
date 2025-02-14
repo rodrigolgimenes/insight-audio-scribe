@@ -103,7 +103,10 @@ export const useFileUpload = () => {
       // Atualizar status do recording para uploaded
       const { error: updateError } = await supabase
         .from('recordings')
-        .update({ status: 'uploaded' })
+        .update({ 
+          status: 'uploaded',
+          created_at: new Date().toISOString() // Garantir timestamp único
+        })
         .eq('id', recordingData.id);
 
       if (updateError) {
