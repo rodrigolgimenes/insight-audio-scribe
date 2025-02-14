@@ -95,6 +95,23 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
     }
   };
 
+  // Fetch note processing status
+  const { data: noteStatus } = useQuery({
+    queryKey: ["note-status", note.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notes")
+        .select("status, processing_progress")
+        .eq("id", note.id)
+        .single();
+      return data;
+    },
+    refetchInterval: (data) => {
+      // Refetch every 2 seconds if the note is still processing
+      return data?.status !== 'completed' && data?.status !== 'error' ? 2000 : false;
+    },
+  });
+
   return (
     <Card
       className={cn(
@@ -129,6 +146,8 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         duration={note.duration}
         createdAt={note.created_at}
         folder={currentFolder}
+        status={noteStatus?.status}
+        progress={noteStatus?.processing_progress}
       />
 
       <RenameNoteDialog

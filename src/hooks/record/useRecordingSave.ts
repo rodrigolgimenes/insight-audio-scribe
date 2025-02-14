@@ -29,7 +29,9 @@ export const useRecordingSave = () => {
       console.log('Creating recording with user ID:', user.id);
 
       if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream.getTracks().forEach(track => {
+          track.stop();
+        });
       }
 
       // Create initial recording entry
@@ -92,7 +94,8 @@ export const useRecordingSave = () => {
           throw new Error(`Failed to upload audio: ${uploadError.message}`);
         }
 
-        // Criar nota com informações iniciais
+        // Create note entry using upsert to prevent duplicates
+        console.log('Creating note for recording:', recordingData.id);
         const { data: note, error: noteError } = await supabase
           .from('notes')
           .upsert({
@@ -101,6 +104,8 @@ export const useRecordingSave = () => {
             title: recordingData.title,
             status: 'processing',
             processing_progress: 0
+          }, {
+            onConflict: 'recording_id'
           })
           .select()
           .single();
@@ -110,20 +115,19 @@ export const useRecordingSave = () => {
           throw new Error(`Failed to create note: ${noteError.message}`);
         }
 
-        // Atualizar status da gravação
+        console.log('Note created successfully:', note);
+
+        // Update recording status
         const { error: updateError } = await supabase
           .from('recordings')
-          .update({
-            status: 'transcribing'
-          })
+          .update({ status: 'transcribing' })
           .eq('id', recordingData.id);
 
         if (updateError) {
           throw new Error(`Failed to update recording: ${updateError.message}`);
         }
 
-        // Iniciar transcrição
-        console.log('Starting transcription for note:', note.id);
+        // Start transcription
         const { error: transcribeError } = await supabase.functions
           .invoke('transcribe-audio', {
             body: { 
