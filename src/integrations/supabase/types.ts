@@ -259,7 +259,7 @@ export type Database = {
           {
             foreignKeyName: "notes_recording_id_fkey"
             columns: ["recording_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "recordings"
             referencedColumns: ["id"]
           },
@@ -767,7 +767,7 @@ export type Database = {
           {
             foreignKeyName: "notes_recording_id_fkey"
             columns: ["recording_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "recordings"
             referencedColumns: ["id"]
           },

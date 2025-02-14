@@ -39,7 +39,7 @@ export const RecordingCard = ({
       return (
         <div className="flex items-center gap-2 text-yellow-600">
           <AlertCircle className="h-4 w-4" />
-          <span>No audio was captured</span>
+          <span>Nenhum áudio foi capturado</span>
         </div>
       );
     }
@@ -51,14 +51,14 @@ export const RecordingCard = ({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing audio... {Math.round(progress)}%</span>
+            <span>Processando áudio... {Math.round(progress)}%</span>
           </div>
         );
       case 'transcribing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcribing... {Math.round(progress)}%</span>
+            <span>Transcrevendo... {Math.round(progress)}%</span>
           </div>
         );
       case 'completed':
@@ -72,14 +72,14 @@ export const RecordingCard = ({
         return (
           <div className="flex items-center gap-2 text-red-600">
             <AlertCircle className="h-4 w-4" />
-            <span>Error processing recording</span>
+            <span>Erro ao processar gravação</span>
           </div>
         );
       default:
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing... {Math.round(progress)}%</span>
+            <span>Processando... {Math.round(progress)}%</span>
           </div>
         );
     }

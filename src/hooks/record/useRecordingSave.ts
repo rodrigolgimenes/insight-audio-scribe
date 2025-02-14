@@ -24,15 +24,12 @@ export const useRecordingSave = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      // Sanitize filename to prevent issues
       const fileName = `${user.id}/${Date.now()}.webm`.replace(/[^\x00-\x7F]/g, '');
       
       console.log('Creating recording with user ID:', user.id);
 
       if (mediaStream) {
-        mediaStream.getTracks().forEach(track => {
-          track.stop();
-        });
+        mediaStream.getTracks().forEach(track => track.stop());
       }
 
       // Create initial recording entry
@@ -88,7 +85,6 @@ export const useRecordingSave = () => {
         }
 
         if (uploadError) {
-          // Clean up the recording entry if upload fails
           await supabase
             .from('recordings')
             .delete()
@@ -96,25 +92,13 @@ export const useRecordingSave = () => {
           throw new Error(`Failed to upload audio: ${uploadError.message}`);
         }
 
-        // Update recording status after successful upload
-        const { error: updateError } = await supabase
-          .from('recordings')
-          .update({
-            file_path: fileName,
-            status: 'transcribing'
-          })
-          .eq('id', recordingData.id);
-
-        if (updateError) {
-          throw new Error(`Failed to update recording: ${updateError.message}`);
-        }
-
-        // Create note directly here instead of using process-recording
+        // Criar nota com informações iniciais
         const { data: note, error: noteError } = await supabase
           .from('notes')
-          .insert({
+          .upsert({
             recording_id: recordingData.id,
-            title: 'New Recording',
+            user_id: user.id,
+            title: recordingData.title,
             status: 'processing',
             processing_progress: 0
           })
@@ -126,7 +110,20 @@ export const useRecordingSave = () => {
           throw new Error(`Failed to create note: ${noteError.message}`);
         }
 
-        // Start transcription directly
+        // Atualizar status da gravação
+        const { error: updateError } = await supabase
+          .from('recordings')
+          .update({
+            status: 'transcribing'
+          })
+          .eq('id', recordingData.id);
+
+        if (updateError) {
+          throw new Error(`Failed to update recording: ${updateError.message}`);
+        }
+
+        // Iniciar transcrição
+        console.log('Starting transcription for note:', note.id);
         const { error: transcribeError } = await supabase.functions
           .invoke('transcribe-audio', {
             body: { 
@@ -138,14 +135,14 @@ export const useRecordingSave = () => {
         if (transcribeError) {
           console.error('Transcription error:', transcribeError);
           toast({
-            title: "Warning",
-            description: "Recording saved but there was an error starting transcription. System will retry shortly.",
+            title: "Atenção",
+            description: "Gravação salva, mas houve um erro ao iniciar a transcrição. O sistema tentará novamente em breve.",
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Success",
-            description: "Recording saved and transcription started!",
+            title: "Sucesso",
+            description: "Gravação salva e transcrição iniciada!",
           });
         }
       }
@@ -156,8 +153,8 @@ export const useRecordingSave = () => {
       console.error('Error saving recording:', error);
       
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error saving recording",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar gravação",
         variant: "destructive",
       });
     } finally {
