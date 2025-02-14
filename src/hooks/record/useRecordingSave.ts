@@ -136,31 +136,30 @@ export const useRecordingSave = () => {
         }
       }
 
-      // Redirecionar para o dashboard imediatamente após iniciar o processamento
-      navigate("/app");
-
       if (processError) {
         console.error('Processing error:', processError);
-        // Mostrar toast de aviso mas não impedir o redirecionamento
         toast({
-          title: "Aviso",
-          description: "Gravação salva, mas houve um erro no processamento. O sistema tentará processar novamente em breve.",
+          title: "Warning",
+          description: "Recording saved but processing failed to start. It will retry automatically.",
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Sucesso",
-          description: "Gravação salva e processamento iniciado!",
+          title: "Success",
+          description: "Recording saved and processing started!",
         });
       }
+
+      // Navigate anyway since the recording is saved
+      navigate("/app");
       
     } catch (error) {
       console.error('Error saving recording:', error);
       setIsProcessing(false);
       
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao salvar gravação",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error saving recording",
         variant: "destructive",
       });
     } finally {

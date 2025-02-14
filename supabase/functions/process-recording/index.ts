@@ -31,7 +31,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Buscar informações da gravação
+    // Fetch recording information
     const { data: recording, error: recordingError } = await supabase
       .from('recordings')
       .select('*')
@@ -45,7 +45,7 @@ serve(async (req) => {
 
     console.log('[process-recording] Recording data:', recording);
 
-    // Atualizar status para processing
+    // Update status to processing
     const { error: updateError } = await supabase
       .from('recordings')
       .update({ status: 'processing' })
@@ -56,7 +56,7 @@ serve(async (req) => {
       throw new Error('Failed to update recording status');
     }
 
-    // Criar ou recuperar nota existente usando ON CONFLICT DO NOTHING
+    // Create or get existing note using ON CONFLICT DO NOTHING
     const { data: note, error: noteError } = await supabase
       .from('notes')
       .upsert({
@@ -82,13 +82,12 @@ serve(async (req) => {
     }
 
     if (!note) {
-      // Se não conseguimos criar nem recuperar a nota, algo está errado
       throw new Error('Could not create or retrieve note');
     }
 
     console.log('[process-recording] Note:', note);
 
-    // Iniciar transcrição em background
+    // Start transcription in background
     EdgeRuntime.waitUntil((async () => {
       try {
         console.log('[process-recording] Starting transcription process...');
@@ -102,7 +101,7 @@ serve(async (req) => {
           })
           .eq('id', note.id);
         
-        // Dar um tempo para o Storage processar o arquivo
+        // Give Storage time to process the file
         await new Promise(resolve => setTimeout(resolve, 5000));
         
         const { error: transcribeError } = await supabase.functions
@@ -156,7 +155,7 @@ serve(async (req) => {
         details: error instanceof Error ? error.stack : undefined
       }),
       {
-        status: 200, // Mantemos 200 para evitar erro de CORS
+        status: 200, // Keep 200 to avoid CORS error
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
