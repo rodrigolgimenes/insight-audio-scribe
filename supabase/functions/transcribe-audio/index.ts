@@ -124,7 +124,6 @@ serve(async (req) => {
         maxAttempts: 3,
         baseDelay: 10000,
         shouldRetry: (error) => {
-          // Retry on rate limits or server errors
           return error.message.includes('rate limit') || 
                  error.message.includes('server error');
         }
@@ -151,6 +150,21 @@ serve(async (req) => {
       })
       .eq('id', noteId);
 
+    // Start meeting minutes generation
+    console.log('[transcribe-audio] Starting meeting minutes generation...');
+    const { error: minutesError } = await supabase.functions
+      .invoke('generate-meeting-minutes', {
+        body: { 
+          noteId,
+          transcription: transcription.text
+        }
+      });
+
+    if (minutesError) {
+      console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
+      throw minutesError;
+    }
+
     console.log('[transcribe-audio] Process completed successfully');
 
     return new Response(
@@ -163,7 +177,6 @@ serve(async (req) => {
   } catch (error) {
     console.error('[transcribe-audio] Error:', error);
     
-    // Try to update note status to error if we have the noteId
     try {
       const { noteId } = await req.json();
       if (noteId) {

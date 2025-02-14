@@ -5,8 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { transcribeAudio, processWithGPT } from './openAI.ts';
 import { 
   uploadToStorage, 
-  updateRecordingWithTranscription, 
-  createNoteFromTranscription 
+  updateRecordingWithTranscription
 } from './supabaseOperations.ts';
 
 const corsHeaders = {
@@ -21,7 +20,6 @@ serve(async (req) => {
 
   let formData;
   let recordingId;
-  let userId;
   
   try {
     console.log('Starting file processing...');
@@ -56,7 +54,10 @@ serve(async (req) => {
     // Update recording status to processing
     const { error: statusError } = await supabase
       .from('recordings')
-      .update({ status: 'processing' })
+      .update({ 
+        status: 'processing',
+        duration: duration ? parseInt(duration.toString()) : null 
+      })
       .eq('id', recordingId);
 
     if (statusError) {
@@ -83,14 +84,13 @@ serve(async (req) => {
 
     console.log('File uploaded successfully:', { publicUrl });
 
-    // Update recording with file path, duration and status
+    // Update recording with file path and call process-recording
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
         file_path: filePath,
         audio_url: publicUrl,
-        status: 'transcribing',
-        duration: duration ? parseInt(duration.toString()) : null
+        status: 'uploaded'
       })
       .eq('id', recordingId);
 
@@ -99,43 +99,22 @@ serve(async (req) => {
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
-    // Get transcription and process with GPT
-    console.log('Starting transcription...');
-    const transcription = await transcribeAudio(fileBlob, openAIApiKey);
-    console.log('Transcription completed:', transcription.text?.substring(0, 100) + '...');
+    // Call process-recording to handle transcription and note creation
+    const { error: processError } = await supabase.functions
+      .invoke('process-recording', {
+        body: { recordingId }
+      });
 
-    if (!transcription.text) {
-      throw new Error('No transcription text received from OpenAI');
+    if (processError) {
+      throw new Error(`Failed to start processing: ${processError.message}`);
     }
 
-    // Create note and get user ID
-    userId = await createNoteFromTranscription(supabase, recordingId as string, transcription.text, '');
-
-    console.log('Processing with GPT...');
-    const processedContent = await processWithGPT(transcription.text, openAIApiKey, userId);
-    console.log('GPT processing completed');
-
-    // Update recording and note with processed content
-    await updateRecordingWithTranscription(supabase, recordingId as string, transcription.text, processedContent);
-    
-    // Update the note with processed content
-    const { error: noteUpdateError } = await supabase
-      .from('notes')
-      .update({ processed_content: processedContent })
-      .eq('recording_id', recordingId);
-
-    if (noteUpdateError) {
-      console.error('Error updating note with processed content:', noteUpdateError);
-      throw new Error(`Failed to update note with processed content: ${noteUpdateError.message}`);
-    }
-
-    console.log('Processing completed successfully');
+    console.log('Processing started successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        transcription: transcription.text,
-        processedContent
+        message: 'Recording uploaded and processing started'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
