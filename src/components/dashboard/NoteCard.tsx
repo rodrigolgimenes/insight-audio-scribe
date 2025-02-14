@@ -1,7 +1,7 @@
 
 import { Note } from "@/integrations/supabase/types/notes";
 import { Card } from "@/components/ui/card";
-import { CheckSquare } from "lucide-react";
+import { CheckSquare, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { MoveNoteDialog } from "@/components/notes/MoveNoteDialog";
@@ -17,11 +17,6 @@ interface NoteCardProps {
   isSelectionMode: boolean;
   isSelected: boolean;
   onClick: () => void;
-}
-
-interface NoteStatus {
-  status: string;
-  processing_progress: number;
 }
 
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
@@ -62,6 +57,25 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
     },
   });
 
+  // Fetch note processing status
+  const { data: noteStatus } = useQuery({
+    queryKey: ["note-status", note.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notes")
+        .select("status, processing_progress")
+        .eq("id", note.id)
+        .single();
+      return data;
+    },
+    refetchInterval: (query) => {
+      // If no data yet, refetch every 2 seconds
+      if (!query.state.data) return 2000;
+      // If processing is not complete, refetch every 2 seconds
+      return (query.state.data.status !== 'completed' && query.state.data.status !== 'error') ? 2000 : false;
+    },
+  });
+
   const handleCardClick = (e: React.MouseEvent) => {
     if (e.target instanceof HTMLElement && 
         (e.target.closest('[data-dropdown]') || 
@@ -99,25 +113,6 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       console.error('Error moving note:', error);
     }
   };
-
-  // Fetch note processing status
-  const { data: noteStatus } = useQuery<NoteStatus>({
-    queryKey: ["note-status", note.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("notes")
-        .select("status, processing_progress")
-        .eq("id", note.id)
-        .single();
-      return data as NoteStatus;
-    },
-    refetchInterval: (query) => {
-      // If no data yet, refetch every 2 seconds
-      if (!query.state.data) return 2000;
-      // If processing is not complete, refetch every 2 seconds
-      return (query.state.data.status !== 'completed' && query.state.data.status !== 'error') ? 2000 : false;
-    },
-  });
 
   return (
     <Card

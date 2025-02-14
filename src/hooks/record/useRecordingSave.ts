@@ -15,22 +15,16 @@ export const useRecordingSave = () => {
     mediaStream: MediaStream | null,
     audioUrl: string | null
   ) => {
-    if (isProcessing) {
-      console.log('Already processing, preventing duplicate submission');
-      return;
-    }
-
     try {
-      setIsProcessing(true);
-
       if (isRecording) {
-        console.log('Stopping recording...');
         await handleStopRecording();
       }
 
+      setIsProcessing(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
+      // Sanitize filename to prevent issues
       const fileName = `${user.id}/${Date.now()}.webm`.replace(/[^\x00-\x7F]/g, '');
       
       console.log('Creating recording with user ID:', user.id);
@@ -40,13 +34,6 @@ export const useRecordingSave = () => {
           track.stop();
         });
       }
-
-      if (!audioUrl) {
-        throw new Error('No audio data available');
-      }
-
-      const response = await fetch(audioUrl);
-      const blob = await response.blob();
 
       // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
@@ -68,86 +55,96 @@ export const useRecordingSave = () => {
 
       console.log('Recording entry created:', recordingData);
 
-      // Upload with retries
-      let uploadAttempts = 0;
-      const maxAttempts = 3;
-      let uploadError = null;
+      if (audioUrl) {
+        const response = await fetch(audioUrl);
+        const blob = await response.blob();
 
-      while (uploadAttempts < maxAttempts) {
+        // Upload with retries
+        let uploadAttempts = 0;
+        const maxAttempts = 3;
+        let uploadError = null;
+
+        while (uploadAttempts < maxAttempts) {
+          try {
+            const { error } = await supabase.storage
+              .from('audio_recordings')
+              .upload(fileName, blob, {
+                contentType: 'audio/webm',
+                upsert: false
+              });
+
+            if (!error) {
+              uploadError = null;
+              break;
+            }
+            uploadError = error;
+          } catch (error) {
+            uploadError = error;
+          }
+          uploadAttempts++;
+          if (uploadAttempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempts));
+          }
+        }
+
+        if (uploadError) {
+          // Clean up the recording entry if upload fails
+          await supabase
+            .from('recordings')
+            .delete()
+            .eq('id', recordingData.id);
+          throw new Error(`Failed to upload audio: ${uploadError.message}`);
+        }
+
+        // Update recording status after successful upload
+        const { error: updateError } = await supabase
+          .from('recordings')
+          .update({
+            file_path: fileName,
+            status: 'uploaded'
+          })
+          .eq('id', recordingData.id);
+
+        if (updateError) {
+          throw new Error(`Failed to update recording: ${updateError.message}`);
+        }
+      }
+
+      // Initiate processing with retry logic
+      let processAttempts = 0;
+      const maxProcessAttempts = 3;
+      let processError = null;
+
+      while (processAttempts < maxProcessAttempts) {
         try {
-          const { error } = await supabase.storage
-            .from('audio_recordings')
-            .upload(fileName, blob, {
-              contentType: 'audio/webm',
-              upsert: false
+          const { error } = await supabase.functions
+            .invoke('process-recording', {
+              body: { recordingId: recordingData.id },
             });
 
           if (!error) {
-            uploadError = null;
+            processError = null;
             break;
           }
-          uploadError = error;
+          processError = error;
         } catch (error) {
-          uploadError = error;
+          processError = error;
         }
-        uploadAttempts++;
-        if (uploadAttempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempts));
+        processAttempts++;
+        if (processAttempts < maxProcessAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * processAttempts));
         }
       }
 
-      if (uploadError) {
-        // Clean up the recording entry if upload fails
-        await supabase
-          .from('recordings')
-          .delete()
-          .eq('id', recordingData.id);
-        throw new Error(`Failed to upload audio: ${uploadError.message}`);
-      }
+      // Redirecionar para o dashboard imediatamente após iniciar o processamento
+      navigate("/app");
 
-      // Update recording status after successful upload
-      const { error: updateError } = await supabase
-        .from('recordings')
-        .update({
-          status: 'uploaded'
-        })
-        .eq('id', recordingData.id);
-
-      if (updateError) {
-        throw new Error(`Failed to update recording: ${updateError.message}`);
-      }
-
-      // Criar nota diretamente aqui para evitar duplicação
-      const { error: noteError } = await supabase
-        .from('notes')
-        .insert({
-          title: recordingData.title,
-          recording_id: recordingData.id,
-          user_id: user.id,
-          status: 'pending',
-          processing_progress: 0,
-          processed_content: ''
-        });
-
-      if (noteError) {
-        console.error('Error creating note:', noteError);
-        throw new Error(`Failed to create note: ${noteError.message}`);
-      }
-
-      // Iniciar transcrição
-      const { error: transcribeError } = await supabase.functions
-        .invoke('transcribe-audio', {
-          body: { 
-            recordingId: recordingData.id
-          }
-        });
-
-      if (transcribeError) {
-        console.error('Transcription error:', transcribeError);
-        // Não jogamos o erro aqui pois a gravação e nota já foram salvas
+      if (processError) {
+        console.error('Processing error:', processError);
+        // Mostrar toast de aviso mas não impedir o redirecionamento
         toast({
           title: "Aviso",
-          description: "Gravação salva, mas houve um erro ao iniciar a transcrição. O sistema tentará novamente em breve.",
+          description: "Gravação salva, mas houve um erro no processamento. O sistema tentará processar novamente em breve.",
           variant: "destructive",
         });
       } else {
@@ -156,9 +153,6 @@ export const useRecordingSave = () => {
           description: "Gravação salva e processamento iniciado!",
         });
       }
-
-      // Navigate anyway since the recording is saved
-      navigate("/app");
       
     } catch (error) {
       console.error('Error saving recording:', error);
