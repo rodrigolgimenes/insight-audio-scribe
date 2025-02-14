@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AudioControlBar } from "./AudioControlBar";
 import { useMeetingMinutes } from "./minutes/useMeetingMinutes";
@@ -78,13 +77,25 @@ export const MeetingMinutes = ({
     setDraftContent(null);
   };
 
+  const handleRegenerate = async () => {
+    try {
+      await generateMinutes({ isRegeneration: true });
+    } catch (error) {
+      console.error('Error regenerating minutes:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to regenerate meeting minutes",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     if (!isEditing) {
       setDraftContent(null);
     }
   }, [isEditing]);
 
-  // Auto-generate minutes only if needed
   useEffect(() => {
     const shouldGenerateMinutes = 
       !isLoadingInitialContent &&
@@ -138,7 +149,7 @@ export const MeetingMinutes = ({
           
           {minutes && (
             <RegenerateButton
-              onRegenerate={() => generateMinutes({ isRegeneration: true })}
+              onRegenerate={handleRegenerate}
               isGenerating={isGenerating}
               disabled={!transcript || isEditing}
             />

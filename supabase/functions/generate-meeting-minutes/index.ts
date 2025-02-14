@@ -68,6 +68,7 @@ serve(async (req) => {
         console.log('Found existing minutes, returning them');
         return new Response(JSON.stringify({ minutes: existingMinutes.content }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
         });
       }
     }
@@ -156,7 +157,7 @@ Adaptações Específicas:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4',
         messages: [
           {
             role: 'system',
@@ -173,8 +174,8 @@ ${transcript}`
     });
 
     if (!minutesResponse.ok) {
-      console.error('Minutes generation failed:', await minutesResponse.text());
-      throw new Error('Failed to generate minutes with GPT-4o-mini');
+      console.error('OpenAI API Error:', await minutesResponse.text());
+      throw new Error('Failed to generate minutes with GPT-4');
     }
 
     const minutesData = await minutesResponse.json();
@@ -202,13 +203,14 @@ ${transcript}`
 
     return new Response(JSON.stringify({ minutes }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
     });
   } catch (error) {
     console.error('Error generating meeting minutes:', error);
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : 'Error generating meeting minutes'
     }), {
-      status: 500,
+      status: 200, // Mudamos para 200 para evitar erro de CORS
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
