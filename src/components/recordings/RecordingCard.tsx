@@ -26,18 +26,20 @@ export const RecordingCard = ({
   onPlay,
 }: RecordingCardProps) => {
   const formatDuration = (duration: number | null) => {
-    if (!duration) return "Unknown duration";
+    if (!duration) return "0:00";
     const minutes = Math.floor(duration / (60 * 1000));
     const seconds = Math.floor((duration % (60 * 1000)) / 1000);
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const getStatusMessage = (recording: Recording, progress: number) => {
+    console.log('Status:', recording.status, 'Progress:', progress);
+    
     if (recording.status === 'completed' && recording.transcription?.includes('No audio was captured')) {
       return (
         <div className="flex items-center gap-2 text-yellow-600">
           <AlertCircle className="h-4 w-4" />
-          <span>No audio was captured in this recording</span>
+          <span>No audio was captured</span>
         </div>
       );
     }
@@ -45,24 +47,25 @@ export const RecordingCard = ({
     switch (recording.status) {
       case 'pending':
       case 'processing':
+      case 'uploaded':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing audio... {progress}%</span>
+            <span>Processing audio... {Math.round(progress)}%</span>
           </div>
         );
       case 'transcribing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcribing... {progress}%</span>
+            <span>Transcribing... {Math.round(progress)}%</span>
           </div>
         );
       case 'completed':
         return (
           <div className="flex items-center gap-2 text-green-600">
             <CheckCircle2 className="h-4 w-4" />
-            <span>Ready</span>
+            <span>Pronto</span>
           </div>
         );
       case 'error':
@@ -73,7 +76,12 @@ export const RecordingCard = ({
           </div>
         );
       default:
-        return null;
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Processing... {Math.round(progress)}%</span>
+          </div>
+        );
     }
   };
 
@@ -88,22 +96,16 @@ export const RecordingCard = ({
       <CardContent className="space-y-4">
         {getStatusMessage(recording, progress)}
         
-        {recording.status !== 'completed' && recording.status !== 'error' && progress > 0 && (
+        {['pending', 'processing', 'transcribing', 'uploaded'].includes(recording.status) && progress > 0 && (
           <Progress value={progress} className="w-full" />
         )}
 
         {recording.status === 'completed' && !recording.transcription?.includes('No audio was captured') && (
           <>
             <div className="text-sm text-gray-600">
-              <h3 className="font-semibold mb-1">Transcription:</h3>
+              <h3 className="font-semibold mb-1">Transcrição:</h3>
               <p className="line-clamp-3">{recording.transcription}</p>
             </div>
-            {recording.summary && (
-              <div className="text-sm text-gray-600">
-                <h3 className="font-semibold mb-1">Summary:</h3>
-                <p className="line-clamp-3">{recording.summary}</p>
-              </div>
-            )}
           </>
         )}
         <div className="flex items-center gap-4 text-sm text-gray-500">
