@@ -10,15 +10,15 @@ import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { RecordingActions } from "@/components/record/RecordingActions";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useRecordingSave } from "@/components/record/useRecordingSave";
+import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 
 const SimpleRecord = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
-  const { isUploading, isProcessing } = useFileUpload();
-  const { saveRecording } = useRecordingSave();
+  const { isUploading, isProcessing: isFileProcessing } = useFileUpload();
+  const { saveRecording, isProcessing: isSaveProcessing } = useRecordingSave();
 
   const {
     isRecording,
@@ -60,11 +60,11 @@ const SimpleRecord = () => {
     });
   };
 
-  const handleSave = () => {
-    saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
+  const handleSave = async () => {
+    await saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
   };
 
-  const isLoading = isTranscribing || isSaving || isUploading || isProcessing;
+  const isLoading = isTranscribing || isSaving || isUploading || isFileProcessing || isSaveProcessing;
 
   return (
     <SidebarProvider>
@@ -95,7 +95,7 @@ const SimpleRecord = () => {
 
                   <RecordingActions
                     onSave={handleSave}
-                    isSaving={isSaving}
+                    isSaving={isLoading}
                     isLoading={isLoading}
                   />
                 </>

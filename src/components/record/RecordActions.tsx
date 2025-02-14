@@ -14,7 +14,7 @@ interface RecordActionsProps {
 
 export const RecordActions = ({ 
   onSave, 
-  isSaving, 
+  isSaving,
   isRecording,
   keepAudio,
   onKeepAudioChange,
@@ -30,13 +30,6 @@ export const RecordActions = ({
       >
         <Settings className="w-4 h-4" />
         Settings
-      </Button>
-      <Button 
-        className="bg-[#E91E63] hover:bg-[#D81B60] gap-2"
-        onClick={onSave}
-        disabled={!isRecording || isSaving}
-      >
-        {isSaving ? 'Saving...' : 'Create note'}
       </Button>
 
       <RecordSettingsDialog
