@@ -45,11 +45,11 @@ serve(async (req) => {
   }
 
   try {
-    const { noteId, recordingId } = await req.json();
-    console.log('Starting transcription process for recording:', recordingId);
+    const { recordingId } = await req.json();
+    console.log('[transcribe-audio] Starting transcription process for recording:', recordingId);
     
-    if (!recordingId || !noteId) {
-      throw new Error('Recording ID and Note ID are required');
+    if (!recordingId) {
+      throw new Error('Recording ID is required');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -73,6 +73,17 @@ serve(async (req) => {
       throw new Error('Recording not found');
     }
 
+    // Get associated note
+    const { data: note, error: noteError } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('recording_id', recordingId)
+      .single();
+
+    if (noteError || !note) {
+      throw new Error('Note not found');
+    }
+
     // Update note status to downloading
     await supabase
       .from('notes')
@@ -80,7 +91,7 @@ serve(async (req) => {
         status: 'processing',
         processing_progress: 25 
       })
-      .eq('id', noteId);
+      .eq('id', note.id);
 
     console.log('[transcribe-audio] Starting download with retry...');
     const audioData = await downloadWithRetry(supabase, recording.file_path);
@@ -93,7 +104,7 @@ serve(async (req) => {
         status: 'transcribing',
         processing_progress: 50 
       })
-      .eq('id', noteId);
+      .eq('id', note.id);
 
     // Convert Blob to File for OpenAI API
     const formData = new FormData();
@@ -148,14 +159,14 @@ serve(async (req) => {
         processing_progress: 100,
         original_transcript: transcription.text
       })
-      .eq('id', noteId);
+      .eq('id', note.id);
 
     // Start meeting minutes generation
     console.log('[transcribe-audio] Starting meeting minutes generation...');
     const { error: minutesError } = await supabase.functions
       .invoke('generate-meeting-minutes', {
         body: { 
-          noteId,
+          noteId: note.id,
           transcription: transcription.text
         }
       });
@@ -178,20 +189,29 @@ serve(async (req) => {
     console.error('[transcribe-audio] Error:', error);
     
     try {
-      const { noteId } = await req.json();
-      if (noteId) {
+      const { recordingId } = await req.json();
+      if (recordingId) {
         const supabase = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
           Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         );
-        
-        await supabase
+
+        // Get note id from recording
+        const { data: note } = await supabase
           .from('notes')
-          .update({ 
-            status: 'error',
-            processing_progress: 0
-          })
-          .eq('id', noteId);
+          .select('id')
+          .eq('recording_id', recordingId)
+          .single();
+        
+        if (note) {
+          await supabase
+            .from('notes')
+            .update({ 
+              status: 'error',
+              processing_progress: 0
+            })
+            .eq('id', note.id);
+        }
       }
     } catch {
       // Ignore errors in error handling

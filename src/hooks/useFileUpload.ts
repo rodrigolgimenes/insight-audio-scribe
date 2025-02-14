@@ -100,14 +100,43 @@ export const useFileUpload = () => {
         throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
 
-      // Process the recording
-      const { error: processError } = await supabase.functions
-        .invoke('process-recording', {
-          body: { recordingId: recordingData.id }
+      // Atualizar status do recording para uploaded
+      const { error: updateError } = await supabase
+        .from('recordings')
+        .update({ status: 'uploaded' })
+        .eq('id', recordingData.id);
+
+      if (updateError) {
+        throw new Error(`Error updating recording status: ${updateError.message}`);
+      }
+
+      // Criar nota diretamente aqui para evitar duplicação
+      const { error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingData.title,
+          recording_id: recordingData.id,
+          user_id: user.id,
+          status: 'pending',
+          processing_progress: 0,
+          processed_content: ''
         });
 
-      if (processError) {
-        throw new Error(`Error processing file: ${processError.message}`);
+      if (noteError) {
+        console.error('Error creating note:', noteError);
+        throw new Error(`Failed to create note: ${noteError.message}`);
+      }
+
+      // Process the recording
+      const { error: transcribeError } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { 
+            recordingId: recordingData.id
+          }
+        });
+
+      if (transcribeError) {
+        throw new Error(`Error processing file: ${transcribeError.message}`);
       }
 
       console.log('File processed successfully');
