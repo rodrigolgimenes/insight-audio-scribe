@@ -55,29 +55,48 @@ serve(async (req) => {
       throw new Error('Failed to update recording status');
     }
 
-    // Start a database transaction for note creation
-    const { data: note, error: noteError } = await supabase
+    // Verificar se já existe uma nota para esta gravação
+    const { data: existingNote, error: noteCheckError } = await supabase
       .from('notes')
-      .insert({
-        title: recording.title,
-        recording_id: recordingId,
-        user_id: recording.user_id,
-        duration: recording.duration,
-        processed_content: '', // Use the new default value
-        status: 'processing',
-        processing_progress: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+      .select('id, status')
+      .eq('recording_id', recordingId)
+      .maybeSingle();
 
-    if (noteError) {
-      console.error('[process-recording] Error creating note:', noteError);
-      throw new Error('Failed to create note');
+    if (noteCheckError) {
+      console.error('[process-recording] Error checking existing note:', noteCheckError);
+      throw new Error('Failed to check existing note');
     }
 
-    console.log('[process-recording] Note created:', note);
+    let note;
+    if (!existingNote) {
+      // Criar nota apenas se não existir
+      const { data: newNote, error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recording.title,
+          recording_id: recordingId,
+          user_id: recording.user_id,
+          duration: recording.duration,
+          processed_content: '', 
+          status: 'processing',
+          processing_progress: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (noteError) {
+        console.error('[process-recording] Error creating note:', noteError);
+        throw new Error('Failed to create note');
+      }
+
+      note = newNote;
+      console.log('[process-recording] Note created:', note);
+    } else {
+      note = existingNote;
+      console.log('[process-recording] Using existing note:', note);
+    }
 
     // Iniciar transcrição em background
     EdgeRuntime.waitUntil((async () => {
