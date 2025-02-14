@@ -214,6 +214,7 @@ export type Database = {
           audio_url: string | null
           created_at: string
           duration: number | null
+          error_message: string | null
           full_prompt: string | null
           id: string
           original_transcript: string | null
@@ -229,6 +230,7 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           duration?: number | null
+          error_message?: string | null
           full_prompt?: string | null
           id?: string
           original_transcript?: string | null
@@ -244,6 +246,7 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           duration?: number | null
+          error_message?: string | null
           full_prompt?: string | null
           id?: string
           original_transcript?: string | null
