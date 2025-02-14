@@ -105,14 +105,19 @@ export const MeetingMinutes = ({
 
     if (shouldGenerateMinutes) {
       console.log('Auto-generating new minutes');
-      generateMinutes({ isRegeneration: false }).catch(error => {
-        console.error('Error auto-generating minutes:', error);
-        toast({
-          title: "Error",
-          description: "Failed to generate initial meeting minutes. You can try regenerating them manually.",
-          variant: "destructive",
-        });
-      });
+      const generateInitialMinutes = async () => {
+        try {
+          await generateMinutes({ isRegeneration: false });
+        } catch (error) {
+          console.error('Error auto-generating minutes:', error);
+          toast({
+            title: "Error",
+            description: "Failed to generate initial meeting minutes. You can try regenerating them manually.",
+            variant: "destructive",
+          });
+        }
+      };
+      generateInitialMinutes();
     }
   }, [
     isLoadingInitialContent,

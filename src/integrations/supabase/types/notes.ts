@@ -12,9 +12,7 @@ export interface Note {
   duration: number | null;
   audio_url: string | null;
   folder?: {
-    id: string;
-    name: string;
-    description: string | null;
+    folder_id: string;
   } | null;
   tags?: Array<{
     id: string;
