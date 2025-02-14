@@ -107,8 +107,9 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       return data;
     },
     refetchInterval: (data) => {
+      if (!data) return false;
       // Refetch every 2 seconds if the note is still processing
-      return data?.status !== 'completed' && data?.status !== 'error' ? 2000 : false;
+      return data.status !== 'completed' && data.status !== 'error' ? 2000 : false;
     },
   });
 
