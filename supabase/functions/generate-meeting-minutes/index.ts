@@ -53,26 +53,6 @@ serve(async (req) => {
 
     const transcript = noteData.original_transcript;
 
-    // Check for existing minutes if not regenerating
-    if (!isRegeneration) {
-      console.log('Checking for existing minutes...');
-      const { data: existingMinutes, error: existingError } = await supabase
-        .from('meeting_minutes')
-        .select('content')
-        .eq('note_id', noteId)
-        .maybeSingle();
-
-      if (existingError) {
-        console.error('Error checking existing minutes:', existingError);
-      } else if (existingMinutes) {
-        console.log('Found existing minutes, returning them');
-        return new Response(JSON.stringify({ minutes: existingMinutes.content }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        });
-      }
-    }
-
     // Get the user ID from the note
     const { data: noteUserData, error: noteUserError } = await supabase
       .from('notes')
@@ -109,23 +89,33 @@ Instruções Gerais:
    - ### para subseções
 4. Inclua apenas informações presentes na transcrição.
 5. Mantenha um tom profissional e objetivo.
+6. Use emojis corporativos apropriados para melhorar a legibilidade:
+   - 📅 Para datas e prazos
+   - ✅ Para decisões tomadas
+   - 📋 Para listas de tarefas
+   - 🎯 Para objetivos
+   - 👥 Para participantes
+   - 📊 Para dados e métricas
+   - ⚠️ Para pontos de atenção
+   - 🔄 Para próximos passos
+   - 💡 Para ideias e sugestões
 
 Estrutura da Ata:
-# Ata de Reunião
+# 📝 Ata de Reunião
 
-## Contexto e Objetivos
+## 🎯 Contexto e Objetivos
 [Resumo do contexto e objetivos principais da reunião]
 
-## Principais Tópicos Discutidos
+## 💬 Principais Tópicos Discutidos
 [Liste e detalhe os principais assuntos abordados]
 
-## Decisões e Encaminhamentos
+## ✅ Decisões e Encaminhamentos
 [Liste as decisões tomadas e próximos passos definidos]
 
-## Pontos de Ação
+## 📋 Pontos de Ação
 [Liste as ações acordadas, responsáveis e prazos quando mencionados]
 
-## Informações Adicionais
+## ℹ️ Informações Adicionais
 [Outras informações relevantes mencionadas na reunião]`;
 
     // Add persona context if available
@@ -136,7 +126,7 @@ Estrutura da Ata:
 
       systemPrompt += `
 
-Contexto do Profissional:
+👤 Contexto do Profissional:
 - Função: ${roleContext}
 - Áreas de Foco: ${focusAreas}
 - Vocabulário Técnico: ${vocabulary}
@@ -148,7 +138,7 @@ Adaptações Específicas:
 4. Mantenha o foco nas implicações práticas para este perfil profissional`;
     }
 
-    console.log('Generating minutes with GPT-4...');
+    console.log('Generating initial minutes with GPT-4...');
 
     const minutesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -157,7 +147,7 @@ Adaptações Específicas:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -170,6 +160,7 @@ Adaptações Específicas:
 ${transcript}`
           }
         ],
+        temperature: 0.7
       }),
     });
 
@@ -179,7 +170,7 @@ ${transcript}`
     }
 
     const minutesData = await minutesResponse.json();
-    const minutes = minutesData.choices[0].message.content;
+    let minutes = minutesData.choices[0].message.content;
 
     console.log('Minutes generated successfully, saving to database...');
 
@@ -207,10 +198,14 @@ ${transcript}`
     });
   } catch (error) {
     console.error('Error generating meeting minutes:', error);
+    
+    // Retorna uma resposta de erro mais detalhada
+    const errorMessage = error instanceof Error ? error.message : 'Error generating meeting minutes';
     return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : 'Error generating meeting minutes'
+      error: errorMessage,
+      details: error instanceof Error ? error.stack : undefined
     }), {
-      status: 200, // Mudamos para 200 para evitar erro de CORS
+      status: 200, // Mantemos 200 para evitar erro de CORS
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
