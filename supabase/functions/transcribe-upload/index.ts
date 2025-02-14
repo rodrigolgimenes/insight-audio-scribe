@@ -84,13 +84,13 @@ serve(async (req) => {
 
     console.log('File uploaded successfully:', { publicUrl });
 
-    // Update recording with file path and call process-recording
+    // Update recording with file path
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
         file_path: filePath,
         audio_url: publicUrl,
-        status: 'uploaded'
+        status: 'transcribing'
       })
       .eq('id', recordingId);
 
@@ -99,22 +99,43 @@ serve(async (req) => {
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
-    // Call process-recording to handle transcription and note creation
-    const { error: processError } = await supabase.functions
-      .invoke('process-recording', {
-        body: { recordingId }
-      });
+    // Create note
+    const { data: note, error: noteError } = await supabase
+      .from('notes')
+      .insert({
+        recording_id: recordingId,
+        title: 'New Recording',
+        status: 'processing',
+        processing_progress: 0
+      })
+      .select()
+      .single();
 
-    if (processError) {
-      throw new Error(`Failed to start processing: ${processError.message}`);
+    if (noteError) {
+      console.error('Error creating note:', noteError);
+      throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
-    console.log('Processing started successfully');
+    // Start transcription process
+    const { error: transcribeError } = await supabase.functions
+      .invoke('transcribe-audio', {
+        body: { 
+          noteId: note.id,
+          recordingId 
+        }
+      });
+
+    if (transcribeError) {
+      throw new Error(`Failed to start transcription: ${transcribeError.message}`);
+    }
+
+    console.log('Transcription process started successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Recording uploaded and processing started'
+        message: 'Recording uploaded and transcription started',
+        noteId: note.id
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
