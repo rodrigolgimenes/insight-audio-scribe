@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AudioControlBar } from "./AudioControlBar";
 import { useMeetingMinutes } from "./minutes/useMeetingMinutes";
@@ -52,16 +53,11 @@ export const MeetingMinutes = ({
   };
 
   const handleSave = async () => {
+    if (!draftContent) return;
+    
     try {
-      console.log('Saving draft content:', draftContent);
-      if (draftContent !== null) {
-        await updateMinutes(draftContent);
-        toast({
-          title: "Success",
-          description: "Meeting minutes saved successfully",
-        });
-        setIsEditing(false);
-      }
+      await updateMinutes(draftContent);
+      setIsEditing(false);
     } catch (error) {
       console.error('Error saving minutes:', error);
       toast({
@@ -78,23 +74,26 @@ export const MeetingMinutes = ({
   };
 
   const handleRegenerate = async () => {
+    if (!transcript) {
+      toast({
+        title: "Error",
+        description: "Cannot regenerate minutes without transcript",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await generateMinutes({ isRegeneration: true });
     } catch (error) {
       console.error('Error regenerating minutes:', error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to regenerate meeting minutes",
+        description: "Failed to regenerate meeting minutes",
         variant: "destructive",
       });
     }
   };
-
-  useEffect(() => {
-    if (!isEditing) {
-      setDraftContent(null);
-    }
-  }, [isEditing]);
 
   useEffect(() => {
     const shouldGenerateMinutes = 
@@ -106,7 +105,14 @@ export const MeetingMinutes = ({
 
     if (shouldGenerateMinutes) {
       console.log('Auto-generating new minutes');
-      generateMinutes({ isRegeneration: false });
+      generateMinutes({ isRegeneration: false }).catch(error => {
+        console.error('Error auto-generating minutes:', error);
+        toast({
+          title: "Error",
+          description: "Failed to generate initial meeting minutes. You can try regenerating them manually.",
+          variant: "destructive",
+        });
+      });
     }
   }, [
     isLoadingInitialContent,
@@ -114,7 +120,8 @@ export const MeetingMinutes = ({
     minutes,
     transcript,
     isGenerating,
-    generateMinutes
+    generateMinutes,
+    toast
   ]);
 
   if (isLoadingInitialContent || isLoadingMinutes) {

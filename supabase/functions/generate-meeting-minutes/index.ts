@@ -19,6 +19,7 @@ serve(async (req) => {
 
   try {
     const { noteId, isRegeneration } = await req.json() as RequestBody;
+    console.log('Starting minutes generation with params:', { noteId, isRegeneration });
 
     if (!noteId) {
       throw new Error('Note ID is required');
@@ -32,17 +33,14 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
-    console.log('Starting minutes generation with:', {
-      noteId,
-      isRegeneration
-    });
-
+    console.log('Initializing Supabase client...');
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // First fetch the transcript from the note
+    console.log('Fetching note data...');
     const { data: noteData, error: noteError } = await supabase
       .from('notes')
-      .select('original_transcript')
+      .select('original_transcript, user_id')
       .eq('id', noteId)
       .single();
 
@@ -52,24 +50,14 @@ serve(async (req) => {
     }
 
     const transcript = noteData.original_transcript;
-
-    // Get the user ID from the note
-    const { data: noteUserData, error: noteUserError } = await supabase
-      .from('notes')
-      .select('user_id')
-      .eq('id', noteId)
-      .single();
-
-    if (noteUserError) {
-      console.error('Error fetching note user data:', noteUserError);
-      throw new Error('Failed to fetch note data');
-    }
+    const userId = noteData.user_id;
 
     // Always fetch fresh persona data
+    console.log('Fetching persona data...');
     const { data: personaData, error: personaError } = await supabase
       .from('meeting_personas')
       .select('*')
-      .eq('user_id', noteUserData.user_id)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (personaError && personaError.code !== 'PGRST116') {
@@ -98,25 +86,7 @@ Instruções Gerais:
    - 📊 Para dados e métricas
    - ⚠️ Para pontos de atenção
    - 🔄 Para próximos passos
-   - 💡 Para ideias e sugestões
-
-Estrutura da Ata:
-# 📝 Ata de Reunião
-
-## 🎯 Contexto e Objetivos
-[Resumo do contexto e objetivos principais da reunião]
-
-## 💬 Principais Tópicos Discutidos
-[Liste e detalhe os principais assuntos abordados]
-
-## ✅ Decisões e Encaminhamentos
-[Liste as decisões tomadas e próximos passos definidos]
-
-## 📋 Pontos de Ação
-[Liste as ações acordadas, responsáveis e prazos quando mencionados]
-
-## ℹ️ Informações Adicionais
-[Outras informações relevantes mencionadas na reunião]`;
+   - 💡 Para ideias e sugestões`;
 
     // Add persona context if available
     if (personaData) {
@@ -124,9 +94,7 @@ Estrutura da Ata:
       const focusAreas = personaData.focus_areas?.join(', ') || '';
       const vocabulary = personaData.custom_vocabulary?.join('; ') || '';
 
-      systemPrompt += `
-
-👤 Contexto do Profissional:
+      systemPrompt += `\n\n👤 Contexto do Profissional:
 - Função: ${roleContext}
 - Áreas de Foco: ${focusAreas}
 - Vocabulário Técnico: ${vocabulary}
@@ -138,7 +106,7 @@ Adaptações Específicas:
 4. Mantenha o foco nas implicações práticas para este perfil profissional`;
     }
 
-    console.log('Generating initial minutes with GPT-4...');
+    console.log('Generating minutes with GPT-4...');
 
     const minutesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -155,9 +123,7 @@ Adaptações Específicas:
           },
           {
             role: 'user',
-            content: `Por favor, gere uma ata detalhada para esta reunião com base na seguinte transcrição:
-
-${transcript}`
+            content: `Por favor, gere uma ata detalhada para esta reunião com base na seguinte transcrição:\n\n${transcript}`
           }
         ],
         temperature: 0.7
@@ -165,16 +131,17 @@ ${transcript}`
     });
 
     if (!minutesResponse.ok) {
-      console.error('OpenAI API Error:', await minutesResponse.text());
-      throw new Error('Failed to generate minutes with GPT-4');
+      const errorText = await minutesResponse.text();
+      console.error('OpenAI API Error:', errorText);
+      throw new Error(`Failed to generate minutes with GPT-4: ${errorText}`);
     }
 
     const minutesData = await minutesResponse.json();
-    let minutes = minutesData.choices[0].message.content;
+    const minutes = minutesData.choices[0].message.content;
 
     console.log('Minutes generated successfully, saving to database...');
 
-    // If regenerating, update existing record; otherwise insert new one
+    // Save the minutes
     const { error: upsertError } = await supabase
       .from('meeting_minutes')
       .upsert({
@@ -199,14 +166,12 @@ ${transcript}`
   } catch (error) {
     console.error('Error generating meeting minutes:', error);
     
-    // Retorna uma resposta de erro mais detalhada
-    const errorMessage = error instanceof Error ? error.message : 'Error generating meeting minutes';
     return new Response(JSON.stringify({
-      error: errorMessage,
+      error: error instanceof Error ? error.message : 'Error generating meeting minutes',
       details: error instanceof Error ? error.stack : undefined
     }), {
-      status: 200, // Mantemos 200 para evitar erro de CORS
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200 // Mantemos 200 para evitar erro de CORS
     });
   }
 });
