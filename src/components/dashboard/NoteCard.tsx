@@ -111,10 +111,11 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         .single();
       return data as NoteStatus;
     },
-    refetchInterval: (data) => {
-      // Refetch every 2 seconds if the note is still processing
+    refetchInterval: (data: NoteStatus | undefined) => {
+      // If no data yet, refetch every 2 seconds
       if (!data) return 2000;
-      return data.status !== 'completed' && data.status !== 'error' ? 2000 : false;
+      // If processing is not complete, refetch every 2 seconds
+      return (data.status !== 'completed' && data.status !== 'error') ? 2000 : false;
     },
   });
 
