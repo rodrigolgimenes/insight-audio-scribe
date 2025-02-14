@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -7,17 +7,8 @@ import { getMediaDuration } from "@/utils/mediaUtils";
 
 export const useFileUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [shouldNavigate, setShouldNavigate] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (shouldNavigate) {
-      navigate("/app");
-      setShouldNavigate(false);
-    }
-  }, [shouldNavigate, navigate]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,7 +32,6 @@ export const useFileUpload = () => {
     }
 
     setIsUploading(true);
-    setIsProcessing(true);
 
     try {
       console.log('Getting media duration...');
@@ -100,7 +90,7 @@ export const useFileUpload = () => {
         throw new Error(`Failed to upload file: ${uploadError.message}`);
       }
 
-      // Atualizar status do recording para uploaded
+      // Update recording status to uploaded
       const { error: updateError } = await supabase
         .from('recordings')
         .update({ status: 'uploaded' })
@@ -110,7 +100,7 @@ export const useFileUpload = () => {
         throw new Error(`Error updating recording status: ${updateError.message}`);
       }
 
-      // Criar nota diretamente aqui para evitar duplicação
+      // Create note
       const { error: noteError } = await supabase
         .from('notes')
         .insert({
@@ -127,25 +117,32 @@ export const useFileUpload = () => {
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
-      // Process the recording
-      const { error: transcribeError } = await supabase.functions
+      // Start processing in background
+      supabase.functions
         .invoke('transcribe-audio', {
           body: { 
             recordingId: recordingData.id
           }
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error starting transcription:', error);
+            toast({
+              title: "Warning",
+              description: "File uploaded but transcription failed to start. It will retry automatically.",
+              variant: "destructive",
+            });
+          }
         });
 
-      if (transcribeError) {
-        throw new Error(`Error processing file: ${transcribeError.message}`);
-      }
-
-      console.log('File processed successfully');
+      // Show success message and redirect immediately
       toast({
         title: "Success",
-        description: "File uploaded and processing started!",
+        description: "File uploaded successfully! You can track the transcription progress in the dashboard.",
       });
 
-      setShouldNavigate(true);
+      // Redirect to dashboard
+      navigate("/app");
 
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -159,7 +156,6 @@ export const useFileUpload = () => {
       });
     } finally {
       setIsUploading(false);
-      setIsProcessing(false);
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) {
         fileInput.value = '';
@@ -169,7 +165,6 @@ export const useFileUpload = () => {
 
   return {
     isUploading,
-    isProcessing,
     handleFileUpload
   };
 };
