@@ -105,72 +105,70 @@ export const useRecordingSave = () => {
         throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
 
-      // Create note entry using unique constraint
-      console.log('Creating note for recording:', recordingData.id);
-      const { data: existingNote } = await supabase
-        .from('notes')
-        .select()
-        .eq('recording_id', recordingData.id)
-        .single();
-
-      if (!existingNote) {
-        const { error: noteError } = await supabase
-          .from('notes')
-          .insert({
-            recording_id: recordingData.id,
-            user_id: user.id,
-            title: recordingData.title,
-            status: 'processing',
-            processing_progress: 0
-          });
-
-        if (noteError) {
-          console.error('Error creating note:', noteError);
-          throw new Error(`Failed to create note: ${noteError.message}`);
-        }
-      }
-
-      // Update recording status
+      // Update recording status after successful upload
       const { error: updateError } = await supabase
         .from('recordings')
-        .update({ status: 'transcribing' })
+        .update({
+          file_path: fileName,
+          status: 'uploaded'
+        })
         .eq('id', recordingData.id);
 
       if (updateError) {
         throw new Error(`Failed to update recording: ${updateError.message}`);
       }
 
-      // Start transcription
-      const { error: transcribeError } = await supabase.functions
-        .invoke('transcribe-audio', {
-          body: { 
-            noteId: existingNote?.id,
-            recordingId: recordingData.id 
-          }
-        });
+      // Initiate processing with retry logic
+      let processAttempts = 0;
+      const maxProcessAttempts = 3;
+      let processError = null;
 
-      if (transcribeError) {
-        console.error('Transcription error:', transcribeError);
+      while (processAttempts < maxProcessAttempts) {
+        try {
+          const { error } = await supabase.functions
+            .invoke('process-recording', {
+              body: { recordingId: recordingData.id },
+            });
+
+          if (!error) {
+            processError = null;
+            break;
+          }
+          processError = error;
+        } catch (error) {
+          processError = error;
+        }
+        processAttempts++;
+        if (processAttempts < maxProcessAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * processAttempts));
+        }
+      }
+
+      if (processError) {
+        console.error('Processing error:', processError);
+        // Don't throw here, just show a warning toast since the recording is saved
         toast({
-          title: "Warning",
-          description: "Recording saved, but there was an error starting transcription. The system will try again soon.",
-          variant: "destructive",
+          title: "Aviso",
+          description: "Gravação salva, mas houve um erro no processamento. O sistema tentará processar novamente em breve.",
+          variant: "destructive", // Changed from "warning" to "destructive" to match allowed types
         });
       } else {
         toast({
-          title: "Success",
-          description: "Recording saved and transcription started!",
+          title: "Sucesso",
+          description: "Gravação salva e processamento iniciado!",
         });
       }
 
+      // Navigate anyway since the recording is saved
       navigate("/app");
       
     } catch (error) {
       console.error('Error saving recording:', error);
+      setIsProcessing(false);
       
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error saving recording",
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Erro ao salvar gravação",
         variant: "destructive",
       });
     } finally {
