@@ -7,54 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface RecordingData {
-  id: string;
-  file_path: string;
-  duration: number;
-}
-
-async function downloadLargeFile(supabase: any, bucketName: string, filePath: string, maxAttempts = 10): Promise<Uint8Array> {
-  let attemptCount = 0;
-  const delayBetweenAttempts = 2000; // 2 segundos entre tentativas
-
-  while (attemptCount < maxAttempts) {
-    try {
-      console.log(`[downloadLargeFile] Attempt ${attemptCount + 1} to download file: ${filePath}`);
-      
-      const { data, error } = await supabase
-        .storage
-        .from(bucketName)
-        .download(filePath);
-
-      if (error) {
-        console.error(`[downloadLargeFile] Error on attempt ${attemptCount + 1}:`, error);
-        throw error;
-      }
-
-      if (!data) {
-        console.log(`[downloadLargeFile] No data received on attempt ${attemptCount + 1}, retrying...`);
-        attemptCount++;
-        await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
-        continue;
-      }
-
-      const arrayBuffer = await data.arrayBuffer();
-      return new Uint8Array(arrayBuffer);
-    } catch (error) {
-      console.error(`[downloadLargeFile] Attempt ${attemptCount + 1} failed:`, error);
-      
-      if (attemptCount + 1 === maxAttempts) {
-        throw new Error(`File not available after ${maxAttempts} attempts: ${filePath}`);
-      }
-
-      attemptCount++;
-      await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
-    }
-  }
-
-  throw new Error(`Failed to download file after ${maxAttempts} attempts`);
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -103,12 +55,7 @@ serve(async (req) => {
       throw new Error('Failed to update recording status');
     }
 
-    // Download do arquivo com retry
-    console.log('[process-recording] Downloading audio file...');
-    const audioData = await downloadLargeFile(supabase, 'audio_recordings', recording.file_path);
-    console.log('[process-recording] Audio file downloaded successfully');
-
-    // Criar entrada na tabela notes
+    // Criar entrada na tabela notes sem esperar pelo download do arquivo
     const { data: note, error: noteError } = await supabase
       .from('notes')
       .insert({
@@ -133,6 +80,9 @@ serve(async (req) => {
     EdgeRuntime.waitUntil((async () => {
       try {
         console.log('[process-recording] Starting transcription process...');
+        
+        // Dar um tempo para o Storage processar o arquivo
+        await new Promise(resolve => setTimeout(resolve, 5000));
         
         const { error: transcribeError } = await supabase.functions
           .invoke('transcribe-audio', {
