@@ -36,7 +36,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       }
     },
     initialData: initialContent || '',
-    staleTime: 5 * 60 * 1000, 
+    staleTime: 0, // Desabilitar cache para sempre buscar dados frescos
     gcTime: 30 * 60 * 1000,
   });
 
@@ -105,11 +105,14 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       }
     },
     onSuccess: (newContent) => {
+      // Atualiza imediatamente o cache
       queryClient.setQueryData(['meeting-minutes', noteId], newContent);
+      // Invalida a query para forçar uma nova busca
+      queryClient.invalidateQueries({ queryKey: ['meeting-minutes', noteId] });
     },
     onError: (error) => {
       console.error('Error updating meeting minutes:', error);
-      throw error; // Propagar o erro para ser tratado no componente
+      throw error;
     }
   });
 

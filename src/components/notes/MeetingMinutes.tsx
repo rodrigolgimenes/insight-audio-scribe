@@ -43,7 +43,7 @@ export const MeetingMinutes = ({
   };
 
   const handleStartEditing = () => {
-    setDraftContent(minutes || '');
+    setDraftContent(minutes);
     setIsEditing(true);
   };
 
@@ -62,7 +62,6 @@ export const MeetingMinutes = ({
           description: "Meeting minutes saved successfully",
         });
         setIsEditing(false);
-        setDraftContent(null);
       }
     } catch (error) {
       console.error('Error saving minutes:', error);
@@ -79,6 +78,12 @@ export const MeetingMinutes = ({
     setDraftContent(null);
   };
 
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftContent(null);
+    }
+  }, [isEditing]);
+
   // Auto-generate minutes only if needed
   useEffect(() => {
     const shouldGenerateMinutes = 
@@ -87,15 +92,6 @@ export const MeetingMinutes = ({
       !minutes &&
       transcript &&
       !isGenerating;
-
-    console.log('Checking auto-generation conditions:', {
-      isLoadingInitialContent,
-      isLoadingMinutes,
-      hasMinutes: !!minutes,
-      hasTranscript: !!transcript,
-      isGenerating,
-      shouldGenerate: shouldGenerateMinutes
-    });
 
     if (shouldGenerateMinutes) {
       console.log('Auto-generating new minutes');
