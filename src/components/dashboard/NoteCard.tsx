@@ -9,7 +9,7 @@ import { RenameNoteDialog } from "@/components/notes/RenameNoteDialog";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { NoteCardHeader } from "./NoteCardHeader";
 import { NoteCardContent } from "./NoteCardContent";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, Query } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface NoteCardProps {
@@ -111,11 +111,11 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         .single();
       return data as NoteStatus;
     },
-    refetchInterval: (data: NoteStatus | undefined) => {
+    refetchInterval: (query) => {
       // If no data yet, refetch every 2 seconds
-      if (!data) return 2000;
+      if (!query.state.data) return 2000;
       // If processing is not complete, refetch every 2 seconds
-      return (data.status !== 'completed' && data.status !== 'error') ? 2000 : false;
+      return (query.state.data.status !== 'completed' && query.state.data.status !== 'error') ? 2000 : false;
     },
   });
 
