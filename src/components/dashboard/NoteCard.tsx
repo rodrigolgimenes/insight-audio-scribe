@@ -19,6 +19,11 @@ interface NoteCardProps {
   onClick: () => void;
 }
 
+interface NoteStatus {
+  status: string;
+  processing_progress: number;
+}
+
 export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCardProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
@@ -96,7 +101,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   };
 
   // Fetch note processing status
-  const { data: noteStatus } = useQuery({
+  const { data: noteStatus } = useQuery<NoteStatus>({
     queryKey: ["note-status", note.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -104,11 +109,11 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         .select("status, processing_progress")
         .eq("id", note.id)
         .single();
-      return data;
+      return data as NoteStatus;
     },
     refetchInterval: (data) => {
-      if (!data) return false;
       // Refetch every 2 seconds if the note is still processing
+      if (!data) return 2000;
       return data.status !== 'completed' && data.status !== 'error' ? 2000 : false;
     },
   });
