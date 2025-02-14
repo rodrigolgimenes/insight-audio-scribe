@@ -1,7 +1,7 @@
 
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Markdown from 'tiptap-markdown';
+import { Markdown } from 'tiptap-markdown';
 import { useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
