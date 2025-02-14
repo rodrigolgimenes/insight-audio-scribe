@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Calendar, AlertCircle } from "lucide-react";
+import { Clock, Calendar, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
 
 interface Recording {
@@ -38,7 +38,46 @@ export const RecordingCard = ({
         </div>
       );
     }
-    return null;
+
+    switch (recording.status) {
+      case 'pending':
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Processing...</span>
+          </div>
+        );
+      case 'processing':
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Processing audio...</span>
+          </div>
+        );
+      case 'transcribing':
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Transcribing...</span>
+          </div>
+        );
+      case 'completed':
+        return (
+          <div className="flex items-center gap-2 text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Ready</span>
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="flex items-center gap-2 text-red-600">
+            <AlertCircle className="h-4 w-4" />
+            <span>Error processing recording</span>
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
