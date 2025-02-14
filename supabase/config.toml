@@ -1,1 +1,23 @@
+
 project_id = "wbptvnuyhgstaaufzysh"
+
+[functions.chat-with-transcript]
+verify_jwt = true
+
+[functions.generate-meeting-minutes]
+verify_jwt = true
+
+[functions.process-recording]
+verify_jwt = true
+
+[functions.process-with-style]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.transcribe-audio]
+verify_jwt = true
+
+[functions.transcribe-upload]
+verify_jwt = true
