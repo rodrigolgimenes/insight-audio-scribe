@@ -15,6 +15,8 @@ export const useRecordingSave = () => {
     mediaStream: MediaStream | null,
     audioUrl: string | null
   ) => {
+    if (isProcessing) return; // Prevent duplicate submissions
+
     try {
       if (isRecording) {
         await handleStopRecording();
@@ -139,14 +141,14 @@ export const useRecordingSave = () => {
         if (transcribeError) {
           console.error('Transcription error:', transcribeError);
           toast({
-            title: "Atenção",
-            description: "Gravação salva, mas houve um erro ao iniciar a transcrição. O sistema tentará novamente em breve.",
+            title: "Warning",
+            description: "Recording saved, but there was an error starting transcription. The system will try again soon.",
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Sucesso",
-            description: "Gravação salva e transcrição iniciada!",
+            title: "Success",
+            description: "Recording saved and transcription started!",
           });
         }
       }
@@ -157,8 +159,8 @@ export const useRecordingSave = () => {
       console.error('Error saving recording:', error);
       
       toast({
-        title: "Erro",
-        description: error instanceof Error ? error.message : "Erro ao salvar gravação",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error saving recording",
         variant: "destructive",
       });
     } finally {

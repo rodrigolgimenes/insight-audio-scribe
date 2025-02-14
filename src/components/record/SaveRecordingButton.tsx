@@ -16,7 +16,7 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
       disabled={isDisabled}
     >
       <Mic className="w-4 h-4" />
-      {isSaving ? 'Salvando...' : 'Criar Nota'}
+      {isSaving ? 'Saving...' : 'Create Note'}
     </Button>
   );
 };
