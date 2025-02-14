@@ -81,24 +81,36 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
     mutationFn: async (content: string) => {
       console.log('Updating minutes with content:', content);
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('meeting_minutes')
-          .upsert({
+          .upsert([{
             note_id: noteId,
-            content,
+            content: content,
             format: 'markdown',
             updated_at: new Date().toISOString()
-          })
-          .select()
-          .single();
+          }], {
+            onConflict: 'note_id'
+          });
 
         if (error) {
           console.error('Error updating meeting minutes:', error);
           throw error;
         }
 
-        console.log('Minutes updated successfully:', data);
-        return content;
+        // Buscar os dados atualizados
+        const { data: updatedData, error: fetchError } = await supabase
+          .from('meeting_minutes')
+          .select('content')
+          .eq('note_id', noteId)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching updated minutes:', fetchError);
+          throw fetchError;
+        }
+
+        console.log('Minutes updated successfully:', updatedData);
+        return updatedData.content;
       } catch (error) {
         console.error('Error in updateMinutes mutation:', error);
         throw error;
@@ -109,9 +121,18 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       queryClient.setQueryData(['meeting-minutes', noteId], newContent);
       // Invalida a query para forçar uma nova busca
       queryClient.invalidateQueries({ queryKey: ['meeting-minutes', noteId] });
+      toast({
+        title: "Success",
+        description: "Meeting minutes saved successfully",
+      });
     },
     onError: (error) => {
       console.error('Error updating meeting minutes:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save meeting minutes",
+        variant: "destructive",
+      });
       throw error;
     }
   });
