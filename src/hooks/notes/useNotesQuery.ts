@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
+import { Query } from "@tanstack/react-query";
 
 export const useNotesQuery = () => {
   const fetchNotes = async () => {
@@ -44,9 +45,9 @@ export const useNotesQuery = () => {
     queryKey: ["notes"],
     queryFn: fetchNotes,
     // Reduzir a frequência de atualizações
-    refetchInterval: (data: Note[] | undefined) => {
+    refetchInterval: (query: Query<Note[], Error, Note[], string[]>) => {
       // Se houver notas em processamento, atualizar a cada 5 segundos
-      if (data?.some(note => note.status === 'processing')) {
+      if (query.state.data?.some(note => note.status === 'processing')) {
         return 5000;
       }
       // Caso contrário, não atualizar automaticamente
