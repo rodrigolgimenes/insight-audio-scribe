@@ -109,7 +109,6 @@ export const useRecordingSave = () => {
       const { error: updateError } = await supabase
         .from('recordings')
         .update({
-          file_path: fileName,
           status: 'uploaded'
         })
         .eq('id', recordingData.id);
@@ -118,39 +117,38 @@ export const useRecordingSave = () => {
         throw new Error(`Failed to update recording: ${updateError.message}`);
       }
 
-      // Initiate processing with retry logic
-      let processAttempts = 0;
-      const maxProcessAttempts = 3;
-      let processError = null;
+      // Criar nota diretamente aqui para evitar duplicação
+      const { error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingData.title,
+          recording_id: recordingData.id,
+          user_id: user.id,
+          status: 'pending',
+          processing_progress: 0,
+          processed_content: ''
+        });
 
-      while (processAttempts < maxProcessAttempts) {
-        try {
-          const { error } = await supabase.functions
-            .invoke('process-recording', {
-              body: { recordingId: recordingData.id },
-            });
-
-          if (!error) {
-            processError = null;
-            break;
-          }
-          processError = error;
-        } catch (error) {
-          processError = error;
-        }
-        processAttempts++;
-        if (processAttempts < maxProcessAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * processAttempts));
-        }
+      if (noteError) {
+        console.error('Error creating note:', noteError);
+        throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
-      if (processError) {
-        console.error('Processing error:', processError);
-        // Don't throw here, just show a warning toast since the recording is saved
+      // Iniciar transcrição
+      const { error: transcribeError } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { 
+            recordingId: recordingData.id
+          }
+        });
+
+      if (transcribeError) {
+        console.error('Transcription error:', transcribeError);
+        // Não jogamos o erro aqui pois a gravação e nota já foram salvas
         toast({
           title: "Aviso",
-          description: "Gravação salva, mas houve um erro no processamento. O sistema tentará processar novamente em breve.",
-          variant: "destructive", // Changed from "warning" to "destructive" to match allowed types
+          description: "Gravação salva, mas houve um erro ao iniciar a transcrição. O sistema tentará novamente em breve.",
+          variant: "destructive",
         });
       } else {
         toast({
