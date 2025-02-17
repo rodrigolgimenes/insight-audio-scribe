@@ -9,8 +9,13 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
     throw new Error('Missing OpenAI API key');
   }
 
+  // Convert blob to mp3 if needed
+  const finalBlob = audioData.type.includes('audio/webm') 
+    ? new Blob([audioData], { type: 'audio/mp3' })
+    : audioData;
+
   const formData = new FormData();
-  formData.append('file', audioData, 'audio.webm');
+  formData.append('file', finalBlob, 'audio.mp3');
   formData.append('model', 'whisper-1');
   formData.append('language', 'pt');
 
