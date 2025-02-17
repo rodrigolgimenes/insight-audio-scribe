@@ -3,8 +3,18 @@ import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
-export function RecordingSheet() {
+interface RecordingSheetProps {
+  onOpenChange?: (open: boolean) => void;
+}
+
+export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  
   const {
     isRecording,
     isPaused,
@@ -21,11 +31,32 @@ export function RecordingSheet() {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
-    handleSaveRecording
   } = useRecording();
 
   const handleTimeLimit = () => {
     handleStopRecording();
+  };
+
+  const handleSaveRecording = async () => {
+    try {
+      await handleStopRecording();
+      
+      // Close the modal
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+
+      // If we're not on the dashboard, navigate to it
+      if (location.pathname !== '/app') {
+        navigate('/app');
+      }
+
+      // Invalidate notes query to force a refresh of the dashboard data
+      await queryClient.invalidateQueries({ queryKey: ['notes'] });
+      
+    } catch (error) {
+      console.error('Error saving recording:', error);
+    }
   };
 
   return (
