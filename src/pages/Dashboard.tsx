@@ -1,103 +1,201 @@
 
 import { useState } from "react";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { useNoteManagement } from "@/hooks/useNoteManagement";
+import { Mic, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
-import { RecordingModal } from "@/components/record/RecordingModal";
-import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Note } from "@/integrations/supabase/types/notes";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useNavigate } from "react-router-dom";
+import { formatDuration } from "@/utils/formatDuration";
+import { RecordingSheet } from "@/components/dashboard/RecordingSheet";
+import { BulkActions } from "@/components/dashboard/BulkActions";
 
-export default function Dashboard() {
-  const [isRecordingModalOpen, setIsRecordingModalOpen] = useState(false);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedNotes, setSelectedNotes] = useState<Note[]>([]);
-  const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+const Dashboard = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
+  const navigate = useNavigate();
 
-  // Fetch notes with proper type conversion
-  const { data: notes, isLoading } = useQuery({
-    queryKey: ["notes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notes")
-        .select("*")
-        .order("created_at", { ascending: false });
+  const {
+    notes,
+    isLoading,
+    error,
+    isSelectionMode,
+    setIsSelectionMode,
+    selectedNotes,
+    toggleNoteSelection,
+    isFolderDialogOpen,
+    setIsFolderDialogOpen,
+    newFolderName,
+    setNewFolderName,
+    createNewFolder,
+    handleMoveToFolder,
+    handleDeleteNotes,
+  } = useNoteManagement();
 
-      if (error) throw error;
-      
-      // Convert the status to the correct type
-      return (data || []).map(note => ({
-        ...note,
-        status: note.status as "error" | "processing" | "completed"
-      })) as Note[];
-    },
-  });
+  const handleSelectAll = () => {
+    if (notes && selectedNotes.length === notes.length) {
+      setIsSelectionMode(false);
+    } else {
+      setIsSelectionMode(true);
+    }
+  };
 
-  const handleNoteSelect = (note: Note) => {
-    setSelectedNotes((prev) =>
-      prev.some((n) => n.id === note.id)
-        ? prev.filter((n) => n.id !== note.id)
-        : [...prev, note]
+  if (error) {
+    return (
+      <div className="flex h-screen w-full bg-gray-50">
+        <AppSidebar activePage="notes" />
+        <main className="flex-1">
+          <div className="w-full px-6 py-8">
+            <div className="text-center py-12">
+              <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                Please try refreshing the page.
+              </p>
+            </div>
+          </div>
+        </main>
+      </div>
     );
-  };
+  }
 
-  const handleCreateNewFolder = async () => {
-    // Implementation for creating new folder
-  };
-
-  const handleMoveToFolder = async (folderId: string) => {
-    // Implementation for moving notes to folder
-  };
-
-  const handleDeleteNotes = async () => {
-    // Implementation for deleting notes
-  };
+  const filteredNotes = notes?.filter(note =>
+    note.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      {/* Fixed Recording Button */}
-      <div className="fixed top-4 right-4 z-50">
-        <Button
-          onClick={() => setIsRecordingModalOpen(true)}
-          variant="outline"
-          size="icon"
-          className="w-12 h-12 bg-[#9b87f5] hover:bg-[#7E69AB] text-white border-none shadow-lg transition-all duration-200 ease-in-out"
-        >
-          <Mic className="h-6 w-6" />
-        </Button>
+    <SidebarProvider>
+      <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
+        <AppSidebar activePage="notes" />
+        <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
+          <div className="bg-[#9b87f5] p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
+                <Search className="h-5 w-5 ml-3 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border-0 focus-visible:ring-0"
+                />
+              </div>
+              <Sheet open={isRecordingSheetOpen} onOpenChange={setIsRecordingSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button size="icon" variant="ghost" className="bg-[#7E69AB] hover:bg-[#6A5A91] text-white">
+                    <Mic className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <RecordingSheet />
+              </Sheet>
+              <Button 
+                onClick={() => navigate('/app/record')}
+                className="bg-white text-[#9b87f5] hover:bg-[#f8f7fd]"
+              >
+                TRANSCRIBE FILES
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            <div className="px-4">
+              <h2 className="text-xl font-semibold my-6">Recent Files</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-white z-10">
+                    <tr className="border-b text-sm">
+                      <th className="py-3 pl-6 pr-4 text-left w-16">
+                        <div className="flex items-center justify-center w-5 h-5 cursor-pointer" onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectAll();
+                        }}>
+                          <Checkbox 
+                            checked={notes && selectedNotes.length === notes.length}
+                            className="w-4 h-4"
+                          />
+                        </div>
+                      </th>
+                      <th className="py-3 pl-8 pr-4 text-left text-sm font-medium text-gray-500">NAME</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">UPLOAD DATE</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">DURATION</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">MODE</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    {filteredNotes?.map((note) => (
+                      <tr 
+                        key={note.id}
+                        className="border-b hover:bg-gray-50"
+                      >
+                        <td className="py-2 pl-6 pr-4">
+                          <div 
+                            className="flex items-center justify-center w-5 h-5 cursor-pointer" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleNoteSelection(note);
+                            }}
+                          >
+                            <Checkbox 
+                              checked={selectedNotes.some(n => n.id === note.id)}
+                              className="w-4 h-4"
+                            />
+                          </div>
+                        </td>
+                        <td className="py-2 pl-8 pr-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <span className="text-[13px]">{note.title}</span>
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <span className="text-[13px]">
+                            {new Date(note.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <span className="text-[13px]">{formatDuration(note.duration || 0)}</span>
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <span className="text-[13px]">Auto</span>
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                            ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                              note.status === 'error' ? 'bg-red-100 text-red-800' : 
+                              'bg-blue-100 text-blue-800'}`}>
+                            {note.status === 'completed' ? 'Completed' : 
+                             note.status === 'error' ? 'Error' : 
+                             'Processing'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {selectedNotes.length > 0 && (
+            <div className="fixed bottom-0 left-[280px] right-0">
+              <BulkActions
+                selectedCount={selectedNotes.length}
+                onExport={() => setIsFolderDialogOpen(true)}
+                onMove={() => setIsFolderDialogOpen(true)}
+                onDelete={handleDeleteNotes}
+              />
+            </div>
+          )}
+        </main>
       </div>
-
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <Button
-          onClick={() => setIsRecordingModalOpen(true)}
-          className="bg-[#E91E63] hover:bg-[#D81B60] text-white gap-2"
-        >
-          <Mic className="h-5 w-5" />
-          Record Audio
-        </Button>
-      </div>
-
-      <DashboardContent
-        notes={notes}
-        isLoading={isLoading}
-        isSelectionMode={isSelectionMode}
-        selectedNotes={selectedNotes}
-        isFolderDialogOpen={isFolderDialogOpen}
-        setIsFolderDialogOpen={setIsFolderDialogOpen}
-        newFolderName={newFolderName}
-        setNewFolderName={setNewFolderName}
-        onCreateNewFolder={handleCreateNewFolder}
-        onMoveToFolder={handleMoveToFolder}
-        onDeleteNotes={handleDeleteNotes}
-        onNoteSelect={handleNoteSelect}
-      />
-
-      <RecordingModal
-        isOpen={isRecordingModalOpen}
-        onOpenChange={setIsRecordingModalOpen}
-      />
-    </div>
+    </SidebarProvider>
   );
-}
+};
+
+export default Dashboard;
