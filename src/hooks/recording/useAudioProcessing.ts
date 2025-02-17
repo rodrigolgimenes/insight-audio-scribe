@@ -7,15 +7,18 @@ export const useAudioProcessing = () => {
 
   const saveRecording = async (userId: string, blob: Blob, duration: number) => {
     try {
+      // Converter duração para inteiro (em segundos)
+      const durationInSeconds = Math.round(duration);
+      
       // Criar entrada inicial da gravação
       const { data: recording, error: createError } = await supabase
         .from('recordings')
         .insert({
           user_id: userId,
           title: `Recording ${new Date().toLocaleString()}`,
-          duration,
+          duration: durationInSeconds,
           status: 'pending',
-          file_path: `${userId}/${Date.now()}.webm`
+          file_path: `${userId}/${Date.now()}.mp3`
         })
         .select()
         .single();
@@ -26,7 +29,7 @@ export const useAudioProcessing = () => {
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
         .upload(recording.file_path, blob, {
-          contentType: 'audio/webm',
+          contentType: 'audio/mp3',
           cacheControl: '3600',
         });
 
