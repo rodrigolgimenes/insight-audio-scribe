@@ -1,5 +1,5 @@
 
-import React from "react";
+import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,91 +24,96 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => {
-  const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+    },
+  },
+});
 
+const App = () => {
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
         <TooltipProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <Toaster />
-              <Sonner />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/app"
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/app/notes/:noteId"
-                  element={
-                    <ProtectedRoute>
-                      <NotePage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/app/folder/:folderId"
-                  element={
-                    <ProtectedRoute>
-                      <FolderPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/app/uncategorized"
-                  element={
-                    <ProtectedRoute>
-                      <UncategorizedFolder />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/app/tag/:tagId"
-                  element={
-                    <ProtectedRoute>
-                      <TagPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/simple-record"
-                  element={
-                    <ProtectedRoute>
-                      <SimpleRecord />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/test"
-                  element={
-                    <ProtectedRoute>
-                      <TestPage />
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </AuthProvider>
-          </BrowserRouter>
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/app"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/app/notes/:noteId"
+                element={
+                  <ProtectedRoute>
+                    <NotePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/app/folder/:folderId"
+                element={
+                  <ProtectedRoute>
+                    <FolderPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/app/uncategorized"
+                element={
+                  <ProtectedRoute>
+                    <UncategorizedFolder />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/app/tag/:tagId"
+                element={
+                  <ProtectedRoute>
+                    <TagPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/simple-record"
+                element={
+                  <ProtectedRoute>
+                    <SimpleRecord />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/test"
+                element={
+                  <ProtectedRoute>
+                    <TestPage />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </AuthProvider>
         </TooltipProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 
