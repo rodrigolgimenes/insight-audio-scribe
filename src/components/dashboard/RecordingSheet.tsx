@@ -1,4 +1,3 @@
-
 import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
@@ -7,6 +6,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 interface RecordingSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -18,6 +19,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isSaveInProgress, setIsSaveInProgress] = useState(false);
+  const { session } = useAuth();
   
   const {
     isRecording,
@@ -41,12 +43,10 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
 
   // Reset recording state when modal opens
   useEffect(() => {
-    resetRecording();
-  }, []);
-
-  const handleTimeLimit = () => {
-    handleStopRecording();
-  };
+    if (resetRecording) {
+      resetRecording();
+    }
+  }, [resetRecording]);
 
   const handleSaveRecording = async () => {
     if (isSaveInProgress) return;
@@ -66,8 +66,19 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
 
       // Save the recording
       console.log('Starting save process...');
-      await handleStopRecording();
-      
+      const { data: recordingData, error } = await supabase
+        .from('recordings')
+        .insert({
+          title: `Recording ${new Date().toLocaleString()}`,
+          file_path: `${Date.now()}.webm`,
+          user_id: session?.user?.id,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
       // Update the queryClient to force a refresh
       console.log('Invalidating queries...');
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
