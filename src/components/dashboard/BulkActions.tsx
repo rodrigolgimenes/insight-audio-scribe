@@ -1,66 +1,53 @@
+
 import { Button } from "@/components/ui/button";
-import { Trash2, FolderOpen } from "lucide-react";
-import { Note } from "@/integrations/supabase/types/notes";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { FileDown, FolderOpen, Trash2 } from "lucide-react";
 
 interface BulkActionsProps {
-  selectedNotes: Note[];
-  onMoveToFolder: () => void;
+  selectedCount: number;
+  onExport: () => void;
+  onMove: () => void;
   onDelete: () => void;
 }
 
-export const BulkActions = ({
-  selectedNotes,
-  onMoveToFolder,
-  onDelete,
-}: BulkActionsProps) => {
-  if (selectedNotes.length === 0) return null;
-
+export function BulkActions({
+  selectedCount,
+  onExport,
+  onMove,
+  onDelete
+}: BulkActionsProps) {
   return (
-    <div className="flex items-center gap-3 mb-6 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-      <span className="text-sm font-medium text-gray-600">
-        {selectedNotes.length} notes selected
-      </span>
-      <div className="flex-1" />
-      <Button 
-        variant="outline" 
-        onClick={onMoveToFolder}
-        className="gap-2"
-      >
-        <FolderOpen className="h-4 w-4" />
-        Move to folder
-      </Button>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="destructive" className="gap-2">
-            <Trash2 className="h-4 w-4" />
-            Delete selected
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-600">
+          {selectedCount} files selected
+        </span>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={onExport}
+            className="gap-2"
+          >
+            <FileDown className="h-4 w-4" />
+            Export
           </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Notes</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedNotes.length} selected notes?
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <Button
+            variant="outline"
+            onClick={onMove}
+            className="gap-2"
+          >
+            <FolderOpen className="h-4 w-4" />
+            Move
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={onDelete}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+        </div>
+      </div>
     </div>
   );
-};
+}
