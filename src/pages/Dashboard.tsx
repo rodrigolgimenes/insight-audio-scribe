@@ -70,8 +70,8 @@ const Dashboard = () => {
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
-        <main className="flex-1 overflow-auto relative">
-          <div className="bg-[#9b87f5] p-4">
+        <main className="flex-1 flex flex-col">
+          <div className="bg-[#9b87f5] p-4 sticky top-0 z-10">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
               <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
                 <Search className="h-5 w-5 ml-3 text-gray-400" />
@@ -100,80 +100,83 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto p-6">
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="p-6">
-                <h2 className="text-xl font-semibold mb-6">Recent Files</h2>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="py-3 px-4 text-left w-16">
-                          <div className="flex items-center justify-center w-10 h-10 cursor-pointer" onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectAll();
-                          }}>
+          <div className="flex-1 overflow-auto">
+            <div className="max-w-7xl mx-auto p-6">
+              <h2 className="text-xl font-semibold mb-6">Recent Files</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b text-sm">
+                      <th className="py-3 px-4 text-left w-16">
+                        <div className="flex items-center justify-center w-10 h-10 cursor-pointer" onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectAll();
+                        }}>
+                          <Checkbox 
+                            checked={notes && selectedNotes.length === notes.length}
+                            className="w-5 h-5"
+                          />
+                        </div>
+                      </th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">NAME</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">UPLOAD DATE</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">DURATION</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">MODE</th>
+                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    {filteredNotes?.map((note) => (
+                      <tr 
+                        key={note.id}
+                        className="border-b hover:bg-gray-50"
+                      >
+                        <td className="py-2 px-4">
+                          <div 
+                            className="flex items-center justify-center w-10 h-10 cursor-pointer" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleNoteSelection(note);
+                            }}
+                          >
                             <Checkbox 
-                              checked={notes && selectedNotes.length === notes.length}
-                              className="w-6 h-6"
+                              checked={selectedNotes.some(n => n.id === note.id)}
+                              className="w-5 h-5"
                             />
                           </div>
-                        </th>
-                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">NAME</th>
-                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">UPLOAD DATE</th>
-                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">DURATION</th>
-                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">MODE</th>
-                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">STATUS</th>
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          {note.title}
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          {new Date(note.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          {formatDuration(note.duration || 0)}
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          Auto
+                        </td>
+                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                            ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                              note.status === 'error' ? 'bg-red-100 text-red-800' : 
+                              'bg-blue-100 text-blue-800'}`}>
+                            {note.status === 'completed' ? 'Completed' : 
+                             note.status === 'error' ? 'Error' : 
+                             'Processing'}
+                          </span>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredNotes?.map((note) => (
-                        <tr 
-                          key={note.id}
-                          className="border-b hover:bg-gray-50"
-                        >
-                          <td className="py-3 px-4">
-                            <div 
-                              className="flex items-center justify-center w-10 h-10 cursor-pointer" 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleNoteSelection(note);
-                              }}
-                            >
-                              <Checkbox 
-                                checked={selectedNotes.some(n => n.id === note.id)}
-                                className="w-6 h-6"
-                              />
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                            {note.title}
-                          </td>
-                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                            {formatDate(note.created_at)}
-                          </td>
-                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                            {formatDuration(note.duration || 0)}
-                          </td>
-                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                            Auto
-                          </td>
-                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                                note.status === 'error' ? 'bg-red-100 text-red-800' : 
-                                'bg-blue-100 text-blue-800'}`}>
-                              {note.status === 'completed' ? 'Completed' : 
-                               note.status === 'error' ? 'Error' : 
-                               'Processing'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
