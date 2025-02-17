@@ -42,7 +42,6 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
     resetRecording,
   } = useRecording();
 
-  // Reset recording state when modal opens
   useEffect(() => {
     if (resetRecording) {
       resetRecording();
@@ -60,51 +59,77 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
   };
 
   const handleSaveRecording = async () => {
-    if (isSaveInProgress) return;
+    console.log('[RecordingSheet] Starting save recording process');
+    
+    if (isSaveInProgress) {
+      console.log('[RecordingSheet] Save already in progress, returning');
+      return;
+    }
+
+    if (!session?.user?.id) {
+      console.error('[RecordingSheet] No user session found');
+      toast({
+        title: "Error",
+        description: "You must be logged in to save recordings.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
+      console.log('[RecordingSheet] Setting save in progress');
       setIsSaveInProgress(true);
 
-      // If still recording, stop it first
       if (isRecording) {
+        console.log('[RecordingSheet] Recording in progress, stopping');
         await handleStopRecording();
       }
 
-      // Make sure we have either audioUrl or mediaStream
       if (!audioUrl && !mediaStream) {
+        console.error('[RecordingSheet] No audio data available');
         throw new Error('No audio data available');
       }
 
       const timestamp = Date.now();
-      const fileName = `${session?.user?.id}/${timestamp}.webm`;
+      const fileName = `${session.user.id}/${timestamp}.webm`;
       const recordingTitle = `Recording ${new Date().toLocaleString()}`;
 
-      console.log('Creating recording entry...');
+      console.log('[RecordingSheet] Creating recording entry with:', {
+        title: recordingTitle,
+        file_path: fileName,
+        user_id: session.user.id
+      });
+
       const { data: recordingData, error: recordingError } = await supabase
         .from('recordings')
         .insert({
           title: recordingTitle,
           file_path: fileName,
-          user_id: session?.user?.id,
+          user_id: session.user.id,
           status: 'pending'
         })
         .select()
         .single();
 
       if (recordingError) {
-        console.error('Error creating recording:', recordingError);
-        throw new Error('Failed to create recording entry');
+        console.error('[RecordingSheet] Error creating recording:', {
+          error: recordingError,
+          details: recordingError.details,
+          message: recordingError.message,
+          hint: recordingError.hint
+        });
+        throw new Error(`Failed to create recording entry: ${recordingError.message}`);
       }
 
-      console.log('Recording entry created:', recordingData);
+      console.log('[RecordingSheet] Recording entry created:', recordingData);
 
-      console.log('Creating note entry...');
+      console.log('[RecordingSheet] Creating note entry');
       const { data: noteData, error: noteError } = await supabase
         .from('notes')
         .insert({
           title: recordingTitle,
           recording_id: recordingData.id,
-          user_id: session?.user?.id,
+          user_id: session.user.id,
           status: 'pending',
           processing_progress: 0,
           processed_content: ''
@@ -113,22 +138,31 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         .single();
 
       if (noteError) {
-        console.error('Error creating note:', noteError);
+        console.error('[RecordingSheet] Error creating note:', {
+          error: noteError,
+          details: noteError.details,
+          message: noteError.message,
+          hint: noteError.hint
+        });
+        
         // Cleanup the recording entry if note creation fails
+        console.log('[RecordingSheet] Cleaning up recording entry due to note creation failure');
         await supabase
           .from('recordings')
           .delete()
           .eq('id', recordingData.id);
-        throw new Error('Failed to create note entry');
+          
+        throw new Error(`Failed to create note entry: ${noteError.message}`);
       }
 
-      console.log('Note entry created:', noteData);
+      console.log('[RecordingSheet] Note entry created:', noteData);
 
       // Update the queryClient to force a refresh
-      console.log('Invalidating queries...');
+      console.log('[RecordingSheet] Invalidating queries');
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
 
       // Start processing in background
+      console.log('[RecordingSheet] Starting background processing');
       const { error: processError } = await supabase.functions
         .invoke('process-recording', {
           body: { 
@@ -138,7 +172,12 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         });
 
       if (processError) {
-        console.error('Error starting processing:', processError);
+        console.error('[RecordingSheet] Error starting processing:', {
+          error: processError,
+          details: processError.details,
+          message: processError.message,
+          context: processError.context
+        });
         toast({
           title: "Warning",
           description: "Recording saved but processing may be delayed. It will retry automatically.",
@@ -149,7 +188,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       // Add a small delay before closing the modal
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      console.log('Save completed successfully');
+      console.log('[RecordingSheet] Save completed successfully');
       toast({
         title: "Success",
         description: "Recording saved successfully! Processing will begin shortly.",
@@ -169,7 +208,12 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       }
       
     } catch (error) {
-      console.error('Error saving recording:', error);
+      console.error('[RecordingSheet] Error in handleSaveRecording:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
@@ -177,6 +221,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       });
     } finally {
       setIsSaveInProgress(false);
+      console.log('[RecordingSheet] Save process completed');
     }
   };
 
