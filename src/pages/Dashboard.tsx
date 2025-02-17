@@ -47,7 +47,7 @@ const Dashboard = () => {
     return (
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1">
           <div className="max-w-5xl mx-auto px-6 py-8">
             <div className="text-center py-12">
               <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
@@ -67,10 +67,10 @@ const Dashboard = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-gray-50">
+      <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
         <AppSidebar activePage="notes" />
-        <main className="flex-1 flex flex-col">
-          <div className="bg-[#9b87f5] p-4 sticky top-0 z-10">
+        <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
+          <div className="bg-[#9b87f5] p-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
               <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
                 <Search className="h-5 w-5 ml-3 text-gray-400" />
@@ -104,7 +104,7 @@ const Dashboard = () => {
               <h2 className="text-xl font-semibold my-6">Recent Files</h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="sticky top-0 bg-white">
+                  <thead className="sticky top-0 bg-white z-10">
                     <tr className="border-b text-sm">
                       <th className="py-3 pl-6 pr-4 text-left w-16">
                         <div className="flex items-center justify-center w-5 h-5 cursor-pointer" onClick={(e) => {
