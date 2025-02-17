@@ -15,22 +15,13 @@ const Dashboard = () => {
     notes,
     isLoading,
     error,
-    isSelectionMode,
-    setIsSelectionMode,
     selectedNotes,
     toggleNoteSelection,
+    toggleSelectAll,
     isFolderDialogOpen,
     setIsFolderDialogOpen,
     handleDeleteNotes,
   } = useNoteManagement();
-
-  const handleSelectAll = () => {
-    if (notes && selectedNotes.length === notes.length) {
-      setIsSelectionMode(false);
-    } else {
-      setIsSelectionMode(true);
-    }
-  };
 
   if (error) {
     return (
@@ -72,7 +63,7 @@ const Dashboard = () => {
               <NotesTable
                 notes={filteredNotes}
                 selectedNotes={selectedNotes}
-                onSelectAll={handleSelectAll}
+                onSelectAll={() => toggleSelectAll(filteredNotes)}
                 toggleNoteSelection={toggleNoteSelection}
               />
             </div>
