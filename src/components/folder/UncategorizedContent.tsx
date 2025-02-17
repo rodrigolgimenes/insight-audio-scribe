@@ -6,6 +6,7 @@ import { NotesTable } from "@/components/dashboard/NotesTable";
 import { BulkActions } from "@/components/dashboard/BulkActions";
 import { UncategorizedHeader } from "./UncategorizedHeader";
 import { UncategorizedEmptyState } from "./UncategorizedEmptyState";
+import { Note } from "@/integrations/supabase/types/notes";
 
 export const UncategorizedContent = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,7 +38,7 @@ export const UncategorizedContent = () => {
     return <UncategorizedEmptyState />;
   }
 
-  const filteredNotes = notes.filter((note) =>
+  const filteredNotes = notes.filter((note: Note) =>
     note.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

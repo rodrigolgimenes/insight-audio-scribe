@@ -2,79 +2,114 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+import { Note } from "@/integrations/supabase/types/notes";
 
-export const useFolderNotesQuery = (folderId: string | undefined) => {
+export const useFolderNotesQuery = (folderId: string | undefined | null) => {
   const query = useQuery({
     queryKey: ["folder-notes", folderId],
     queryFn: async () => {
-      if (!folderId) {
+      if (folderId === undefined) {
         console.log("No folder ID provided");
         return [];
       }
 
-      console.log("Fetching notes for folder:", folderId);
-      
-      // First get the note IDs from notes_folders
-      const { data: noteIds, error: folderError } = await supabase
-        .from("notes_folders")
-        .select("note_id")
-        .eq("folder_id", folderId);
+      let queryBuilder = supabase.from("notes");
 
-      if (folderError) {
-        console.error("Error fetching folder note IDs:", folderError);
-        throw folderError;
-      }
-
-      if (!noteIds || noteIds.length === 0) {
-        console.log("No notes found in folder");
-        return [];
-      }
-
-      // Then fetch the complete note data for these IDs
-      const { data, error } = await supabase
-        .from("notes")
-        .select(`
-          id,
-          title,
-          original_transcript,
-          created_at,
-          recordings (
-            duration
-          ),
-          notes_tags!left (
-            tags:tag_id (
-              id,
-              name,
-              color
+      if (folderId === null) {
+        // For uncategorized notes, get notes without a folder
+        queryBuilder = queryBuilder
+          .select(`
+            id,
+            title,
+            original_transcript,
+            processed_content,
+            full_prompt,
+            created_at,
+            updated_at,
+            recording_id,
+            user_id,
+            duration,
+            audio_url,
+            recordings (
+              duration
+            ),
+            notes_tags (
+              tags (
+                id,
+                name,
+                color
+              )
             )
-          )
-        `)
-        .in('id', noteIds.map(n => n.note_id))
+          `)
+          .is('folder_id', null);
+      } else {
+        // For folder notes, get notes in the specified folder
+        const { data: noteIds, error: folderError } = await supabase
+          .from("notes_folders")
+          .select("note_id")
+          .eq("folder_id", folderId);
+
+        if (folderError) {
+          console.error("Error fetching folder note IDs:", folderError);
+          throw folderError;
+        }
+
+        if (!noteIds || noteIds.length === 0) {
+          console.log("No notes found in folder");
+          return [];
+        }
+
+        queryBuilder = queryBuilder
+          .select(`
+            id,
+            title,
+            original_transcript,
+            processed_content,
+            full_prompt,
+            created_at,
+            updated_at,
+            recording_id,
+            user_id,
+            duration,
+            audio_url,
+            recordings (
+              duration
+            ),
+            notes_tags (
+              tags (
+                id,
+                name,
+                color
+              )
+            )
+          `)
+          .in('id', noteIds.map(n => n.note_id));
+      }
+
+      const { data, error } = await queryBuilder
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Error fetching folder notes:", error);
+        console.error("Error fetching notes:", error);
         throw error;
       }
 
-      console.log("Raw folder notes data:", data);
-
-      const processedNotes = data.map(note => ({
+      // Transform the data to match the Note type
+      const processedNotes: Note[] = data.map(note => ({
         ...note,
-        duration: note.recordings?.duration || null,
+        processed_content: note.processed_content || null,
+        full_prompt: note.full_prompt || null,
+        duration: note.recordings?.duration || note.duration || null,
+        audio_url: note.audio_url || null,
         tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
 
-      console.log("Processed notes:", processedNotes);
       return processedNotes;
     },
-    enabled: !!folderId,
-    staleTime: 1000 * 60, // Cache for 1 minute
-    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    enabled: folderId !== undefined,
   });
 
   useEffect(() => {
-    // Subscribe to relevant table changes for real-time updates
     const channel = supabase
       .channel('schema-db-changes')
       .on(
@@ -86,9 +121,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
         },
         (payload: any) => {
           console.log("notes_folders change detected:", payload);
-          if (payload.new && payload.new.folder_id === folderId) {
-            query.refetch();
-          }
+          query.refetch();
         }
       )
       .on(
@@ -106,7 +139,6 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
       .subscribe();
 
     return () => {
-      console.log("Cleaning up realtime subscription");
       supabase.removeChannel(channel);
     };
   }, [folderId, query]);
