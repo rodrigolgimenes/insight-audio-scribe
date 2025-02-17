@@ -10,10 +10,19 @@ export const useAudioProcessing = () => {
       // Converter duração para inteiro (em segundos)
       const durationInSeconds = Math.round(duration);
       
-      // Sanitizar o nome do arquivo
+      // Sanitizar o nome do arquivo e garantir extensão correta
       const timestamp = new Date().getTime();
-      const sanitizedFileName = `${userId}/${timestamp}_recording.mp3`;
+      const extension = blob.type === 'audio/webm' ? 'webm' : 'mp3';
+      const sanitizedFileName = `${userId}/${timestamp}.${extension}`;
       
+      console.log('[useAudioProcessing] Creating recording with:', {
+        userId,
+        duration: durationInSeconds,
+        fileName: sanitizedFileName,
+        blobType: blob.type,
+        blobSize: blob.size
+      });
+
       // Criar entrada inicial da gravação
       const { data: recording, error: createError } = await supabase
         .from('recordings')
@@ -27,25 +36,25 @@ export const useAudioProcessing = () => {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        console.error('[useAudioProcessing] Error creating recording:', createError);
+        throw createError;
+      }
 
-      console.log('Created recording entry:', recording);
+      console.log('[useAudioProcessing] Created recording entry:', recording);
 
-      // Converter para MP3 se necessário
-      const audioBlob = blob.type === 'audio/mp3' 
-        ? blob 
-        : new Blob([blob], { type: 'audio/mp3' });
-
-      // Upload do arquivo
+      // Upload do arquivo original sem conversão
+      console.log('[useAudioProcessing] Uploading file...');
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
-        .upload(recording.file_path, audioBlob, {
-          contentType: 'audio/mp3',
+        .upload(sanitizedFileName, blob, {
+          contentType: blob.type,
           cacheControl: '3600',
           upsert: false
         });
 
       if (uploadError) {
+        console.error('[useAudioProcessing] Upload error:', uploadError);
         // Limpar gravação se o upload falhar
         await supabase
           .from('recordings')
@@ -54,9 +63,20 @@ export const useAudioProcessing = () => {
         throw uploadError;
       }
 
-      console.log('File uploaded successfully');
+      console.log('[useAudioProcessing] File uploaded successfully');
 
-      // Create note first
+      // Update recording status
+      const { error: updateError } = await supabase
+        .from('recordings')
+        .update({ status: 'uploaded' })
+        .eq('id', recording.id);
+
+      if (updateError) {
+        console.error('[useAudioProcessing] Error updating recording status:', updateError);
+      }
+
+      // Create note
+      console.log('[useAudioProcessing] Creating note...');
       const { data: noteData, error: noteError } = await supabase
         .from('notes')
         .insert({
@@ -71,19 +91,21 @@ export const useAudioProcessing = () => {
         .single();
 
       if (noteError) {
+        console.error('[useAudioProcessing] Error creating note:', noteError);
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
-      console.log('Note created successfully:', noteData);
+      console.log('[useAudioProcessing] Note created successfully:', noteData);
 
-      // Iniciar processamento ONLY after note is created
+      // Iniciar processamento
+      console.log('[useAudioProcessing] Starting transcription...');
       const { error: processError } = await supabase.functions
         .invoke('transcribe-audio', {
           body: { recordingId: recording.id }
         });
 
       if (processError) {
-        console.error('Error starting processing:', processError);
+        console.error('[useAudioProcessing] Error starting processing:', processError);
         toast({
           title: "Warning",
           description: "Recording saved but processing failed to start. It will retry automatically.",
@@ -98,7 +120,7 @@ export const useAudioProcessing = () => {
 
       return true;
     } catch (error) {
-      console.error('Error saving recording:', error);
+      console.error('[useAudioProcessing] Error saving recording:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save recording",
