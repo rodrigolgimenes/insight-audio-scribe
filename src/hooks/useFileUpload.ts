@@ -101,7 +101,7 @@ export const useFileUpload = () => {
       }
 
       // Create note
-      const { error: noteError, data: noteData } = await supabase
+      const { error: noteError } = await supabase
         .from('notes')
         .insert({
           title: recordingData.title,
@@ -110,33 +110,30 @@ export const useFileUpload = () => {
           status: 'pending',
           processing_progress: 0,
           processed_content: ''
-        })
-        .select()
-        .single();
+        });
 
       if (noteError) {
         console.error('Error creating note:', noteError);
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
-      console.log('Note created successfully:', noteData);
-
-      // Start processing in background ONLY after note is created
-      const { error: transcriptionError } = await supabase.functions
+      // Start processing in background
+      supabase.functions
         .invoke('transcribe-audio', {
           body: { 
             recordingId: recordingData.id
           }
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error starting transcription:', error);
+            toast({
+              title: "Warning",
+              description: "File uploaded but transcription failed to start. It will retry automatically.",
+              variant: "destructive",
+            });
+          }
         });
-
-      if (transcriptionError) {
-        console.error('Error starting transcription:', transcriptionError);
-        toast({
-          title: "Warning",
-          description: "File uploaded but transcription failed to start. It will retry automatically.",
-          variant: "destructive",
-        });
-      }
 
       // Show success message and redirect immediately
       toast({

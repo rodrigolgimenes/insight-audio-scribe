@@ -2,7 +2,7 @@
 export interface Note {
   id: string;
   title: string;
-  processed_content: string | null;
+  processed_content: string;
   original_transcript: string | null;
   full_prompt: string | null;
   created_at: string;
@@ -16,16 +16,6 @@ export interface Note {
   folder?: {
     folder_id: string;
   } | null;
-  recordings?: {
-    duration: number;
-  };
-  notes_tags?: {
-    tags: {
-      id: string;
-      name: string;
-      color: string | null;
-    };
-  }[];
   tags?: Array<{
     id: string;
     name: string;

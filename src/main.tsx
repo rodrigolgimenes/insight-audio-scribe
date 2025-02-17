@@ -1,8 +1,7 @@
 
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
+import { createRoot } from 'react-dom/client'
+import App from './App.tsx'
+import './index.css'
 import * as Sentry from "@sentry/react";
 
 // Initialize Sentry in production
@@ -15,16 +14,38 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-const container = document.getElementById('root');
+// Service Worker registration and update handling
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      // Handle updates
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // New service worker available
+              if (confirm('New version available! Would you like to update?')) {
+                newWorker.postMessage('SKIP_WAITING');
+                window.location.reload();
+              }
+            }
+          });
+        }
+      });
 
-if (!container) {
-  throw new Error('Root element not found');
+      console.log('ServiceWorker registered successfully:', registration.scope);
+    } catch (error) {
+      console.error('ServiceWorker registration failed:', error);
+    }
+  });
+
+  // Handle controller change
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('New ServiceWorker activated');
+  });
 }
 
-const root = createRoot(container);
-
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+createRoot(document.getElementById("root")!).render(<App />);

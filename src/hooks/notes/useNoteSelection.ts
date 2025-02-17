@@ -8,24 +8,10 @@ export const useNoteSelection = () => {
 
   const toggleNoteSelection = (note: Note) => {
     setSelectedNotes((prev) =>
-      prev.some((n) => n.id === note.id)
+      prev.includes(note)
         ? prev.filter((n) => n.id !== note.id)
         : [...prev, note]
     );
-  };
-
-  const toggleSelectAll = (notes: Note[] | undefined) => {
-    if (!notes) return;
-    
-    if (selectedNotes.length === notes.length) {
-      // If all notes are selected, deselect all
-      setSelectedNotes([]);
-      setIsSelectionMode(false);
-    } else {
-      // If not all notes are selected, select all
-      setSelectedNotes(notes);
-      setIsSelectionMode(true);
-    }
   };
 
   return {
@@ -34,6 +20,5 @@ export const useNoteSelection = () => {
     selectedNotes,
     setSelectedNotes,
     toggleNoteSelection,
-    toggleSelectAll,
   };
 };

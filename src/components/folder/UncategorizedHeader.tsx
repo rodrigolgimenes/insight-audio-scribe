@@ -1,25 +1,29 @@
 
-import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
-export interface UncategorizedHeaderProps {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
+interface UncategorizedHeaderProps {
+  isSelectionMode: boolean;
+  setIsSelectionMode: (value: boolean) => void;
 }
 
 export const UncategorizedHeader = ({
-  searchQuery,
-  setSearchQuery,
+  isSelectionMode,
+  setIsSelectionMode,
 }: UncategorizedHeaderProps) => {
   return (
-    <div className="mb-8 space-y-4">
-      <h1 className="text-3xl font-bold">Uncategorized Files</h1>
-      <Input
-        type="text"
-        placeholder="Search files..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="max-w-md"
-      />
+    <div className="mb-6">
+      <h1 className="text-2xl font-semibold text-gray-900 mb-4">
+        Uncategorized Notes
+      </h1>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-600">
+          {isSelectionMode ? "Exit selection mode" : "Select multiple notes"}
+        </span>
+        <Switch
+          checked={isSelectionMode}
+          onCheckedChange={setIsSelectionMode}
+        />
+      </div>
     </div>
   );
 };

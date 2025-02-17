@@ -25,7 +25,7 @@ export const useRecordingSave = () => {
       if (!user) throw new Error('User not authenticated');
       
       // Sanitize filename to prevent issues
-      const fileName = `${user.id}/${Date.now()}.webm`.replace(/[^\x00-\x7F]/g, '');
+      const fileName = `${user.id}/${Date.now()}.mp3`.replace(/[^\x00-\x7F]/g, '');
       
       console.log('Creating recording with user ID:', user.id);
 
@@ -59,6 +59,9 @@ export const useRecordingSave = () => {
         const response = await fetch(audioUrl);
         const blob = await response.blob();
 
+        // Convert to MP3 if needed
+        const mp3Blob = new Blob([blob], { type: 'audio/mp3' });
+
         // Upload with retries
         let uploadAttempts = 0;
         const maxAttempts = 3;
@@ -68,8 +71,8 @@ export const useRecordingSave = () => {
           try {
             const { error } = await supabase.storage
               .from('audio_recordings')
-              .upload(fileName, blob, {
-                contentType: 'audio/webm',
+              .upload(fileName, mp3Blob, {
+                contentType: 'audio/mp3',
                 upsert: false
               });
 
@@ -139,8 +142,8 @@ export const useRecordingSave = () => {
       if (processError) {
         console.error('Processing error:', processError);
         toast({
-          title: "Warning",
-          description: "Recording saved but processing failed to start. It will retry automatically.",
+          title: "Note",
+          description: "Recording saved, but there was a processing error. The system will try to process it again soon.",
           variant: "destructive",
         });
       } else {
@@ -159,7 +162,7 @@ export const useRecordingSave = () => {
       
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error saving recording",
+        description: error instanceof Error ? error.message : "Failed to save recording",
         variant: "destructive",
       });
     } finally {

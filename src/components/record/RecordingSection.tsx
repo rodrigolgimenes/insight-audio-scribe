@@ -63,7 +63,7 @@ export const RecordingSection = ({
       <RecordStatus isRecording={isRecording} isPaused={isPaused} />
 
       <div className="mb-8">
-        {audioUrl && showPlayButton ? (
+        {audioUrl ? (
           <audio controls src={audioUrl} className="w-full" />
         ) : (
           <AudioVisualizer isRecording={isRecording && !isPaused} stream={mediaStream ?? undefined} />
