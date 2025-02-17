@@ -18,15 +18,20 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
     }
   }, [isSaving]);
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (!isClickable || isDisabled || isSaving) return;
     setIsClickable(false);
-    onSave();
+    try {
+      await onSave();
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      setIsClickable(true);
+    }
   };
 
   return (
     <Button 
-      className="bg-primary hover:bg-primary-dark gap-2 min-w-[140px] text-white"
+      className="bg-blue-600 hover:bg-blue-700 gap-2 min-w-[140px] text-white transition-colors duration-200"
       onClick={handleClick}
       disabled={!isClickable || isDisabled || isSaving}
     >
