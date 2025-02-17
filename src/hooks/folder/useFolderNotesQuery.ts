@@ -13,11 +13,10 @@ export const useFolderNotesQuery = (folderId: string | undefined | null) => {
         return [];
       }
 
-      let queryBuilder = supabase.from("notes");
-
       if (folderId === null) {
-        // For uncategorized notes, get notes without a folder
-        queryBuilder = queryBuilder
+        // For uncategorized notes
+        const { data, error } = await supabase
+          .from("notes")
           .select(`
             id,
             title,
@@ -41,9 +40,17 @@ export const useFolderNotesQuery = (folderId: string | undefined | null) => {
               )
             )
           `)
-          .is('folder_id', null);
+          .is('folder_id', null)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("Error fetching notes:", error);
+          throw error;
+        }
+
+        return processNotes(data || []);
       } else {
-        // For folder notes, get notes in the specified folder
+        // For folder notes
         const { data: noteIds, error: folderError } = await supabase
           .from("notes_folders")
           .select("note_id")
@@ -59,7 +66,8 @@ export const useFolderNotesQuery = (folderId: string | undefined | null) => {
           return [];
         }
 
-        queryBuilder = queryBuilder
+        const { data, error } = await supabase
+          .from("notes")
           .select(`
             id,
             title,
@@ -83,28 +91,16 @@ export const useFolderNotesQuery = (folderId: string | undefined | null) => {
               )
             )
           `)
-          .in('id', noteIds.map(n => n.note_id));
+          .in('id', noteIds.map(n => n.note_id))
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error("Error fetching notes:", error);
+          throw error;
+        }
+
+        return processNotes(data || []);
       }
-
-      const { data, error } = await queryBuilder
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error("Error fetching notes:", error);
-        throw error;
-      }
-
-      // Transform the data to match the Note type
-      const processedNotes: Note[] = data.map(note => ({
-        ...note,
-        processed_content: note.processed_content || null,
-        full_prompt: note.full_prompt || null,
-        duration: note.recordings?.duration || note.duration || null,
-        audio_url: note.audio_url || null,
-        tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
-      }));
-
-      return processedNotes;
     },
     enabled: folderId !== undefined,
   });
@@ -144,4 +140,15 @@ export const useFolderNotesQuery = (folderId: string | undefined | null) => {
   }, [folderId, query]);
 
   return query;
+};
+
+const processNotes = (notes: any[]): Note[] => {
+  return notes.map(note => ({
+    ...note,
+    processed_content: note.processed_content || null,
+    full_prompt: note.full_prompt || null,
+    duration: note.recordings?.duration || note.duration || null,
+    audio_url: note.audio_url || null,
+    tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
+  }));
 };

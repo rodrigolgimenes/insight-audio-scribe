@@ -38,21 +38,6 @@ const UncategorizedFolder = () => {
     },
   });
 
-  const toggleNoteSelection = (noteId: string) => {
-    const note = notes?.find((n) => n.id === noteId);
-    if (!note) return;
-
-    setSelectedNotes((prev) =>
-      prev.some((n) => n.id === noteId)
-        ? prev.filter((n) => n.id !== noteId)
-        : [...prev, note]
-    );
-  };
-
-  const handleMoveNotes = () => {
-    setIsFolderDialogOpen(true);
-  };
-
   const handleSelectFolder = async (folderId: string) => {
     try {
       await handleMoveToFolder(selectedNotes, folderId);
@@ -80,26 +65,11 @@ const UncategorizedFolder = () => {
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
           <UncategorizedHeader
-            isSelectionMode={isSelectionMode}
-            setIsSelectionMode={setIsSelectionMode}
+            searchQuery=""
+            setSearchQuery={() => {}}
           />
 
-          <UncategorizedContent
-            isLoading={isLoading}
-            notes={notes}
-            isSelectionMode={isSelectionMode}
-            selectedNotes={selectedNotes}
-            toggleNoteSelection={toggleNoteSelection}
-            isFolderDialogOpen={isFolderDialogOpen}
-            setIsFolderDialogOpen={setIsFolderDialogOpen}
-            folders={folders || []}
-            newFolderName={newFolderName}
-            setNewFolderName={setNewFolderName}
-            createNewFolder={createNewFolder}
-            handleSelectFolder={handleSelectFolder}
-            handleMoveNotes={handleMoveNotes}
-            handleDeleteNotes={handleDeleteNotes}
-          />
+          <UncategorizedContent />
         </main>
       </div>
     </SidebarProvider>
