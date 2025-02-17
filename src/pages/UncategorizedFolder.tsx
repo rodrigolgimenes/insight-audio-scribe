@@ -1,18 +1,15 @@
 
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
-import { FolderEmptyState } from "@/components/folder/FolderEmptyState";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { BulkActions } from "@/components/dashboard/BulkActions";
-import { FolderDialog } from "@/components/dashboard/FolderDialog";
 import { useFolderActions } from "@/hooks/notes/useFolderActions";
 import { useNoteSelection } from "@/hooks/notes/useNoteSelection";
 import { useNoteActions } from "@/hooks/notes/useNoteActions";
 import { useNotesQuery } from "@/hooks/notes/useNotesQuery";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { UncategorizedHeader } from "@/components/folder/UncategorizedHeader";
+import { UncategorizedContent } from "@/components/folder/UncategorizedContent";
 
 const UncategorizedFolder = () => {
   const { toast } = useToast();
@@ -82,52 +79,26 @@ const UncategorizedFolder = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-              Uncategorized Notes
-            </h1>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                {isSelectionMode ? "Exit selection mode" : "Select multiple notes"}
-              </span>
-              <Switch
-                checked={isSelectionMode}
-                onCheckedChange={setIsSelectionMode}
-              />
-            </div>
-          </div>
+          <UncategorizedHeader
+            isSelectionMode={isSelectionMode}
+            setIsSelectionMode={setIsSelectionMode}
+          />
 
-          {isSelectionMode && selectedNotes.length > 0 && (
-            <BulkActions
-              selectedCount={selectedNotes.length}
-              onExport={() => setIsFolderDialogOpen(true)}
-              onMove={handleMoveNotes}
-              onDelete={() => handleDeleteNotes(selectedNotes)}
-            />
-          )}
-
-          {isLoading ? (
-            <div>Loading...</div>
-          ) : notes && notes.length > 0 ? (
-            <FolderNotesGrid
-              notes={notes}
-              isSelectionMode={isSelectionMode}
-              selectedNotes={selectedNotes.map(note => note.id)}
-              toggleNoteSelection={toggleNoteSelection}
-            />
-          ) : (
-            <FolderEmptyState />
-          )}
-
-          <FolderDialog
-            isOpen={isFolderDialogOpen}
-            onOpenChange={setIsFolderDialogOpen}
+          <UncategorizedContent
+            isLoading={isLoading}
+            notes={notes}
+            isSelectionMode={isSelectionMode}
+            selectedNotes={selectedNotes}
+            toggleNoteSelection={toggleNoteSelection}
+            isFolderDialogOpen={isFolderDialogOpen}
+            setIsFolderDialogOpen={setIsFolderDialogOpen}
             folders={folders || []}
-            currentFolderId={null}
             newFolderName={newFolderName}
-            onNewFolderNameChange={setNewFolderName}
-            onCreateNewFolder={createNewFolder}
-            onSelectFolder={handleSelectFolder}
+            setNewFolderName={setNewFolderName}
+            createNewFolder={createNewFolder}
+            handleSelectFolder={handleSelectFolder}
+            handleMoveNotes={handleMoveNotes}
+            handleDeleteNotes={handleDeleteNotes}
           />
         </main>
       </div>
