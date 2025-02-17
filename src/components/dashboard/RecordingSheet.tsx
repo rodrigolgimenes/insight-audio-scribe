@@ -1,3 +1,4 @@
+
 import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
@@ -47,6 +48,16 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       resetRecording();
     }
   }, [resetRecording]);
+
+  const handleTimeLimit = () => {
+    if (isRecording) {
+      handleStopRecording();
+      toast({
+        title: "Time Limit Reached",
+        description: "Recording was stopped after reaching the time limit.",
+      });
+    }
+  };
 
   const handleSaveRecording = async () => {
     if (isSaveInProgress) return;
