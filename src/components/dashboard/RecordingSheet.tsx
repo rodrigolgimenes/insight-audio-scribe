@@ -1,10 +1,11 @@
 
 import { useRecording } from "@/hooks/useRecording";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface RecordingSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -14,6 +15,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const {
     isRecording,
@@ -41,7 +43,10 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
     try {
       await handleStopRecording();
       
-      // Close the modal
+      // Update the queryClient to force a refresh
+      await queryClient.invalidateQueries({ queryKey: ['notes'] });
+
+      // Only close the modal after successful save
       if (onOpenChange) {
         onOpenChange(false);
       }
@@ -51,21 +56,26 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         navigate('/app');
       }
 
-      // Invalidate notes query to force a refresh of the dashboard data
-      await queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast({
+        title: "Success",
+        description: "Recording saved successfully!",
+      });
       
     } catch (error) {
       console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save recording. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+      <SheetTitle className="text-lg font-semibold mb-2">Record Audio</SheetTitle>
       <div className="space-y-8">
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Record Audio</h2>
-          <p className="text-sm text-gray-500">Record audio from your microphone or system audio.</p>
-        </div>
+        <p className="text-sm text-gray-500">Record audio from your microphone or system audio.</p>
 
         <RecordingSection
           isRecording={isRecording}
@@ -97,4 +107,4 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       </div>
     </SheetContent>
   );
-}
+};
