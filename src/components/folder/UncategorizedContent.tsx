@@ -3,7 +3,7 @@ import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
 import { FolderEmptyState } from "@/components/folder/FolderEmptyState";
 import { BulkActions } from "@/components/dashboard/BulkActions";
 import { FolderDialog } from "@/components/dashboard/FolderDialog";
-import { Note } from "@/integrations/supabase/types/notes";
+import { Note } from "@/types/notes";
 
 interface UncategorizedContentProps {
   isLoading: boolean;

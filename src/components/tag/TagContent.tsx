@@ -1,7 +1,7 @@
 
 import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
 import { FolderEmptyState } from "@/components/folder/FolderEmptyState";
-import { Note } from "@/types/notes";
+import { Note } from "@/integrations/supabase/types/notes";
 
 interface TagContentProps {
   notes: Note[] | undefined;
