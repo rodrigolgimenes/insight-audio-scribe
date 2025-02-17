@@ -16,26 +16,36 @@ export const useRecordingSave = () => {
     audioUrl: string | null
   ) => {
     try {
+      console.log('[useRecordingSave] Starting save process...');
+      
       if (isRecording) {
+        console.log('[useRecordingSave] Stopping recording...');
         await handleStopRecording();
       }
 
       setIsProcessing(true);
+      console.log('[useRecordingSave] Checking user authentication...');
+      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.error('[useRecordingSave] No authenticated user found');
+        throw new Error('User not authenticated');
+      }
       
       // Sanitize filename to prevent issues
       const fileName = `${user.id}/${Date.now()}.webm`.replace(/[^\x00-\x7F]/g, '');
       
-      console.log('Creating recording with user ID:', user.id);
+      console.log('[useRecordingSave] Creating recording with user ID:', user.id);
 
       if (mediaStream) {
+        console.log('[useRecordingSave] Stopping media stream...');
         mediaStream.getTracks().forEach(track => {
           track.stop();
         });
       }
 
       // Create initial recording entry
+      console.log('[useRecordingSave] Creating recording entry in database...');
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
@@ -49,13 +59,14 @@ export const useRecordingSave = () => {
         .single();
 
       if (dbError) {
-        console.error('Database error:', dbError);
+        console.error('[useRecordingSave] Database error:', dbError);
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
-      console.log('Recording entry created:', recordingData);
+      console.log('[useRecordingSave] Recording entry created:', recordingData);
 
       if (audioUrl) {
+        console.log('[useRecordingSave] Fetching audio data...');
         const response = await fetch(audioUrl);
         const blob = await response.blob();
 
@@ -64,6 +75,7 @@ export const useRecordingSave = () => {
         const maxAttempts = 3;
         let uploadError = null;
 
+        console.log('[useRecordingSave] Starting file upload...');
         while (uploadAttempts < maxAttempts) {
           try {
             const { error } = await supabase.storage
@@ -75,6 +87,7 @@ export const useRecordingSave = () => {
 
             if (!error) {
               uploadError = null;
+              console.log('[useRecordingSave] File uploaded successfully');
               break;
             }
             uploadError = error;
@@ -83,11 +96,13 @@ export const useRecordingSave = () => {
           }
           uploadAttempts++;
           if (uploadAttempts < maxAttempts) {
+            console.log(`[useRecordingSave] Upload attempt ${uploadAttempts} failed, retrying...`);
             await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempts));
           }
         }
 
         if (uploadError) {
+          console.error('[useRecordingSave] Upload failed after all attempts:', uploadError);
           // Clean up the recording entry if upload fails
           await supabase
             .from('recordings')
@@ -97,6 +112,7 @@ export const useRecordingSave = () => {
         }
 
         // Update recording status after successful upload
+        console.log('[useRecordingSave] Updating recording status...');
         const { error: updateError } = await supabase
           .from('recordings')
           .update({
@@ -106,29 +122,35 @@ export const useRecordingSave = () => {
           .eq('id', recordingData.id);
 
         if (updateError) {
+          console.error('[useRecordingSave] Error updating recording status:', updateError);
           throw new Error(`Failed to update recording: ${updateError.message}`);
         }
       }
 
       // Initiate processing with retry logic
+      console.log('[useRecordingSave] Starting transcription process...');
       let processAttempts = 0;
       const maxProcessAttempts = 3;
       let processError = null;
 
       while (processAttempts < maxProcessAttempts) {
         try {
+          console.log(`[useRecordingSave] Transcription attempt ${processAttempts + 1}...`);
           const { error } = await supabase.functions
-            .invoke('process-recording', {
+            .invoke('transcribe-audio', {
               body: { recordingId: recordingData.id },
             });
 
           if (!error) {
             processError = null;
+            console.log('[useRecordingSave] Transcription started successfully');
             break;
           }
           processError = error;
+          console.error('[useRecordingSave] Transcription attempt failed:', error);
         } catch (error) {
           processError = error;
+          console.error('[useRecordingSave] Transcription attempt threw error:', error);
         }
         processAttempts++;
         if (processAttempts < maxProcessAttempts) {
@@ -137,7 +159,7 @@ export const useRecordingSave = () => {
       }
 
       if (processError) {
-        console.error('Processing error:', processError);
+        console.error('[useRecordingSave] Processing error:', processError);
         toast({
           title: "Warning",
           description: "Recording saved but processing failed to start. It will retry automatically.",
@@ -154,7 +176,7 @@ export const useRecordingSave = () => {
       navigate("/app");
       
     } catch (error) {
-      console.error('Error saving recording:', error);
+      console.error('[useRecordingSave] Error saving recording:', error);
       setIsProcessing(false);
       
       toast({

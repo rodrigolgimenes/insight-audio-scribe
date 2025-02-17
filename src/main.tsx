@@ -15,44 +15,6 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Service Worker registration and update handling
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-        type: 'module'
-      });
-      
-      // Handle updates
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (newWorker) {
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New service worker available
-              if (confirm('New version available! Would you like to update?')) {
-                newWorker.postMessage('SKIP_WAITING');
-                window.location.reload();
-              }
-            }
-          });
-        }
-      });
-
-      console.log('ServiceWorker registered successfully:', registration.scope);
-    } catch (error) {
-      console.error('ServiceWorker registration failed:', error);
-      // Don't let SW registration failure block app initialization
-    }
-  });
-
-  // Handle controller change
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('New ServiceWorker activated');
-  });
-}
-
 const container = document.getElementById('root');
 
 if (!container) {
