@@ -3,7 +3,7 @@ import { SaveRecordingButton } from "./SaveRecordingButton";
 import { FileUploadSection } from "./FileUploadSection";
 
 interface RecordingActionsProps {
-  onSave: () => Promise<void>;
+  onSave: () => void;
   isSaving: boolean;
   isLoading: boolean;
 }

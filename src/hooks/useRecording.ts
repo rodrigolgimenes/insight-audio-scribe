@@ -43,25 +43,8 @@ export const useRecording = () => {
     
     return () => {
       audioRecorder.current.removeObserver(logger.current);
-      resetRecording();
     };
   }, []);
-
-  const resetRecording = () => {
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop());
-    }
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-    }
-    setIsRecording(false);
-    setIsPaused(false);
-    setAudioUrl(null);
-    setMediaStream(null);
-    setIsSaving(false);
-    setIsTranscribing(false);
-    audioRecorder.current = new AudioRecorder();
-  };
 
   const handleStartRecording = async () => {
     console.log('[useRecording] Starting recording process');
@@ -111,17 +94,9 @@ export const useRecording = () => {
       const { blob, duration } = await audioRecorder.current.stopRecording();
       setIsRecording(false);
       setIsPaused(false);
-      
-      // Stop and clear the media stream
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-        setMediaStream(null);
-      }
+      setMediaStream(null);
 
       // Create object URL for preview
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
 
@@ -157,7 +132,44 @@ export const useRecording = () => {
   };
 
   const handleDelete = () => {
-    resetRecording();
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setMediaStream(null);
+    setIsRecording(false);
+    setIsPaused(false);
+  };
+
+  const handleSaveRecording = async () => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save recordings.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { blob, duration } = await audioRecorder.current.stopRecording();
+      const success = await saveRecording(session.user.id, blob, duration);
+      
+      if (success) {
+        navigate("/app");
+      }
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save recording. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return {
@@ -173,10 +185,10 @@ export const useRecording = () => {
     handlePauseRecording,
     handleResumeRecording,
     handleDelete,
+    handleSaveRecording,
     setIsSystemAudio,
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
-    resetRecording,
   };
 };

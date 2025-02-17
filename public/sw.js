@@ -8,71 +8,60 @@ const STATIC_RESOURCES = [
   '/favicon.ico',
 ];
 
+// Cache manager
+const cacheManager = new Worker('/cache-worker.js');
+cacheManager.onmessage = (event) => {
+  console.log('[Service Worker] Cache cleanup status:', event.data);
+};
+
+// Install event - cache static resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       console.log('[Service Worker] Caching static resources');
       await cache.addAll(STATIC_RESOURCES);
-      await self.skipWaiting();
+      await self.skipWaiting(); // Activate new service worker immediately
     })()
   );
 });
 
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      // Clean up old caches
-      const cacheKeys = await caches.keys();
-      const deletions = cacheKeys
-        .filter(key => key !== CACHE_NAME)
-        .map(key => caches.delete(key));
-      await Promise.all(deletions);
-      await self.clients.claim();
+      await self.clients.claim(); // Take control of all clients
+      cacheManager.postMessage({ 
+        type: 'CLEAN_OLD_CACHES', 
+        cacheVersion: CACHE_NAME 
+      });
     })()
   );
 });
 
+// Fetch event - serve from cache, falling back to network
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
-  if (event.request.method !== 'GET') return;
-
-  // Skip caching for certain URL schemes
-  const url = new URL(event.request.url);
-  if (url.protocol === 'chrome-extension:' || 
-      url.protocol === 'blob:' || 
-      url.pathname.startsWith('/sw.js')) {
-    return;
-  }
-
   event.respondWith(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      
-      try {
-        // Try cache first
-        const cachedResponse = await cache.match(event.request);
-        if (cachedResponse) {
-          return cachedResponse;
-        }
+      // Try to get the response from cache
+      const cachedResponse = await caches.match(event.request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
 
-        // If not in cache, get from network
+      try {
         const response = await fetch(event.request);
         
-        // Don't cache non-successful responses
-        if (!response || response.status !== 200 || response.type === 'opaque') {
+        // Don't cache non-GET requests or failed responses
+        if (!event.request.method === 'GET' || !response || response.status !== 200) {
           return response;
         }
 
-        // Only cache if it's a valid URL scheme
-        if (url.protocol === 'http:' || url.protocol === 'https:') {
-          try {
-            cache.put(event.request, response.clone());
-          } catch (error) {
-            console.error('[Service Worker] Cache put failed:', error);
-          }
-        }
-
+        // Clone the response before caching it
+        const responseToCache = response.clone();
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(event.request, responseToCache);
+        
         return response;
       } catch (error) {
         console.error('[Service Worker] Fetch failed:', error);
@@ -80,4 +69,11 @@ self.addEventListener('fetch', (event) => {
       }
     })()
   );
+});
+
+// Handle service worker updates
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

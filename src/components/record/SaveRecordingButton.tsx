@@ -4,16 +4,12 @@ import { Mic, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface SaveRecordingButtonProps {
-  onSave: () => Promise<void>;
+  onSave: () => void;
   isSaving: boolean;
   isDisabled: boolean;
 }
 
-export const SaveRecordingButton = ({ 
-  onSave, 
-  isSaving, 
-  isDisabled 
-}: SaveRecordingButtonProps) => {
+export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecordingButtonProps) => {
   const [isClickable, setIsClickable] = useState(true);
 
   useEffect(() => {
@@ -22,16 +18,10 @@ export const SaveRecordingButton = ({
     }
   }, [isSaving]);
 
-  const handleClick = async () => {
+  const handleClick = () => {
     if (!isClickable || isDisabled || isSaving) return;
-    
-    try {
-      setIsClickable(false);
-      await onSave();
-    } catch (error) {
-      console.error('Error saving recording:', error);
-      setIsClickable(true);
-    }
+    setIsClickable(false);
+    onSave();
   };
 
   return (

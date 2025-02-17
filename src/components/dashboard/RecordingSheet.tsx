@@ -1,17 +1,19 @@
 
 import { useRecording } from "@/hooks/useRecording";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { useSaveRecording } from "@/hooks/recording/useSaveRecording";
-import { RecordingContent } from "@/components/record/RecordingContent";
-import { useEffect } from "react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { RecordingSection } from "@/components/record/RecordingSection";
+import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface RecordingSheetProps {
   onOpenChange?: (open: boolean) => void;
 }
 
 export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
-  const { session } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   
   const {
     isRecording,
@@ -25,66 +27,74 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
-    handleDelete,
     setIsSystemAudio,
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
-    resetRecording,
   } = useRecording();
 
-  const { handleSaveRecording, isSaveInProgress } = useSaveRecording({
-    session,
-    isRecording,
-    audioUrl,
-    mediaStream,
-    handleStopRecording,
-    resetRecording,
-  });
-
-  useEffect(() => {
-    if (resetRecording) {
-      resetRecording();
-    }
-  }, [resetRecording]);
-
   const handleTimeLimit = () => {
-    if (isRecording) {
-      handleStopRecording();
-    }
+    handleStopRecording();
   };
 
-  const handleSave = async () => {
-    const success = await handleSaveRecording();
-    if (success && onOpenChange) {
-      onOpenChange(false);
+  const handleSaveRecording = async () => {
+    try {
+      await handleStopRecording();
+      
+      // Close the modal
+      if (onOpenChange) {
+        onOpenChange(false);
+      }
+
+      // If we're not on the dashboard, navigate to it
+      if (location.pathname !== '/app') {
+        navigate('/app');
+      }
+
+      // Invalidate notes query to force a refresh of the dashboard data
+      await queryClient.invalidateQueries({ queryKey: ['notes'] });
+      
+    } catch (error) {
+      console.error('Error saving recording:', error);
     }
   };
 
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
-      <SheetTitle className="text-lg font-semibold mb-2">Record Audio</SheetTitle>
-      <RecordingContent
-        isRecording={isRecording}
-        isPaused={isPaused}
-        audioUrl={audioUrl}
-        mediaStream={mediaStream}
-        isSystemAudio={isSystemAudio}
-        isSaving={isSaving}
-        isTranscribing={isTranscribing}
-        isSaveInProgress={isSaveInProgress}
-        handleStartRecording={handleStartRecording}
-        handleStopRecording={handleStopRecording}
-        handlePauseRecording={handlePauseRecording}
-        handleResumeRecording={handleResumeRecording}
-        handleDelete={handleDelete}
-        handleTimeLimit={handleTimeLimit}
-        handleSaveRecording={handleSave}
-        setIsSystemAudio={setIsSystemAudio}
-        audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        setSelectedDeviceId={setSelectedDeviceId}
-      />
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-lg font-semibold mb-2">Record Audio</h2>
+          <p className="text-sm text-gray-500">Record audio from your microphone or system audio.</p>
+        </div>
+
+        <RecordingSection
+          isRecording={isRecording}
+          isPaused={isPaused}
+          audioUrl={audioUrl}
+          mediaStream={mediaStream}
+          isSystemAudio={isSystemAudio}
+          handleStartRecording={handleStartRecording}
+          handleStopRecording={handleStopRecording}
+          handlePauseRecording={handlePauseRecording}
+          handleResumeRecording={handleResumeRecording}
+          handleDelete={() => {}}
+          handleTimeLimit={handleTimeLimit}
+          onSystemAudioChange={setIsSystemAudio}
+          audioDevices={audioDevices}
+          selectedDeviceId={selectedDeviceId}
+          onDeviceSelect={setSelectedDeviceId}
+          showPlayButton={false}
+          showDeleteButton={false}
+        />
+
+        <div className="mt-6 flex justify-center">
+          <SaveRecordingButton
+            onSave={handleSaveRecording}
+            isSaving={isSaving}
+            isDisabled={!isRecording && !audioUrl}
+          />
+        </div>
+      </div>
     </SheetContent>
   );
 }
