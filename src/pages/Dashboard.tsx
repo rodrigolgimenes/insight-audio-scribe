@@ -70,8 +70,8 @@ const Dashboard = () => {
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
-        <main className="flex-1 overflow-auto">
-          <div className="bg-blue-600 p-4">
+        <main className="flex-1 overflow-auto relative">
+          <div className="bg-[#9b87f5] p-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
               <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
                 <Search className="h-5 w-5 ml-3 text-gray-400" />
@@ -85,7 +85,7 @@ const Dashboard = () => {
               </div>
               <Sheet open={isRecordingSheetOpen} onOpenChange={setIsRecordingSheetOpen}>
                 <SheetTrigger asChild>
-                  <Button size="icon" variant="ghost" className="bg-blue-500 hover:bg-blue-400 text-white">
+                  <Button size="icon" variant="ghost" className="bg-[#7E69AB] hover:bg-[#6A5A91] text-white">
                     <Mic className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
@@ -93,7 +93,7 @@ const Dashboard = () => {
               </Sheet>
               <Button 
                 onClick={() => navigate('/app/record')}
-                className="bg-white text-blue-600 hover:bg-blue-50"
+                className="bg-white text-[#9b87f5] hover:bg-[#f8f7fd]"
               >
                 TRANSCRIBE FILES
               </Button>
@@ -160,12 +160,14 @@ const Dashboard = () => {
           </div>
 
           {selectedNotes.length > 0 && (
-            <BulkActions
-              selectedCount={selectedNotes.length}
-              onExport={() => setIsFolderDialogOpen(true)}
-              onMove={() => setIsFolderDialogOpen(true)}
-              onDelete={handleDeleteNotes}
-            />
+            <div className="fixed bottom-0 left-[280px] right-0">
+              <BulkActions
+                selectedCount={selectedNotes.length}
+                onExport={() => setIsFolderDialogOpen(true)}
+                onMove={() => setIsFolderDialogOpen(true)}
+                onDelete={handleDeleteNotes}
+              />
+            </div>
           )}
         </main>
       </div>

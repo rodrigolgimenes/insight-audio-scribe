@@ -2,6 +2,8 @@
 import { SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { useRecording } from "@/hooks/useRecording";
+import { Button } from "@/components/ui/button";
+import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 
 export const RecordingSheet = () => {
   const {
@@ -21,6 +23,7 @@ export const RecordingSheet = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    handleSaveRecording,
   } = useRecording();
 
   // Create a function to handle the time limit (25 minutes)
@@ -52,6 +55,16 @@ export const RecordingSheet = () => {
           selectedDeviceId={selectedDeviceId}
           onDeviceSelect={setSelectedDeviceId}
         />
+
+        {audioUrl && (
+          <div className="mt-6 flex justify-center">
+            <SaveRecordingButton 
+              onSave={handleSaveRecording}
+              isSaving={isSaving}
+              isDisabled={isTranscribing}
+            />
+          </div>
+        )}
       </div>
     </SheetContent>
   );
