@@ -48,7 +48,7 @@ const Dashboard = () => {
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1">
-          <div className="max-w-5xl mx-auto px-6 py-8">
+          <div className="w-full px-6 py-8">
             <div className="text-center py-12">
               <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
               <p className="mt-2 text-sm text-gray-500">
@@ -71,7 +71,7 @@ const Dashboard = () => {
         <AppSidebar activePage="notes" />
         <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
           <div className="bg-[#9b87f5] p-4">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
                 <Search className="h-5 w-5 ml-3 text-gray-400" />
                 <Input
@@ -100,7 +100,7 @@ const Dashboard = () => {
           </div>
 
           <div className="flex-1 overflow-auto">
-            <div className="max-w-7xl mx-auto px-8">
+            <div className="px-4">
               <h2 className="text-xl font-semibold my-6">Recent Files</h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
