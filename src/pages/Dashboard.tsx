@@ -82,7 +82,7 @@ const Dashboard = () => {
             <div className="fixed bottom-0 left-[280px] right-0">
               <BulkActions
                 selectedCount={selectedNotes.length}
-                onExport={() => setIsFolderDialogOpen(true)}
+                selectedIds={selectedNotes.map(note => note.id)}
                 onMove={() => setIsFolderDialogOpen(true)}
                 onDelete={handleDeleteNotes}
               />
