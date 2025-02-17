@@ -56,9 +56,29 @@ export const useAudioProcessing = () => {
 
       console.log('File uploaded successfully');
 
-      // Iniciar processamento
+      // Create note first
+      const { data: noteData, error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          recording_id: recording.id,
+          user_id: userId,
+          title: recording.title,
+          status: 'pending',
+          processing_progress: 0,
+          processed_content: ''
+        })
+        .select()
+        .single();
+
+      if (noteError) {
+        throw new Error(`Failed to create note: ${noteError.message}`);
+      }
+
+      console.log('Note created successfully:', noteData);
+
+      // Iniciar processamento ONLY after note is created
       const { error: processError } = await supabase.functions
-        .invoke('process-recording', {
+        .invoke('transcribe-audio', {
           body: { recordingId: recording.id }
         });
 
