@@ -15,13 +15,16 @@ interface NoteListItemProps {
 
 export const NoteListItem = ({ note, isSelected, onSelect, onClick }: NoteListItemProps) => {
   return (
-    <tr className="group border-b hover:bg-gray-50 transition-colors">
+    <tr className={`group border-b hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}>
       <td className="py-4 pl-6 pr-4">
         <div className="flex items-center justify-center w-5 h-5 cursor-pointer" onClick={(e) => {
           e.stopPropagation();
           onSelect();
         }}>
-          <Checkbox checked={isSelected} className="w-4 h-4" />
+          <Checkbox 
+            checked={isSelected} 
+            className="w-4 h-4 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+          />
         </div>
       </td>
       <td className="py-4 pl-8 pr-4" onClick={onClick}>

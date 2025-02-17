@@ -31,7 +31,7 @@ export const NotesTable = ({
               }}>
                 <Checkbox 
                   checked={notes && selectedNotes.length === notes.length}
-                  className="w-4 h-4"
+                  className="w-4 h-4 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                 />
               </div>
             </th>

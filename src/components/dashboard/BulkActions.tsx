@@ -19,7 +19,7 @@ export function BulkActions({
     <div className="bg-white border-t shadow-lg p-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <span className="text-sm font-medium text-gray-600">
-          {selectedCount} files selected
+          {selectedCount} {selectedCount === 1 ? 'file' : 'files'} selected
         </span>
         <div className="flex gap-2">
           <Button
