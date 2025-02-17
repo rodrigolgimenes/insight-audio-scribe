@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Mic, Pause, Play, Square, Trash } from "lucide-react";
+import { Mic, Pause, Play } from "lucide-react";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -14,6 +14,7 @@ interface RecordControlsProps {
   onPlay: () => void;
   disabled?: boolean;
   showPlayButton?: boolean;
+  showDeleteButton?: boolean;
 }
 
 export const RecordControls = ({
@@ -28,6 +29,7 @@ export const RecordControls = ({
   onPlay,
   disabled = false,
   showPlayButton = true,
+  showDeleteButton = true,
 }: RecordControlsProps) => {
   return (
     <div className="flex items-center justify-center gap-6">
@@ -64,16 +66,6 @@ export const RecordControls = ({
           <Mic className="w-10 h-10" />
         </Button>
       )}
-      
-      <Button
-        size="icon"
-        variant="outline"
-        className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-        onClick={onDelete}
-        disabled={!isRecording && !hasRecording}
-      >
-        <Trash className="w-6 h-6 text-primary" />
-      </Button>
     </div>
   );
 };

@@ -34,6 +34,7 @@ interface RecordingSectionProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   showPlayButton?: boolean;
+  showDeleteButton?: boolean;
 }
 
 export const RecordingSection = ({
@@ -53,6 +54,7 @@ export const RecordingSection = ({
   selectedDeviceId,
   onDeviceSelect,
   showPlayButton = true,
+  showDeleteButton = true,
 }: RecordingSectionProps) => {
   const canStartRecording = !!selectedDeviceId;
 
@@ -157,6 +159,7 @@ export const RecordingSection = ({
           }}
           disabled={!canStartRecording}
           showPlayButton={showPlayButton}
+          showDeleteButton={showDeleteButton}
         />
       </div>
     </>
