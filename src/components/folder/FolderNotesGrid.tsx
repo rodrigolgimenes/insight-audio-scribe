@@ -1,19 +1,7 @@
 
 import { FolderNoteCard } from "./FolderNoteCard";
 import { useNavigate } from "react-router-dom";
-
-interface Note {
-  id: string;
-  title: string;
-  original_transcript: string | null;
-  created_at: string;
-  duration: number | null;
-  tags: Array<{
-    id: string;
-    name: string;
-    color: string;
-  }>;
-}
+import { Note } from "@/integrations/supabase/types/notes";
 
 interface FolderNotesGridProps {
   notes: Note[];
