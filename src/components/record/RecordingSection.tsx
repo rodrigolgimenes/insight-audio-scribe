@@ -33,6 +33,7 @@ interface RecordingSectionProps {
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
+  showPlayButton?: boolean;
 }
 
 export const RecordingSection = ({
@@ -51,6 +52,7 @@ export const RecordingSection = ({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
+  showPlayButton = true,
 }: RecordingSectionProps) => {
   const canStartRecording = !!selectedDeviceId;
 
@@ -154,6 +156,7 @@ export const RecordingSection = ({
             if (audio) audio.play();
           }}
           disabled={!canStartRecording}
+          showPlayButton={showPlayButton}
         />
       </div>
     </>
