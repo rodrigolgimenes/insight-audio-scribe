@@ -10,6 +10,10 @@ export const useAudioProcessing = () => {
       // Converter duração para inteiro (em segundos)
       const durationInSeconds = Math.round(duration);
       
+      // Sanitizar o nome do arquivo
+      const timestamp = new Date().getTime();
+      const sanitizedFileName = `${userId}/${timestamp}_recording.mp3`;
+      
       // Criar entrada inicial da gravação
       const { data: recording, error: createError } = await supabase
         .from('recordings')
@@ -18,19 +22,27 @@ export const useAudioProcessing = () => {
           title: `Recording ${new Date().toLocaleString()}`,
           duration: durationInSeconds,
           status: 'pending',
-          file_path: `${userId}/${Date.now()}.mp3`
+          file_path: sanitizedFileName
         })
         .select()
         .single();
 
       if (createError) throw createError;
 
+      console.log('Created recording entry:', recording);
+
+      // Converter para MP3 se necessário
+      const audioBlob = blob.type === 'audio/mp3' 
+        ? blob 
+        : new Blob([blob], { type: 'audio/mp3' });
+
       // Upload do arquivo
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
-        .upload(recording.file_path, blob, {
+        .upload(recording.file_path, audioBlob, {
           contentType: 'audio/mp3',
           cacheControl: '3600',
+          upsert: false
         });
 
       if (uploadError) {
@@ -41,6 +53,8 @@ export const useAudioProcessing = () => {
           .eq('id', recording.id);
         throw uploadError;
       }
+
+      console.log('File uploaded successfully');
 
       // Iniciar processamento
       const { error: processError } = await supabase.functions
