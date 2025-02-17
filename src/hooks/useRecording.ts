@@ -39,10 +39,8 @@ export const useRecording = () => {
 
   useEffect(() => {
     getAudioDevices();
-    // Add the logger observer when the component mounts
     audioRecorder.current.addObserver(logger.current);
     
-    // Remove the observer when the component unmounts
     return () => {
       audioRecorder.current.removeObserver(logger.current);
     };
@@ -61,66 +59,76 @@ export const useRecording = () => {
       return;
     }
 
-    const stream = await requestMicrophoneAccess(selectedDeviceId, isSystemAudio);
-    if (!stream) return;
+    try {
+      const stream = await requestMicrophoneAccess(selectedDeviceId, isSystemAudio);
+      if (!stream) return;
 
-    setMediaStream(stream);
-    await audioRecorder.current.startRecording(stream);
-    setIsRecording(true);
-    setIsPaused(false);
-    
-    console.log('[useRecording] Recording started with stream:', stream.id);
+      setMediaStream(stream);
+      await audioRecorder.current.startRecording(stream);
+      setIsRecording(true);
+      setIsPaused(false);
+      
+      console.log('[useRecording] Recording started with stream:', stream.id);
 
-    stream.addEventListener('inactive', () => {
-      console.log('[useRecording] Stream became inactive');
-      if (!isProcessing.current) {
-        handleStopRecording();
-      }
-    });
+      stream.addEventListener('inactive', () => {
+        console.log('[useRecording] Stream became inactive');
+        if (!isProcessing.current) {
+          handleStopRecording();
+        }
+      });
+    } catch (error) {
+      console.error('[useRecording] Error starting recording:', error);
+      toast({
+        title: "Recording Error",
+        description: "Could not start recording. Please check your microphone settings and try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleStopRecording = async () => {
     if (isProcessing.current) return;
     isProcessing.current = true;
 
-    if (!session?.user?.id) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to save recordings.",
-        variant: "destructive",
-      });
-      navigate("/login");
-      return;
-    }
-
-    setIsSaving(true);
     try {
       const { blob, duration } = await audioRecorder.current.stopRecording();
       setIsRecording(false);
       setIsPaused(false);
       setMediaStream(null);
 
-      setIsTranscribing(true);
-      const success = await saveRecording(session.user.id, blob, duration);
-      
-      if (success) {
-        navigate("/app");
-      }
+      // Create object URL for preview
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+
+      console.log('[useRecording] Recording stopped successfully');
+    } catch (error) {
+      console.error('[useRecording] Error stopping recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to stop recording. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setIsSaving(false);
-      setIsTranscribing(false);
       isProcessing.current = false;
     }
   };
 
   const handlePauseRecording = () => {
-    audioRecorder.current.pauseRecording();
-    setIsPaused(true);
+    try {
+      audioRecorder.current.pauseRecording();
+      setIsPaused(true);
+    } catch (error) {
+      console.error('[useRecording] Error pausing recording:', error);
+    }
   };
 
   const handleResumeRecording = () => {
-    audioRecorder.current.resumeRecording();
-    setIsPaused(false);
+    try {
+      audioRecorder.current.resumeRecording();
+      setIsPaused(false);
+    } catch (error) {
+      console.error('[useRecording] Error resuming recording:', error);
+    }
   };
 
   const handleDelete = () => {
@@ -156,7 +164,7 @@ export const useRecording = () => {
       console.error('Error saving recording:', error);
       toast({
         title: "Error",
-        description: "Failed to save recording.",
+        description: "Failed to save recording. Please try again.",
         variant: "destructive",
       });
     } finally {

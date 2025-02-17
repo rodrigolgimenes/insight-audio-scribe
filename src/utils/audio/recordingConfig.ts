@@ -1,12 +1,15 @@
 
 export const RECORDING_MIME_TYPES = [
-  'audio/mp3',
-  'audio/mpeg',
+  'audio/webm;codecs=opus',
+  'audio/webm',
   'audio/ogg;codecs=opus',
-  'audio/webm;codecs=opus'
+  'audio/mp3',
+  'audio/mpeg'
 ];
 
 export const getMediaRecorderOptions = (): MediaRecorderOptions => {
+  console.log('[AudioRecorder] Checking supported MIME types...');
+  
   const selectedMimeType = RECORDING_MIME_TYPES.find(type => {
     try {
       const isSupported = MediaRecorder.isTypeSupported(type);
@@ -16,7 +19,12 @@ export const getMediaRecorderOptions = (): MediaRecorderOptions => {
       console.warn(`[AudioRecorder] Error checking mime type ${type}:`, e);
       return false;
     }
-  }) || '';
+  });
+
+  if (!selectedMimeType) {
+    console.error('[AudioRecorder] No supported MIME type found');
+    throw new Error('No supported audio format found. Please try a different browser.');
+  }
 
   console.log('[AudioRecorder] Selected MIME type:', selectedMimeType);
 
