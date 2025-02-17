@@ -40,8 +40,9 @@ const FolderPage = () => {
   }, [queryClient, folderId]);
 
   const folderTags = notes?.reduce((acc: any[], note) => {
-    note.tags?.forEach((tag: any) => {
-      if (!acc.some(existingTag => existingTag.id === tag.id)) {
+    note.notes_tags?.forEach((noteTag: any) => {
+      const tag = noteTag.tags;
+      if (tag && !acc.some(existingTag => existingTag.id === tag.id)) {
         acc.push(tag);
       }
     });
@@ -53,16 +54,16 @@ const FolderPage = () => {
   // Transform notes to match the Note type
   const transformedNotes: Note[] = notes?.map(note => ({
     id: note.id,
-    title: note.title,
-    processed_content: note.processed_content || '',
-    original_transcript: note.original_transcript,
-    full_prompt: note.full_prompt || null,
+    title: note.title || '',
+    processed_content: '', // Since it's not in the query, set a default empty string
+    original_transcript: note.original_transcript || null,
+    full_prompt: null, // Since it's not in the query, set to null
     created_at: note.created_at,
-    updated_at: note.updated_at || note.created_at,
-    recording_id: note.recording_id || '',
-    user_id: note.user_id || '',
+    updated_at: note.created_at, // Use created_at as fallback since updated_at isn't in the query
+    recording_id: note.id, // Use note.id as recording_id since it's not in the query
+    user_id: 'anonymous', // Set a default value since it's not in the query
     duration: note.recordings?.duration || null,
-    audio_url: note.audio_url || null,
+    audio_url: null, // Since it's not in the query, set to null
     tags: note.notes_tags?.map(nt => nt.tags).filter(Boolean) || []
   })) || [];
 
