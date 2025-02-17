@@ -7,11 +7,13 @@ import { PricingSection } from "@/components/payments/PricingSection";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       <Header />
-      <Hero />
-      <Features />
-      <PricingSection />
+      <main>
+        <Hero />
+        <Features />
+        <PricingSection />
+      </main>
       <Footer />
     </div>
   );
