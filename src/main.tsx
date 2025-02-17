@@ -19,7 +19,10 @@ if (process.env.NODE_ENV === 'production') {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+        type: 'module'
+      });
       
       // Handle updates
       registration.addEventListener('updatefound', () => {
@@ -40,6 +43,7 @@ if ('serviceWorker' in navigator) {
       console.log('ServiceWorker registered successfully:', registration.scope);
     } catch (error) {
       console.error('ServiceWorker registration failed:', error);
+      // Don't let SW registration failure block app initialization
     }
   });
 
