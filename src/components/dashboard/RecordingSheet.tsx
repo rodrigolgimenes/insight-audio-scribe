@@ -75,29 +75,84 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         throw new Error('No audio data available');
       }
 
-      // Save the recording
-      console.log('Starting save process...');
-      const { data: recordingData, error } = await supabase
+      const timestamp = Date.now();
+      const fileName = `${session?.user?.id}/${timestamp}.webm`;
+      const recordingTitle = `Recording ${new Date().toLocaleString()}`;
+
+      console.log('Creating recording entry...');
+      const { data: recordingData, error: recordingError } = await supabase
         .from('recordings')
         .insert({
-          title: `Recording ${new Date().toLocaleString()}`,
-          file_path: `${Date.now()}.webm`,
+          title: recordingTitle,
+          file_path: fileName,
           user_id: session?.user?.id,
           status: 'pending'
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (recordingError) {
+        console.error('Error creating recording:', recordingError);
+        throw new Error('Failed to create recording entry');
+      }
+
+      console.log('Recording entry created:', recordingData);
+
+      console.log('Creating note entry...');
+      const { data: noteData, error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingTitle,
+          recording_id: recordingData.id,
+          user_id: session?.user?.id,
+          status: 'pending',
+          processing_progress: 0,
+          processed_content: ''
+        })
+        .select()
+        .single();
+
+      if (noteError) {
+        console.error('Error creating note:', noteError);
+        // Cleanup the recording entry if note creation fails
+        await supabase
+          .from('recordings')
+          .delete()
+          .eq('id', recordingData.id);
+        throw new Error('Failed to create note entry');
+      }
+
+      console.log('Note entry created:', noteData);
 
       // Update the queryClient to force a refresh
       console.log('Invalidating queries...');
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
 
+      // Start processing in background
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { 
+            recordingId: recordingData.id,
+            noteId: noteData.id
+          }
+        });
+
+      if (processError) {
+        console.error('Error starting processing:', processError);
+        toast({
+          title: "Warning",
+          description: "Recording saved but processing may be delayed. It will retry automatically.",
+          variant: "destructive",
+        });
+      }
+
+      // Add a small delay before closing the modal
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       console.log('Save completed successfully');
       toast({
         title: "Success",
-        description: "Recording saved successfully!",
+        description: "Recording saved successfully! Processing will begin shortly.",
       });
 
       // Reset recording state
@@ -117,7 +172,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       console.error('Error saving recording:', error);
       toast({
         title: "Error",
-        description: "Failed to save recording. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save recording. Please try again.",
         variant: "destructive",
       });
     } finally {
