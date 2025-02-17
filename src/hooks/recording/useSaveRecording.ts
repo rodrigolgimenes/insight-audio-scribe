@@ -34,7 +34,7 @@ export const useSaveRecording = ({
     
     if (isSaveInProgress) {
       console.log('[useSaveRecording] Save already in progress, returning');
-      return;
+      return false;
     }
 
     if (!session?.user?.id) {
@@ -44,7 +44,7 @@ export const useSaveRecording = ({
         description: "You must be logged in to save recordings.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     try {
@@ -61,6 +61,28 @@ export const useSaveRecording = ({
         throw new Error('No audio data available');
       }
 
+      // Get audio data as blob
+      let audioBlob: Blob;
+      if (audioUrl) {
+        try {
+          console.log('[useSaveRecording] Getting audio data from URL');
+          const response = await fetch(audioUrl);
+          if (!response.ok) {
+            throw new Error('Failed to fetch audio data');
+          }
+          audioBlob = await response.blob();
+          console.log('[useSaveRecording] Audio blob created:', {
+            size: audioBlob.size,
+            type: audioBlob.type
+          });
+        } catch (error) {
+          console.error('[useSaveRecording] Error getting audio blob:', error);
+          throw new Error('Failed to get audio data');
+        }
+      } else {
+        throw new Error('No audio URL available');
+      }
+
       const timestamp = Date.now();
       const fileName = `${session.user.id}/${timestamp}.webm`;
       const recordingTitle = `Recording ${new Date().toLocaleString()}`;
@@ -71,6 +93,7 @@ export const useSaveRecording = ({
         user_id: session.user.id
       });
 
+      // First create recording entry
       const { data: recordingData, error: recordingError } = await supabase
         .from('recordings')
         .insert({
@@ -94,6 +117,25 @@ export const useSaveRecording = ({
 
       console.log('[useSaveRecording] Recording entry created:', recordingData);
 
+      // Upload the audio file
+      console.log('[useSaveRecording] Uploading audio file');
+      const { error: uploadError } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, audioBlob, {
+          contentType: 'audio/webm',
+          cacheControl: '3600'
+        });
+
+      if (uploadError) {
+        console.error('[useSaveRecording] Error uploading audio:', uploadError);
+        // Clean up recording entry if upload fails
+        await supabase.from('recordings').delete().eq('id', recordingData.id);
+        throw new Error('Failed to upload audio file');
+      }
+
+      console.log('[useSaveRecording] Audio file uploaded successfully');
+
+      // Create note entry
       console.log('[useSaveRecording] Creating note entry');
       const { data: noteData, error: noteError } = await supabase
         .from('notes')
@@ -116,12 +158,12 @@ export const useSaveRecording = ({
           hint: noteError.hint
         });
         
-        // Cleanup the recording entry if note creation fails
-        console.log('[useSaveRecording] Cleaning up recording entry due to note creation failure');
-        await supabase
-          .from('recordings')
-          .delete()
-          .eq('id', recordingData.id);
+        // Cleanup the recording entry and uploaded file if note creation fails
+        console.log('[useSaveRecording] Cleaning up due to note creation failure');
+        await Promise.all([
+          supabase.storage.from('audio_recordings').remove([fileName]),
+          supabase.from('recordings').delete().eq('id', recordingData.id)
+        ]);
           
         throw new Error(`Failed to create note entry: ${noteError.message}`);
       }
