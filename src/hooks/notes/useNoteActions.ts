@@ -10,23 +10,12 @@ export const useNoteActions = () => {
 
   const handleDeleteNotes = async (notes: Note[]) => {
     try {
-      for (const note of notes) {
-        // Delete note
-        const { error } = await supabase
-          .from("notes")
-          .delete()
-          .eq("id", note.id);
+      const { error } = await supabase
+        .from("notes")
+        .delete()
+        .in("id", notes.map(note => note.id));
 
-        if (error) {
-          console.error("Error deleting note:", error);
-          toast({
-            title: "Erro ao excluir nota",
-            description: error.message,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
+      if (error) throw error;
 
       // Immediately invalidate relevant queries
       await Promise.all([
@@ -35,14 +24,14 @@ export const useNoteActions = () => {
       ]);
 
       toast({
-        title: "Notas excluídas",
-        description: "As notas selecionadas foram excluídas.",
+        title: "Notes deleted",
+        description: "Selected notes have been deleted.",
       });
     } catch (error) {
       console.error("Error in handleDeleteNotes:", error);
       toast({
-        title: "Erro",
-        description: "Falha ao excluir notas",
+        title: "Error",
+        description: "Failed to delete notes",
         variant: "destructive",
       });
     }

@@ -1,7 +1,4 @@
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { FolderNotesGrid } from "@/components/folder/FolderNotesGrid";
@@ -11,20 +8,17 @@ import { useToast } from "@/hooks/use-toast";
 import { BulkActions } from "@/components/dashboard/BulkActions";
 import { FolderDialog } from "@/components/dashboard/FolderDialog";
 import { useFolderActions } from "@/hooks/notes/useFolderActions";
-import { Note } from "@/integrations/supabase/types/notes";
-
-interface NoteWithTags extends Note {
-  tags: Array<{
-    id: string;
-    name: string;
-    color: string;
-  }>;
-}
+import { useNoteSelection } from "@/hooks/notes/useNoteSelection";
+import { useNoteActions } from "@/hooks/notes/useNoteActions";
+import { useNotesQuery } from "@/hooks/notes/useNotesQuery";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const UncategorizedFolder = () => {
-  const [selectedNotes, setSelectedNotes] = useState<NoteWithTags[]>([]);
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
   const { toast } = useToast();
+  const { isSelectionMode, setIsSelectionMode, selectedNotes, setSelectedNotes } = useNoteSelection();
+  const { handleDeleteNotes } = useNoteActions();
+  const { data: notes, isLoading } = useNotesQuery();
   const {
     isFolderDialogOpen,
     setIsFolderDialogOpen,
@@ -47,37 +41,6 @@ const UncategorizedFolder = () => {
     },
   });
 
-  const { data: notes, isLoading } = useQuery({
-    queryKey: ["uncategorized-notes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notes_without_folders")
-        .select(`
-          id,
-          title,
-          original_transcript,
-          processed_content,
-          full_prompt,
-          created_at,
-          updated_at,
-          recording_id,
-          user_id,
-          duration,
-          audio_url,
-          tags (
-            id,
-            name,
-            color
-          )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return (data || []) as NoteWithTags[];
-    },
-  });
-
   const toggleNoteSelection = (noteId: string) => {
     const note = notes?.find((n) => n.id === noteId);
     if (!note) return;
@@ -87,32 +50,6 @@ const UncategorizedFolder = () => {
         ? prev.filter((n) => n.id !== noteId)
         : [...prev, note]
     );
-  };
-
-  const handleDeleteNotes = async () => {
-    try {
-      const { error } = await supabase
-        .from("notes")
-        .delete()
-        .in("id", selectedNotes.map(note => note.id));
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Selected notes have been deleted.",
-      });
-
-      setSelectedNotes([]);
-      setIsSelectionMode(false);
-    } catch (error) {
-      console.error("Error deleting notes:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete notes. Please try again.",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleMoveNotes = () => {
@@ -165,7 +102,7 @@ const UncategorizedFolder = () => {
               selectedCount={selectedNotes.length}
               onExport={() => setIsFolderDialogOpen(true)}
               onMove={handleMoveNotes}
-              onDelete={handleDeleteNotes}
+              onDelete={() => handleDeleteNotes(selectedNotes)}
             />
           )}
 
