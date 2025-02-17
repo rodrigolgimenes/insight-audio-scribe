@@ -53,3 +53,4 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
     }
   );
 }
+
