@@ -3,6 +3,7 @@ import { useNotesQuery } from "./notes/useNotesQuery";
 import { useNoteSelection } from "./notes/useNoteSelection";
 import { useFolderActions } from "./notes/useFolderActions";
 import { useNoteActions } from "./notes/useNoteActions";
+import { Note } from "@/integrations/supabase/types/notes";
 
 export const useNoteManagement = () => {
   const { data: notes, isLoading, error } = useNotesQuery();
@@ -12,6 +13,7 @@ export const useNoteManagement = () => {
     selectedNotes,
     setSelectedNotes,
     toggleNoteSelection,
+    toggleSelectAll,
   } = useNoteSelection();
   const {
     isFolderDialogOpen,
@@ -31,6 +33,7 @@ export const useNoteManagement = () => {
     setIsSelectionMode,
     selectedNotes,
     toggleNoteSelection,
+    toggleSelectAll,
     isFolderDialogOpen,
     setIsFolderDialogOpen,
     newFolderName,

@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNoteManagement } from "@/hooks/useNoteManagement";
 import { useFolderNotesQuery } from "@/hooks/folder/useFolderNotesQuery";
 import { NotesTable } from "@/components/dashboard/NotesTable";
@@ -43,7 +43,10 @@ export const UncategorizedContent = () => {
 
   return (
     <div className="relative min-h-0 flex-1 flex flex-col">
-      <UncategorizedHeader searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <UncategorizedHeader 
+        searchQuery={searchQuery} 
+        setSearchQuery={setSearchQuery} 
+      />
       <div className="flex-1 overflow-auto">
         <div className="px-4">
           <NotesTable
