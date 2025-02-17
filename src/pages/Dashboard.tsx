@@ -1,12 +1,24 @@
 
+import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { SearchHeader } from "@/components/dashboard/SearchHeader";
-import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { useNoteManagement } from "@/hooks/useNoteManagement";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Mic, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useNavigate } from "react-router-dom";
+import { formatDate } from "@/utils/formatDate";
+import { formatDuration } from "@/utils/formatDuration";
+import { RecordingSheet } from "@/components/dashboard/RecordingSheet";
+import { BulkActions } from "@/components/dashboard/BulkActions";
 
 const Dashboard = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
+  const navigate = useNavigate();
+
   const {
     notes,
     isLoading,
@@ -23,6 +35,14 @@ const Dashboard = () => {
     handleMoveToFolder,
     handleDeleteNotes,
   } = useNoteManagement();
+
+  const handleSelectAll = () => {
+    if (notes && selectedNotes.length === notes.length) {
+      setIsSelectionMode(false);
+    } else {
+      setIsSelectionMode(true);
+    }
+  };
 
   if (error) {
     return (
@@ -42,32 +62,111 @@ const Dashboard = () => {
     );
   }
 
+  const filteredNotes = notes?.filter(note =>
+    note.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
         <main className="flex-1 overflow-auto">
-          <div className="max-w-5xl mx-auto px-6 py-8">
-            <SearchHeader
-              isSelectionMode={isSelectionMode}
-              setIsSelectionMode={setIsSelectionMode}
-            />
-
-            <DashboardContent
-              notes={notes}
-              isLoading={isLoading}
-              isSelectionMode={isSelectionMode}
-              selectedNotes={selectedNotes}
-              isFolderDialogOpen={isFolderDialogOpen}
-              setIsFolderDialogOpen={setIsFolderDialogOpen}
-              newFolderName={newFolderName}
-              setNewFolderName={setNewFolderName}
-              onCreateNewFolder={createNewFolder}
-              onMoveToFolder={handleMoveToFolder}
-              onDeleteNotes={handleDeleteNotes}
-              onNoteSelect={toggleNoteSelection}
-            />
+          <div className="bg-blue-600 p-4">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
+                <Search className="h-5 w-5 ml-3 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border-0 focus-visible:ring-0"
+                />
+              </div>
+              <Sheet open={isRecordingSheetOpen} onOpenChange={setIsRecordingSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button size="icon" variant="ghost" className="bg-blue-500 hover:bg-blue-400 text-white">
+                    <Mic className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <RecordingSheet />
+              </Sheet>
+              <Button 
+                onClick={() => navigate('/app/record')}
+                className="bg-white text-blue-600 hover:bg-blue-50"
+              >
+                TRANSCRIBE FILES
+              </Button>
+            </div>
           </div>
+
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-6">Recent Files</h2>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="py-3 px-4 text-left">
+                          <Checkbox 
+                            checked={notes && selectedNotes.length === notes.length}
+                            onCheckedChange={handleSelectAll}
+                          />
+                        </th>
+                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">NAME</th>
+                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">UPLOAD DATE</th>
+                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">DURATION</th>
+                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">MODE</th>
+                        <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">STATUS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredNotes?.map((note) => (
+                        <tr 
+                          key={note.id}
+                          className="border-b hover:bg-gray-50 cursor-pointer"
+                          onClick={() => navigate(`/app/notes/${note.id}`)}
+                        >
+                          <td className="py-3 px-4">
+                            <Checkbox 
+                              checked={selectedNotes.some(n => n.id === note.id)}
+                              onCheckedChange={() => toggleNoteSelection(note)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
+                          <td className="py-3 px-4">{note.title}</td>
+                          <td className="py-3 px-4">{formatDate(note.created_at)}</td>
+                          <td className="py-3 px-4">{formatDuration(note.duration || 0)}</td>
+                          <td className="py-3 px-4">Auto</td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                note.status === 'error' ? 'bg-red-100 text-red-800' : 
+                                'bg-blue-100 text-blue-800'}`}>
+                              {note.status === 'completed' ? 'Completed' : 
+                               note.status === 'error' ? 'Error' : 
+                               'Processing'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {selectedNotes.length > 0 && (
+            <BulkActions
+              selectedCount={selectedNotes.length}
+              onExport={() => setIsFolderDialogOpen(true)}
+              onMove={() => setIsFolderDialogOpen(true)}
+              onDelete={handleDeleteNotes}
+            />
+          )}
         </main>
       </div>
     </SidebarProvider>
