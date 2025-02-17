@@ -14,21 +14,19 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
 
   useEffect(() => {
     if (!isSaving) {
-      // Reset clickable state after saving completes
       setIsClickable(true);
     }
   }, [isSaving]);
 
   const handleClick = () => {
     if (!isClickable || isDisabled || isSaving) return;
-    
-    setIsClickable(false); // Prevent double clicks
+    setIsClickable(false);
     onSave();
   };
 
   return (
     <Button 
-      className="bg-[#E91E63] hover:bg-[#D81B60] gap-2 min-w-[140px]"
+      className="bg-primary hover:bg-primary-dark gap-2 min-w-[140px] text-white"
       onClick={handleClick}
       disabled={!isClickable || isDisabled || isSaving}
     >

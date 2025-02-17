@@ -37,7 +37,7 @@ export const RecordControls = ({
         <Button
           size="icon"
           variant="outline"
-          className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
+          className="w-14 h-14 rounded-full border-2 bg-primary-light"
           disabled={!hasRecording || isRecording || disabled}
           onClick={onPlay}
         >
@@ -49,7 +49,7 @@ export const RecordControls = ({
         <Button
           size="icon"
           variant="default"
-          className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
+          className="w-20 h-20 rounded-full bg-primary hover:bg-primary-dark"
           onClick={isPaused ? onResumeRecording : onPauseRecording}
           disabled={disabled}
         >
@@ -59,7 +59,7 @@ export const RecordControls = ({
         <Button
           size="icon"
           variant="default"
-          className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
+          className="w-20 h-20 rounded-full bg-primary hover:bg-primary-dark"
           onClick={onStartRecording}
           disabled={disabled}
         >

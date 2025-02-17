@@ -70,7 +70,7 @@ const Dashboard = () => {
       <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
         <AppSidebar activePage="notes" />
         <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
-          <div className="bg-[#9b87f5] p-4">
+          <div className="bg-primary p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
                 <Search className="h-5 w-5 ml-3 text-gray-400" />
@@ -84,15 +84,19 @@ const Dashboard = () => {
               </div>
               <Sheet open={isRecordingSheetOpen} onOpenChange={setIsRecordingSheetOpen}>
                 <SheetTrigger asChild>
-                  <Button size="icon" variant="ghost" className="bg-[#7E69AB] hover:bg-[#6A5A91] text-white">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-primary-dark hover:bg-primary-dark/90 text-white"
+                  >
                     <Mic className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <RecordingSheet />
+                <RecordingSheet onOpenChange={setIsRecordingSheetOpen} />
               </Sheet>
               <Button 
                 onClick={() => navigate('/app/record')}
-                className="bg-white text-[#9b87f5] hover:bg-[#f8f7fd]"
+                className="bg-primary-light text-primary hover:bg-primary-light/90"
               >
                 TRANSCRIBE FILES
               </Button>
