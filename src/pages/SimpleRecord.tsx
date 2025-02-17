@@ -10,6 +10,7 @@ import { ProcessedContentSection } from "@/components/record/ProcessedContentSec
 import { RecordingActions } from "@/components/record/RecordingActions";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
+import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 
 const SimpleRecord = () => {
   const { toast } = useToast();
@@ -36,6 +37,7 @@ const SimpleRecord = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    handleSaveRecording,
   } = useRecording();
 
   useEffect(() => {
@@ -91,6 +93,16 @@ const SimpleRecord = () => {
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
                   />
+
+                  {audioUrl && (
+                    <div className="mt-6 flex justify-center">
+                      <SaveRecordingButton
+                        onSave={handleSaveRecording}
+                        isSaving={isSaving}
+                        isDisabled={isTranscribing}
+                      />
+                    </div>
+                  )}
 
                   <RecordingActions
                     onSave={handleSave}
