@@ -23,7 +23,14 @@ export const FolderNotesGrid = ({
       {notes.map((note) => (
         <FolderNoteCard
           key={note.id}
-          note={note}
+          note={{
+            id: note.id,
+            title: note.title,
+            original_transcript: note.original_transcript,
+            created_at: note.created_at,
+            duration: note.duration || 0,
+            tags: note.tags || []
+          }}
           isSelectionMode={isSelectionMode}
           isSelected={selectedNotes.includes(note.id)}
           onClick={() => navigate(`/app/notes/${note.id}`)}

@@ -12,6 +12,7 @@ import { useFolderNoteSelection } from "@/hooks/folder/useFolderNoteSelection";
 import { useFolderOperations } from "@/hooks/folder/useFolderOperations";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Note } from "@/integrations/supabase/types/notes";
 
 const FolderPage = () => {
   const { folderId } = useParams();
@@ -39,7 +40,7 @@ const FolderPage = () => {
   }, [queryClient, folderId]);
 
   const folderTags = notes?.reduce((acc: any[], note) => {
-    note.tags.forEach((tag: any) => {
+    note.tags?.forEach((tag: any) => {
       if (!acc.some(existingTag => existingTag.id === tag.id)) {
         acc.push(tag);
       }
@@ -48,6 +49,22 @@ const FolderPage = () => {
   }, []) || [];
 
   const isLoading = folderLoading || notesLoading;
+
+  // Transform notes to match the Note type
+  const transformedNotes: Note[] = notes?.map(note => ({
+    id: note.id,
+    title: note.title,
+    processed_content: note.processed_content || '',
+    original_transcript: note.original_transcript,
+    full_prompt: note.full_prompt || null,
+    created_at: note.created_at,
+    updated_at: note.updated_at || note.created_at,
+    recording_id: note.recording_id || '',
+    user_id: note.user_id || '',
+    duration: note.recordings?.duration || null,
+    audio_url: note.audio_url || null,
+    tags: note.notes_tags?.map(nt => nt.tags).filter(Boolean) || []
+  })) || [];
 
   return (
     <SidebarProvider>
@@ -73,9 +90,9 @@ const FolderPage = () => {
 
           {isLoading ? (
             <div>Loading...</div>
-          ) : notes && notes.length > 0 ? (
+          ) : transformedNotes.length > 0 ? (
             <FolderNotesGrid
-              notes={notes}
+              notes={transformedNotes}
               isSelectionMode={isSelectionMode}
               selectedNotes={selectedNotes}
               toggleNoteSelection={toggleNoteSelection}
