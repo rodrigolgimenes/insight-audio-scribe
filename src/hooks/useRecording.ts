@@ -53,8 +53,8 @@ export const useRecording = () => {
     
     if (!session?.user) {
       toast({
-        title: "Erro",
-        description: "Por favor, faça login para gravar áudio.",
+        title: "Error",
+        description: "Please login to record audio.",
         variant: "destructive",
       });
       navigate("/login");
@@ -133,6 +133,37 @@ export const useRecording = () => {
     setIsPaused(false);
   };
 
+  const handleSaveRecording = async () => {
+    if (!session?.user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to save recordings.",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { blob, duration } = await audioRecorder.current.stopRecording();
+      const success = await saveRecording(session.user.id, blob, duration);
+      
+      if (success) {
+        navigate("/app");
+      }
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save recording.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return {
     isRecording,
     isPaused,
@@ -146,6 +177,7 @@ export const useRecording = () => {
     handlePauseRecording,
     handleResumeRecording,
     handleDelete,
+    handleSaveRecording,
     setIsSystemAudio,
     audioDevices,
     selectedDeviceId,
