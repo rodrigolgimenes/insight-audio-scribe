@@ -6,7 +6,7 @@ import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface RecordingSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -31,11 +31,18 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
+    handleDelete,
     setIsSystemAudio,
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    resetRecording,
   } = useRecording();
+
+  // Reset recording state when modal opens
+  useEffect(() => {
+    resetRecording();
+  }, []);
 
   const handleTimeLimit = () => {
     handleStopRecording();
@@ -52,9 +59,6 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         await handleStopRecording();
       }
 
-      // Wait a moment to ensure the audio is properly stopped
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       // Make sure we have either audioUrl or mediaStream
       if (!audioUrl && !mediaStream) {
         throw new Error('No audio data available');
@@ -64,22 +68,18 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       console.log('Starting save process...');
       await handleStopRecording();
       
-      // Wait for the saving process to complete
-      console.log('Waiting for save to complete...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       // Update the queryClient to force a refresh
       console.log('Invalidating queries...');
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
-
-      // Wait for the query invalidation
-      await new Promise(resolve => setTimeout(resolve, 500));
 
       console.log('Save completed successfully');
       toast({
         title: "Success",
         description: "Recording saved successfully!",
       });
+
+      // Reset recording state
+      resetRecording();
 
       // Only close the modal after everything is done
       if (onOpenChange) {
@@ -119,7 +119,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
           handleStopRecording={handleStopRecording}
           handlePauseRecording={handlePauseRecording}
           handleResumeRecording={handleResumeRecording}
-          handleDelete={() => {}}
+          handleDelete={handleDelete}
           handleTimeLimit={handleTimeLimit}
           onSystemAudioChange={setIsSystemAudio}
           audioDevices={audioDevices}

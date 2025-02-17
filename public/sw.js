@@ -37,8 +37,13 @@ self.addEventListener('fetch', (event) => {
   // Only cache GET requests
   if (event.request.method !== 'GET') return;
 
-  // Don't cache blob URLs
-  if (event.request.url.startsWith('blob:')) return;
+  // Skip caching for certain URL schemes
+  const url = new URL(event.request.url);
+  if (url.protocol === 'chrome-extension:' || 
+      url.protocol === 'blob:' || 
+      url.pathname.startsWith('/sw.js')) {
+    return;
+  }
 
   event.respondWith(
     (async () => {
@@ -54,13 +59,20 @@ self.addEventListener('fetch', (event) => {
         // If not in cache, get from network
         const response = await fetch(event.request);
         
-        // Don't cache non-successful responses or blob URLs
+        // Don't cache non-successful responses
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
 
-        // Clone the response before caching it
-        cache.put(event.request, response.clone());
+        // Only cache if it's a valid URL scheme
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          try {
+            cache.put(event.request, response.clone());
+          } catch (error) {
+            console.error('[Service Worker] Cache put failed:', error);
+          }
+        }
+
         return response;
       } catch (error) {
         console.error('[Service Worker] Fetch failed:', error);
