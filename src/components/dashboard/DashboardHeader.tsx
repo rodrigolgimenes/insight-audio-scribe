@@ -1,9 +1,8 @@
-
 import { Search, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
-import { RecordingSheet } from "./RecordingSheet";
+import { RecordingSheet } from "@/components/record/RecordingSheet";
 import { useNavigate } from "react-router-dom";
 
 interface DashboardHeaderProps {
