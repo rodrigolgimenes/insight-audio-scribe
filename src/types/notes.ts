@@ -11,7 +11,7 @@ export interface Note {
   user_id: string;
   duration: number | null;
   audio_url: string | null;
-  tags: Array<{
+  tags?: Array<{
     id: string;
     name: string;
     color: string | null;
