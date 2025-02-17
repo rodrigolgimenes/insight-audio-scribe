@@ -15,7 +15,7 @@ export default function Dashboard() {
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
-  // Fetch notes
+  // Fetch notes with proper type conversion
   const { data: notes, isLoading } = useQuery({
     queryKey: ["notes"],
     queryFn: async () => {
@@ -25,7 +25,12 @@ export default function Dashboard() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data;
+      
+      // Convert the status to the correct type
+      return (data || []).map(note => ({
+        ...note,
+        status: note.status as "error" | "processing" | "completed"
+      })) as Note[];
     },
   });
 
