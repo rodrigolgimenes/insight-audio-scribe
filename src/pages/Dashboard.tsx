@@ -109,11 +109,16 @@ const Dashboard = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="py-3 px-4 text-left">
-                          <Checkbox 
-                            checked={notes && selectedNotes.length === notes.length}
-                            onCheckedChange={handleSelectAll}
-                          />
+                        <th className="py-3 px-4 text-left w-16">
+                          <div className="flex items-center justify-center w-10 h-10 cursor-pointer" onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectAll();
+                          }}>
+                            <Checkbox 
+                              checked={notes && selectedNotes.length === notes.length}
+                              className="w-6 h-6"
+                            />
+                          </div>
                         </th>
                         <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">NAME</th>
                         <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">UPLOAD DATE</th>
@@ -126,21 +131,35 @@ const Dashboard = () => {
                       {filteredNotes?.map((note) => (
                         <tr 
                           key={note.id}
-                          className="border-b hover:bg-gray-50 cursor-pointer"
-                          onClick={() => navigate(`/app/notes/${note.id}`)}
+                          className="border-b hover:bg-gray-50"
                         >
                           <td className="py-3 px-4">
-                            <Checkbox 
-                              checked={selectedNotes.some(n => n.id === note.id)}
-                              onCheckedChange={() => toggleNoteSelection(note)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                            <div 
+                              className="flex items-center justify-center w-10 h-10 cursor-pointer" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleNoteSelection(note);
+                              }}
+                            >
+                              <Checkbox 
+                                checked={selectedNotes.some(n => n.id === note.id)}
+                                className="w-6 h-6"
+                              />
+                            </div>
                           </td>
-                          <td className="py-3 px-4">{note.title}</td>
-                          <td className="py-3 px-4">{formatDate(note.created_at)}</td>
-                          <td className="py-3 px-4">{formatDuration(note.duration || 0)}</td>
-                          <td className="py-3 px-4">Auto</td>
-                          <td className="py-3 px-4">
+                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                            {note.title}
+                          </td>
+                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                            {formatDate(note.created_at)}
+                          </td>
+                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                            {formatDuration(note.duration || 0)}
+                          </td>
+                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                            Auto
+                          </td>
+                          <td className="py-3 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                               ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
                                 note.status === 'error' ? 'bg-red-100 text-red-800' : 
