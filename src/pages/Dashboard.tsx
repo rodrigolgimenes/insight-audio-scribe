@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
-import { formatDuration } from "@/utils/formatDuration";
 import { RecordingSheet } from "@/components/dashboard/RecordingSheet";
 import { BulkActions } from "@/components/dashboard/BulkActions";
+import { NoteListItem } from "@/components/dashboard/NoteListItem";
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,59 +126,18 @@ const Dashboard = () => {
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">DURATION</th>
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">MODE</th>
                       <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">STATUS</th>
+                      <th className="py-3 px-4 w-16"></th>
                     </tr>
                   </thead>
                   <tbody className="text-sm">
                     {filteredNotes?.map((note) => (
-                      <tr 
+                      <NoteListItem
                         key={note.id}
-                        className="border-b hover:bg-gray-50"
-                      >
-                        <td className="py-2 pl-6 pr-4">
-                          <div 
-                            className="flex items-center justify-center w-5 h-5 cursor-pointer" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleNoteSelection(note);
-                            }}
-                          >
-                            <Checkbox 
-                              checked={selectedNotes.some(n => n.id === note.id)}
-                              className="w-4 h-4"
-                            />
-                          </div>
-                        </td>
-                        <td className="py-2 pl-8 pr-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">{note.title}</span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">
-                            {new Date(note.created_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">{formatDuration(note.duration || 0)}</span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">Auto</span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                            ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                              note.status === 'error' ? 'bg-red-100 text-red-800' : 
-                              'bg-blue-100 text-blue-800'}`}>
-                            {note.status === 'completed' ? 'Completed' : 
-                             note.status === 'error' ? 'Error' : 
-                             'Processing'}
-                          </span>
-                        </td>
-                      </tr>
+                        note={note}
+                        isSelected={selectedNotes.some(n => n.id === note.id)}
+                        onSelect={() => toggleNoteSelection(note)}
+                        onClick={() => navigate(`/app/notes/${note.id}`)}
+                      />
                     ))}
                   </tbody>
                 </table>
