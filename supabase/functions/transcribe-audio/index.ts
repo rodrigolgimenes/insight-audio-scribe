@@ -1,9 +1,7 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createSupabaseClient, getRecordingData, getNoteData, updateNoteStatus, updateRecordingAndNote, handleTranscriptionError } from './supabaseClient.ts';
-import { downloadAudioFile } from './storageClient.ts';
-import { transcribeAudio } from './openaiClient.ts';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,89 +9,149 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { recordingId } = await req.json();
-    console.log('[transcribe-audio] Starting transcription process for recording:', recordingId);
-    
+    // Parse request body ONCE and store it
+    const payload = await req.json();
+    console.log('[transcribe-audio] Received payload:', payload);
+
+    const { recordingId } = payload;
     if (!recordingId) {
       throw new Error('Recording ID is required');
     }
 
-    const supabase = createSupabaseClient();
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
 
-    // Get recording and note data
-    const recording = await getRecordingData(supabase, recordingId);
-    console.log('[transcribe-audio] Got recording data:', recording);
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const note = await getNoteData(supabase, recordingId);
-    console.log('[transcribe-audio] Got note data:', note);
+    // Get recording data
+    const { data: recording, error: recordingError } = await supabase
+      .from('recordings')
+      .select('*')
+      .eq('id', recordingId)
+      .single();
 
-    // Update note status to downloading
-    await updateNoteStatus(supabase, note.id, 'processing', 25);
-    console.log('[transcribe-audio] Updated note status to processing');
+    if (recordingError || !recording) {
+      console.error('[transcribe-audio] Error getting recording:', recordingError);
+      throw new Error('Recording not found');
+    }
+
+    console.log('[transcribe-audio] Found recording:', recording);
+
+    // Get note data
+    const { data: note, error: noteError } = await supabase
+      .from('notes')
+      .select('*')
+      .eq('recording_id', recordingId)
+      .single();
+
+    if (noteError || !note) {
+      console.error('[transcribe-audio] Error getting note:', noteError);
+      throw new Error('Note not found');
+    }
+
+    console.log('[transcribe-audio] Found note:', note);
+
+    // Update note status to processing
+    await supabase
+      .from('notes')
+      .update({ 
+        status: 'processing',
+        processing_progress: 25 
+      })
+      .eq('id', note.id);
 
     // Download audio file
-    console.log('[transcribe-audio] Starting audio download...');
-    const audioData = await downloadAudioFile(supabase, recording.file_path);
+    console.log('[transcribe-audio] Downloading audio file:', recording.file_path);
+    const { data: audioData, error: downloadError } = await supabase
+      .storage
+      .from('audio_recordings')
+      .download(recording.file_path);
+
+    if (downloadError || !audioData) {
+      console.error('[transcribe-audio] Error downloading audio:', downloadError);
+      throw new Error('Failed to download audio file');
+    }
+
     console.log('[transcribe-audio] Audio file downloaded successfully');
 
-    // Update progress after successful download
-    await updateNoteStatus(supabase, note.id, 'transcribing', 50);
-    console.log('[transcribe-audio] Updated note status to transcribing');
+    // Update note status to transcribing
+    await supabase
+      .from('notes')
+      .update({ 
+        status: 'transcribing',
+        processing_progress: 50 
+      })
+      .eq('id', note.id);
 
-    // Transcribe audio
-    console.log('[transcribe-audio] Starting transcription...');
-    const transcription = await transcribeAudio(audioData);
-    console.log('[transcribe-audio] Transcription completed');
-    
-    // Update recording and note with transcription
-    await updateRecordingAndNote(supabase, recordingId, note.id, transcription.text);
-    console.log('[transcribe-audio] Updated recording and note with transcription');
+    // Convert audio to correct format if needed
+    const audioBlob = new Blob([audioData], { type: 'audio/webm' });
 
-    // Start meeting minutes generation
-    console.log('[transcribe-audio] Starting meeting minutes generation...');
-    const { error: minutesError } = await supabase.functions
-      .invoke('generate-meeting-minutes', {
-        body: { 
-          noteId: note.id,
-          transcription: transcription.text
-        }
-      });
+    // Prepare form data for OpenAI
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'pt');
 
-    if (minutesError) {
-      console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
-      throw minutesError;
+    console.log('[transcribe-audio] Sending to OpenAI');
+
+    // Send to OpenAI for transcription
+    const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+      },
+      body: formData,
+    });
+
+    if (!openAIResponse.ok) {
+      const errorData = await openAIResponse.json();
+      console.error('[transcribe-audio] OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
+
+    const transcription = await openAIResponse.json();
+    console.log('[transcribe-audio] Transcription received');
+
+    // Update recording with transcription
+    await supabase
+      .from('recordings')
+      .update({
+        status: 'completed',
+        transcription: transcription.text
+      })
+      .eq('id', recordingId);
+
+    // Update note with transcription
+    await supabase
+      .from('notes')
+      .update({
+        status: 'completed',
+        processing_progress: 100,
+        original_transcript: transcription.text
+      })
+      .eq('id', note.id);
 
     console.log('[transcribe-audio] Process completed successfully');
 
     return new Response(
-      JSON.stringify({ success: true, transcription: transcription.text }), 
+      JSON.stringify({ success: true }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
       }
     );
   } catch (error) {
     console.error('[transcribe-audio] Error:', error);
-    
-    try {
-      const { recordingId } = await req.json();
-      if (recordingId) {
-        const supabase = createSupabaseClient();
-        const note = await getNoteData(supabase, recordingId);
-        if (note) {
-          await handleTranscriptionError(supabase, note.id);
-          console.log('[transcribe-audio] Updated note status to error');
-        }
-      }
-    } catch (err) {
-      console.error('[transcribe-audio] Error handling failure:', err);
-    }
     
     return new Response(
       JSON.stringify({ 
@@ -101,8 +159,8 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'An unexpected error occurred' 
       }), 
       {
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 // Mudado para 500 para indicar erro do servidor
       }
     );
   }

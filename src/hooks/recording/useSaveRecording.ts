@@ -85,19 +85,30 @@ export const useSaveRecording = ({
 
       const timestamp = Date.now();
       const fileName = `${session.user.id}/${timestamp}.webm`;
-      const recordingTitle = `Recording ${new Date().toLocaleString()}`;
 
-      console.log('[useSaveRecording] Creating recording entry with:', {
-        title: recordingTitle,
-        file_path: fileName,
-        user_id: session.user.id
-      });
+      // First upload the audio file
+      console.log('[useSaveRecording] Uploading audio file to storage');
+      const { error: uploadError } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, audioBlob, {
+          contentType: 'audio/webm',
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      // First create recording entry
+      if (uploadError) {
+        console.error('[useSaveRecording] Error uploading audio:', uploadError);
+        throw new Error(`Failed to upload audio file: ${uploadError.message}`);
+      }
+
+      console.log('[useSaveRecording] Audio file uploaded successfully');
+
+      // Then create recording entry
+      console.log('[useSaveRecording] Creating recording entry');
       const { data: recordingData, error: recordingError } = await supabase
         .from('recordings')
         .insert({
-          title: recordingTitle,
+          title: `Recording ${new Date().toLocaleString()}`,
           file_path: fileName,
           user_id: session.user.id,
           status: 'pending'
@@ -112,35 +123,23 @@ export const useSaveRecording = ({
           message: recordingError.message,
           hint: recordingError.hint
         });
+        
+        // Clean up uploaded file if recording creation fails
+        await supabase.storage
+          .from('audio_recordings')
+          .remove([fileName]);
+          
         throw new Error(`Failed to create recording entry: ${recordingError.message}`);
       }
 
       console.log('[useSaveRecording] Recording entry created:', recordingData);
-
-      // Upload the audio file
-      console.log('[useSaveRecording] Uploading audio file');
-      const { error: uploadError } = await supabase.storage
-        .from('audio_recordings')
-        .upload(fileName, audioBlob, {
-          contentType: 'audio/webm',
-          cacheControl: '3600'
-        });
-
-      if (uploadError) {
-        console.error('[useSaveRecording] Error uploading audio:', uploadError);
-        // Clean up recording entry if upload fails
-        await supabase.from('recordings').delete().eq('id', recordingData.id);
-        throw new Error('Failed to upload audio file');
-      }
-
-      console.log('[useSaveRecording] Audio file uploaded successfully');
 
       // Create note entry
       console.log('[useSaveRecording] Creating note entry');
       const { data: noteData, error: noteError } = await supabase
         .from('notes')
         .insert({
-          title: recordingTitle,
+          title: recordingData.title,
           recording_id: recordingData.id,
           user_id: session.user.id,
           status: 'pending',
@@ -159,7 +158,6 @@ export const useSaveRecording = ({
         });
         
         // Cleanup the recording entry and uploaded file if note creation fails
-        console.log('[useSaveRecording] Cleaning up due to note creation failure');
         await Promise.all([
           supabase.storage.from('audio_recordings').remove([fileName]),
           supabase.from('recordings').delete().eq('id', recordingData.id)
@@ -174,26 +172,25 @@ export const useSaveRecording = ({
       console.log('[useSaveRecording] Invalidating queries');
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
 
-      // Start processing in background
-      console.log('[useSaveRecording] Starting background processing');
-      const { error: processError } = await supabase.functions
-        .invoke('process-recording', {
+      // Start transcription process
+      console.log('[useSaveRecording] Starting transcription process');
+      const { error: transcribeError } = await supabase.functions
+        .invoke('transcribe-audio', {
           body: { 
             recordingId: recordingData.id,
             noteId: noteData.id
           }
         });
 
-      if (processError) {
-        console.error('[useSaveRecording] Error starting processing:', {
-          error: processError,
-          details: processError.details,
-          message: processError.message,
-          context: processError.context
+      if (transcribeError) {
+        console.error('[useSaveRecording] Error starting transcription:', {
+          error: transcribeError,
+          message: transcribeError.message,
+          context: transcribeError.context
         });
         toast({
           title: "Warning",
-          description: "Recording saved but processing may be delayed. It will retry automatically.",
+          description: "Recording saved but transcription may be delayed. It will retry automatically.",
           variant: "destructive",
         });
       }
@@ -204,7 +201,7 @@ export const useSaveRecording = ({
       console.log('[useSaveRecording] Save completed successfully');
       toast({
         title: "Success",
-        description: "Recording saved successfully! Processing will begin shortly.",
+        description: "Recording saved successfully! Transcription will begin shortly.",
       });
 
       // Reset recording state
