@@ -29,7 +29,7 @@ export const NoteListItem = ({ note, isSelected, onSelect, onClick }: NoteListIt
           {note.folder && (
             <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
               <Folder className="h-3 w-3" />
-              <span>{note.folder.name}</span>
+              <span>{note.folder.folder_id}</span>
             </div>
           )}
           <span className="text-sm font-medium text-gray-900">{note.title}</span>
@@ -55,9 +55,9 @@ export const NoteListItem = ({ note, isSelected, onSelect, onClick }: NoteListIt
       <td className="py-4 px-4" onClick={onClick}>
         <div className="flex items-center gap-2">
           <Badge 
-            variant={note.status === 'completed' ? 'success' : 
+            variant={note.status === 'completed' ? 'default' : 
                     note.status === 'error' ? 'destructive' : 
-                    'default'}
+                    'secondary'}
             className="rounded-full text-xs font-medium px-2 py-0.5"
           >
             {note.status === 'completed' ? (
