@@ -10,11 +10,12 @@ import { ProcessedContentSection } from "@/components/record/ProcessedContentSec
 import { RecordingActions } from "@/components/record/RecordingActions";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
-import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SimpleRecord = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
   const [transcript, setTranscript] = useState<string | null>(null);
   const { isUploading } = useFileUpload();
@@ -37,7 +38,6 @@ const SimpleRecord = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
-    handleSaveRecording,
   } = useRecording();
 
   useEffect(() => {
@@ -62,7 +62,31 @@ const SimpleRecord = () => {
   };
 
   const handleSave = async () => {
-    await saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
+    try {
+      // If still recording, stop it first
+      if (isRecording) {
+        await handleStopRecording();
+      }
+
+      // Wait for audio to be saved
+      await saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
+      
+      // Invalidate queries to refresh the dashboard
+      await queryClient.invalidateQueries({ queryKey: ['notes'] });
+
+      toast({
+        title: "Success",
+        description: "Recording saved successfully!",
+      });
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save recording. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to prevent modal from closing
+    }
   };
 
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
@@ -93,16 +117,6 @@ const SimpleRecord = () => {
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
                   />
-
-                  {audioUrl && (
-                    <div className="mt-6 flex justify-center">
-                      <SaveRecordingButton
-                        onSave={handleSaveRecording}
-                        isSaving={isSaving}
-                        isDisabled={isTranscribing}
-                      />
-                    </div>
-                  )}
 
                   <RecordingActions
                     onSave={handleSave}

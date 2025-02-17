@@ -6,6 +6,7 @@ import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface RecordingSheetProps {
   onOpenChange?: (open: boolean) => void;
@@ -16,6 +17,7 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [isSaveInProgress, setIsSaveInProgress] = useState(false);
   
   const {
     isRecording,
@@ -40,13 +42,46 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
   };
 
   const handleSaveRecording = async () => {
+    if (isSaveInProgress) return;
+
     try {
+      setIsSaveInProgress(true);
+
+      // If still recording, stop it first
+      if (isRecording) {
+        await handleStopRecording();
+      }
+
+      // Wait a moment to ensure the audio is properly stopped
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Make sure we have either audioUrl or mediaStream
+      if (!audioUrl && !mediaStream) {
+        throw new Error('No audio data available');
+      }
+
+      // Save the recording
+      console.log('Starting save process...');
       await handleStopRecording();
       
+      // Wait for the saving process to complete
+      console.log('Waiting for save to complete...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Update the queryClient to force a refresh
+      console.log('Invalidating queries...');
       await queryClient.invalidateQueries({ queryKey: ['notes'] });
 
-      // Only close the modal after successful save
+      // Wait for the query invalidation
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log('Save completed successfully');
+      toast({
+        title: "Success",
+        description: "Recording saved successfully!",
+      });
+
+      // Only close the modal after everything is done
       if (onOpenChange) {
         onOpenChange(false);
       }
@@ -55,11 +90,6 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
       if (location.pathname !== '/app') {
         navigate('/app');
       }
-
-      toast({
-        title: "Success",
-        description: "Recording saved successfully!",
-      });
       
     } catch (error) {
       console.error('Error saving recording:', error);
@@ -68,6 +98,8 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         description: "Failed to save recording. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSaveInProgress(false);
     }
   };
 
@@ -100,11 +132,11 @@ export function RecordingSheet({ onOpenChange }: RecordingSheetProps) {
         <div className="mt-6 flex justify-center">
           <SaveRecordingButton
             onSave={handleSaveRecording}
-            isSaving={isSaving}
-            isDisabled={!isRecording && !audioUrl}
+            isSaving={isSaving || isSaveInProgress}
+            isDisabled={(!isRecording && !audioUrl) || isTranscribing}
           />
         </div>
       </div>
     </SheetContent>
   );
-};
+}
