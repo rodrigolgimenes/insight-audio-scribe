@@ -27,24 +27,32 @@ serve(async (req) => {
 
     // Get recording and note data
     const recording = await getRecordingData(supabase, recordingId);
+    console.log('[transcribe-audio] Got recording data:', recording);
+
     const note = await getNoteData(supabase, recordingId);
+    console.log('[transcribe-audio] Got note data:', note);
 
     // Update note status to downloading
     await updateNoteStatus(supabase, note.id, 'processing', 25);
+    console.log('[transcribe-audio] Updated note status to processing');
 
     // Download audio file
-    console.log('[transcribe-audio] Starting download with retry...');
+    console.log('[transcribe-audio] Starting audio download...');
     const audioData = await downloadAudioFile(supabase, recording.file_path);
-    console.log('[transcribe-audio] File downloaded successfully');
+    console.log('[transcribe-audio] Audio file downloaded successfully');
 
     // Update progress after successful download
     await updateNoteStatus(supabase, note.id, 'transcribing', 50);
+    console.log('[transcribe-audio] Updated note status to transcribing');
 
     // Transcribe audio
+    console.log('[transcribe-audio] Starting transcription...');
     const transcription = await transcribeAudio(audioData);
+    console.log('[transcribe-audio] Transcription completed');
     
     // Update recording and note with transcription
     await updateRecordingAndNote(supabase, recordingId, note.id, transcription.text);
+    console.log('[transcribe-audio] Updated recording and note with transcription');
 
     // Start meeting minutes generation
     console.log('[transcribe-audio] Starting meeting minutes generation...');
@@ -78,10 +86,13 @@ serve(async (req) => {
       if (recordingId) {
         const supabase = createSupabaseClient();
         const note = await getNoteData(supabase, recordingId);
-        await handleTranscriptionError(supabase, note.id);
+        if (note) {
+          await handleTranscriptionError(supabase, note.id);
+          console.log('[transcribe-audio] Updated note status to error');
+        }
       }
-    } catch {
-      // Ignore errors in error handling
+    } catch (err) {
+      console.error('[transcribe-audio] Error handling failure:', err);
     }
     
     return new Response(
@@ -91,7 +102,7 @@ serve(async (req) => {
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
+        status: 500 // Mudado para 500 para indicar erro do servidor
       }
     );
   }
