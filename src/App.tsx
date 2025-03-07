@@ -24,6 +24,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Create the query client instance outside the component
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -37,8 +38,8 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <TooltipProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <TooltipProvider>
             <Toaster />
             <Sonner />
             <Routes>
@@ -110,8 +111,8 @@ const App = () => {
                 }
               />
             </Routes>
-          </AuthProvider>
-        </TooltipProvider>
+          </TooltipProvider>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

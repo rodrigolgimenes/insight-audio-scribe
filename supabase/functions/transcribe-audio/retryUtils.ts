@@ -25,16 +25,17 @@ export async function withRetry<T>(
       return await operation();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`Attempt ${attempt + 1} failed with error:`, lastError);
       
       if (!shouldRetry(lastError) || attempt + 1 >= maxAttempts) {
-        throw new Error(`Operation failed after ${attempt + 1} attempts. Last error: ${lastError.message}`);
+        console.error(`Operation failed after ${attempt + 1} attempts with error:`, lastError);
+        throw lastError;
       }
 
       const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
       const jitter = Math.random() * 1000;
       
       console.log(`Retry attempt ${attempt + 1}/${maxAttempts} failed. Retrying in ${Math.round((delay + jitter)/1000)}s...`);
-      console.error('Error details:', lastError);
       
       await new Promise(resolve => setTimeout(resolve, delay + jitter));
       attempt++;
