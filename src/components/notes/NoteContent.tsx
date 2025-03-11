@@ -78,6 +78,7 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
         error={note.error_message}
         duration={note.duration}
         noteId={note.id}
+        transcript={note.original_transcript}
       />
     </div>
   );

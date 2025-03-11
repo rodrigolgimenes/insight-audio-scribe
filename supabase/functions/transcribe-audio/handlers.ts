@@ -183,7 +183,18 @@ async function processTranscription(supabase: any, note: any, recording: any, au
   }
 
   // Start meeting minutes generation
-  await startMeetingMinutesGeneration(supabase, note.id, transcription.text);
+  try {
+    await startMeetingMinutesGeneration(supabase, note.id, transcription.text);
+    
+    // Ensure status is updated to completed regardless of minutes generation result
+    await updateNoteStatus(supabase, note.id, 'completed', 100);
+    console.log('[transcribe-audio] Updated note status to completed after minutes generation');
+  } catch (error) {
+    console.error('[transcribe-audio] Error in meeting minutes generation:', error);
+    // Even if minutes generation fails, mark the transcription as completed since we have the transcript
+    await updateNoteStatus(supabase, note.id, 'completed', 100);
+    console.log('[transcribe-audio] Updated note status to completed despite minutes generation error');
+  }
   
   return transcription.text;
 }

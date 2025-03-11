@@ -10,7 +10,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertTriangle } from "lucide-react";
+import { RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -18,6 +19,7 @@ interface TranscriptionStatusProps {
   error?: string;
   duration?: number;
   noteId?: string;
+  transcript?: string | null;
 }
 
 export const TranscriptionStatus = ({
@@ -25,11 +27,14 @@ export const TranscriptionStatus = ({
   progress,
   error,
   duration,
-  noteId
+  noteId,
+  transcript
 }: TranscriptionStatusProps) => {
   const { retryTranscription } = useNoteTranscription();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [transcriptionTimeout, setTranscriptionTimeout] = useState(false);
   const [lastProgressUpdate, setLastProgressUpdate] = useState<Date | null>(null);
   
@@ -40,6 +45,9 @@ export const TranscriptionStatus = ({
   
   const statusInfo = getStatusInfo(status);
   const { message, icon, color } = statusInfo;
+  
+  // Detect inconsistent state - completed generating minutes but status still shows transcribing
+  const hasInconsistentState = (status === 'transcribing' || status === 'processing') && transcript;
   
   // Check for stalled transcription
   useEffect(() => {
@@ -53,7 +61,7 @@ export const TranscriptionStatus = ({
           console.log('Checking note status for inactivity...');
           const { data } = await supabase
             .from('notes')
-            .select('updated_at, processing_progress')
+            .select('updated_at, processing_progress, status')
             .eq('id', noteId)
             .single();
             
@@ -111,6 +119,77 @@ export const TranscriptionStatus = ({
       setIsRetrying(false);
     }
   };
+  
+  const handleSyncStatus = async () => {
+    if (!noteId) return;
+    
+    setIsSyncing(true);
+    try {
+      // First check if the recording has a transcript
+      const { data: note } = await supabase
+        .from('notes')
+        .select('recording_id, original_transcript')
+        .eq('id', noteId)
+        .single();
+        
+      if (!note?.recording_id) {
+        throw new Error('Recording ID not found');
+      }
+      
+      const { data: recording } = await supabase
+        .from('recordings')
+        .select('transcription, status')
+        .eq('id', note.recording_id)
+        .single();
+        
+      if (recording?.transcription && (!note.original_transcript || note.original_transcript.trim() === '')) {
+        // If recording has transcription but note doesn't, sync them
+        await supabase
+          .from('notes')
+          .update({
+            original_transcript: recording.transcription,
+            status: 'completed',
+            processing_progress: 100
+          })
+          .eq('id', noteId);
+        
+        queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+        toast({
+          title: "Status synchronized",
+          description: "Transcript and status have been successfully synchronized.",
+        });
+      } else if (hasInconsistentState) {
+        // If note has transcript but inconsistent status, fix the status
+        await supabase
+          .from('notes')
+          .update({
+            status: 'completed',
+            processing_progress: 100
+          })
+          .eq('id', noteId);
+          
+        queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+        toast({
+          title: "Status fixed",
+          description: "Note status has been updated to 'completed'.",
+        });
+      } else {
+        toast({
+          title: "No action needed",
+          description: "Note and recording data are already in sync.",
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing status:', error);
+      toast({
+        title: "Sync failed",
+        description: "Failed to synchronize status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Show retry button for errors, pending status, or stalled transcriptions
   const showRetryButton = (status === 'error' || status === 'pending' || transcriptionTimeout) && noteId;
@@ -127,6 +206,16 @@ export const TranscriptionStatus = ({
         status={status}
         progress={progress}
       />
+      
+      {hasInconsistentState && (
+        <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-amber-700 font-medium">Status inconsistency detected</p>
+            <p className="text-sm text-amber-600">The transcript exists but the status shows as "{status}". Click "Sync Status" to fix this.</p>
+          </div>
+        </div>
+      )}
       
       {transcriptionTimeout && (
         <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
@@ -149,22 +238,34 @@ export const TranscriptionStatus = ({
       
       {status === 'error' && <TranscriptError error={error} noteId={noteId} />}
       
-      {showRetryButton && (
-        <div className="mt-3">
+      <div className="mt-3 flex flex-wrap gap-2">
+        {showRetryButton && (
           <Button
             variant="outline"
-            className="bg-green-50 border-green-200 text-green-600 hover:bg-green-100 hover:text-green-700 w-full flex justify-center items-center gap-2"
+            className="bg-green-50 border-green-200 text-green-600 hover:bg-green-100 hover:text-green-700 flex justify-center items-center gap-2"
             onClick={handleRetry}
             disabled={isRetrying}
           >
             <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
             <span>{isRetrying ? 'Retrying...' : 'Retry Transcription'}</span>
           </Button>
-        </div>
-      )}
+        )}
+        
+        {hasInconsistentState && (
+          <Button
+            variant="outline"
+            className="bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 hover:text-blue-700 flex justify-center items-center gap-2"
+            onClick={handleSyncStatus}
+            disabled={isSyncing}
+          >
+            <CheckCircle className="h-4 w-4" />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Status'}</span>
+          </Button>
+        )}
+      </div>
       
       {showProgress && (
-        <Progress value={progress} className="w-full mt-2" />
+        <Progress value={progress} className="w-full mt-3" />
       )}
       
       {lastProgressUpdate && status !== 'completed' && status !== 'error' && (

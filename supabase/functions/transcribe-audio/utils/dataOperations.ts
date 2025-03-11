@@ -17,13 +17,18 @@ export async function updateRecordingAndNote(
 ) {
   console.log(`[transcribe-audio] Updating recording ${recordingId} and note ${noteId} with transcription`);
   
-  // Update recording first
-  await updateRecording(supabase, recordingId, transcriptionText);
-  
-  // Then update note
-  await updateNote(supabase, noteId, transcriptionText);
-  
-  console.log('[transcribe-audio] Successfully updated recording and note with transcription');
+  try {
+    // Update recording first
+    await updateRecording(supabase, recordingId, transcriptionText);
+    
+    // Then update note
+    await updateNote(supabase, noteId, transcriptionText);
+    
+    console.log('[transcribe-audio] Successfully updated recording and note with transcription');
+  } catch (error) {
+    console.error('[transcribe-audio] Error in updateRecordingAndNote:', error);
+    throw error;
+  }
 }
 
 /**
@@ -49,10 +54,13 @@ export async function startMeetingMinutesGeneration(
 
     if (minutesError) {
       console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
-      // Don't throw here, we already have the transcription
+      throw minutesError;
     }
+    
+    console.log('[transcribe-audio] Successfully initiated meeting minutes generation');
+    return true;
   } catch (error) {
     console.error('[transcribe-audio] Error invoking meeting minutes function:', error);
-    // Continue anyway, the transcription part is complete
+    throw error;
   }
 }

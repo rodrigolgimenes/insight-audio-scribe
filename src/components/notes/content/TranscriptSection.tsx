@@ -11,7 +11,10 @@ interface TranscriptSectionProps {
 export const TranscriptSection: React.FC<TranscriptSectionProps> = ({ note }) => {
   return (
     <>
-      <TranscriptAccordion transcript={note.original_transcript} />
+      <TranscriptAccordion 
+        transcript={note.original_transcript} 
+        noteId={note.id}
+      />
       <TranscriptChat note={note} />
     </>
   );

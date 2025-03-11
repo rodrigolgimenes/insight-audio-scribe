@@ -57,17 +57,25 @@ export async function updateNoteStatus(
 ) {
   console.log(`[transcribe-audio] Updating note ${noteId} status to ${status} with progress ${progress}%`);
   
-  const { error } = await supabase
-    .from('notes')
-    .update({ 
-      status,
-      processing_progress: progress 
-    })
-    .eq('id', noteId);
+  try {
+    const { error } = await supabase
+      .from('notes')
+      .update({ 
+        status,
+        processing_progress: progress,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId);
+      
+    if (error) {
+      console.error(`[transcribe-audio] Error updating note status: ${error.message}`);
+      throw new Error(`Failed to update note status: ${error.message}`);
+    }
     
-  if (error) {
-    console.error(`[transcribe-audio] Error updating note status: ${error.message}`);
-    throw new Error(`Failed to update note status: ${error.message}`);
+    console.log(`[transcribe-audio] Successfully updated note status to ${status} with progress ${progress}%`);
+  } catch (error) {
+    console.error(`[transcribe-audio] Exception in updateNoteStatus:`, error);
+    throw error;
   }
 }
 
@@ -84,21 +92,46 @@ export async function updateNote(
 ) {
   console.log(`[transcribe-audio] Updating note ${noteId} with transcription`);
   
-  const { error } = await supabase
-    .from('notes')
-    .update({
-      status: 'generating_minutes',
-      processing_progress: 75,
-      original_transcript: transcriptionText
-    })
-    .eq('id', noteId);
+  try {
+    // First check if the note already has a transcript
+    const { data: existingNote } = await supabase
+      .from('notes')
+      .select('original_transcript')
+      .eq('id', noteId)
+      .single();
+      
+    if (existingNote?.original_transcript) {
+      console.log('[transcribe-audio] Note already has transcript. Checking if we should overwrite...');
+      
+      // Only overwrite if the existing transcript is empty or very short
+      if (!existingNote.original_transcript.trim() || existingNote.original_transcript.length < 20) {
+        console.log('[transcribe-audio] Existing transcript is empty or very short. Overwriting...');
+      } else {
+        console.log('[transcribe-audio] Existing transcript seems valid. Not overwriting.');
+        return;
+      }
+    }
+    
+    const { error } = await supabase
+      .from('notes')
+      .update({
+        status: 'generating_minutes',
+        processing_progress: 75,
+        original_transcript: transcriptionText,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId);
 
-  if (error) {
-    console.error(`[transcribe-audio] Error updating note: ${error.message}`);
-    throw new Error(`Failed to update note: ${error.message}`);
+    if (error) {
+      console.error(`[transcribe-audio] Error updating note: ${error.message}`);
+      throw new Error(`Failed to update note: ${error.message}`);
+    }
+    
+    console.log('[transcribe-audio] Successfully updated note with transcription');
+  } catch (error) {
+    console.error('[transcribe-audio] Exception in updateNote:', error);
+    throw error;
   }
-  
-  console.log('[transcribe-audio] Successfully updated note with transcription');
 }
 
 /**
@@ -120,7 +153,8 @@ export async function handleTranscriptionError(
       .update({ 
         status: 'error',
         processing_progress: 0,
-        error_message: errorMessage || 'An error occurred during transcription'
+        error_message: errorMessage || 'An error occurred during transcription',
+        updated_at: new Date().toISOString()
       })
       .eq('id', noteId);
       
