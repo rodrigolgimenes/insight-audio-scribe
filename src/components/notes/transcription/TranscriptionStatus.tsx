@@ -190,7 +190,7 @@ export const TranscriptionStatus = ({
   };
 
   // Show retry button for errors, pending status, or stalled transcriptions
-  const showRetryButton = (status === 'error' || status === 'pending' || transcriptionTimeout) && noteId;
+  const showRetryButton = Boolean(status === 'error' || status === 'pending' || transcriptionTimeout) && Boolean(noteId);
   const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
   
   return (
