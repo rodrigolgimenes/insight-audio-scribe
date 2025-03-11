@@ -1,7 +1,14 @@
 
-import { createSupabaseClient, getRecordingData, getNoteData, updateNoteStatus, updateRecordingAndNote } from './supabaseClient.ts';
+import { 
+  createSupabaseClient, 
+  getRecordingData, 
+  getNoteData, 
+  updateNoteStatus, 
+  updateRecordingAndNote 
+} from './supabaseClient.ts';
 import { downloadAudioFile } from './storageClient.ts';
 import { transcribeAudio } from './openaiClient.ts';
+import { startMeetingMinutesGeneration } from './utils/dataOperations.ts';
 
 // Constants for file size and duration limits
 export const MAX_AUDIO_DURATION_MS = 60 * 60 * 1000; // 60 minutes in milliseconds
@@ -49,13 +56,13 @@ export async function handleTranscription(requestBody: {
   try {
     if (noteId && isRetry) {
       // For retry operations, get the note first, then the recording
-      note = await getNoteData(supabase, noteId);
+      note = await getNoteData(supabase, noteId, true);
       recording = await getRecordingData(supabase, note.recording_id);
     } else if (recordingId) {
       // Normal flow - get recording first
       recording = await getRecordingData(supabase, recordingId);
       note = noteId ? 
-        await getNoteData(supabase, noteId) : 
+        await getNoteData(supabase, noteId, true) : 
         await getNoteData(supabase, recordingId);
     } else {
       throw new Error('Invalid parameters for transcription');
@@ -176,25 +183,4 @@ async function processTranscription(supabase: any, note: any, recording: any, au
   await startMeetingMinutesGeneration(supabase, note.id, transcription.text);
   
   return transcription.text;
-}
-
-async function startMeetingMinutesGeneration(supabase: any, noteId: string, transcriptionText: string) {
-  console.log('[transcribe-audio] Starting meeting minutes generation...');
-  try {
-    const { error: minutesError } = await supabase.functions
-      .invoke('generate-meeting-minutes', {
-        body: { 
-          noteId: noteId,
-          transcription: transcriptionText
-        }
-      });
-
-    if (minutesError) {
-      console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
-      // Don't throw here, we already have the transcription
-    }
-  } catch (error) {
-    console.error('[transcribe-audio] Error invoking meeting minutes function:', error);
-    // Continue anyway, the transcription part is complete
-  }
 }
