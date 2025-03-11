@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useNoteManagement } from "@/hooks/useNoteManagement";
-import { Mic, Search, PlusSquare } from "lucide-react";
+import { Mic, Search, PlusSquare, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -74,7 +73,6 @@ const Dashboard = () => {
       <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
         <AppSidebar activePage="notes" />
         <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
-          {/* Header com cor de fundo azul médio (#4285F4) conforme especificações */}
           <div className="bg-[#4285F4] p-4 shadow-md">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg overflow-hidden">
