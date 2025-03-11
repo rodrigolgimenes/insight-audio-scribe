@@ -13,7 +13,7 @@ export interface Note {
   audio_url: string | null;
   status: 'pending' | 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error';
   processing_progress: number;
-  error_message?: string | null;
+  error_message: string | null;
   tags?: Array<{
     id: string;
     name: string;

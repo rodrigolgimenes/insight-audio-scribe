@@ -26,6 +26,12 @@ export default function TagPage() {
     // Extract tags from notes_tags array
     const noteTags = note.notes_tags?.map(nt => nt.tags) || [];
     
+    // Default values for required properties that might be missing
+    const validStatus: Note['status'] = 
+      note.status && ['pending', 'processing', 'transcribing', 'generating_minutes', 'completed', 'error'].includes(note.status) 
+        ? note.status as Note['status'] 
+        : 'completed';
+    
     return {
       id: note.id,
       title: note.title,
@@ -38,7 +44,7 @@ export default function TagPage() {
       user_id: note.user_id || "system",
       duration: note.duration || null,
       audio_url: note.audio_url || null,
-      status: note.status as Note['status'] || 'completed',
+      status: validStatus,
       processing_progress: note.processing_progress || 0,
       error_message: note.error_message || null,
       tags: noteTags
