@@ -11,6 +11,9 @@ export interface Note {
   user_id: string;
   duration: number | null;
   audio_url: string | null;
+  status: 'pending' | 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error';
+  processing_progress: number;
+  error_message?: string | null;
   tags?: Array<{
     id: string;
     name: string;

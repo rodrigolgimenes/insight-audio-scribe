@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { MeetingMinutes } from "./MeetingMinutes";
 import { Note } from "@/integrations/supabase/types/notes";
@@ -44,6 +43,13 @@ export const NoteContent = ({
       <TranscriptAccordion transcript={note.original_transcript} />
 
       <TranscriptChat note={note} />
+
+      <TranscriptionStatus 
+        status={note.status} 
+        progress={note.processing_progress || 0} 
+        error={note.error_message}
+        duration={note.duration}
+      />
     </div>
   );
 };

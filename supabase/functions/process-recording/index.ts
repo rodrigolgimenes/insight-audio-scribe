@@ -44,6 +44,11 @@ serve(async (req) => {
     }
 
     console.log('[process-recording] Recording data:', recording);
+    console.log('[process-recording] Audio duration:', recording.duration, 'ms');
+
+    // Check if file is too large for direct transcription (OpenAI has a 25MB limit)
+    const isLargeFile = recording.duration && recording.duration > 25 * 60 * 1000; // More than 25 minutes
+    console.log('[process-recording] Is large file:', isLargeFile);
 
     // Update status to processing
     const { error: updateError } = await supabase
@@ -87,10 +92,15 @@ serve(async (req) => {
 
     console.log('[process-recording] Note:', note);
 
+    // For larger files, use a different strategy
+    const functionToInvoke = isLargeFile ? 
+      'process-large-recording' : // A function we would create for handling large files
+      'transcribe-audio';
+
     // Start transcription in background
     EdgeRuntime.waitUntil((async () => {
       try {
-        console.log('[process-recording] Starting transcription process...');
+        console.log(`[process-recording] Starting transcription process with '${functionToInvoke}'`);
         
         // Update note status to transcribing
         await supabase
@@ -105,10 +115,12 @@ serve(async (req) => {
         await new Promise(resolve => setTimeout(resolve, 5000));
         
         const { error: transcribeError } = await supabase.functions
-          .invoke('transcribe-audio', {
+          .invoke(functionToInvoke, {
             body: { 
               noteId: note.id,
-              recordingId: recordingId
+              recordingId: recordingId,
+              duration: recording.duration,
+              isLargeFile
             }
           });
 
@@ -134,7 +146,8 @@ serve(async (req) => {
             .from('notes')
             .update({ 
               status: 'error',
-              processing_progress: 0
+              processing_progress: 0,
+              error_message: error instanceof Error ? error.message : 'Unknown error during processing'
             })
             .eq('id', note.id)
         ]);
