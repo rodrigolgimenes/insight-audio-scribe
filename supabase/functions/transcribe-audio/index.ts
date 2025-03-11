@@ -18,12 +18,12 @@ serve(async (req) => {
   }
 
   try {
-    const { recordingId, noteId, duration, isLargeFile } = await req.json();
+    const { recordingId, noteId, duration, isLargeFile, isRetry } = await req.json();
     console.log('[transcribe-audio] Starting transcription process for recording:', recordingId);
-    console.log('[transcribe-audio] Parameters:', { noteId, duration, isLargeFile });
+    console.log('[transcribe-audio] Parameters:', { noteId, duration, isLargeFile, isRetry });
     
-    if (!recordingId) {
-      throw new Error('Recording ID is required');
+    if (!recordingId && !noteId) {
+      throw new Error('Either Recording ID or Note ID is required');
     }
 
     // Check for file size constraints
@@ -35,10 +35,22 @@ serve(async (req) => {
     const supabase = createSupabaseClient();
 
     // Get recording and note data
-    const recording = await getRecordingData(supabase, recordingId);
-    const note = noteId ? 
-      await getNoteData(supabase, noteId) : 
-      await getNoteData(supabase, recordingId);
+    let recording;
+    let note;
+    
+    if (noteId && isRetry) {
+      // For retry operations, get the note first, then the recording
+      note = await getNoteData(supabase, noteId);
+      recording = await getRecordingData(supabase, note.recording_id);
+    } else if (recordingId) {
+      // Normal flow - get recording first
+      recording = await getRecordingData(supabase, recordingId);
+      note = noteId ? 
+        await getNoteData(supabase, noteId) : 
+        await getNoteData(supabase, recordingId);
+    } else {
+      throw new Error('Invalid parameters for transcription');
+    }
 
     // Update note status to downloading
     await updateNoteStatus(supabase, note.id, 'processing', 25);
@@ -93,7 +105,7 @@ serve(async (req) => {
     console.log('[transcribe-audio] Transcription completed successfully');
     
     // Update recording and note with transcription
-    await updateRecordingAndNote(supabase, recordingId, note.id, transcription.text);
+    await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
 
     // Start meeting minutes generation
     console.log('[transcribe-audio] Starting meeting minutes generation...');
