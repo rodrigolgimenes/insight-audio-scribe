@@ -1,6 +1,5 @@
-
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusSquare } from "lucide-react";
 import { Note } from "@/integrations/supabase/types/notes";
 import { formatDate } from "@/utils/formatDate";
 import { formatDuration } from "@/utils/formatDuration";
