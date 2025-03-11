@@ -1,7 +1,12 @@
+
 import { Button } from "@/components/ui/button";
 import { useNoteData } from "@/hooks/useNoteData";
 import { RefreshCcw } from "lucide-react";
 import { Note } from "@/types/notes";
+import { MeetingMinutes } from "./MeetingMinutes";
+import { TranscriptAccordion } from "./TranscriptAccordion";
+import { TranscriptChat } from "./TranscriptChat";
+import { TranscriptionStatus } from "./TranscriptionStatus";
 
 interface NoteContentProps {
   note: Note;

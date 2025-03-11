@@ -1,3 +1,4 @@
+
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,8 +53,8 @@ export const useNoteData = () => {
       .eq('id', noteId);
 
     // Invalidate queries to refresh the data
-    queryClient.invalidateQueries(['note', noteId]);
-    queryClient.invalidateQueries(['note-tags', noteId]);
+    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+    queryClient.invalidateQueries({ queryKey: ['note-tags', noteId] });
     
     toast({
       title: "Success",
