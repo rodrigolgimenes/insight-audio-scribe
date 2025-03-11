@@ -6,6 +6,7 @@ import { getStatusInfo } from "./transcription/getStatusInfo";
 import { ErrorHelpers } from "./transcription/ErrorHelpers";
 import { RetryButton } from "./transcription/RetryButton";
 import { StatusHeader } from "./transcription/StatusHeader";
+import { useToast } from "@/components/ui/use-toast";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -23,6 +24,7 @@ export const TranscriptionStatus = ({
   noteId
 }: TranscriptionStatusProps) => {
   const { retryTranscription } = useNoteTranscription();
+  const { toast } = useToast();
   
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
@@ -33,16 +35,33 @@ export const TranscriptionStatus = ({
   
   const handleRetry = async () => {
     if (noteId) {
-      const success = await retryTranscription(noteId);
-      console.log('Retry transcription result:', success);
+      try {
+        const success = await retryTranscription(noteId);
+        if (success) {
+          toast({
+            title: "Retry initiated",
+            description: "The transcription process has been restarted.",
+            variant: "default",
+          });
+        } else {
+          throw new Error("Failed to restart transcription");
+        }
+      } catch (error) {
+        console.error('Error retrying transcription:', error);
+        toast({
+          title: "Retry failed",
+          description: "Could not restart the transcription process. Please try again later.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const showRetryButton = status === 'error' && noteId;
+  const showRetryButton = (status === 'error' || status === 'pending') && noteId;
   const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
   
   return (
-    <Card className="p-4 mb-4">
+    <Card className="p-4 mb-4 relative">
       <StatusHeader 
         icon={icon}
         message={message}
@@ -56,7 +75,9 @@ export const TranscriptionStatus = ({
       {status === 'error' && <ErrorHelpers error={error} />}
       
       {showRetryButton && (
-        <RetryButton onRetry={handleRetry} />
+        <div className="mt-3">
+          <RetryButton onRetry={handleRetry} />
+        </div>
       )}
       
       {showProgress && (

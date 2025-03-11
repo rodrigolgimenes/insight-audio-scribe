@@ -11,6 +11,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
   ({ src, onEnded }, ref) => {
     const { toast } = useToast();
     const [supportedFormats, setSupportedFormats] = useState<Record<string, string>>({});
+    const [lastErrorTime, setLastErrorTime] = useState(0);
+    const errorCooldown = 5000; // 5 seconds between error messages
     
     useEffect(() => {
       // Check which audio formats are supported by the browser
@@ -40,29 +42,42 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.error('[AudioElement] Audio src:', target.src);
       console.error('[AudioElement] Network state:', target.networkState);
       console.error('[AudioElement] Ready state:', target.readyState);
-      console.error('[AudioElement] Supported formats:', supportedFormats);
       
-      let errorMessage = "Erro ao carregar arquivo de áudio";
+      // Rate limit error toasts to avoid spam
+      const now = Date.now();
+      if (now - lastErrorTime < errorCooldown) {
+        console.log('[AudioElement] Skipping error toast due to cooldown');
+        return;
+      }
+      
+      setLastErrorTime(now);
+      
+      let errorMessage = "Error loading audio file";
+      let suggestion = "Please try again.";
+      
       if (target.error) {
         switch (target.error.code) {
           case MediaError.MEDIA_ERR_ABORTED:
-            errorMessage = "Reprodução de áudio foi interrompida";
+            errorMessage = "Audio playback was interrupted";
             break;
           case MediaError.MEDIA_ERR_NETWORK:
-            errorMessage = "Erro de rede ao carregar áudio";
+            errorMessage = "Network error while loading audio";
+            suggestion = "Please check your internet connection and try again.";
             break;
           case MediaError.MEDIA_ERR_DECODE:
-            errorMessage = "Erro ao decodificar áudio - formato não suportado";
+            errorMessage = "Error decoding audio - format may not be supported";
+            suggestion = "Try downloading the file instead.";
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Formato de áudio não suportado pelo navegador";
+            errorMessage = "Audio format not supported by your browser";
+            suggestion = "Try using Chrome, Firefox, or Safari.";
             break;
         }
       }
 
       toast({
-        title: "Erro no áudio",
-        description: `${errorMessage}. Por favor, tente novamente.`,
+        title: "Audio Error",
+        description: `${errorMessage}. ${suggestion}`,
         variant: "destructive",
       });
     };
@@ -104,21 +119,6 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       }
     };
 
-    const handleLoadedMetadata = () => {
-      if (!src) return;
-      
-      const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
-      if (audioEl.current) {
-        console.log('[AudioElement] Metadata loaded:', {
-          duration: audioEl.current.duration,
-          readyState: audioEl.current.readyState,
-          src: audioEl.current.src,
-          networkState: audioEl.current.networkState,
-          mimeType: audioEl.current.currentSrc.split('.').pop()
-        });
-      }
-    };
-
     if (!src) {
       return null;
     }
@@ -133,15 +133,14 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
         onError={handleError}
         onLoadStart={handleLoadStart}
         onCanPlay={handleCanPlay}
-        onLoadedMetadata={handleLoadedMetadata}
         preload="metadata"
         controls={false}
       >
         <source src={src} type={audioType} />
-        {/* Add alternative sources if we can determine the original file type */}
+        {/* Add alternative sources if possible */}
         {audioType === 'audio/webm' && <source src={src} type="audio/mp3" />}
         {audioType === 'audio/mpeg' && <source src={src} type="audio/webm" />}
-        <p>Seu navegador não suporta o elemento de áudio.</p>
+        <p>Your browser does not support the audio element.</p>
       </audio>
     );
   }
