@@ -58,6 +58,14 @@ export const useNoteData = () => {
 
       console.log("Note data from database:", data);
 
+      // Convert the status string from database to the correct type
+      const noteStatus = (data.status as string) || 'processing';
+      // Ensure the status is one of the allowed values
+      const validStatus: Note['status'] = 
+        ['pending', 'processing', 'transcribing', 'completed', 'error'].includes(noteStatus) 
+          ? noteStatus as Note['status']
+          : 'processing';
+
       const transformedNote: Note = {
         id: data.id,
         title: data.title,
@@ -70,7 +78,7 @@ export const useNoteData = () => {
         user_id: data.user_id,
         duration: data.recordings?.duration || null,
         audio_url: data.audio_url || null,
-        status: data.status || 'processing',
+        status: validStatus,
         processing_progress: data.processing_progress || 0
       };
 
