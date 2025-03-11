@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw, FileSymlink, HelpCircle } from "lucide-react";
@@ -142,7 +141,6 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
               </div>
             )}
             
-            {/* Generic troubleshooting tips if no specific error type is matched */}
             {!isFileNotFound && !isFileTooLarge && !isPermissionError && !isNetworkError && !isProcessingError && !isEdgeFunctionError && (
               <div className="mt-1 text-sm">
                 <div className="font-medium text-red-500 mb-1">General troubleshooting:</div>

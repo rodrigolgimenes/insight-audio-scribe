@@ -12,6 +12,9 @@ export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
   
   console.log("Rendering status:", status, "normalized progress:", displayProgress);
   
+  // Check for edge function error in status
+  const isEdgeFunctionError = status === 'error' && displayProgress === 0;
+  
   switch (status) {
     case "completed":
       return (
@@ -24,7 +27,7 @@ export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
           <AlertCircle className="h-3.5 w-3.5 mr-1" />
-          Error
+          {isEdgeFunctionError ? "Processing error" : "Error"}
         </span>
       );
     case "transcribing":

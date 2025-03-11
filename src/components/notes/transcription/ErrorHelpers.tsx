@@ -1,3 +1,4 @@
+
 import React from "react";
 import { AlertCircle, Info } from "lucide-react";
 
@@ -17,6 +18,8 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
   const isTimeoutError = error.toLowerCase().includes('timeout') || 
                       error.toLowerCase().includes('timed out');
   const isDurationError = error.toLowerCase().includes('duration');
+  const isEdgeFunctionError = error.toLowerCase().includes('edge function') || 
+                            error.toLowerCase().includes('status code');
 
   // Clean up encoded file paths for better display
   let displayError = error;
@@ -35,7 +38,7 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
     }
   }
 
-  if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && !isTimeoutError && !isDurationError) {
+  if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && !isTimeoutError && !isDurationError && !isEdgeFunctionError) {
     return <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{displayError}</div>;
   }
 
@@ -100,6 +103,19 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
                 <li>The recording exceeds the maximum supported duration (60 minutes)</li>
                 <li>Divide your recordings into shorter sessions for better results</li>
                 <li>Shorter recordings also tend to generate more accurate transcriptions</li>
+              </ul>
+            </div>
+          )}
+          
+          {isEdgeFunctionError && (
+            <div className="mt-3">
+              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Tips to resolve:</p>
+              <ul className="list-disc ml-6 mt-1 space-y-1">
+                <li>There was a problem with the processing server</li>
+                <li>This is usually a temporary issue</li>
+                <li>Try the 'Retry' button if available</li>
+                <li>If the problem persists, try uploading a different file format</li>
+                <li>Check if your internet connection is stable</li>
               </ul>
             </div>
           )}
