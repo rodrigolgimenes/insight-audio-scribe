@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { getMediaDuration } from "@/utils/mediaUtils";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { uploadFileToSupabase } from "@/services/supabase/uploadService";
@@ -11,9 +10,11 @@ import { createRecordingEntry, updateRecordingStatus, createInitialNote, startRe
 export const useFileUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>): Promise<string | undefined> => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>, 
+    initiateTranscription: boolean = true
+  ): Promise<string | undefined> => {
     const file = event.target.files?.[0];
     
     // Validate file
@@ -24,7 +25,7 @@ export const useFileUpload = () => {
     }
 
     setIsUploading(true);
-    console.log('Starting file upload process...');
+    console.log('Starting file upload process with initiateTranscription:', initiateTranscription);
 
     try {
       // Get authenticated user
@@ -124,58 +125,56 @@ export const useFileUpload = () => {
         durationInMs
       );
 
-      // Start background processing with retries
-      console.log('Starting transcription processing...');
-      let processingSuccess = false;
-      let processingAttempts = 0;
-      const maxProcessingAttempts = 3;
-      let processingError = null;
+      // Start background processing with retries, but only if initiateTranscription is true
+      if (initiateTranscription) {
+        console.log('Starting transcription processing...');
+        let processingSuccess = false;
+        let processingAttempts = 0;
+        const maxProcessingAttempts = 3;
+        let processingError = null;
 
-      while (!processingSuccess && processingAttempts < maxProcessingAttempts) {
-        try {
-          const { error } = await startRecordingProcessing(recordingData.id);
-          
-          if (!error) {
-            processingSuccess = true;
-            console.log('Processing started successfully on attempt', processingAttempts + 1);
-          } else {
-            processingError = error;
-            console.error(`Processing start attempt ${processingAttempts + 1} failed:`, error);
-            processingAttempts++;
+        while (!processingSuccess && processingAttempts < maxProcessingAttempts) {
+          try {
+            const { error } = await startRecordingProcessing(recordingData.id);
             
+            if (!error) {
+              processingSuccess = true;
+              console.log('Processing started successfully on attempt', processingAttempts + 1);
+            } else {
+              processingError = error;
+              console.error(`Processing start attempt ${processingAttempts + 1} failed:`, error);
+              processingAttempts++;
+              
+              if (processingAttempts < maxProcessingAttempts) {
+                // Wait before retrying (exponential backoff)
+                const waitTime = Math.min(2000 * Math.pow(2, processingAttempts), 10000);
+                console.log(`Waiting ${waitTime}ms before retrying processing start...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+              }
+            }
+          } catch (error) {
+            processingError = error;
+            console.error(`Processing start attempt ${processingAttempts + 1} failed with exception:`, error);
+            processingAttempts++;
+
             if (processingAttempts < maxProcessingAttempts) {
-              // Wait before retrying (exponential backoff)
               const waitTime = Math.min(2000 * Math.pow(2, processingAttempts), 10000);
               console.log(`Waiting ${waitTime}ms before retrying processing start...`);
               await new Promise(resolve => setTimeout(resolve, waitTime));
             }
           }
-        } catch (error) {
-          processingError = error;
-          console.error(`Processing start attempt ${processingAttempts + 1} failed with exception:`, error);
-          processingAttempts++;
-
-          if (processingAttempts < maxProcessingAttempts) {
-            const waitTime = Math.min(2000 * Math.pow(2, processingAttempts), 10000);
-            console.log(`Waiting ${waitTime}ms before retrying processing start...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
         }
-      }
-      
-      if (!processingSuccess) {
-        console.error('All processing start attempts failed');
-        toast({
-          title: "Warning",
-          description: "File uploaded but transcription failed to start. You can try the 'Retry Transcription' button.",
-          variant: "destructive",
-        });
+        
+        if (!processingSuccess) {
+          console.error('All processing start attempts failed');
+          toast({
+            title: "Warning",
+            description: "File uploaded but transcription failed to start. You can try the 'Retry Transcription' button.",
+            variant: "destructive",
+          });
+        }
       } else {
-        // Show success message
-        toast({
-          title: "Success",
-          description: "File uploaded successfully! Transcription is being processed.",
-        });
+        console.log('Skipping transcription initiation as requested');
       }
 
       // Reset file input

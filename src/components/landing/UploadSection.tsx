@@ -24,6 +24,7 @@ export const UploadSection = () => {
           label="Upload your audio or video"
           description="Supported formats: MP3, WAV, WebM, MP4 (max 100MB)"
           buttonText="Upload and Transcribe"
+          initiateTranscription={true}
         />
       </div>
     </section>

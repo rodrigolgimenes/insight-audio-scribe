@@ -13,6 +13,7 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
         description="Upload audio or video to transcribe"
         accept="audio/*,video/mp4"
         disabled={isDisabled}
+        initiateTranscription={true}
       />
     </div>
   );

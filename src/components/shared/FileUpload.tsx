@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { validateFile } from "@/utils/upload/fileValidation";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface FileUploadProps {
   onUploadComplete?: (recordingId: string) => void;
@@ -16,7 +18,8 @@ interface FileUploadProps {
   buttonText?: string;
   className?: string;
   maxSize?: number; // in MB
-  disabled?: boolean; // Added disabled property
+  disabled?: boolean;
+  initiateTranscription?: boolean; // New prop to control whether transcription should be initiated
 }
 
 export function FileUpload({
@@ -27,11 +30,14 @@ export function FileUpload({
   buttonText = "Upload File",
   className = "",
   maxSize = 100, // default 100MB
-  disabled = false, // Default to not disabled
+  disabled = false,
+  initiateTranscription = true, // Default to true to maintain backward compatibility
 }: FileUploadProps) {
   const { isUploading, handleFileUpload } = useFileUpload();
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -47,12 +53,35 @@ export function FileUpload({
       }
       
       try {
-        const recordingId = await handleFileUpload(event);
-        if (onUploadComplete && recordingId) {
-          onUploadComplete(recordingId);
+        console.log("Initiating file upload with transcription flag:", initiateTranscription);
+        const recordingId = await handleFileUpload(event, initiateTranscription);
+        
+        if (recordingId) {
+          console.log("Upload complete, recordingId:", recordingId);
+          
+          // If no callback is provided, navigate to the note page
+          if (!onUploadComplete) {
+            navigate(`/app/notes/${recordingId}`);
+          } else {
+            onUploadComplete(recordingId);
+          }
+          
+          toast({
+            title: "Upload successful",
+            description: initiateTranscription 
+              ? "Your file has been uploaded and transcription process started."
+              : "Your file has been uploaded successfully.",
+          });
         }
       } catch (err) {
+        console.error("File upload error:", err);
         setError(err instanceof Error ? err.message : "Failed to upload file");
+        
+        toast({
+          title: "Upload Error",
+          description: err instanceof Error ? err.message : "Failed to upload file",
+          variant: "destructive",
+        });
       }
     }
   };
