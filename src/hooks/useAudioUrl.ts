@@ -9,7 +9,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3;
+  const maxRetries = 5;
 
   const getSignedUrl = useCallback(async () => {
     if (!audioUrl) {
@@ -20,7 +20,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
     }
 
     try {
-      console.log('[useAudioUrl] Input audioUrl:', audioUrl);
+      console.log('[useAudioUrl] Processing audioUrl:', audioUrl);
       
       // Extract just the file path, removing the full URL if present
       let cleanPath = audioUrl;
@@ -88,74 +88,63 @@ export const useAudioUrl = (audioUrl: string | null) => {
         throw new Error('Failed to generate audio URL');
       }
 
-      console.log('[useAudioUrl] Signed URL generated:', {
-        urlLength: signedData.signedUrl.length,
-        preview: signedData.signedUrl.substring(0, 100) + '...'
-      });
-
-      // Verify the URL is accessible
-      try {
-        const response = await fetch(signedData.signedUrl, { method: 'HEAD' });
-        console.log('[useAudioUrl] URL accessibility check:', {
-          status: response.status,
-          ok: response.ok,
-          contentType: response.headers.get('content-type')
-        });
-        
-        if (!response.ok) {
-          throw new Error(`URL not accessible: ${response.status}`);
-        }
-      } catch (fetchError) {
-        // Log but continue - some browsers might block HEAD requests
-        console.warn('[useAudioUrl] Could not verify URL accessibility:', fetchError);
-      }
+      console.log('[useAudioUrl] Signed URL generated successfully');
 
       setSignedUrl(signedData.signedUrl);
       setIsAudioReady(true);
       setError(null);
       setRetryCount(0); // Reset retry count on success
     } catch (error) {
-      console.error('[useAudioUrl] Error in getSignedUrl:', error);
+      console.error('[useAudioUrl] Error getting signed URL:', error);
       setError(error as Error);
       setIsAudioReady(false);
       setSignedUrl(null);
       
-      // Only show toast if we're out of retries or not auto-retrying
+      // Only show toast if we're out of retries
       if (retryCount >= maxRetries) {
         toast({
           title: "Error Loading Audio",
-          description: error instanceof Error ? error.message : "Failed to load audio file. Please try again.",
+          description: "The audio file could not be found or accessed. You may need to upload it again.",
           variant: "destructive",
+        });
+      } else if (retryCount === 0) {
+        // Show toast on first attempt so user knows something's happening
+        toast({
+          title: "Loading Audio",
+          description: "Attempting to load the audio file. This may take a moment.",
         });
       }
     }
   }, [audioUrl, toast, retryCount, maxRetries]);
 
-  // Retry mechanism
-  const retry = useCallback(() => {
-    if (retryCount < maxRetries) {
-      console.log(`[useAudioUrl] Retrying (${retryCount + 1}/${maxRetries})...`);
-      setRetryCount(prev => prev + 1);
-    }
-  }, [retryCount, maxRetries]);
-
-  // Effect for initial load and retries
+  // Auto-retry mechanism
   useEffect(() => {
-    getSignedUrl();
-    
-    // Retry with exponential backoff if needed
     if (error && retryCount < maxRetries) {
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff with max 10s
+      console.log(`[useAudioUrl] Retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+      
       const timeoutId = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
         getSignedUrl();
-      }, Math.min(1000 * Math.pow(2, retryCount), 10000)); // Max 10-second delay
+      }, delay);
       
       return () => clearTimeout(timeoutId);
     }
+  }, [error, retryCount, maxRetries, getSignedUrl]);
+
+  // Initial fetch and refresh
+  useEffect(() => {
+    getSignedUrl();
     
     // Update signed URL every 45 minutes to avoid expiration
     const refreshInterval = setInterval(getSignedUrl, 45 * 60 * 1000);
     return () => clearInterval(refreshInterval);
-  }, [getSignedUrl, error, retryCount, maxRetries]);
+  }, [getSignedUrl]);
+
+  const retry = useCallback(() => {
+    setRetryCount(0); // Reset retry count
+    getSignedUrl();
+  }, [getSignedUrl]);
 
   return { signedUrl, isAudioReady, error, retry };
 };

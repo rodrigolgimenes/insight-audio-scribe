@@ -7,6 +7,7 @@ import { ErrorHelpers } from "./transcription/ErrorHelpers";
 import { RetryButton } from "./transcription/RetryButton";
 import { StatusHeader } from "./transcription/StatusHeader";
 import { useToast } from "@/components/ui/use-toast";
+import { useState } from "react";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -25,6 +26,7 @@ export const TranscriptionStatus = ({
 }: TranscriptionStatusProps) => {
   const { retryTranscription } = useNoteTranscription();
   const { toast } = useToast();
+  const [isRetrying, setIsRetrying] = useState(false);
   
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
@@ -34,29 +36,37 @@ export const TranscriptionStatus = ({
   const { message, icon, color } = statusInfo;
   
   const handleRetry = async () => {
-    if (noteId) {
-      try {
-        const success = await retryTranscription(noteId);
-        if (success) {
-          toast({
-            title: "Retry iniciado",
-            description: "O processo de transcrição foi reiniciado.",
-            variant: "default",
-          });
-        } else {
-          throw new Error("Falha ao reiniciar a transcrição");
-        }
-      } catch (error) {
-        console.error('Erro ao tentar retranscrever:', error);
+    if (!noteId) return;
+    
+    setIsRetrying(true);
+    
+    try {
+      const success = await retryTranscription(noteId);
+      if (success) {
         toast({
-          title: "Falha ao retranscrever",
-          description: "Não foi possível reiniciar o processo de transcrição. Tente novamente mais tarde.",
-          variant: "destructive",
+          title: "Retry initiated",
+          description: "Transcription process has been restarted.",
+          variant: "default",
         });
+      } else {
+        throw new Error("Failed to restart transcription");
       }
+    } catch (error) {
+      console.error('Error retrying transcription:', error);
+      toast({
+        title: "Failed to retry",
+        description: "Could not restart the transcription process. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRetrying(false);
     }
   };
 
+  const isFileNotFoundError = error?.toLowerCase().includes('not found') || 
+                             error?.toLowerCase().includes('file not found');
+
+  // Show retry button for errors and pending status (after a delay)
   const showRetryButton = (status === 'error' || status === 'pending') && noteId;
   const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
   
@@ -76,7 +86,7 @@ export const TranscriptionStatus = ({
       
       {showRetryButton && (
         <div className="mt-3">
-          <RetryButton onRetry={handleRetry} />
+          <RetryButton onRetry={handleRetry} isDisabled={isRetrying} />
         </div>
       )}
       

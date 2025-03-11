@@ -5,22 +5,33 @@ export async function downloadAudioFile(supabase: any, filePath: string): Promis
   console.log(`[transcribe-audio] Starting download of file: ${filePath}`);
   
   // First check if the file exists
+  const pathParts = filePath.split('/');
+  const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+  const fileName = pathParts[pathParts.length - 1];
+  
+  console.log(`[transcribe-audio] Checking if file exists:`, { bucketFolder, fileName });
+  
   const { data: existsData, error: existsError } = await supabase
     .storage
     .from('audio_recordings')
-    .list(filePath.split('/').slice(0, -1).join('/') || '');
+    .list(bucketFolder);
     
   if (existsError) {
     console.error('[transcribe-audio] Error checking file existence:', existsError);
-  } else {
-    const fileName = filePath.split('/').pop();
-    const fileExists = existsData.some((file: any) => file.name === fileName);
-    console.log(`[transcribe-audio] File existence check: ${fileExists ? 'Found' : 'Not found'}`);
-    
-    if (!fileExists) {
-      console.error(`[transcribe-audio] File not found in storage: ${filePath}`);
-      throw new Error(`File not found in storage: ${filePath}`);
-    }
+    throw new Error(`Error checking file existence: ${existsError.message}`);
+  }
+  
+  if (!existsData || !existsData.length) {
+    console.error(`[transcribe-audio] Folder not found: ${bucketFolder}`);
+    throw new Error(`Folder not found in storage: ${bucketFolder}`);
+  }
+  
+  const fileExists = existsData.some((file: any) => file.name === fileName);
+  console.log(`[transcribe-audio] File existence check: ${fileExists ? 'Found' : 'Not found'}`);
+  
+  if (!fileExists) {
+    console.error(`[transcribe-audio] File not found in storage: ${filePath}`);
+    throw new Error(`File not found in storage: ${filePath}`);
   }
   
   return withRetry(
@@ -54,8 +65,8 @@ export async function downloadAudioFile(supabase: any, filePath: string): Promis
       return data;
     },
     {
-      maxAttempts: 12,
-      baseDelay: 5000,
+      maxAttempts: 5,
+      baseDelay: 2000,
       shouldRetry: (error) => {
         const errorMessage = error.message.toLowerCase();
         const retryableErrors = [

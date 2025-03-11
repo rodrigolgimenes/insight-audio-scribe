@@ -1,26 +1,35 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, AlertCircle } from "lucide-react";
+import { Download, AlertCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DownloadButtonProps {
   publicUrl: string | null;
   isAudioReady: boolean;
+  onRetryLoad?: () => void;
 }
 
-export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps) => {
+export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: DownloadButtonProps) => {
   const { toast } = useToast();
   const [isDownloading, setIsDownloading] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   const handleDownload = async () => {
     if (!publicUrl) {
       console.error('[DownloadButton] No publicUrl provided');
+      setHasError(true);
+      toast({
+        title: "Error",
+        description: "No audio URL provided. Try refreshing the page.",
+        variant: "destructive",
+      });
       return;
     }
     
     setIsDownloading(true);
+    setHasError(false);
     
     try {
       console.log('[DownloadButton] Starting download for URL:', publicUrl);
@@ -72,8 +81,6 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         .from('audio_recordings')
         .createSignedUrl(cleanPath, 3600);
 
-      console.log('[DownloadButton] Signed URL result:', signedData);
-
       if (signError || !signedData?.signedUrl) {
         console.error('[DownloadButton] Error generating signed URL:', signError);
         throw new Error('Failed to generate download URL');
@@ -101,10 +108,12 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
         title: "Success",
         description: "Audio file downloaded successfully",
       });
+      setHasError(false);
     } catch (error) {
       console.error('[DownloadButton] Error downloading file:', error);
+      setHasError(true);
       toast({
-        title: "Error",
+        title: "Download Failed",
         description: error instanceof Error ? error.message : "Failed to download audio file",
         variant: "destructive",
       });
@@ -112,6 +121,27 @@ export const DownloadButton = ({ publicUrl, isAudioReady }: DownloadButtonProps)
       setIsDownloading(false);
     }
   };
+
+  const handleRetry = () => {
+    if (onRetryLoad) {
+      setHasError(false);
+      onRetryLoad();
+    }
+  };
+
+  if (hasError && onRetryLoad) {
+    return (
+      <Button 
+        variant="ghost" 
+        size="sm"
+        onClick={handleRetry}
+        className="text-blue-500 hover:bg-blue-50"
+      >
+        <RefreshCw className="h-4 w-4 mr-2" />
+        Retry Loading
+      </Button>
+    );
+  }
 
   return (
     <Button 
