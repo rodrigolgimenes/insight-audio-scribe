@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { StatusHeader } from "./StatusHeader";
 import { TranscriptionAlert } from "./TranscriptionAlert";
@@ -9,6 +8,8 @@ import { LongRecordingNotice } from "./LongRecordingNotice";
 import { StallDetection } from "./StallDetection";
 import { ProgressDisplay } from "./ProgressDisplay";
 import { useTranscriptionActions } from "@/hooks/notes/useTranscriptionActions";
+import { useTranscriptionStatus } from "@/hooks/notes/useTranscriptionStatus";
+import { StatusIcon } from "./StatusIcon";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -27,24 +28,27 @@ export const TranscriptionStatus = ({
   noteId,
   transcript
 }: TranscriptionStatusProps) => {
-  const [transcriptionTimeout, setTranscriptionTimeout] = useState(false);
-  const [lastProgressUpdate, setLastProgressUpdate] = useState<Date | null>(null);
-  
   const { isRetrying, isSyncing, handleRetry, handleSyncStatus } = useTranscriptionActions(noteId);
   
-  // Convert milliseconds to minutes
-  const durationInMinutes = duration && Math.round(duration / 1000 / 60);
-  const isLongAudio = Boolean(durationInMinutes && durationInMinutes > 30);
-  const isVeryLongAudio = Boolean(durationInMinutes && durationInMinutes > 60);
+  const {
+    transcriptionTimeout,
+    setTranscriptionTimeout,
+    lastProgressUpdate,
+    setLastProgressUpdate,
+    durationInMinutes,
+    isLongAudio,
+    isVeryLongAudio,
+    hasInconsistentState,
+    showRetryButton,
+    showProgress
+  } = useTranscriptionStatus({
+    status,
+    progress,
+    duration,
+    transcript
+  });
   
   const statusInfo = getStatusInfo(status);
-  
-  // Detect inconsistent state - completed generating minutes but status still shows transcribing
-  const hasInconsistentState = Boolean((status === 'transcribing' || status === 'processing') && transcript);
-
-  // Show retry button for errors, pending status, or stalled transcriptions
-  const showRetryButton = Boolean(status === 'error' || status === 'pending' || transcriptionTimeout) && Boolean(noteId);
-  const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
   
   return (
     <Card className="p-4 mb-4 relative">
@@ -101,7 +105,7 @@ export const TranscriptionStatus = ({
       
       {/* Action buttons */}
       <ActionButtons 
-        showRetryButton={showRetryButton}
+        showRetryButton={showRetryButton && Boolean(noteId)}
         hasInconsistentState={hasInconsistentState}
         onRetry={handleRetry}
         onSyncStatus={handleSyncStatus}
@@ -119,5 +123,3 @@ export const TranscriptionStatus = ({
     </Card>
   );
 };
-
-import { StatusIcon } from "./StatusIcon";
