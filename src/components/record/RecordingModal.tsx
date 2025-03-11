@@ -35,7 +35,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   } = useRecording();
 
   const handleTimeLimit = () => {
-    handleStopRecording();
+    handleStopRecording().then(() => {});
   };
 
   const isLoading = isSaving;
@@ -55,7 +55,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
             mediaStream={mediaStream}
             isSystemAudio={isSystemAudio}
             handleStartRecording={handleStartRecording}
-            handleStopRecording={handleStopRecording}
+            handleStopRecording={() => handleStopRecording().then(() => {})}
             handlePauseRecording={handlePauseRecording}
             handleResumeRecording={handleResumeRecording}
             handleDelete={handleDelete}

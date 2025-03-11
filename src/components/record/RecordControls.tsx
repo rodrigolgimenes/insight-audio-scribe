@@ -7,7 +7,7 @@ interface RecordControlsProps {
   isPaused: boolean;
   hasRecording: boolean;
   onStartRecording: () => void;
-  onStopRecording: () => void;
+  onStopRecording: () => void | Promise<void>;
   onPauseRecording: () => void;
   onResumeRecording: () => void;
   onDelete: () => void;
@@ -51,7 +51,7 @@ export const RecordControls = ({
             size="icon"
             variant="outline"
             className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-            onClick={onStopRecording}
+            onClick={() => onStopRecording()}
             disabled={disabled}
           >
             <StopCircle className="w-6 h-6 text-red-500" />

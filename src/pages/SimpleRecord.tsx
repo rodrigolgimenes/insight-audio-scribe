@@ -38,6 +38,7 @@ const SimpleRecord = () => {
     selectedDeviceId,
     setSelectedDeviceId,
     handleSaveRecording,
+    getCurrentDuration
   } = useRecording();
 
   useEffect(() => {
@@ -54,15 +55,20 @@ const SimpleRecord = () => {
   }, [searchParams, toast]);
 
   const handleTimeLimit = () => {
-    handleStopRecording();
-    toast({
-      title: "Time Limit Reached",
-      description: "Recording was stopped after reaching the 25-minute limit.",
+    // Wrap the handleStopRecording in another function that ignores the return value
+    handleStopRecording().then(() => {
+      toast({
+        title: "Time Limit Reached",
+        description: "Recording was stopped after reaching the 25-minute limit.",
+      });
     });
   };
 
   const handleSave = async () => {
-    await saveRecording(isRecording, handleStopRecording, mediaStream, audioUrl);
+    const recordedDuration = getCurrentDuration();
+    await saveRecording(isRecording, async () => {
+      await handleStopRecording();
+    }, mediaStream, audioUrl, recordedDuration);
   };
 
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
@@ -83,7 +89,7 @@ const SimpleRecord = () => {
                     mediaStream={mediaStream}
                     isSystemAudio={isSystemAudio}
                     handleStartRecording={handleStartRecording}
-                    handleStopRecording={handleStopRecording}
+                    handleStopRecording={() => handleStopRecording().then(() => {})}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}

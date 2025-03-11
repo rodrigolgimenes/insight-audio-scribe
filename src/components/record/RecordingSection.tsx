@@ -24,7 +24,7 @@ interface RecordingSectionProps {
   mediaStream: MediaStream | null;
   isSystemAudio: boolean;
   handleStartRecording: () => void;
-  handleStopRecording: () => void;
+  handleStopRecording: () => void | Promise<void>;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;

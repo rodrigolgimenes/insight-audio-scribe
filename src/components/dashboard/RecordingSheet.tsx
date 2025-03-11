@@ -25,7 +25,7 @@ export function RecordingSheet() {
   } = useRecording();
 
   const handleTimeLimit = () => {
-    handleStopRecording();
+    handleStopRecording().then(() => {});
   };
 
   return (
@@ -43,7 +43,7 @@ export function RecordingSheet() {
           mediaStream={mediaStream}
           isSystemAudio={isSystemAudio}
           handleStartRecording={handleStartRecording}
-          handleStopRecording={handleStopRecording}
+          handleStopRecording={() => handleStopRecording().then(() => {})}
           handlePauseRecording={handlePauseRecording}
           handleResumeRecording={handleResumeRecording}
           handleDelete={() => {}}
