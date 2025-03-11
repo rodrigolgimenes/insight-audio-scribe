@@ -38,7 +38,7 @@ export default function TagPage() {
       user_id: note.user_id || "system",
       duration: note.duration || null,
       audio_url: note.audio_url || null,
-      status: note.status || 'completed',
+      status: note.status as Note['status'] || 'completed',
       processing_progress: note.processing_progress || 0,
       error_message: note.error_message || null,
       tags: noteTags

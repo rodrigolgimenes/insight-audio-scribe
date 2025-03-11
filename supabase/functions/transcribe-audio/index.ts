@@ -72,9 +72,9 @@ serve(async (req) => {
     console.log('[transcribe-audio] Starting transcription...');
     const transcriptionPromise = transcribeAudio(audioData);
     
-    // Set a timeout for transcription (15 minutes)
+    // Set a timeout for transcription (60 minutes instead of 15 minutes)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Transcription timed out')), 15 * 60 * 1000);
+      setTimeout(() => reject(new Error('Transcription timed out')), 60 * 60 * 1000);
     });
     
     const transcription = await Promise.race([transcriptionPromise, timeoutPromise])
