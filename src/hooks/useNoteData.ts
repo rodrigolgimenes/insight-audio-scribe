@@ -36,7 +36,7 @@ export const useNoteData = () => {
           notes_folders!left(
             folders:folder_id(*)
           ),
-          recordings!inner (duration)
+          recordings!inner (duration, status)
         `)
         .eq("id", noteId)
         .maybeSingle();
@@ -58,8 +58,15 @@ export const useNoteData = () => {
 
       console.log("Note data from database:", data);
 
-      // Convert the status string from database to the correct type
-      const noteStatus = (data.status as string) || 'processing';
+      // Determine the correct status based on both note and recording status
+      let noteStatus = data.status;
+      const recordingStatus = data.recordings?.status;
+
+      // If recording is completed and we have original_transcript, the note should be completed
+      if (recordingStatus === 'completed' && data.original_transcript) {
+        noteStatus = 'completed';
+      }
+
       // Ensure the status is one of the allowed values
       const validStatus: Note['status'] = 
         ['pending', 'processing', 'transcribing', 'completed', 'error'].includes(noteStatus) 
@@ -81,6 +88,17 @@ export const useNoteData = () => {
         status: validStatus,
         processing_progress: data.processing_progress || 0
       };
+
+      // If the note should be completed but isn't, update it
+      if (validStatus === 'completed' && data.status !== 'completed') {
+        await supabase
+          .from('notes')
+          .update({ 
+            status: 'completed',
+            processing_progress: 100 
+          })
+          .eq('id', data.id);
+      }
 
       return transformedNote;
     },
