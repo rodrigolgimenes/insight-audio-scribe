@@ -1,9 +1,8 @@
-
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useTagQuery } from "@/hooks/tags/useTagQuery";
 import { useTagNotesQuery } from "@/hooks/tags/useTagNotesQuery";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,6 +10,30 @@ import { TagHeader } from "@/components/tag/TagHeader";
 import { TagContent } from "@/components/tag/TagContent";
 import { useTagOperations } from "@/hooks/tags/useTagOperations";
 import { Note } from "@/types/notes";
+
+interface RawNoteFromDB {
+  id: string;
+  title: string;
+  processed_content: string;
+  original_transcript: string | null;
+  full_prompt: string | null;
+  created_at: string;
+  updated_at: string;
+  recording_id: string;
+  user_id: string;
+  duration: number | null;
+  audio_url: string | null;
+  status?: string;
+  processing_progress?: number;
+  error_message?: string | null;
+  notes_tags?: Array<{
+    tags: {
+      id: string;
+      name: string;
+      color: string | null;
+    };
+  }>;
+}
 
 export default function TagPage() {
   const { tagId } = useParams();
@@ -22,29 +45,23 @@ export default function TagPage() {
   const { data: notesData, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
   
   // Transform the notes data to match the Note type
-  const notes: Note[] | undefined = notesData?.map(note => {
+  const notes: Note[] | undefined = notesData?.map((note: RawNoteFromDB) => {
     // Extract tags from notes_tags array
     const noteTags = note.notes_tags?.map(nt => nt.tags) || [];
-    
-    // Default values for required properties that might be missing
-    const validStatus: Note['status'] = 
-      note.status && ['pending', 'processing', 'transcribing', 'generating_minutes', 'completed', 'error'].includes(note.status) 
-        ? note.status as Note['status'] 
-        : 'completed';
     
     return {
       id: note.id,
       title: note.title,
-      processed_content: note.processed_content || "",
+      processed_content: note.processed_content,
       original_transcript: note.original_transcript,
-      full_prompt: note.full_prompt || null,
+      full_prompt: note.full_prompt,
       created_at: note.created_at,
       updated_at: note.updated_at || note.created_at,
-      recording_id: note.recording_id || note.id,
-      user_id: note.user_id || "system",
-      duration: note.duration || null,
-      audio_url: note.audio_url || null,
-      status: validStatus,
+      recording_id: note.recording_id,
+      user_id: note.user_id,
+      duration: note.duration,
+      audio_url: note.audio_url,
+      status: (note.status as Note['status']) || 'completed',
       processing_progress: note.processing_progress || 0,
       error_message: note.error_message || null,
       tags: noteTags
