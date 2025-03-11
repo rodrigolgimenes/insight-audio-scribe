@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { useNoteData } from "@/hooks/useNoteData";
+import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
 import { RefreshCcw } from "lucide-react";
 import { Note } from "@/types/notes";
 import { MeetingMinutes } from "./MeetingMinutes";
@@ -16,7 +16,7 @@ interface NoteContentProps {
 }
 
 export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }: NoteContentProps) => {
-  const { retryTranscription } = useNoteData();
+  const { retryTranscription } = useNoteTranscription();
 
   const handleRetryTranscription = async () => {
     if (note.id) {
@@ -69,6 +69,7 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
         progress={note.processing_progress || 0} 
         error={note.error_message}
         duration={note.duration}
+        noteId={note.id}
       />
     </div>
   );

@@ -10,7 +10,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_AUDIO_DURATION_MS = 20 * 60 * 1000; // 20 minutes in milliseconds
+const MAX_AUDIO_DURATION_MS = 60 * 60 * 1000; // 60 minutes in milliseconds
+const MAX_FILE_SIZE_MB = 24; // 24 MB (OpenAI limit is 25MB)
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,15 +20,21 @@ serve(async (req) => {
 
   try {
     const { recordingId, noteId, duration, isLargeFile, isRetry } = await req.json();
-    console.log('[transcribe-audio] Starting transcription process for recording:', recordingId);
-    console.log('[transcribe-audio] Parameters:', { noteId, duration, isLargeFile, isRetry });
+    
+    console.log('[transcribe-audio] Starting transcription process with params:', { 
+      recordingId, 
+      noteId, 
+      duration: duration ? `${Math.round(duration/1000/60)} minutes` : 'unknown',
+      isLargeFile, 
+      isRetry 
+    });
     
     if (!recordingId && !noteId) {
       throw new Error('Either Recording ID or Note ID is required');
     }
 
     // Check for file size constraints
-    if (duration && duration > MAX_AUDIO_DURATION_MS && !isLargeFile) {
+    if (duration && duration > MAX_AUDIO_DURATION_MS) {
       console.warn('[transcribe-audio] Audio file exceeds maximum recommended duration:', 
         `${Math.round(duration/1000/60)} minutes. Max: ${MAX_AUDIO_DURATION_MS/1000/60} minutes`);
     }
@@ -38,42 +45,73 @@ serve(async (req) => {
     let recording;
     let note;
     
-    if (noteId && isRetry) {
-      // For retry operations, get the note first, then the recording
-      note = await getNoteData(supabase, noteId);
-      recording = await getRecordingData(supabase, note.recording_id);
-    } else if (recordingId) {
-      // Normal flow - get recording first
-      recording = await getRecordingData(supabase, recordingId);
-      note = noteId ? 
-        await getNoteData(supabase, noteId) : 
-        await getNoteData(supabase, recordingId);
-    } else {
-      throw new Error('Invalid parameters for transcription');
+    try {
+      if (noteId && isRetry) {
+        // For retry operations, get the note first, then the recording
+        note = await getNoteData(supabase, noteId);
+        recording = await getRecordingData(supabase, note.recording_id);
+      } else if (recordingId) {
+        // Normal flow - get recording first
+        recording = await getRecordingData(supabase, recordingId);
+        note = noteId ? 
+          await getNoteData(supabase, noteId) : 
+          await getNoteData(supabase, recordingId);
+      } else {
+        throw new Error('Invalid parameters for transcription');
+      }
+      
+      console.log('[transcribe-audio] Retrieved recording and note data:', {
+        recordingId: recording.id,
+        noteId: note.id,
+        filePath: recording.file_path,
+        status: recording.status
+      });
+    } catch (error) {
+      console.error('[transcribe-audio] Error retrieving recording or note data:', error);
+      throw error;
     }
 
-    // Update note status to downloading
+    // Update note status to processing
     await updateNoteStatus(supabase, note.id, 'processing', 25);
 
     // Download audio file
-    console.log('[transcribe-audio] Starting download with retry...');
-    const audioData = await downloadAudioFile(supabase, recording.file_path);
-    console.log('[transcribe-audio] File downloaded successfully:', 
-      `Size: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
+    console.log('[transcribe-audio] Starting download of audio file:', recording.file_path);
+    let audioData;
+    try {
+      audioData = await downloadAudioFile(supabase, recording.file_path);
+      
+      // Additional check for file validity
+      if (!audioData || audioData.size === 0) {
+        throw new Error('Downloaded audio file is empty or invalid');
+      }
+      
+      console.log('[transcribe-audio] File downloaded successfully:', 
+        `Size: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
+    } catch (error) {
+      console.error('[transcribe-audio] Error downloading audio file:', error);
+      await updateNoteStatus(supabase, note.id, 'error', 0);
+      await supabase
+        .from('notes')
+        .update({ 
+          error_message: `Error downloading audio file: ${error.message}`
+        })
+        .eq('id', note.id);
+      throw error;
+    }
 
     // Update progress after successful download
     await updateNoteStatus(supabase, note.id, 'transcribing', 50);
 
     // Check if file is too large for direct transcription
-    if (audioData.size > 24 * 1024 * 1024) { // Close to 25MB limit
-      console.warn('[transcribe-audio] Audio file is large:', 
+    if (audioData.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      console.warn('[transcribe-audio] Audio file is too large:', 
         `${Math.round(audioData.size/1024/1024*100)/100}MB`);
       
       await updateNoteStatus(supabase, note.id, 'error', 0);
       await supabase
         .from('notes')
         .update({ 
-          error_message: 'Audio file too large for processing. Please use a shorter recording.'
+          error_message: `Audio file too large for processing. Maximum size is ${MAX_FILE_SIZE_MB}MB. Please use a shorter recording.`
         })
         .eq('id', note.id);
         
@@ -84,42 +122,57 @@ serve(async (req) => {
     console.log('[transcribe-audio] Starting transcription...');
     const transcriptionPromise = transcribeAudio(audioData);
     
-    // Set a timeout for transcription (60 minutes instead of 15 minutes)
+    // Set a timeout for transcription
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Transcription timed out')), 60 * 60 * 1000);
+      setTimeout(() => reject(new Error('Transcription timed out after 60 minutes')), 60 * 60 * 1000);
     });
     
-    const transcription = await Promise.race([transcriptionPromise, timeoutPromise])
-      .catch(error => {
-        console.error('[transcribe-audio] Transcription error or timeout:', error);
-        updateNoteStatus(supabase, note.id, 'error', 0);
-        supabase
-          .from('notes')
-          .update({ 
-            error_message: error instanceof Error ? error.message : 'Transcription failed'
-          })
-          .eq('id', note.id);
-        throw error;
-      });
-    
-    console.log('[transcribe-audio] Transcription completed successfully');
+    let transcription;
+    try {
+      transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
+      console.log('[transcribe-audio] Transcription completed successfully, text length:', 
+        transcription.text ? transcription.text.length : 0);
+    } catch (error) {
+      console.error('[transcribe-audio] Transcription error or timeout:', error);
+      await updateNoteStatus(supabase, note.id, 'error', 0);
+      await supabase
+        .from('notes')
+        .update({ 
+          error_message: error instanceof Error ? 
+            `Transcription error: ${error.message}` : 
+            'Transcription failed'
+        })
+        .eq('id', note.id);
+      throw error;
+    }
     
     // Update recording and note with transcription
-    await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
+    try {
+      await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
+      console.log('[transcribe-audio] Updated database with transcription');
+    } catch (error) {
+      console.error('[transcribe-audio] Error updating database with transcription:', error);
+      throw error;
+    }
 
     // Start meeting minutes generation
     console.log('[transcribe-audio] Starting meeting minutes generation...');
-    const { error: minutesError } = await supabase.functions
-      .invoke('generate-meeting-minutes', {
-        body: { 
-          noteId: note.id,
-          transcription: transcription.text
-        }
-      });
+    try {
+      const { error: minutesError } = await supabase.functions
+        .invoke('generate-meeting-minutes', {
+          body: { 
+            noteId: note.id,
+            transcription: transcription.text
+          }
+        });
 
-    if (minutesError) {
-      console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
-      // Don't throw here, we already have the transcription
+      if (minutesError) {
+        console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
+        // Don't throw here, we already have the transcription
+      }
+    } catch (error) {
+      console.error('[transcribe-audio] Error invoking meeting minutes function:', error);
+      // Continue anyway, the transcription part is complete
     }
 
     console.log('[transcribe-audio] Process completed successfully');
@@ -151,11 +204,15 @@ serve(async (req) => {
           if (!error && data) note = data;
         } else if (recordingId) {
           // Get note via recording ID
-          note = await getNoteData(supabase, recordingId);
+          try {
+            note = await getNoteData(supabase, recordingId);
+          } catch (getNoteError) {
+            console.error('[transcribe-audio] Error getting note for recording:', getNoteError);
+          }
         }
         
         if (note) {
-          await handleTranscriptionError(supabase, note.id);
+          await handleTranscriptionError(supabase, note.id, error.message);
         }
       }
     } catch (handlingError) {

@@ -9,10 +9,16 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
     throw new Error('Missing OpenAI API key');
   }
 
-  // Check the content type of the blob
+  // Check the content type and size of the blob
   const contentType = audioData.type || 'audio/webm';
+  const sizeInMB = audioData.size / (1024 * 1024);
   
-  console.log(`[transcribe-audio] Audio content type: ${contentType}, size: ${audioData.size} bytes`);
+  console.log(`[transcribe-audio] Audio content type: ${contentType}, size: ${sizeInMB.toFixed(2)} MB`);
+  
+  // Check if the file is too large for OpenAI's API limit (currently 25MB)
+  if (sizeInMB > 24) {
+    throw new Error(`Audio file is too large (${sizeInMB.toFixed(2)} MB). Maximum allowed size is 24 MB.`);
+  }
   
   // Determine if we need to convert based on MIME type
   // OpenAI accepts mp3, mp4, mpeg, mpga, m4a, wav, and webm
@@ -25,7 +31,7 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
     contentType.includes(type.split('/')[1])
   );
   
-  // Use the original blob if possible, otherwise make a new one with explicit MIME type
+  // If not an accepted type, set a generic audio/mp3 type
   const finalBlob = isAcceptedType 
     ? audioData 
     : new Blob([audioData], { type: 'audio/mp3' });
@@ -40,35 +46,70 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
   return await withRetry(
     async () => {
       console.log('[transcribe-audio] Sending to OpenAI...');
-      const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.error?.message || response.statusText;
-        console.error(`[transcribe-audio] OpenAI API error: ${errorMsg}, status: ${response.status}`);
-        throw new Error(`OpenAI API error: ${errorMsg}`);
-      }
-
-      const result = await response.json();
       
-      if (!result.text) {
-        throw new Error('No transcription text received from OpenAI');
-      }
+      try {
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+          },
+          body: formData,
+        });
 
-      return result;
+        console.log(`[transcribe-audio] OpenAI response status: ${response.status}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            errorData = { error: { message: errorText } };
+          }
+          
+          const errorMsg = errorData.error?.message || response.statusText;
+          console.error(`[transcribe-audio] OpenAI API error: ${errorMsg}, status: ${response.status}`);
+          console.error(`[transcribe-audio] Full error response: ${errorText}`);
+          
+          throw new Error(`OpenAI API error: ${errorMsg}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.text) {
+          console.error('[transcribe-audio] No transcription text received from OpenAI');
+          throw new Error('No transcription text received from OpenAI');
+        }
+
+        console.log('[transcribe-audio] Transcription successful, text length:', result.text.length);
+        return result;
+      } catch (error) {
+        console.error('[transcribe-audio] Error during OpenAI API call:', error);
+        throw error;
+      }
     },
     {
-      maxAttempts: 3,
-      baseDelay: 10000,
+      maxAttempts: 5,
+      baseDelay: 5000,
       shouldRetry: (error) => {
-        return error.message.includes('rate limit') || 
-               error.message.includes('server error');
+        const errorMessage = error.message.toLowerCase();
+        console.log(`[transcribe-audio] Checking if error is retryable: "${errorMessage}"`);
+        
+        const retryableErrors = [
+          'rate limit',
+          'timeout',
+          'network error',
+          'server error',
+          'internal server error',
+          '500',
+          '502',
+          '503',
+          '504'
+        ];
+        
+        const isRetryable = retryableErrors.some(msg => errorMessage.includes(msg));
+        console.log(`[transcribe-audio] Error is ${isRetryable ? '' : 'not '}retryable`);
+        return isRetryable;
       }
     }
   );
