@@ -9,7 +9,7 @@ import { RenameNoteDialog } from "@/components/notes/RenameNoteDialog";
 import { useNoteOperations } from "@/components/notes/NoteOperations";
 import { NoteCardHeader } from "./NoteCardHeader";
 import { NoteCardContent } from "./NoteCardContent";
-import { useQuery, Query } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface NoteCardProps {
@@ -57,16 +57,36 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
     },
   });
 
-  // Fetch note processing status
+  // Fetch note processing status with improved status handling
   const { data: noteStatus } = useQuery({
     queryKey: ["note-status", note.id],
     queryFn: async () => {
-      const { data } = await supabase
+      // Fetch both note status and recording status
+      const { data: noteData } = await supabase
         .from("notes")
-        .select("status, processing_progress")
+        .select("id, status, processing_progress, original_transcript")
         .eq("id", note.id)
         .single();
-      return data;
+      
+      if (!noteData) return { status: 'processing', processing_progress: 0 };
+      
+      // If the note has a transcript but still shows as processing, update it to completed
+      if (noteData.original_transcript && 
+          (noteData.status === 'processing' || noteData.status === 'transcribing')) {
+        
+        // Update note status in database
+        await supabase
+          .from('notes')
+          .update({ 
+            status: 'completed',
+            processing_progress: 100 
+          })
+          .eq('id', noteData.id);
+        
+        return { status: 'completed', processing_progress: 100 };
+      }
+      
+      return noteData;
     },
     refetchInterval: (query) => {
       // If no data yet, refetch every 2 seconds
