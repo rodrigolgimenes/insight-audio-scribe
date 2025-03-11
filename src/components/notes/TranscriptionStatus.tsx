@@ -91,8 +91,8 @@ export const TranscriptionStatus = ({
   const showRetryButton = status === 'error' && noteId;
   
   // Determine specific error type for more targeted help
-  const isAudioFormatError = error?.toLowerCase().includes('formato') || 
-                           error?.toLowerCase().includes('format');
+  const isAudioFormatError = error?.toLowerCase().includes('format') || 
+                           error?.toLowerCase().includes('formato');
   const isFileNotFoundError = error?.toLowerCase().includes('not found') || 
                             error?.toLowerCase().includes('não encontrado');
   const isFileSizeError = error?.toLowerCase().includes('too large') || 
@@ -100,6 +100,9 @@ export const TranscriptionStatus = ({
                         error?.toLowerCase().includes('muito grande');
   const isTimeoutError = error?.toLowerCase().includes('timeout') || 
                       error?.toLowerCase().includes('timed out');
+
+  // Ensure progress display is working correctly
+  const displayProgress = Math.round(progress || 0);
 
   return (
     <Card className="p-4 mb-4">
@@ -129,7 +132,7 @@ export const TranscriptionStatus = ({
         </div>
         
         {status !== 'completed' && status !== 'error' && (
-          <span className="text-sm text-gray-500">{Math.round(progress)}%</span>
+          <span className="text-sm text-gray-500">{displayProgress}%</span>
         )}
         
         {status === 'error' && (

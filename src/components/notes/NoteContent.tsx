@@ -7,6 +7,8 @@ import { MeetingMinutes } from "./MeetingMinutes";
 import { TranscriptAccordion } from "./TranscriptAccordion";
 import { TranscriptChat } from "./TranscriptChat";
 import { TranscriptionStatus } from "./TranscriptionStatus";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NoteContentProps {
   note: Note;
@@ -17,6 +19,33 @@ interface NoteContentProps {
 
 export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }: NoteContentProps) => {
   const { retryTranscription } = useNoteTranscription();
+
+  // Configurar canal em tempo real para atualizações do status
+  useEffect(() => {
+    if (!note.id) return;
+    
+    // Inscrever-se para atualizações de status
+    const noteChannel = supabase
+      .channel(`note-status-${note.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes',
+          filter: `id=eq.${note.id}`
+        },
+        (payload) => {
+          console.log('Recebida atualização de nota:', payload);
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      console.log('Limpando inscrição de canal');
+      supabase.removeChannel(noteChannel);
+    };
+  }, [note.id]);
 
   const handleRetryTranscription = async () => {
     if (note.id) {

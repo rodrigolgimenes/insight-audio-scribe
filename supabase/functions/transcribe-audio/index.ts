@@ -18,8 +18,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let noteId, recordingId; // Declaração no escopo mais amplo para uso no catch
+  
   try {
-    const { recordingId, noteId, duration, isLargeFile, isRetry } = await req.json();
+    const requestBody = await req.json();
+    const { recordingId: reqRecordingId, noteId: reqNoteId, duration, isLargeFile, isRetry } = requestBody;
+    
+    recordingId = reqRecordingId;
+    noteId = reqNoteId;
     
     console.log('[transcribe-audio] Starting transcription process with params:', { 
       recordingId, 
@@ -71,8 +77,8 @@ serve(async (req) => {
       throw error;
     }
 
-    // Update note status to processing
-    await updateNoteStatus(supabase, note.id, 'processing', 25);
+    // Update note status to processing with 10% for better feedback
+    await updateNoteStatus(supabase, note.id, 'processing', 10);
 
     // Download audio file
     console.log('[transcribe-audio] Starting download of audio file:', recording.file_path);
@@ -87,6 +93,9 @@ serve(async (req) => {
       
       console.log('[transcribe-audio] File downloaded successfully:', 
         `Size: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
+        
+      // Atualizar progresso após download bem-sucedido
+      await updateNoteStatus(supabase, note.id, 'processing', 25);
     } catch (error) {
       console.error('[transcribe-audio] Error downloading audio file:', error);
       await updateNoteStatus(supabase, note.id, 'error', 0);
@@ -100,7 +109,7 @@ serve(async (req) => {
     }
 
     // Update progress after successful download
-    await updateNoteStatus(supabase, note.id, 'transcribing', 50);
+    await updateNoteStatus(supabase, note.id, 'transcribing', 30);
 
     // Check if file is too large for direct transcription
     if (audioData.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -120,6 +129,8 @@ serve(async (req) => {
 
     // Transcribe audio with timeout handling
     console.log('[transcribe-audio] Starting transcription...');
+    await updateNoteStatus(supabase, note.id, 'transcribing', 40);
+    
     const transcriptionPromise = transcribeAudio(audioData);
     
     // Set a timeout for transcription
@@ -129,7 +140,14 @@ serve(async (req) => {
     
     let transcription;
     try {
+      // Atualizar progresso durante a transcrição
+      await updateNoteStatus(supabase, note.id, 'transcribing', 50);
+      
       transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
+      
+      // Atualizar progresso após transcrição bem-sucedida
+      await updateNoteStatus(supabase, note.id, 'transcribing', 75);
+      
       console.log('[transcribe-audio] Transcription completed successfully, text length:', 
         transcription.text ? transcription.text.length : 0);
     } catch (error) {
@@ -150,6 +168,9 @@ serve(async (req) => {
     try {
       await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
       console.log('[transcribe-audio] Updated database with transcription');
+      
+      // Atualizar progresso para 90% antes de iniciar a geração de minutas
+      await updateNoteStatus(supabase, note.id, 'generating_minutes', 90);
     } catch (error) {
       console.error('[transcribe-audio] Error updating database with transcription:', error);
       throw error;
@@ -188,7 +209,6 @@ serve(async (req) => {
     console.error('[transcribe-audio] Error:', error);
     
     try {
-      const { recordingId, noteId } = await req.json();
       if (noteId || recordingId) {
         const supabase = createSupabaseClient();
         let note;

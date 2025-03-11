@@ -21,6 +21,9 @@ export const NoteCardContent = ({
   status = 'pending',
   progress = 0
 }: NoteCardContentProps) => {
+  // Garantir que progress é um número e arredondado corretamente
+  const displayProgress = Math.round(progress || 0);
+  
   const getStatusDisplay = () => {
     switch (status) {
       case 'completed':
@@ -41,14 +44,14 @@ export const NoteCardContent = ({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcribing... {progress}%</span>
+            <span>Transcribing... {displayProgress}%</span>
           </div>
         );
       case 'pending':
         return (
           <div className="flex items-center gap-2 text-yellow-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Pending... {progress}%</span>
+            <span>Pending... {displayProgress}%</span>
           </div>
         );
       case 'processing':
@@ -56,7 +59,7 @@ export const NoteCardContent = ({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing... {progress}%</span>
+            <span>Processing... {displayProgress}%</span>
           </div>
         );
     }

@@ -7,6 +7,7 @@ import { formatDuration } from "@/utils/formatDuration";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 
 interface Recording {
   id: string;
@@ -32,32 +33,61 @@ export const RecordingCard = ({
   const navigate = useNavigate();
 
   // Fetch the associated note ID for this recording
-  const { data: noteData } = useQuery({
+  const { data: noteData, refetch } = useQuery({
     queryKey: ['note-id', recording.id],
     queryFn: async () => {
       const { data } = await supabase
         .from('notes')
-        .select('id, duration')
+        .select('id, duration, status, processing_progress')
         .eq('recording_id', recording.id)
         .single();
       return data;
     },
   });
 
+  // Configurar listener em tempo real para atualizações em notas
+  useEffect(() => {
+    const channel = supabase
+      .channel(`recording-${recording.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes',
+          filter: `recording_id=eq.${recording.id}`
+        },
+        (payload) => {
+          console.log('Nota atualizada:', payload);
+          refetch();  // Recarregar dados da nota
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [recording.id, refetch]);
+
   // Use the duration from the note if available (as it might be more accurate)
   const displayDuration = noteData?.duration || recording.duration;
   
-  console.log('Recording duration:', {
+  // Usar o progresso da nota quando disponível
+  const displayProgress = Math.round(noteData?.processing_progress || progress || 0);
+  
+  // Usar o status da nota quando disponível
+  const displayStatus = noteData?.status || recording.status;
+  
+  console.log('Recording data:', {
     recordingId: recording.id,
-    recordingDuration: recording.duration,
-    noteDuration: noteData?.duration,
-    displayDuration
+    displayStatus,
+    displayProgress,
+    noteStatus: noteData?.status,
+    recordingStatus: recording.status
   });
 
-  const getStatusMessage = (recording: Recording, progress: number) => {
-    console.log('Status:', recording.status, 'Progress:', progress);
-    
-    if (recording.status === 'completed' && recording.transcription?.includes('No audio was captured')) {
+  const getStatusMessage = (status: string, progress: number) => {
+    if (status === 'completed' && recording.transcription?.includes('No audio was captured')) {
       return (
         <div className="flex items-center gap-2 text-yellow-600">
           <AlertCircle className="h-4 w-4" />
@@ -66,21 +96,21 @@ export const RecordingCard = ({
       );
     }
 
-    switch (recording.status) {
+    switch (status) {
       case 'pending':
       case 'processing':
       case 'uploaded':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing audio... {Math.round(progress)}%</span>
+            <span>Processing audio... {progress}%</span>
           </div>
         );
       case 'transcribing':
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcribing... {Math.round(progress)}%</span>
+            <span>Transcribing... {progress}%</span>
           </div>
         );
       case 'completed':
@@ -101,7 +131,7 @@ export const RecordingCard = ({
         return (
           <div className="flex items-center gap-2 text-blue-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing... {Math.round(progress)}%</span>
+            <span>Processing... {progress}%</span>
           </div>
         );
     }
@@ -109,17 +139,17 @@ export const RecordingCard = ({
 
   const handleCardClick = (e: React.MouseEvent) => {
     // If status is completed and we have a note ID, navigate to note page
-    if (recording.status === 'completed' && noteData?.id) {
+    if (displayStatus === 'completed' && noteData?.id) {
       e.preventDefault();
       e.stopPropagation();
       navigate(`/notes/${noteData.id}`);
-    } else if (recording.status !== 'completed') {
+    } else if (displayStatus !== 'completed') {
       // If not completed, just play the recording
       onPlay(recording.id);
     }
   };
 
-  const cursorClass = recording.status === 'completed' ? 'cursor-pointer' : 'cursor-default';
+  const cursorClass = displayStatus === 'completed' ? 'cursor-pointer' : 'cursor-default';
 
   return (
     <Card 
@@ -130,13 +160,13 @@ export const RecordingCard = ({
         <CardTitle className="text-xl">{recording.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {getStatusMessage(recording, progress)}
+        {getStatusMessage(displayStatus, displayProgress)}
         
-        {['pending', 'processing', 'transcribing', 'uploaded'].includes(recording.status) && progress > 0 && (
-          <Progress value={progress} className="w-full" />
+        {['pending', 'processing', 'transcribing', 'uploaded'].includes(displayStatus) && displayProgress > 0 && (
+          <Progress value={displayProgress} className="w-full" />
         )}
 
-        {recording.status === 'completed' && !recording.transcription?.includes('No audio was captured') && (
+        {displayStatus === 'completed' && !recording.transcription?.includes('No audio was captured') && (
           <>
             <div className="text-sm text-gray-600">
               <h3 className="font-semibold mb-1">Transcription:</h3>

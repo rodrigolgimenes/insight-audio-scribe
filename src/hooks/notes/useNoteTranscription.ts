@@ -8,44 +8,66 @@ export const useNoteTranscription = () => {
   const queryClient = useQueryClient();
 
   const retryTranscription = async (noteId: string) => {
-    const { error } = await supabase.functions
-      .invoke('transcribe-audio', {
-        body: { 
-          noteId,
-          isRetry: true
-        }
+    try {
+      // Atualizar localmente para feedback imediato
+      await supabase
+        .from('notes')
+        .update({ 
+          status: 'processing',
+          processing_progress: 0,
+          error_message: null
+        })
+        .eq('id', noteId);
+      
+      // Invalidar queries para forçar a atualização dos dados
+      queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+      
+      // Chamar a função edge para reiniciar o processo
+      const { error } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { 
+            noteId,
+            isRetry: true
+          }
+        });
+
+      if (error) {
+        console.error('Error retrying transcription:', error);
+        
+        // Restaurar status de erro em caso de falha
+        await supabase
+          .from('notes')
+          .update({ 
+            status: 'error',
+            error_message: `Failed to retry: ${error.message}`
+          })
+          .eq('id', noteId);
+        
+        queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+        
+        toast({
+          title: "Error",
+          description: "Failed to retry transcription. Please try again.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      toast({
+        title: "Success",
+        description: "Transcription process restarted. This may take a few minutes.",
       });
 
-    if (error) {
-      console.error('Error retrying transcription:', error);
+      return true;
+    } catch (error) {
+      console.error('Exception in retryTranscription:', error);
       toast({
         title: "Error",
-        description: "Failed to retry transcription. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
       return false;
     }
-
-    // Update note status locally
-    await supabase
-      .from('notes')
-      .update({ 
-        status: 'processing',
-        processing_progress: 0,
-        error_message: null
-      })
-      .eq('id', noteId);
-
-    // Invalidate queries to refresh the data
-    queryClient.invalidateQueries({ queryKey: ['note', noteId] });
-    queryClient.invalidateQueries({ queryKey: ['note-tags', noteId] });
-    
-    toast({
-      title: "Success",
-      description: "Transcription process restarted. This may take a few minutes.",
-    });
-
-    return true;
   };
 
   return { retryTranscription };
