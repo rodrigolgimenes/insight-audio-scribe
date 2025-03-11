@@ -73,6 +73,9 @@ export const useNoteData = () => {
           ? noteStatus as Note['status']
           : 'processing';
 
+      // Prioritize the note's own duration, but fall back to recording duration if needed
+      const duration = data.duration !== null ? data.duration : data.recordings?.duration || null;
+
       const transformedNote: Note = {
         id: data.id,
         title: data.title,
@@ -83,7 +86,7 @@ export const useNoteData = () => {
         updated_at: data.updated_at,
         recording_id: data.recording_id,
         user_id: data.user_id,
-        duration: data.recordings?.duration || null,
+        duration: duration,
         audio_url: data.audio_url || null,
         status: validStatus,
         processing_progress: data.processing_progress || 0

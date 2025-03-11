@@ -63,7 +63,7 @@ export const useFileUpload = () => {
           title: file.name || `Recording ${new Date().toLocaleString()}`,
           file_path: fileName,
           status: 'pending',
-          duration: durationInMs
+          duration: durationInMs // Save duration in milliseconds
         })
         .select()
         .single();
@@ -101,7 +101,7 @@ export const useFileUpload = () => {
         throw new Error(`Error updating recording status: ${updateError.message}`);
       }
 
-      // Create note
+      // Create note with explicit duration
       const { error: noteError } = await supabase
         .from('notes')
         .insert({
@@ -111,7 +111,7 @@ export const useFileUpload = () => {
           status: 'pending',
           processing_progress: 0,
           processed_content: '',
-          duration: durationInMs // Explicitly set the duration in the notes table
+          duration: durationInMs // Explicitly set the duration in the notes table too
         });
 
       if (noteError) {
@@ -121,7 +121,7 @@ export const useFileUpload = () => {
 
       // Start processing in background
       supabase.functions
-        .invoke('transcribe-audio', {
+        .invoke('process-recording', {
           body: { 
             recordingId: recordingData.id
           }
