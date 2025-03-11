@@ -116,14 +116,28 @@ export const useFileUpload = () => {
       console.log('Updating recording status to uploaded...');
       await updateRecordingStatus(recordingData.id, 'uploaded');
 
-      // Create initial note entry
+      // Create initial note entry and retrieve the note ID
       console.log('Creating initial note entry...');
-      await createInitialNote(
-        recordingData.title,
-        recordingData.id,
-        user.id,
-        durationInMs
-      );
+      const { data: noteData, error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingData.title,
+          recording_id: recordingData.id,
+          user_id: user.id,
+          status: 'pending',
+          processing_progress: 0,
+          processed_content: '',
+          duration: durationInMs
+        })
+        .select('id')
+        .single();
+      
+      if (noteError || !noteData) {
+        console.error('Error creating note entry:', noteError);
+        throw new Error(`Failed to create note: ${noteError?.message || 'Unknown error'}`);
+      }
+      
+      console.log('Note created with ID:', noteData.id);
 
       // Start background processing with retries, but only if initiateTranscription is true
       if (initiateTranscription) {
@@ -133,9 +147,16 @@ export const useFileUpload = () => {
         const maxProcessingAttempts = 3;
         let processingError = null;
 
+        // Wait a bit to make sure the note is fully created in the database
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         while (!processingSuccess && processingAttempts < maxProcessingAttempts) {
           try {
-            const { error } = await startRecordingProcessing(recordingData.id);
+            // Use the note ID instead of the recording ID for navigation
+            const { error } = await supabase.functions
+              .invoke('process-recording', {
+                body: { recordingId: recordingData.id, noteId: noteData.id },
+              });
             
             if (!error) {
               processingSuccess = true;
@@ -183,8 +204,8 @@ export const useFileUpload = () => {
         fileInput.value = '';
       }
 
-      // Return the recording ID for the component to use if needed
-      return recordingData.id;
+      // Return the note ID for navigation
+      return noteData.id;
 
     } catch (error) {
       console.error('Error in file upload process:', error);

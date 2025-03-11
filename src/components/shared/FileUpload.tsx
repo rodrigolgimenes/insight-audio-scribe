@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 interface FileUploadProps {
-  onUploadComplete?: (recordingId: string) => void;
+  onUploadComplete?: (noteId: string) => void;
   label?: string;
   description?: string;
   accept?: string;
@@ -54,16 +54,18 @@ export function FileUpload({
       
       try {
         console.log("Initiating file upload with transcription flag:", initiateTranscription);
-        const recordingId = await handleFileUpload(event, initiateTranscription);
+        const noteId = await handleFileUpload(event, initiateTranscription);
         
-        if (recordingId) {
-          console.log("Upload complete, recordingId:", recordingId);
+        if (noteId) {
+          console.log("Upload complete, noteId:", noteId);
           
           // If no callback is provided, navigate to the note page
           if (!onUploadComplete) {
-            navigate(`/app/notes/${recordingId}`);
+            console.log(`Navigating to /app/notes/${noteId}`);
+            navigate(`/app/notes/${noteId}`);
           } else {
-            onUploadComplete(recordingId);
+            console.log(`Calling onUploadComplete with noteId: ${noteId}`);
+            onUploadComplete(noteId);
           }
           
           toast({
@@ -72,6 +74,14 @@ export function FileUpload({
               ? "Your file has been uploaded and transcription process started."
               : "Your file has been uploaded successfully.",
           });
+        } else {
+          toast({
+            title: "Warning",
+            description: "File was uploaded but something went wrong with the process. Please check your Dashboard.",
+            variant: "destructive",
+          });
+          // If we couldn't get a note ID, navigate to the dashboard
+          navigate("/app");
         }
       } catch (err) {
         console.error("File upload error:", err);

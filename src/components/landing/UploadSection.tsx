@@ -5,9 +5,12 @@ import { useNavigate } from "react-router-dom";
 export const UploadSection = () => {
   const navigate = useNavigate();
   
-  const handleUploadComplete = (recordingId: string) => {
-    if (recordingId) {
-      navigate(`/app/notes/${recordingId}`);
+  const handleUploadComplete = (noteId: string) => {
+    if (noteId) {
+      navigate(`/app/notes/${noteId}`);
+    } else {
+      // If we don't have a valid note ID, navigate to the dashboard
+      navigate('/app');
     }
   };
   

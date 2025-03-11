@@ -14,13 +14,14 @@ serve(async (req) => {
   }
 
   try {
-    const { recordingId } = await req.json();
+    const { recordingId, noteId } = await req.json();
 
     if (!recordingId) {
       throw new Error('Recording ID is required');
     }
 
     console.log('[process-recording] Processing recording:', recordingId);
+    console.log('[process-recording] Note ID (if provided):', noteId);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -83,33 +84,55 @@ serve(async (req) => {
       throw new Error('Failed to update recording status');
     }
 
-    // Create or get existing note using ON CONFLICT DO NOTHING
-    const { data: note, error: noteError } = await supabase
-      .from('notes')
-      .upsert({
-        title: recording.title,
-        recording_id: recordingId,
-        user_id: recording.user_id,
-        duration: recording.duration,
-        processed_content: '', 
-        status: 'processing',
-        processing_progress: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'recording_id',
-        ignoreDuplicates: true
-      })
-      .select()
-      .single();
-
-    if (noteError) {
-      console.error('[process-recording] Error creating/getting note:', noteError);
-      throw new Error('Failed to create/get note');
+    // If a note ID was provided, verify it exists and is linked to this recording
+    let note;
+    if (noteId) {
+      const { data: existingNote, error: noteError } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('id', noteId)
+        .eq('recording_id', recordingId)
+        .single();
+        
+      if (noteError) {
+        console.error('[process-recording] Error verifying note:', noteError);
+        console.log('[process-recording] Will create a new note instead');
+      } else {
+        note = existingNote;
+        console.log('[process-recording] Verified existing note:', note.id);
+      }
     }
 
+    // Create or get existing note if not provided or verification failed
     if (!note) {
-      throw new Error('Could not create or retrieve note');
+      const { data: newNote, error: noteError } = await supabase
+        .from('notes')
+        .upsert({
+          title: recording.title,
+          recording_id: recordingId,
+          user_id: recording.user_id,
+          duration: recording.duration,
+          processed_content: '', 
+          status: 'processing',
+          processing_progress: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'recording_id',
+          ignoreDuplicates: true
+        })
+        .select()
+        .single();
+
+      if (noteError) {
+        console.error('[process-recording] Error creating/getting note:', noteError);
+        throw new Error('Failed to create/get note');
+      }
+
+      note = newNote;
+      if (!note) {
+        throw new Error('Could not create or retrieve note');
+      }
     }
 
     console.log('[process-recording] Note:', note);
