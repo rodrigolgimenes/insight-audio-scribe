@@ -33,6 +33,9 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
   const isProcessingError = error?.toLowerCase().includes('processing') ||
                           error?.toLowerCase().includes('transcription failed');
 
+  const isEdgeFunctionError = error?.toLowerCase().includes('edge function') ||
+                            error?.toLowerCase().includes('status code');
+
   const handleRetry = async () => {
     if (!noteId) return;
     
@@ -67,6 +70,19 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
         
         {showDetails && (
           <div className="mt-2 mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-md">
+            {isEdgeFunctionError && (
+              <div className="mt-1 text-sm">
+                <div className="font-medium text-red-500 mb-1">Edge Function issues:</div>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>There was a problem with the processing server</li>
+                  <li>This is usually a temporary issue</li>
+                  <li>Try the 'Retry Transcription' button below</li>
+                  <li>If the problem persists, try uploading a different file format</li>
+                  <li>Some file formats may not be supported by the transcription service</li>
+                </ul>
+              </div>
+            )}
+            
             {isFileNotFound && (
               <div className="mt-1 text-sm">
                 <div className="font-medium text-red-500 mb-1">File not found issues:</div>
@@ -127,7 +143,7 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
             )}
             
             {/* Generic troubleshooting tips if no specific error type is matched */}
-            {!isFileNotFound && !isFileTooLarge && !isPermissionError && !isNetworkError && !isProcessingError && (
+            {!isFileNotFound && !isFileTooLarge && !isPermissionError && !isNetworkError && !isProcessingError && !isEdgeFunctionError && (
               <div className="mt-1 text-sm">
                 <div className="font-medium text-red-500 mb-1">General troubleshooting:</div>
                 <ul className="list-disc pl-5 space-y-1">

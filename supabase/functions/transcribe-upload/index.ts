@@ -169,7 +169,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'An unexpected error occurred' 
       }), 
       {
-        status: 500,
+        status: 200, // Changed from 500 to 200 to avoid CORS issues
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
