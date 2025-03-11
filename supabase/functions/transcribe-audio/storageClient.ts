@@ -15,50 +15,91 @@ export async function downloadAudioFile(supabase: any, filePath: string): Promis
     console.error(`[transcribe-audio] Error decoding file path, using original: ${e.message}`);
   }
   
-  // First check if the file exists
+  // Extract path parts for listing
   const pathParts = decodedPath.split('/');
-  const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+  const userId = pathParts[0]; // First part should be user ID
   const fileName = pathParts[pathParts.length - 1];
+  const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
   
-  console.log(`[transcribe-audio] Checking if file exists:`, { bucketFolder, fileName });
+  console.log(`[transcribe-audio] Checking for file with parameters:`, { 
+    bucketFolder, 
+    fileName,
+    userId 
+  });
   
-  const { data: existsData, error: existsError } = await supabase
+  // First try to list files in the user's folder
+  const { data: folderFiles, error: folderError } = await supabase
     .storage
     .from('audio_recordings')
-    .list(bucketFolder);
+    .list(bucketFolder, {
+      limit: 100,
+      sortBy: { column: 'created_at', order: 'desc' }
+    });
     
-  if (existsError) {
-    console.error('[transcribe-audio] Error checking file existence:', existsError);
-    throw new Error(`Error checking file existence: ${existsError.message}`);
-  }
-  
-  if (!existsData || !existsData.length) {
-    console.error(`[transcribe-audio] Folder not found: ${bucketFolder}`);
-    throw new Error(`Folder not found in storage: ${bucketFolder}`);
-  }
-  
-  // Try both the original filename and decoded filename
-  let fileExists = existsData.some((file: any) => file.name === fileName);
-  
-  // If the file wasn't found and contains URI-encoded characters, try matching with just the first part
-  if (!fileExists && fileName.includes('%')) {
-    const fileNameBase = fileName.split('%')[0];
-    const matchingFiles = existsData.filter((file: any) => file.name.startsWith(fileNameBase));
+  if (folderError) {
+    console.error('[transcribe-audio] Error listing folder:', folderError);
     
-    if (matchingFiles.length > 0) {
-      fileExists = true;
-      // Use the first matching file
-      fileName = matchingFiles[0].name;
-      decodedPath = `${bucketFolder}/${fileName}`;
-      console.log(`[transcribe-audio] Found similar file: ${fileName}`);
+    // Try directly with user ID as fallback
+    const { data: userFiles, error: userError } = await supabase
+      .storage
+      .from('audio_recordings')
+      .list(userId, {
+        limit: 100,
+        sortBy: { column: 'created_at', order: 'desc' }
+      });
+      
+    if (userError || !userFiles || !userFiles.length) {
+      console.error('[transcribe-audio] Error listing user files:', userError);
+      throw new Error(`Error checking file existence: ${folderError.message}`);
     }
-  }
-  
-  console.log(`[transcribe-audio] File existence check: ${fileExists ? 'Found' : 'Not found'}`);
-  
-  if (!fileExists) {
-    console.error(`[transcribe-audio] File not found in storage: ${filePath}`);
-    throw new Error(`File not found in storage: ${filePath}`);
+    
+    console.log(`[transcribe-audio] Found ${userFiles.length} files in user folder`);
+    
+    // Try to find a file with a similar name (partial match)
+    const fileNameWithoutExtension = fileName.split('.')[0].split('_')[0];
+    const matchingFiles = userFiles.filter(
+      (file: any) => file.name.includes(fileNameWithoutExtension)
+    );
+    
+    if (!matchingFiles.length) {
+      console.error(`[transcribe-audio] No matching files found for: ${fileNameWithoutExtension}`);
+      throw new Error(`File not found in storage: ${filePath}`);
+    }
+    
+    // Use the most recent matching file
+    decodedPath = `${userId}/${matchingFiles[0].name}`;
+    console.log(`[transcribe-audio] Using alternative file: ${decodedPath}`);
+  } else {
+    console.log(`[transcribe-audio] Found ${folderFiles?.length || 0} files in the folder`);
+    
+    // Try to find exact match first
+    let fileExists = folderFiles?.some((file: any) => file.name === fileName);
+    
+    // If exact match not found, try partial match
+    if (!fileExists && folderFiles?.length) {
+      // Extract base part of filename without timestamps
+      const baseFileName = fileName.split('_')[0];
+      const similarFiles = folderFiles.filter((file: any) => 
+        file.name.includes(baseFileName) || 
+        (fileName.includes('.') && file.name.includes(fileName.split('.')[0]))
+      );
+      
+      if (similarFiles.length) {
+        // Sort by creation time to get the most recent
+        similarFiles.sort((a: any, b: any) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        
+        decodedPath = `${bucketFolder}/${similarFiles[0].name}`;
+        fileExists = true;
+        console.log(`[transcribe-audio] No exact match, using similar file: ${similarFiles[0].name}`);
+      }
+    }
+    
+    if (!fileExists) {
+      console.error(`[transcribe-audio] File not found in storage: ${filePath}`);
+      throw new Error(`File not found in storage: ${filePath}`);
+    }
   }
   
   return withRetry(

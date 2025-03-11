@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
 import { getStatusInfo } from "./transcription/getStatusInfo";
-import { ErrorHelpers } from "./transcription/ErrorHelpers";
+import { TranscriptError } from "./TranscriptError";
 import { RetryButton } from "./transcription/RetryButton";
 import { StatusHeader } from "./transcription/StatusHeader";
 import { useToast } from "@/components/ui/use-toast";
@@ -63,9 +63,6 @@ export const TranscriptionStatus = ({
     }
   };
 
-  const isFileNotFoundError = error?.toLowerCase().includes('not found') || 
-                             error?.toLowerCase().includes('file not found');
-
   // Show retry button for errors and pending status (after a delay)
   const showRetryButton = (status === 'error' || status === 'pending') && noteId;
   const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
@@ -82,9 +79,9 @@ export const TranscriptionStatus = ({
         progress={progress}
       />
       
-      {status === 'error' && <ErrorHelpers error={error} />}
+      {status === 'error' && <TranscriptError error={error} noteId={noteId} />}
       
-      {showRetryButton && (
+      {showRetryButton && !status.includes('error') && (
         <div className="mt-3">
           <RetryButton onRetry={handleRetry} isDisabled={isRetrying} />
         </div>

@@ -19,6 +19,14 @@ serve(async (req) => {
     recordingId = reqRecordingId;
     noteId = reqNoteId;
     
+    console.log('[transcribe-audio] Starting transcription process with parameters:', {
+      recordingId, 
+      noteId, 
+      duration: duration ? `${Math.round(duration/1000)} seconds` : 'unknown',
+      isLargeFile, 
+      isRetry
+    });
+    
     const transcriptionText = await handleTranscription({
       recordingId,
       noteId,
@@ -38,6 +46,12 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('[transcribe-audio] Error:', error);
+    
+    // Determine if this is a file not found error
+    const isFileNotFoundError = error.message && (
+      error.message.includes('not found') || 
+      error.message.includes('File not found')
+    );
     
     try {
       if (noteId || recordingId) {
@@ -69,7 +83,14 @@ serve(async (req) => {
         }
         
         if (note) {
-          await handleTranscriptionError(supabase, note.id, error.message);
+          let errorMessage = error.message;
+          
+          // Enhance error message for file not found errors
+          if (isFileNotFoundError) {
+            errorMessage = `File not found in storage: ${note.audio_url || 'unknown file'}`;
+          }
+          
+          await handleTranscriptionError(supabase, note.id, errorMessage);
         }
       }
     } catch (handlingError) {
@@ -79,7 +100,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : 'An unexpected error occurred' 
+        error: error instanceof Error ? error.message : 'An unexpected error occurred',
+        isFileNotFoundError: isFileNotFoundError
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
