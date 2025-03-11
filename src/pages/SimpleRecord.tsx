@@ -59,7 +59,7 @@ const SimpleRecord = () => {
     handleStopRecording().then(() => {
       toast({
         title: "Time Limit Reached",
-        description: "Recording was stopped after reaching the 25-minute limit.",
+        description: "Recording was stopped after reaching the 60-minute limit.",
       });
     });
   };

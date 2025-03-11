@@ -28,7 +28,7 @@ export const TranscriptionStatus = ({
   
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
-  const isLongAudio = durationInMinutes && durationInMinutes > 20;
+  const isLongAudio = durationInMinutes && durationInMinutes > 30;
   
   const statusInfo = getStatusInfo(status);
   const { message, icon, color } = statusInfo;
@@ -39,18 +39,18 @@ export const TranscriptionStatus = ({
         const success = await retryTranscription(noteId);
         if (success) {
           toast({
-            title: "Retry initiated",
-            description: "The transcription process has been restarted.",
+            title: "Retry iniciado",
+            description: "O processo de transcrição foi reiniciado.",
             variant: "default",
           });
         } else {
-          throw new Error("Failed to restart transcription");
+          throw new Error("Falha ao reiniciar a transcrição");
         }
       } catch (error) {
-        console.error('Error retrying transcription:', error);
+        console.error('Erro ao tentar retranscrever:', error);
         toast({
-          title: "Retry failed",
-          description: "Could not restart the transcription process. Please try again later.",
+          title: "Falha ao retranscrever",
+          description: "Não foi possível reiniciar o processo de transcrição. Tente novamente mais tarde.",
           variant: "destructive",
         });
       }

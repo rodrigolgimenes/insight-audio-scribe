@@ -19,8 +19,10 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
                         error.toLowerCase().includes('muito grande');
   const isTimeoutError = error.toLowerCase().includes('timeout') || 
                       error.toLowerCase().includes('timed out');
+  const isDurationError = error.toLowerCase().includes('duration') ||
+                        error.toLowerCase().includes('duração');
 
-  if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && !isTimeoutError) {
+  if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && !isTimeoutError && !isDurationError) {
     return <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>;
   }
 
@@ -33,44 +35,56 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
           
           {isFileNotFoundError && (
             <div className="mt-3">
-              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Tips to resolve:</p>
+              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Dicas para resolver:</p>
               <ul className="list-disc ml-6 mt-1 space-y-1">
-                <li>The file may have been deleted or not uploaded correctly</li>
-                <li>Try uploading a new file again</li>
-                <li>Check if you have a stable internet connection</li>
+                <li>O arquivo pode ter sido excluído ou não foi carregado corretamente</li>
+                <li>Tente fazer o upload de um novo arquivo</li>
+                <li>Verifique se você tem uma conexão estável com a internet</li>
               </ul>
             </div>
           )}
           
           {isAudioFormatError && (
             <div className="mt-3">
-              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Tips to resolve:</p>
+              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Dicas para resolver:</p>
               <ul className="list-disc ml-6 mt-1 space-y-1">
-                <li>Try converting the file to MP3 before uploading</li>
-                <li>Check if the audio file is not corrupted</li>
-                <li>Try using a different browser (Chrome, Firefox, or Edge)</li>
+                <li>Tente converter o arquivo para MP3 antes de fazer o upload</li>
+                <li>Verifique se o arquivo de áudio não está corrompido</li>
+                <li>Tente usar um navegador diferente (Chrome, Firefox ou Edge)</li>
               </ul>
             </div>
           )}
           
           {isFileSizeError && (
             <div className="mt-3">
-              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Tips to resolve:</p>
+              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Dicas para resolver:</p>
               <ul className="list-disc ml-6 mt-1 space-y-1">
-                <li>Your file is too large (the limit is 25MB)</li>
-                <li>Try splitting the recording into smaller parts</li>
-                <li>Compress the file to reduce its size</li>
+                <li>Seu arquivo é muito grande (o limite é 25MB)</li>
+                <li>Tente dividir a gravação em partes menores</li>
+                <li>Comprima o arquivo para reduzir seu tamanho</li>
               </ul>
             </div>
           )}
           
           {isTimeoutError && (
             <div className="mt-3">
-              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Tips to resolve:</p>
+              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Dicas para resolver:</p>
               <ul className="list-disc ml-6 mt-1 space-y-1">
-                <li>The processing took too long and reached the limit</li>
-                <li>Try with a shorter recording</li>
-                <li>Check if you have a stable internet connection</li>
+                <li>O processamento levou muito tempo e atingiu o limite</li>
+                <li>Para gravações mais longas (acima de 30 minutos), o processo pode demorar mais</li>
+                <li>Verifique se você tem uma conexão estável com a internet</li>
+                <li>Tente novamente em um horário diferente quando os servidores estiverem menos ocupados</li>
+              </ul>
+            </div>
+          )}
+          
+          {isDurationError && (
+            <div className="mt-3">
+              <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Dicas para resolver:</p>
+              <ul className="list-disc ml-6 mt-1 space-y-1">
+                <li>A gravação excede a duração máxima suportada (60 minutos)</li>
+                <li>Divida suas gravações em sessões mais curtas para melhores resultados</li>
+                <li>Gravações mais curtas também tendem a gerar transcrições mais precisas</li>
               </ul>
             </div>
           )}

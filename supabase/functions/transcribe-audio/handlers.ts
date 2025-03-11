@@ -41,7 +41,7 @@ export async function handleTranscription(requestBody: {
     throw new Error('Either Recording ID or Note ID is required');
   }
 
-  // Check for file size constraints
+  // Check for file size constraints - now only logging a warning since we support up to 60 minutes
   if (duration && duration > MAX_AUDIO_DURATION_MS) {
     console.warn('[transcribe-audio] Audio file exceeds maximum recommended duration:', 
       `${Math.round(duration/1000/60)} minutes. Max: ${MAX_AUDIO_DURATION_MS/1000/60} minutes`);
@@ -119,7 +119,7 @@ export async function handleTranscription(requestBody: {
     await supabase
       .from('notes')
       .update({ 
-        error_message: `Audio file too large for processing. Maximum size is ${MAX_FILE_SIZE_MB}MB. Please use a shorter recording.`
+        error_message: `Audio file too large for processing. Maximum size is ${MAX_FILE_SIZE_MB}MB. Please use a shorter recording or compress your audio.`
       })
       .eq('id', note.id);
       
@@ -133,9 +133,9 @@ async function processTranscription(supabase: any, note: any, recording: any, au
   // Update status to transcribing with 40% progress
   await updateNoteStatus(supabase, note.id, 'transcribing', 40);
   
-  // Set a timeout for transcription
+  // Set a timeout for transcription - extended for longer recordings
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Transcription timed out after 60 minutes')), 60 * 60 * 1000);
+    setTimeout(() => reject(new Error('Transcription timed out after 120 minutes')), 120 * 60 * 1000);
   });
   
   let transcription;

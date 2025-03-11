@@ -42,6 +42,8 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
   formData.append('file', finalBlob, 'audio.mp3');
   formData.append('model', 'whisper-1');
   formData.append('language', 'pt');
+  // Add response_format parameter to ensure we get the most reliable format
+  formData.append('response_format', 'json');
 
   return await withRetry(
     async () => {
