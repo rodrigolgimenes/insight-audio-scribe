@@ -1,8 +1,10 @@
+
 import { useState } from "react";
 import { MeetingMinutes } from "./MeetingMinutes";
-import { Note } from "@/integrations/supabase/types/notes";
+import { Note } from "@/types/notes";
 import { TranscriptChat } from "./TranscriptChat";
 import { TranscriptAccordion } from "./TranscriptAccordion";
+import { TranscriptionStatus } from "./TranscriptionStatus";
 
 interface NoteContentProps {
   note: Note;
@@ -22,7 +24,7 @@ export const NoteContent = ({
       <div className="pb-4 border-b border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900">{note.title}</h1>
         <p className="text-gray-500 mt-1">
-          {new Date(note.created_at).toLocaleDateString('pt-BR', {
+          {new Date(note.created_at).toLocaleDateString('en-US', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
