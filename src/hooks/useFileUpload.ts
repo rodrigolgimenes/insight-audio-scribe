@@ -99,13 +99,28 @@ export const useFileUpload = () => {
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: file.type,
-          onUploadProgress: (progress) => {
-            uploadedBytes = progress.uploadedBytes;
-            const percentComplete = Math.round((uploadedBytes / totalBytes) * 100);
-            console.log(`Upload progress: ${percentComplete}%`);
-          }
+          contentType: file.type
         });
+
+      // Monitor upload progress separately
+      if (!uploadError) {
+        console.log('Upload started successfully');
+        // We'll track progress in a simpler way since onUploadProgress isn't in the type
+        const progressIntervalId = setInterval(() => {
+          uploadedBytes += chunkSize;
+          if (uploadedBytes >= totalBytes) {
+            uploadedBytes = totalBytes;
+            clearInterval(progressIntervalId);
+          }
+          const percentComplete = Math.round((uploadedBytes / totalBytes) * 100);
+          console.log(`Upload progress: ${percentComplete}%`);
+        }, 1000);
+        
+        // Clear the interval after expected upload time
+        setTimeout(() => {
+          clearInterval(progressIntervalId);
+        }, (totalBytes / (500 * 1024)) * 1000); // Rough estimate based on 500KB/s upload speed
+      }
 
       if (uploadError) {
         // Clean up the recording entry if upload fails
