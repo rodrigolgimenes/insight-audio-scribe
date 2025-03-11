@@ -13,7 +13,7 @@ export const useFileUpload = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>): Promise<string | undefined> => {
     const file = event.target.files?.[0];
     
     // Validate file
@@ -97,8 +97,14 @@ export const useFileUpload = () => {
         description: "File uploaded successfully! You can track the transcription progress in the dashboard.",
       });
 
-      // Redirect to dashboard
-      navigate("/app");
+      // Reset file input
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+
+      // Return the recording ID for the component to use if needed
+      return recordingData.id;
 
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -110,6 +116,8 @@ export const useFileUpload = () => {
           : "Error processing file. Please try again.",
         variant: "destructive",
       });
+      
+      return undefined;
     } finally {
       setIsUploading(false);
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;

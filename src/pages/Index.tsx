@@ -5,6 +5,7 @@ import { Mic } from "lucide-react";
 import { RecordingModal } from "@/components/record/RecordingModal";
 import { Header } from "@/components/Header";
 import { PricingSection } from "@/components/payments/PricingSection";
+import { UploadSection } from "@/components/landing/UploadSection";
 
 export default function Index() {
   const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false);
@@ -23,7 +24,7 @@ export default function Index() {
             </p>
             <Button
               onClick={() => setIsRecordingModalOpen(true)}
-              className="bg-[#E91E63] hover:bg-[#D81B60] text-white"
+              className="bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white"
               size="lg"
             >
               <Mic className="w-5 h-5 mr-2" />
@@ -37,7 +38,10 @@ export default function Index() {
           />
         </section>
         
-        {/* Add the pricing section below the hero section */}
+        {/* Add upload section between hero and pricing */}
+        <UploadSection />
+        
+        {/* Pricing section */}
         <PricingSection />
       </main>
     </div>
