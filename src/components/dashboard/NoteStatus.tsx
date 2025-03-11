@@ -7,8 +7,10 @@ interface NoteStatusProps {
 }
 
 export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
-  console.log("Rendering status:", status, "progress:", progress);
-  const displayProgress = Math.round(progress);
+  // Ensure progress is always a number between 0-100
+  const displayProgress = Math.max(0, Math.min(100, Math.round(progress)));
+  
+  console.log("Rendering status:", status, "normalized progress:", displayProgress);
   
   switch (status) {
     case "completed":
@@ -30,6 +32,13 @@ export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
           Transcribing {displayProgress}%
+        </span>
+      );
+    case "generating_minutes":
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+          Generating Minutes {displayProgress}%
         </span>
       );
     case "pending":

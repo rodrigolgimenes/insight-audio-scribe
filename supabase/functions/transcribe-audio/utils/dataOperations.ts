@@ -1,44 +1,39 @@
 
-import { updateRecording } from './recordingUtils.ts';
-import { updateNote, getNoteData } from './noteUtils.ts';
+import { updateNoteStatus } from '../supabaseClient.ts';
 
 /**
- * Updates both recording and note with transcription data
+ * Updates the note progress in a consistent way
  * @param supabase Supabase client
- * @param recordingId Recording ID
  * @param noteId Note ID
- * @param transcriptionText Transcription text
+ * @param status Status
+ * @param progress Progress percentage
  */
-export async function updateRecordingAndNote(
-  supabase: any,
-  recordingId: string,
-  noteId: string,
-  transcriptionText: string
+export async function updateNoteProgress(
+  supabase: any, 
+  noteId: string, 
+  status: string, 
+  progress: number
 ) {
-  console.log(`[transcribe-audio] Updating recording ${recordingId} and note ${noteId} with transcription`);
+  console.log(`[transcribe-audio] Updating note ${noteId} progress: status=${status}, progress=${progress}%`);
   
   try {
-    // First verify the note exists
-    await getNoteData(supabase, noteId, true);
-    
-    // Update recording first
-    await updateRecording(supabase, recordingId, transcriptionText);
-    
-    // Then update note
-    await updateNote(supabase, noteId, transcriptionText);
-    
-    // Update note status to completed and set progress to 100%
-    await supabase
+    const { error } = await supabase
       .from('notes')
-      .update({
-        status: 'completed',
-        processing_progress: 100
+      .update({ 
+        status,
+        processing_progress: progress,
+        updated_at: new Date().toISOString()
       })
       .eq('id', noteId);
+      
+    if (error) {
+      console.error(`[transcribe-audio] Error updating note progress: ${error.message}`);
+      throw new Error(`Failed to update note progress: ${error.message}`);
+    }
     
-    console.log('[transcribe-audio] Successfully updated recording and note with transcription');
+    console.log('[transcribe-audio] Successfully updated note progress');
   } catch (error) {
-    console.error('[transcribe-audio] Error in updateRecordingAndNote:', error);
+    console.error('[transcribe-audio] Exception in updateNoteProgress:', error);
     throw error;
   }
 }
@@ -50,120 +45,33 @@ export async function updateRecordingAndNote(
  * @param transcriptionText Transcription text
  */
 export async function startMeetingMinutesGeneration(
-  supabase: any, 
-  noteId: string, 
-  transcriptionText: string
-) {
-  console.log('[transcribe-audio] Starting meeting minutes generation...');
-  try {
-    // First verify the note exists
-    await getNoteData(supabase, noteId, true);
-    
-    const { error: minutesError } = await supabase.functions
-      .invoke('generate-meeting-minutes', {
-        body: { 
-          noteId: noteId,
-          transcription: transcriptionText
-        }
-      });
-
-    if (minutesError) {
-      console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
-      throw minutesError;
-    }
-    
-    console.log('[transcribe-audio] Successfully initiated meeting minutes generation');
-    return true;
-  } catch (error) {
-    console.error('[transcribe-audio] Error invoking meeting minutes function:', error);
-    throw error;
-  }
-}
-
-/**
- * Verifies recording and note exist and are linked correctly
- * @param supabase Supabase client
- * @param recordingId Recording ID
- * @param noteId Note ID
- * @returns true if verification passes
- */
-export async function verifyRecordingAndNoteLink(
-  supabase: any,
-  recordingId: string,
-  noteId: string
-) {
-  console.log(`[transcribe-audio] Verifying recording ${recordingId} and note ${noteId} link`);
-  
-  try {
-    // Check if note exists and has the correct recording ID
-    const { data: note, error: noteError } = await supabase
-      .from('notes')
-      .select('*')
-      .eq('id', noteId)
-      .single();
-      
-    if (noteError || !note) {
-      console.error('[transcribe-audio] Note verification failed:', noteError || 'Note not found');
-      return false;
-    }
-    
-    if (note.recording_id !== recordingId) {
-      console.error('[transcribe-audio] Note is linked to a different recording:', note.recording_id);
-      return false;
-    }
-    
-    // Check if recording exists
-    const { data: recording, error: recordingError } = await supabase
-      .from('recordings')
-      .select('*')
-      .eq('id', recordingId)
-      .single();
-      
-    if (recordingError || !recording) {
-      console.error('[transcribe-audio] Recording verification failed:', recordingError || 'Recording not found');
-      return false;
-    }
-    
-    console.log('[transcribe-audio] Successfully verified recording and note link');
-    return true;
-  } catch (error) {
-    console.error('[transcribe-audio] Error in verifyRecordingAndNoteLink:', error);
-    return false;
-  }
-}
-
-/**
- * Update note status and progress during transcription process
- * @param supabase Supabase client
- * @param noteId Note ID
- * @param status Status to set
- * @param progress Progress percentage (0-100)
- */
-export async function updateNoteProgress(
   supabase: any,
   noteId: string,
-  status: string,
-  progress: number
+  transcriptionText: string
 ) {
-  console.log(`[transcribe-audio] Updating note ${noteId} status to "${status}" with progress ${progress}%`);
+  console.log(`[transcribe-audio] Starting meeting minutes generation for note ${noteId}`);
   
   try {
-    const { error } = await supabase
-      .from('notes')
-      .update({
-        status: status,
-        processing_progress: progress
-      })
-      .eq('id', noteId);
+    // First update the note to generating_minutes status with 80% progress
+    await updateNoteProgress(supabase, noteId, 'generating_minutes', 80);
+    
+    // Invoke the generate-meeting-minutes function
+    const { error } = await supabase.functions
+      .invoke('generate-meeting-minutes', {
+        body: { 
+          noteId,
+          transcript: transcriptionText
+        }
+      });
       
     if (error) {
-      console.error('[transcribe-audio] Error updating note progress:', error);
-      throw error;
+      console.error(`[transcribe-audio] Error invoking meeting minutes generation: ${error.message}`);
+      throw new Error(`Failed to generate meeting minutes: ${error.message}`);
     }
     
-    console.log('[transcribe-audio] Successfully updated note progress');
+    console.log('[transcribe-audio] Meeting minutes generation started successfully');
   } catch (error) {
-    console.error('[transcribe-audio] Error in updateNoteProgress:', error);
-    // Don't throw error here to avoid interrupting the main process
+    console.error('[transcribe-audio] Exception in startMeetingMinutesGeneration:', error);
+    throw error;
   }
 }

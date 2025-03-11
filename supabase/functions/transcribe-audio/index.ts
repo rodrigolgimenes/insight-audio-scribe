@@ -28,25 +28,9 @@ serve(async (req) => {
       isRetry
     });
     
-    if (noteId) {
-      // Update note status to transcribing and set initial progress
-      const supabase = createSupabaseClient();
-      await updateNoteProgress(supabase, noteId, 'transcribing', 10);
-      
-      // Set up progress update intervals
-      const progressInterval = setInterval(async () => {
-        try {
-          const currentProgress = Math.min(95, Math.floor(10 + Math.random() * 30));
-          await updateNoteProgress(supabase, noteId, 'transcribing', currentProgress);
-        } catch (error) {
-          console.error('[transcribe-audio] Error in progress update:', error);
-        }
-      }, 5000);
-      
-      // Set timeout to clear the interval
-      setTimeout(() => clearInterval(progressInterval), 120000);
-    }
-    
+    // Remove the random progress updates which were causing confusion
+    // We'll use the defined stages in handlers.ts instead
+
     const transcriptionText = await handleTranscription({
       recordingId,
       noteId,

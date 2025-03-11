@@ -8,7 +8,7 @@ import {
 } from './supabaseClient.ts';
 import { downloadAudioFile } from './storageClient.ts';
 import { transcribeAudio } from './openaiClient.ts';
-import { startMeetingMinutesGeneration } from './utils/dataOperations.ts';
+import { startMeetingMinutesGeneration, updateNoteProgress } from './utils/dataOperations.ts';
 
 // Constants for file size and duration limits
 export const MAX_AUDIO_DURATION_MS = 120 * 60 * 1000; // 120 minutes in milliseconds (extended from 60)
@@ -18,6 +18,18 @@ export const MAX_FILE_SIZE_MB = 100; // 100 MB (increased from 24MB)
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Progress percentage stages for consistent progress reporting
+const PROGRESS_STAGES = {
+  STARTED: 5,
+  DOWNLOADING: 15,
+  DOWNLOADED: 25,
+  PROCESSING: 40,
+  TRANSCRIBING: 60,
+  TRANSCRIBED: 80,
+  GENERATING_MINUTES: 90,
+  COMPLETED: 100
 };
 
 export async function handleTranscription(requestBody: {
@@ -76,18 +88,21 @@ export async function handleTranscription(requestBody: {
       filePath: recording.file_path,
       status: recording.status
     });
+    
+    // Initial progress update - started
+    await updateNoteProgress(supabase, note.id, 'transcribing', PROGRESS_STAGES.STARTED);
   } catch (error) {
     console.error('[transcribe-audio] Error retrieving recording or note data:', error);
     throw error;
   }
 
-  // Update note status to processing with 10% for better feedback
-  await updateNoteStatus(supabase, note.id, 'processing', 10);
-
   // Download audio file
   console.log('[transcribe-audio] Starting download of audio file:', recording.file_path);
   let audioData;
   try {
+    // Update progress to downloading
+    await updateNoteProgress(supabase, note.id, 'transcribing', PROGRESS_STAGES.DOWNLOADING);
+    
     audioData = await downloadAudioFile(supabase, recording.file_path);
     
     // Additional check for file validity
@@ -99,7 +114,7 @@ export async function handleTranscription(requestBody: {
       `Size: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
       
     // Update progress after download
-    await updateNoteStatus(supabase, note.id, 'processing', 25);
+    await updateNoteProgress(supabase, note.id, 'transcribing', PROGRESS_STAGES.DOWNLOADED);
   } catch (error) {
     console.error('[transcribe-audio] Error downloading audio file:', error);
     await updateNoteStatus(supabase, note.id, 'error', 0);
@@ -132,8 +147,8 @@ export async function handleTranscription(requestBody: {
 }
 
 async function processTranscription(supabase: any, note: any, recording: any, audioData: Blob, isExtremelyLargeFile?: boolean) {
-  // Update status to transcribing with 40% progress
-  await updateNoteStatus(supabase, note.id, 'transcribing', 40);
+  // Update status to processing with consistent progress
+  await updateNoteProgress(supabase, note.id, 'transcribing', PROGRESS_STAGES.PROCESSING);
   
   // Set a timeout for transcription - extended for longer recordings
   const timeoutDuration = isExtremelyLargeFile ? 240 * 60 * 1000 : 120 * 60 * 1000; // 4 hours for very large files, 2 hours otherwise
@@ -147,12 +162,12 @@ async function processTranscription(supabase: any, note: any, recording: any, au
     const transcriptionPromise = transcribeAudio(audioData);
     
     // Update progress during transcription
-    await updateNoteStatus(supabase, note.id, 'transcribing', 50);
+    await updateNoteProgress(supabase, note.id, 'transcribing', PROGRESS_STAGES.TRANSCRIBING);
     
     transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
     
     // Update progress after successful transcription
-    await updateNoteStatus(supabase, note.id, 'transcribing', 75);
+    await updateNoteProgress(supabase, note.id, 'transcribing', PROGRESS_STAGES.TRANSCRIBED);
     
     console.log('[transcribe-audio] Transcription completed successfully, text length:', 
       transcription.text ? transcription.text.length : 0);
@@ -175,8 +190,8 @@ async function processTranscription(supabase: any, note: any, recording: any, au
     await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
     console.log('[transcribe-audio] Updated database with transcription');
     
-    // Update progress to 90% before starting minutes generation
-    await updateNoteStatus(supabase, note.id, 'generating_minutes', 90);
+    // Update progress to generating minutes stage
+    await updateNoteProgress(supabase, note.id, 'generating_minutes', PROGRESS_STAGES.GENERATING_MINUTES);
   } catch (error) {
     console.error('[transcribe-audio] Error updating database with transcription:', error);
     throw error;
@@ -186,13 +201,13 @@ async function processTranscription(supabase: any, note: any, recording: any, au
   try {
     await startMeetingMinutesGeneration(supabase, note.id, transcription.text);
     
-    // Ensure status is updated to completed regardless of minutes generation result
-    await updateNoteStatus(supabase, note.id, 'completed', 100);
+    // Ensure status is updated to completed with 100% progress
+    await updateNoteProgress(supabase, note.id, 'completed', PROGRESS_STAGES.COMPLETED);
     console.log('[transcribe-audio] Updated note status to completed after minutes generation');
   } catch (error) {
     console.error('[transcribe-audio] Error in meeting minutes generation:', error);
     // Even if minutes generation fails, mark the transcription as completed since we have the transcript
-    await updateNoteStatus(supabase, note.id, 'completed', 100);
+    await updateNoteProgress(supabase, note.id, 'completed', PROGRESS_STAGES.COMPLETED);
     console.log('[transcribe-audio] Updated note status to completed despite minutes generation error');
   }
   
