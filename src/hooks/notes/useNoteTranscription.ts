@@ -9,7 +9,7 @@ export const useNoteTranscription = () => {
 
   const retryTranscription = async (noteId: string) => {
     try {
-      // Atualizar localmente para feedback imediato
+      // Update locally for immediate feedback
       await supabase
         .from('notes')
         .update({ 
@@ -19,10 +19,10 @@ export const useNoteTranscription = () => {
         })
         .eq('id', noteId);
       
-      // Invalidar queries para forçar a atualização dos dados
+      // Invalidate queries to force data update
       queryClient.invalidateQueries({ queryKey: ['note', noteId] });
       
-      // Chamar a função edge para reiniciar o processo
+      // Call edge function to restart the process
       const { error } = await supabase.functions
         .invoke('transcribe-audio', {
           body: { 
@@ -34,7 +34,7 @@ export const useNoteTranscription = () => {
       if (error) {
         console.error('Error retrying transcription:', error);
         
-        // Restaurar status de erro em caso de falha
+        // Restore error status in case of failure
         await supabase
           .from('notes')
           .update({ 

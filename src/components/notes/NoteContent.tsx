@@ -20,11 +20,11 @@ interface NoteContentProps {
 export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }: NoteContentProps) => {
   const { retryTranscription } = useNoteTranscription();
 
-  // Configurar canal em tempo real para atualizações do status
+  // Set up realtime channel for status updates
   useEffect(() => {
     if (!note.id) return;
     
-    // Inscrever-se para atualizações de status
+    // Subscribe to status updates
     const noteChannel = supabase
       .channel(`note-status-${note.id}`)
       .on(
@@ -36,13 +36,13 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
           filter: `id=eq.${note.id}`
         },
         (payload) => {
-          console.log('Recebida atualização de nota:', payload);
+          console.log('Received note update:', payload);
         }
       )
       .subscribe();
       
     return () => {
-      console.log('Limpando inscrição de canal');
+      console.log('Cleaning up channel subscription');
       supabase.removeChannel(noteChannel);
     };
   }, [note.id]);

@@ -21,7 +21,7 @@ export const NoteCardContent = ({
   status = 'pending',
   progress = 0
 }: NoteCardContentProps) => {
-  // Garantir que progress é um número e arredondado corretamente
+  // Ensure progress is a number and properly rounded
   const displayProgress = Math.round(progress || 0);
   
   const getStatusDisplay = () => {
