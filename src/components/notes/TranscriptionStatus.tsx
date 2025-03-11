@@ -7,7 +7,10 @@ import { TranscriptError } from "./TranscriptError";
 import { RetryButton } from "./transcription/RetryButton";
 import { StatusHeader } from "./transcription/StatusHeader";
 import { useToast } from "@/components/ui/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -27,6 +30,8 @@ export const TranscriptionStatus = ({
   const { retryTranscription } = useNoteTranscription();
   const { toast } = useToast();
   const [isRetrying, setIsRetrying] = useState(false);
+  const [transcriptionTimeout, setTranscriptionTimeout] = useState(false);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState<Date | null>(null);
   
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
@@ -36,10 +41,53 @@ export const TranscriptionStatus = ({
   const statusInfo = getStatusInfo(status);
   const { message, icon, color } = statusInfo;
   
+  // Check for stalled transcription
+  useEffect(() => {
+    if (status === 'processing' || status === 'transcribing' || status === 'pending') {
+      // Start a timer to detect stalled transcriptions
+      const checkTimeoutId = setTimeout(() => {
+        if (!noteId) return;
+        
+        // Check if the note's status has been updated
+        const checkStatus = async () => {
+          console.log('Checking note status for inactivity...');
+          const { data } = await supabase
+            .from('notes')
+            .select('updated_at, processing_progress')
+            .eq('id', noteId)
+            .single();
+            
+          if (data) {
+            const lastUpdate = new Date(data.updated_at);
+            const now = new Date();
+            const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
+            
+            // If no update for 5 minutes (300000ms) and still in processing state
+            if (timeSinceUpdate > 300000) {
+              console.log('Transcription seems stalled (no updates for 5+ minutes)');
+              setTranscriptionTimeout(true);
+            } else {
+              setLastProgressUpdate(lastUpdate);
+              console.log('Transcription still active, last update:', 
+                Math.round(timeSinceUpdate / 1000 / 60), 'minutes ago');
+            }
+          }
+        };
+        
+        checkStatus();
+      }, 300000); // Check after 5 minutes
+      
+      return () => clearTimeout(checkTimeoutId);
+    } else {
+      setTranscriptionTimeout(false);
+    }
+  }, [status, noteId]);
+  
   const handleRetry = async () => {
     if (!noteId) return;
     
     setIsRetrying(true);
+    setTranscriptionTimeout(false);
     
     try {
       const success = await retryTranscription(noteId);
@@ -64,8 +112,8 @@ export const TranscriptionStatus = ({
     }
   };
 
-  // Show retry button for errors and pending status (after a delay)
-  const showRetryButton = (status === 'error' || status === 'pending') && noteId;
+  // Show retry button for errors, pending status, or stalled transcriptions
+  const showRetryButton = (status === 'error' || status === 'pending' || transcriptionTimeout) && noteId;
   const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
   
   return (
@@ -80,6 +128,16 @@ export const TranscriptionStatus = ({
         progress={progress}
       />
       
+      {transcriptionTimeout && (
+        <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-amber-700 font-medium">Transcription may be stalled</p>
+            <p className="text-sm text-amber-600">No progress updates for more than 5 minutes. You can try restarting the transcription process.</p>
+          </div>
+        </div>
+      )}
+      
       {isVeryLongAudio && status !== 'error' && (
         <div className="mt-2 text-amber-600 text-sm">
           <p>This is a very long recording ({durationInMinutes} minutes). Processing may take additional time.</p>
@@ -91,14 +149,28 @@ export const TranscriptionStatus = ({
       
       {status === 'error' && <TranscriptError error={error} noteId={noteId} />}
       
-      {showRetryButton && !status.includes('error') && (
+      {showRetryButton && (
         <div className="mt-3">
-          <RetryButton onRetry={handleRetry} isDisabled={isRetrying} />
+          <Button
+            variant="outline"
+            className="bg-green-50 border-green-200 text-green-600 hover:bg-green-100 hover:text-green-700 w-full flex justify-center items-center gap-2"
+            onClick={handleRetry}
+            disabled={isRetrying}
+          >
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+            <span>{isRetrying ? 'Retrying...' : 'Retry Transcription'}</span>
+          </Button>
         </div>
       )}
       
       {showProgress && (
         <Progress value={progress} className="w-full mt-2" />
+      )}
+      
+      {lastProgressUpdate && status !== 'completed' && status !== 'error' && (
+        <div className="mt-2 text-xs text-gray-500">
+          Last activity: {new Date(lastProgressUpdate).toLocaleTimeString()}
+        </div>
       )}
     </Card>
   );

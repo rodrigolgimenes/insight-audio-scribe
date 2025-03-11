@@ -16,6 +16,7 @@ interface FileUploadProps {
   buttonText?: string;
   className?: string;
   maxSize?: number; // in MB
+  disabled?: boolean; // Added disabled property
 }
 
 export function FileUpload({
@@ -26,6 +27,7 @@ export function FileUpload({
   buttonText = "Upload File",
   className = "",
   maxSize = 100, // default 100MB
+  disabled = false, // Default to not disabled
 }: FileUploadProps) {
   const { isUploading, handleFileUpload } = useFileUpload();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -67,13 +69,13 @@ export function FileUpload({
           className="hidden"
           id="file-upload"
           onChange={handleFileChange}
-          disabled={isUploading}
+          disabled={isUploading || disabled}
         />
         
         <div className="flex flex-col gap-2">
           <Button 
             onClick={() => document.getElementById('file-upload')?.click()}
-            disabled={isUploading}
+            disabled={isUploading || disabled}
             className="bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white gap-2 w-full sm:w-auto"
           >
             {isUploading ? (

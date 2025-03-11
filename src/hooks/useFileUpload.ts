@@ -24,8 +24,15 @@ export const useFileUpload = () => {
     }
 
     setIsUploading(true);
+    console.log('Starting file upload process...');
 
     try {
+      // Get authenticated user
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        throw new Error(authError ? authError.message : 'User not authenticated');
+      }
+
       // Get file duration
       console.log('Getting media duration...');
       let durationInMs = 0;
@@ -35,43 +42,81 @@ export const useFileUpload = () => {
         console.log('Successfully got media duration:', durationInMs);
       } catch (durationError) {
         console.error('Error getting media duration:', durationError);
-        // Default to 0 if we can't get duration
+        // Default to 0 if we can't get duration, but continue the process
       }
 
-      // Get authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Generate unique file name
-      const fileName = `${user.id}/${Date.now()}_${file!.name.replace(/[^\x00-\x7F]/g, '')}`;
+      // Generate unique file name with sanitization
+      const timestamp = Date.now();
+      const sanitizedFileName = file!.name.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_');
+      const fileName = `${user.id}/${timestamp}_${sanitizedFileName}`;
+      console.log('Sanitized file name:', fileName);
 
       // Create initial recording entry in database
+      console.log('Creating recording entry...');
       const recordingData = await createRecordingEntry(
         user.id,
         file!.name || `Recording ${new Date().toLocaleString()}`,
         fileName,
         durationInMs
       );
+      console.log('Recording entry created with ID:', recordingData.id);
 
-      // Upload file to storage
-      const { error: uploadError } = await uploadFileToSupabase(fileName, file!);
+      // Upload file to storage with retries
+      console.log('Uploading file to storage...');
+      let uploadSuccess = false;
+      let uploadAttempts = 0;
+      const maxUploadAttempts = 3;
+      let uploadError = null;
 
-      if (uploadError) {
-        // Clean up the recording entry if upload fails
+      while (!uploadSuccess && uploadAttempts < maxUploadAttempts) {
+        try {
+          const { error } = await uploadFileToSupabase(fileName, file!);
+          
+          if (!error) {
+            uploadSuccess = true;
+            console.log('File uploaded successfully on attempt', uploadAttempts + 1);
+          } else {
+            uploadError = error;
+            console.error(`Upload attempt ${uploadAttempts + 1} failed:`, error);
+            uploadAttempts++;
+            
+            if (uploadAttempts < maxUploadAttempts) {
+              // Wait before retrying (exponential backoff)
+              const waitTime = Math.min(2000 * Math.pow(2, uploadAttempts), 10000);
+              console.log(`Waiting ${waitTime}ms before retrying upload...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+        } catch (error) {
+          uploadError = error;
+          console.error(`Upload attempt ${uploadAttempts + 1} failed with exception:`, error);
+          uploadAttempts++;
+
+          if (uploadAttempts < maxUploadAttempts) {
+            const waitTime = Math.min(2000 * Math.pow(2, uploadAttempts), 10000);
+            console.log(`Waiting ${waitTime}ms before retrying upload...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+      }
+
+      if (!uploadSuccess) {
+        // Clean up the recording entry if upload fails after all retries
+        console.error('All upload attempts failed, cleaning up recording entry...');
         await supabase
           .from('recordings')
           .delete()
           .eq('id', recordingData.id);
           
-        throw uploadError;
+        throw uploadError || new Error('Failed to upload file after multiple attempts');
       }
 
       // Update recording status to uploaded
+      console.log('Updating recording status to uploaded...');
       await updateRecordingStatus(recordingData.id, 'uploaded');
 
       // Create initial note entry
+      console.log('Creating initial note entry...');
       await createInitialNote(
         recordingData.title,
         recordingData.id,
@@ -79,23 +124,59 @@ export const useFileUpload = () => {
         durationInMs
       );
 
-      // Start background processing
-      const { error } = await startRecordingProcessing(recordingData.id);
+      // Start background processing with retries
+      console.log('Starting transcription processing...');
+      let processingSuccess = false;
+      let processingAttempts = 0;
+      const maxProcessingAttempts = 3;
+      let processingError = null;
+
+      while (!processingSuccess && processingAttempts < maxProcessingAttempts) {
+        try {
+          const { error } = await startRecordingProcessing(recordingData.id);
+          
+          if (!error) {
+            processingSuccess = true;
+            console.log('Processing started successfully on attempt', processingAttempts + 1);
+          } else {
+            processingError = error;
+            console.error(`Processing start attempt ${processingAttempts + 1} failed:`, error);
+            processingAttempts++;
+            
+            if (processingAttempts < maxProcessingAttempts) {
+              // Wait before retrying (exponential backoff)
+              const waitTime = Math.min(2000 * Math.pow(2, processingAttempts), 10000);
+              console.log(`Waiting ${waitTime}ms before retrying processing start...`);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+        } catch (error) {
+          processingError = error;
+          console.error(`Processing start attempt ${processingAttempts + 1} failed with exception:`, error);
+          processingAttempts++;
+
+          if (processingAttempts < maxProcessingAttempts) {
+            const waitTime = Math.min(2000 * Math.pow(2, processingAttempts), 10000);
+            console.log(`Waiting ${waitTime}ms before retrying processing start...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+      }
       
-      if (error) {
-        console.error('Error starting transcription:', error);
+      if (!processingSuccess) {
+        console.error('All processing start attempts failed');
         toast({
           title: "Warning",
-          description: "File uploaded but transcription failed to start. It will retry automatically.",
+          description: "File uploaded but transcription failed to start. You can try the 'Retry Transcription' button.",
           variant: "destructive",
         });
+      } else {
+        // Show success message
+        toast({
+          title: "Success",
+          description: "File uploaded successfully! Transcription is being processed.",
+        });
       }
-
-      // Show success message
-      toast({
-        title: "Success",
-        description: "File uploaded successfully! You can track the transcription progress in the dashboard.",
-      });
 
       // Reset file input
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
@@ -107,7 +188,7 @@ export const useFileUpload = () => {
       return recordingData.id;
 
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('Error in file upload process:', error);
       
       toast({
         title: "Error",
