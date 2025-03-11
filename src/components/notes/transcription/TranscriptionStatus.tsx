@@ -1,16 +1,18 @@
 
 import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { StatusHeader } from "./StatusHeader";
 import { TranscriptionAlert } from "./TranscriptionAlert";
 import { ActionButtons } from "./ActionButtons";
 import { getStatusInfo } from "./getStatusInfo";
 import { LongRecordingNotice } from "./LongRecordingNotice";
+import { StallDetection } from "./StallDetection";
+import { ProgressDisplay } from "./ProgressDisplay";
+import { StatusIcon } from "./StatusIcon";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -39,55 +41,13 @@ export const TranscriptionStatus = ({
   
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
-  const isLongAudio = durationInMinutes && durationInMinutes > 30;
-  const isVeryLongAudio = durationInMinutes && durationInMinutes > 60;
+  const isLongAudio = Boolean(durationInMinutes && durationInMinutes > 30);
+  const isVeryLongAudio = Boolean(durationInMinutes && durationInMinutes > 60);
   
   const statusInfo = getStatusInfo(status);
   
   // Detect inconsistent state - completed generating minutes but status still shows transcribing
-  const hasInconsistentState = (status === 'transcribing' || status === 'processing') && transcript;
-  
-  // Check for stalled transcription
-  useEffect(() => {
-    if (status === 'processing' || status === 'transcribing' || status === 'pending') {
-      // Start a timer to detect stalled transcriptions
-      const checkTimeoutId = setTimeout(() => {
-        if (!noteId) return;
-        
-        // Check if the note's status has been updated
-        const checkStatus = async () => {
-          console.log('Checking note status for inactivity...');
-          const { data } = await supabase
-            .from('notes')
-            .select('updated_at, processing_progress, status')
-            .eq('id', noteId)
-            .single();
-            
-          if (data) {
-            const lastUpdate = new Date(data.updated_at);
-            const now = new Date();
-            const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
-            
-            // If no update for 5 minutes (300000ms) and still in processing state
-            if (timeSinceUpdate > 300000) {
-              console.log('Transcription seems stalled (no updates for 5+ minutes)');
-              setTranscriptionTimeout(true);
-            } else {
-              setLastProgressUpdate(lastUpdate);
-              console.log('Transcription still active, last update:', 
-                Math.round(timeSinceUpdate / 1000 / 60), 'minutes ago');
-            }
-          }
-        };
-        
-        checkStatus();
-      }, 300000); // Check after 5 minutes
-      
-      return () => clearTimeout(checkTimeoutId);
-    } else {
-      setTranscriptionTimeout(false);
-    }
-  }, [status, noteId]);
+  const hasInconsistentState = Boolean((status === 'transcribing' || status === 'processing') && transcript);
   
   const handleRetry = async () => {
     if (!noteId) return;
@@ -196,13 +156,21 @@ export const TranscriptionStatus = ({
   return (
     <Card className="p-4 mb-4 relative">
       <StatusHeader 
-        icon={statusInfo.icon}
+        icon={<StatusIcon status={status} />}
         message={statusInfo.message}
         color={statusInfo.color}
-        isLongAudio={!!isLongAudio}
+        isLongAudio={isLongAudio}
         durationInMinutes={durationInMinutes}
         status={status}
         progress={progress}
+      />
+      
+      {/* Stall detection (non-visual component) */}
+      <StallDetection 
+        status={status}
+        noteId={noteId}
+        onStallDetected={setTranscriptionTimeout}
+        onLastProgressUpdate={setLastProgressUpdate}
       />
       
       {/* Display alert for inconsistent state */}
@@ -248,17 +216,13 @@ export const TranscriptionStatus = ({
         isSyncing={isSyncing}
       />
       
-      {/* Progress bar */}
-      {showProgress && (
-        <Progress value={progress} className="w-full mt-3" />
-      )}
-      
-      {/* Last activity timestamp */}
-      {lastProgressUpdate && status !== 'completed' && status !== 'error' && (
-        <div className="mt-2 text-xs text-gray-500">
-          Last activity: {new Date(lastProgressUpdate).toLocaleTimeString()}
-        </div>
-      )}
+      {/* Progress bar and last activity */}
+      <ProgressDisplay
+        showProgress={showProgress}
+        progress={progress}
+        lastProgressUpdate={lastProgressUpdate}
+        status={status}
+      />
     </Card>
   );
 };
