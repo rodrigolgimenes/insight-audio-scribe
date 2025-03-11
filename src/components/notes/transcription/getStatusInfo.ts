@@ -1,63 +1,63 @@
 
-import { Loader2, AudioLines, FileText, CheckCircle2, AlertCircle } from "lucide-react";
-import { ReactNode } from "react";
+import { StatusInfo } from "@/types/notes";
 
-type StatusType = 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error' | string;
-
-export interface StatusInfo {
-  message: string;
-  icon: ReactNode;
-  color: string;
-  details: string;
-}
-
-export const getStatusInfo = (status: StatusType, isLongAudio: boolean = false, durationInMinutes?: number): StatusInfo => {
+export const getStatusInfo = (status: string): StatusInfo => {
   switch (status) {
-    case 'processing':
+    case "pending":
       return {
+        icon: "ClockIcon",
+        color: "text-yellow-600",
+        bgColor: "bg-yellow-50",
+        borderColor: "border-yellow-200",
+        message: "Waiting to process",
+      };
+    case "processing":
+      return {
+        icon: "LoaderIcon",
+        color: "text-blue-600",
+        bgColor: "bg-blue-50",
+        borderColor: "border-blue-200",
         message: "Processing audio",
-        icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
-        color: "text-blue-600",
-        details: isLongAudio ? 
-          `This is a long recording (${durationInMinutes} minutes). Processing may take longer than usual.` : 
-          "Preparing your audio file for transcription"
       };
-    case 'transcribing':
+    case "transcribing":
       return {
-        message: "Transcribing audio",
-        icon: <AudioLines className="h-5 w-5 animate-pulse text-blue-600" />,
+        icon: "FileIcon",
         color: "text-blue-600",
-        details: isLongAudio ? 
-          `Transcribing a ${durationInMinutes}-minute recording. This may take some time.` : 
-          "Converting speech to text"
+        bgColor: "bg-blue-50",
+        borderColor: "border-blue-200",
+        message: "Transcribing",
       };
-    case 'generating_minutes':
+    case "generating_minutes":
       return {
-        message: "Generating meeting minutes",
-        icon: <FileText className="h-5 w-5 text-blue-600" />,
-        color: "text-blue-600",
-        details: "Creating structured notes from your transcription"
+        icon: "FileTextIcon",
+        color: "text-purple-600",
+        bgColor: "bg-purple-50",
+        borderColor: "border-purple-200",
+        message: "Generating minutes",
       };
-    case 'completed':
+    case "completed":
       return {
-        message: "Processing completed",
-        icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+        icon: "CheckCircleIcon",
         color: "text-green-600",
-        details: "Your recording has been successfully processed"
+        bgColor: "bg-green-50", 
+        borderColor: "border-green-200",
+        message: "Completed",
       };
-    case 'error':
+    case "error":
       return {
-        message: "Processing error",
-        icon: <AlertCircle className="h-5 w-5 text-red-600" />,
+        icon: "AlertCircleIcon",
         color: "text-red-600",
-        details: "An error occurred during processing"
+        bgColor: "bg-red-50",
+        borderColor: "border-red-200",
+        message: "Processing error",
       };
     default:
       return {
-        message: "Waiting for processing",
-        icon: <Loader2 className="h-5 w-5 animate-spin text-gray-600" />,
+        icon: "InfoIcon",
         color: "text-gray-600",
-        details: "Your recording is in the queue for processing"
+        bgColor: "bg-gray-50",
+        borderColor: "border-gray-200",
+        message: "Unknown status",
       };
   }
 };

@@ -1,14 +1,13 @@
 
-import { Button } from "@/components/ui/button";
 import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
-import { RefreshCcw } from "lucide-react";
 import { Note } from "@/types/notes";
-import { MeetingMinutes } from "./MeetingMinutes";
-import { TranscriptAccordion } from "./TranscriptAccordion";
-import { TranscriptChat } from "./TranscriptChat";
-import { TranscriptionStatus } from "./TranscriptionStatus";
-import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
+import { TranscriptionStatus } from "./TranscriptionStatus";
+import { MeetingMinutesSection } from "./content/MeetingMinutesSection";
+import { TranscriptSection } from "./content/TranscriptSection";
+import { RetryTranscriptionButton } from "./content/RetryTranscriptionButton";
+import { NoteHeader as ContentHeader } from "./content/NoteHeader";
 
 interface NoteContentProps {
   note: Note;
@@ -58,40 +57,20 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
   return (
     <div className="space-y-8">
       {showRetryButton && (
-        <Button 
-          variant="outline" 
-          className="w-full flex items-center justify-center gap-2 text-blue-600 border-blue-200 hover:border-blue-300 hover:bg-blue-50"
-          onClick={handleRetryTranscription}
-        >
-          <RefreshCcw className="h-4 w-4" />
-          Retry Transcription
-        </Button>
+        <RetryTranscriptionButton onRetry={handleRetryTranscription} />
       )}
       
-      <div className="pb-4 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-gray-900">{note.title}</h1>
-        <p className="text-gray-500 mt-1">
-          {new Date(note.created_at).toLocaleDateString('en-US', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </p>
-      </div>
+      <ContentHeader title={note.title} createdAt={note.created_at} />
 
-      <MeetingMinutes
+      <MeetingMinutesSection
         noteId={note.id}
         transcript={note.original_transcript}
         audioUrl={audioUrl}
-        initialContent={meetingMinutes}
-        isLoadingInitialContent={isLoadingMinutes}
+        meetingMinutes={meetingMinutes}
+        isLoadingMinutes={isLoadingMinutes}
       />
 
-      <TranscriptAccordion transcript={note.original_transcript} />
-
-      <TranscriptChat note={note} />
+      <TranscriptSection note={note} />
 
       <TranscriptionStatus 
         status={note.status} 

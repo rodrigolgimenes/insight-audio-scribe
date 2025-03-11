@@ -20,3 +20,11 @@ export interface Note {
     color: string | null;
   }>;
 }
+
+export interface StatusInfo {
+  icon: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  message: string;
+}
