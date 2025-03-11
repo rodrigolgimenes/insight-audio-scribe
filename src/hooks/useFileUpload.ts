@@ -39,8 +39,9 @@ export const useFileUpload = () => {
       
       try {
         durationInMs = await getMediaDuration(file);
+        console.log('Successfully got media duration:', durationInMs);
       } catch (durationError) {
-        console.log('Timeout while getting media duration');
+        console.error('Error getting media duration:', durationError);
         // Default to 0 if we can't get duration
       }
       
@@ -54,7 +55,7 @@ export const useFileUpload = () => {
       const fileName = `${user.id}/${Date.now()}_${file.name.replace(/[^\x00-\x7F]/g, '')}`;
 
       // First create recording entry
-      console.log('Creating initial recording entry...');
+      console.log('Creating initial recording entry with duration:', durationInMs);
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
@@ -109,7 +110,8 @@ export const useFileUpload = () => {
           user_id: user.id,
           status: 'pending',
           processing_progress: 0,
-          processed_content: ''
+          processed_content: '',
+          duration: durationInMs // Explicitly set the duration in the notes table
         });
 
       if (noteError) {

@@ -79,42 +79,47 @@ export const DashboardTable = ({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {notes.map((note) => (
-          <TableRow 
-            key={note.id}
-            className="hover:bg-gray-50 cursor-pointer transition-colors"
-          >
-            <TableCell>
-              <div 
-                className="flex items-center justify-center" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleNoteSelection(note);
-                }}
-              >
-                <Checkbox 
-                  checked={selectedNotes.some(n => n.id === note.id)}
-                  className="w-4 h-4"
-                />
-              </div>
-            </TableCell>
-            <TableCell className="font-medium" onClick={() => navigate(`/app/notes/${note.id}`)}>
-              {note.title}
-            </TableCell>
-            <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
-              {formatDate(note.created_at)}
-            </TableCell>
-            <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
-              {formatDuration(note.duration || 0)}
-            </TableCell>
-            <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
-              <RecordingModeIcon mode="mic" />
-            </TableCell>
-            <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
-              <NoteStatus status={note.status || 'processing'} />
-            </TableCell>
-          </TableRow>
-        ))}
+        {notes.map((note) => {
+          // Log each note's duration for debugging
+          console.log(`Note ${note.id} duration:`, note.duration);
+          
+          return (
+            <TableRow 
+              key={note.id}
+              className="hover:bg-gray-50 cursor-pointer transition-colors"
+            >
+              <TableCell>
+                <div 
+                  className="flex items-center justify-center" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleNoteSelection(note);
+                  }}
+                >
+                  <Checkbox 
+                    checked={selectedNotes.some(n => n.id === note.id)}
+                    className="w-4 h-4"
+                  />
+                </div>
+              </TableCell>
+              <TableCell className="font-medium" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                {note.title}
+              </TableCell>
+              <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                {formatDate(note.created_at)}
+              </TableCell>
+              <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                {formatDuration(note.duration)}
+              </TableCell>
+              <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                <RecordingModeIcon mode="mic" />
+              </TableCell>
+              <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                <NoteStatus status={note.status || 'processing'} />
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );

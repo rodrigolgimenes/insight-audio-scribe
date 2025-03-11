@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Clock, Calendar, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
+import { formatDuration } from "@/utils/formatDuration";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,19 +37,22 @@ export const RecordingCard = ({
     queryFn: async () => {
       const { data } = await supabase
         .from('notes')
-        .select('id')
+        .select('id, duration')
         .eq('recording_id', recording.id)
         .single();
       return data;
     },
   });
 
-  const formatDuration = (duration: number | null) => {
-    if (!duration) return "0:00";
-    const minutes = Math.floor(duration / (60 * 1000));
-    const seconds = Math.floor((duration % (60 * 1000)) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
+  // Use the duration from the note if available (as it might be more accurate)
+  const displayDuration = noteData?.duration || recording.duration;
+  
+  console.log('Recording duration:', {
+    recordingId: recording.id,
+    recordingDuration: recording.duration,
+    noteDuration: noteData?.duration,
+    displayDuration
+  });
 
   const getStatusMessage = (recording: Recording, progress: number) => {
     console.log('Status:', recording.status, 'Progress:', progress);
@@ -143,7 +147,7 @@ export const RecordingCard = ({
         <div className="flex items-center gap-4 text-sm text-gray-500">
           <span className="flex items-center gap-1">
             <Clock className="h-4 w-4" />
-            {formatDuration(recording.duration)}
+            {formatDuration(displayDuration)}
           </span>
           <span className="flex items-center gap-1">
             <Calendar className="h-4 w-4" />

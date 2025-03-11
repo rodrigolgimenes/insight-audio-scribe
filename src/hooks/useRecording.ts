@@ -99,8 +99,9 @@ export const useRecording = () => {
       // Create object URL for preview
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
+      console.log('[useRecording] Recording stopped successfully with duration (seconds):', duration);
 
-      console.log('[useRecording] Recording stopped successfully');
+      return { blob, duration };
     } catch (error) {
       console.error('[useRecording] Error stopping recording:', error);
       toast({
@@ -108,6 +109,7 @@ export const useRecording = () => {
         description: "Failed to stop recording. Please try again.",
         variant: "destructive",
       });
+      return { blob: null, duration: 0 };
     } finally {
       isProcessing.current = false;
     }
@@ -155,6 +157,7 @@ export const useRecording = () => {
     setIsSaving(true);
     try {
       const { blob, duration } = await audioRecorder.current.stopRecording();
+      console.log('[useRecording] Saving recording with duration (seconds):', duration);
       const success = await saveRecording(session.user.id, blob, duration);
       
       if (success) {
@@ -190,5 +193,6 @@ export const useRecording = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    getCurrentDuration: () => audioRecorder.current.getCurrentDuration()
   };
 };

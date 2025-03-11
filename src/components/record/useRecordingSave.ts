@@ -13,7 +13,8 @@ export const useRecordingSave = () => {
     isRecording: boolean,
     handleStopRecording: () => Promise<void>,
     mediaStream: MediaStream | null,
-    audioUrl: string | null
+    audioUrl: string | null,
+    recordedDuration?: number
   ) => {
     try {
       if (isRecording) {
@@ -28,6 +29,7 @@ export const useRecordingSave = () => {
       const fileName = `${user.id}/${Date.now()}.mp3`.replace(/[^\x00-\x7F]/g, '');
       
       console.log('Creating recording with user ID:', user.id);
+      console.log('Recording duration in milliseconds:', recordedDuration || 0);
 
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
@@ -35,12 +37,15 @@ export const useRecordingSave = () => {
         });
       }
 
+      // Convert duration from seconds to milliseconds if needed
+      const durationInMs = recordedDuration ? Math.round(recordedDuration * 1000) : 0;
+
       // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
-          duration: 0,
+          duration: durationInMs,
           file_path: fileName,
           user_id: user.id,
           status: 'pending'
@@ -53,7 +58,7 @@ export const useRecordingSave = () => {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
-      console.log('Recording entry created:', recordingData);
+      console.log('Recording entry created with duration:', durationInMs);
 
       if (audioUrl) {
         const response = await fetch(audioUrl);
@@ -111,6 +116,24 @@ export const useRecordingSave = () => {
         if (updateError) {
           throw new Error(`Failed to update recording: ${updateError.message}`);
         }
+      }
+
+      // Create a note with the same duration
+      const { error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingData.title,
+          recording_id: recordingData.id,
+          user_id: user.id,
+          status: 'pending',
+          processing_progress: 0,
+          processed_content: '',
+          duration: durationInMs // Set the correct duration for the note
+        });
+
+      if (noteError) {
+        console.error('Error creating note:', noteError);
+        throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
       // Initiate processing with retry logic
