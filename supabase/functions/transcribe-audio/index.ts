@@ -27,9 +27,6 @@ serve(async (req) => {
       isLargeFile, 
       isRetry
     });
-    
-    // Remove the random progress updates which were causing confusion
-    // We'll use the defined stages in handlers.ts instead
 
     const transcriptionText = await handleTranscription({
       recordingId,
@@ -109,7 +106,7 @@ serve(async (req) => {
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 // Keep 200 to avoid CORS issues
+        status: 200 // Changed to 200 to avoid CORS issues
       }
     );
   }
