@@ -1,8 +1,9 @@
+
 import { useParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useTagQuery } from "@/hooks/tags/useTagQuery";
 import { useTagNotesQuery } from "@/hooks/tags/useTagNotesQuery";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";

@@ -64,6 +64,9 @@ const FolderPage = () => {
     user_id: 'anonymous', // Set a default value since it's not in the query
     duration: note.recordings?.duration || null,
     audio_url: null, // Since it's not in the query, set to null
+    status: 'completed', // Default status to completed
+    processing_progress: 100, // Default to 100% complete
+    error_message: null, // Default to no error
     tags: note.notes_tags?.map(nt => nt.tags).filter(Boolean) || []
   })) || [];
 

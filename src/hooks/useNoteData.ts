@@ -1,4 +1,3 @@
-
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +88,8 @@ export const useNoteData = () => {
         duration: duration,
         audio_url: data.audio_url || null,
         status: validStatus,
-        processing_progress: data.processing_progress || 0
+        processing_progress: data.processing_progress || 0,
+        error_message: data.error_message || null
       };
 
       // If the note should be completed but isn't, update it
