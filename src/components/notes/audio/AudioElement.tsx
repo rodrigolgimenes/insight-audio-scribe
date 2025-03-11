@@ -1,5 +1,5 @@
 
-import { forwardRef } from "react";
+import { forwardRef, useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface AudioElementProps {
@@ -10,6 +10,21 @@ interface AudioElementProps {
 export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
   ({ src, onEnded }, ref) => {
     const { toast } = useToast();
+    const [supportedFormats, setSupportedFormats] = useState<Record<string, string>>({});
+    
+    useEffect(() => {
+      // Check which audio formats are supported by the browser
+      const audio = document.createElement('audio');
+      const formats = {
+        mp3: audio.canPlayType('audio/mpeg'),
+        webm: audio.canPlayType('audio/webm'),
+        wav: audio.canPlayType('audio/wav'),
+        ogg: audio.canPlayType('audio/ogg')
+      };
+      
+      console.log('[AudioElement] Browser supported formats:', formats);
+      setSupportedFormats(formats);
+    }, []);
     
     const handleError = (e: React.SyntheticEvent<HTMLAudioElement, Event>) => {
       const target = e.currentTarget;
@@ -25,6 +40,7 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       console.error('[AudioElement] Audio src:', target.src);
       console.error('[AudioElement] Network state:', target.networkState);
       console.error('[AudioElement] Ready state:', target.readyState);
+      console.error('[AudioElement] Supported formats:', supportedFormats);
       
       let errorMessage = "Erro ao carregar arquivo de áudio";
       if (target.error) {
@@ -54,6 +70,8 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
     const getAudioType = (url: string): string => {
       if (url.includes('.mp3')) return 'audio/mpeg';
       if (url.includes('.webm')) return 'audio/webm';
+      if (url.includes('.wav')) return 'audio/wav';
+      if (url.includes('.ogg')) return 'audio/ogg';
       // Default to webm if no extension found
       return 'audio/webm';
     };
@@ -62,14 +80,13 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       if (!src) return;
       
       const audioType = getAudioType(src);
+      const audioElement = ref as React.MutableRefObject<HTMLAudioElement>;
+      
       console.log('[AudioElement] Load started:', { 
         src,
         audioType,
-        ref: ref as React.MutableRefObject<HTMLAudioElement>,
-        mimeTypes: {
-          webm: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/webm'),
-          mp3: (ref as React.MutableRefObject<HTMLAudioElement>).current?.canPlayType('audio/mpeg')
-        }
+        canPlayType: audioElement.current?.canPlayType(audioType),
+        supportedFormats
       });
     };
 
@@ -102,42 +119,29 @@ export const AudioElement = forwardRef<HTMLAudioElement, AudioElementProps>(
       }
     };
 
-    const handleProgress = () => {
-      if (!src) return;
-      
-      const audioEl = ref as React.MutableRefObject<HTMLAudioElement>;
-      if (audioEl.current) {
-        console.log('[AudioElement] Progress event:', {
-          buffered: audioEl.current.buffered.length > 0 
-            ? `${audioEl.current.buffered.start(0)} - ${audioEl.current.buffered.end(0)}`
-            : 'No buffered data',
-          readyState: audioEl.current.readyState,
-          networkState: audioEl.current.networkState,
-          duration: isFinite(audioEl.current.duration) ? audioEl.current.duration : 'Loading...'
-        });
-      }
-    };
-
     if (!src) {
       return null;
     }
 
     const audioType = getAudioType(src);
 
+    // Try to provide multiple formats for better compatibility
     return (
       <audio
         ref={ref}
-        src={src}
         onEnded={onEnded}
         onError={handleError}
         onLoadStart={handleLoadStart}
         onCanPlay={handleCanPlay}
         onLoadedMetadata={handleLoadedMetadata}
-        onProgress={handleProgress}
         preload="metadata"
+        controls={false}
       >
         <source src={src} type={audioType} />
-        Your browser does not support the audio element.
+        {/* Add alternative sources if we can determine the original file type */}
+        {audioType === 'audio/webm' && <source src={src} type="audio/mp3" />}
+        {audioType === 'audio/mpeg' && <source src={src} type="audio/webm" />}
+        <p>Seu navegador não suporta o elemento de áudio.</p>
       </audio>
     );
   }

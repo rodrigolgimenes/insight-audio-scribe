@@ -9,10 +9,28 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
     throw new Error('Missing OpenAI API key');
   }
 
-  // Convert blob to mp3 if needed
-  const finalBlob = audioData.type.includes('audio/webm') 
-    ? new Blob([audioData], { type: 'audio/mp3' })
-    : audioData;
+  // Check the content type of the blob
+  const contentType = audioData.type || 'audio/webm';
+  
+  console.log(`[transcribe-audio] Audio content type: ${contentType}, size: ${audioData.size} bytes`);
+  
+  // Determine if we need to convert based on MIME type
+  // OpenAI accepts mp3, mp4, mpeg, mpga, m4a, wav, and webm
+  const acceptedMimeTypes = [
+    'audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/mpga', 
+    'audio/m4a', 'audio/wav', 'audio/webm'
+  ];
+  
+  const isAcceptedType = acceptedMimeTypes.some(type => 
+    contentType.includes(type.split('/')[1])
+  );
+  
+  // Use the original blob if possible, otherwise make a new one with explicit MIME type
+  const finalBlob = isAcceptedType 
+    ? audioData 
+    : new Blob([audioData], { type: 'audio/mp3' });
+
+  console.log(`[transcribe-audio] Using ${isAcceptedType ? 'original' : 'converted'} blob with type: ${finalBlob.type}`);
 
   const formData = new FormData();
   formData.append('file', finalBlob, 'audio.mp3');
@@ -32,7 +50,9 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+        const errorMsg = errorData.error?.message || response.statusText;
+        console.error(`[transcribe-audio] OpenAI API error: ${errorMsg}, status: ${response.status}`);
+        throw new Error(`OpenAI API error: ${errorMsg}`);
       }
 
       const result = await response.json();

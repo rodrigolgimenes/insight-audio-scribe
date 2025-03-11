@@ -1,8 +1,9 @@
 
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, AudioLines, FileText, CheckCircle2, AlertCircle, FileWarning } from "lucide-react";
+import { Loader2, AudioLines, FileText, CheckCircle2, AlertCircle, FileWarning, RefreshCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TranscriptionStatusProps {
@@ -10,13 +11,15 @@ interface TranscriptionStatusProps {
   progress: number;
   error?: string;
   duration?: number;
+  onRetry?: () => Promise<boolean>;
 }
 
 export const TranscriptionStatus = ({
   status,
   progress,
   error,
-  duration
+  duration,
+  onRetry
 }: TranscriptionStatusProps) => {
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
@@ -74,6 +77,17 @@ export const TranscriptionStatus = ({
   };
 
   const { message, icon, color, details } = getStatusInfo();
+  
+  const handleRetry = async () => {
+    if (onRetry) {
+      const success = await onRetry();
+      // Success handling is done inside the retry function
+    }
+  };
+
+  const showRetryButton = status === 'error' && onRetry;
+  const isAudioFormatError = error?.toLowerCase().includes('formato') || 
+                           error?.toLowerCase().includes('format');
 
   return (
     <Card className="p-4 mb-4">
@@ -114,7 +128,29 @@ export const TranscriptionStatus = ({
       {status === 'error' && error && (
         <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
           {error}
+          
+          {isAudioFormatError && (
+            <div className="mt-2 text-xs">
+              <p>Dicas para resolver:</p>
+              <ul className="list-disc ml-4 mt-1">
+                <li>Tente converter o arquivo para MP3 antes de fazer o upload</li>
+                <li>Verifique se o arquivo de áudio não está corrompido</li>
+                <li>Tente usar um navegador diferente (Chrome, Firefox, ou Edge)</li>
+              </ul>
+            </div>
+          )}
         </div>
+      )}
+      
+      {showRetryButton && (
+        <Button
+          variant="outline"
+          className="mt-3 bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-100"
+          onClick={handleRetry}
+          size="sm"
+        >
+          <RefreshCcw className="h-4 w-4 mr-2" /> Tentar novamente
+        </Button>
       )}
       
       {status !== 'completed' && status !== 'error' && progress > 0 && (
