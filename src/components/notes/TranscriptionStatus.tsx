@@ -28,7 +28,8 @@ export const TranscriptionStatus = ({
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
   const isLongAudio = durationInMinutes && durationInMinutes > 20;
   
-  const { message, icon, color, details } = getStatusInfo(status, isLongAudio, durationInMinutes);
+  const statusInfo = getStatusInfo(status);
+  const { message, icon, color } = statusInfo;
   
   const handleRetry = async () => {
     if (noteId) {
@@ -51,10 +52,6 @@ export const TranscriptionStatus = ({
         status={status}
         progress={progress}
       />
-      
-      {details && (
-        <p className="text-sm text-gray-600 mt-1">{details}</p>
-      )}
       
       {status === 'error' && <ErrorHelpers error={error} />}
       
