@@ -9,6 +9,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { validateFile } from "@/utils/upload/fileValidation";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string) => void;
@@ -63,6 +64,22 @@ export function FileUpload({
           if (!onUploadComplete) {
             console.log(`Navigating to /app/notes/${noteId}`);
             navigate(`/app/notes/${noteId}`);
+            
+            // Automatically retry transcription after a brief delay if needed
+            setTimeout(async () => {
+              const { data: note } = await supabase
+                .from('notes')
+                .select('status')
+                .eq('id', noteId)
+                .single();
+                
+              if (note && (note.status === 'pending' || note.status === 'uploaded')) {
+                console.log("Auto-retrying transcription for note:", noteId);
+                await supabase.functions.invoke('process-recording', {
+                  body: { noteId: noteId }
+                });
+              }
+            }, 3000);
           } else {
             console.log(`Calling onUploadComplete with noteId: ${noteId}`);
             onUploadComplete(noteId);

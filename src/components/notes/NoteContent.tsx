@@ -2,7 +2,7 @@
 import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
 import { Note } from "@/types/notes";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { TranscriptionStatus } from "./TranscriptionStatus";
 import { MeetingMinutesSection } from "./content/MeetingMinutesSection";
 import { TranscriptSection } from "./content/TranscriptSection";
@@ -18,6 +18,36 @@ interface NoteContentProps {
 
 export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }: NoteContentProps) => {
   const { retryTranscription } = useNoteTranscription();
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [fromUpload, setFromUpload] = useState(false);
+  
+  // Check if we need to auto-retry based on URL params
+  useEffect(() => {
+    const checkAndAutoRetry = async () => {
+      // Check if this is a new file upload (status is pending and no transcription)
+      if ((note.status === 'pending' || note.status === 'uploaded') && 
+          !note.original_transcript && 
+          !isRetrying) {
+        
+        console.log("Auto-retrying transcription for newly uploaded file:", note.id);
+        setIsRetrying(true);
+        setFromUpload(true);
+        
+        try {
+          await retryTranscription(note.id);
+          console.log("Auto-retry transcription initiated successfully");
+        } catch (error) {
+          console.error("Failed to auto-retry transcription:", error);
+        } finally {
+          setIsRetrying(false);
+        }
+      }
+    };
+    
+    if (note.id) {
+      checkAndAutoRetry();
+    }
+  }, [note.id, note.status, note.original_transcript, retryTranscription]);
 
   // Set up realtime channel for status updates
   useEffect(() => {
@@ -48,11 +78,16 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
 
   const handleRetryTranscription = async () => {
     if (note.id) {
-      await retryTranscription(note.id);
+      setIsRetrying(true);
+      try {
+        await retryTranscription(note.id);
+      } finally {
+        setIsRetrying(false);
+      }
     }
   };
 
-  const showRetryButton = note.status === 'error' || (note.status === 'completed' && !note.original_transcript);
+  const showRetryButton = (note.status === 'error' || (note.status === 'completed' && !note.original_transcript)) && !fromUpload;
 
   return (
     <div className="space-y-8">

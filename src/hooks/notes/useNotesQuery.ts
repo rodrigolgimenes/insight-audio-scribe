@@ -108,6 +108,6 @@ export const useNotesQuery = () => {
       
       return notesWithTags;
     },
-    refetchInterval: 5000, // Changed from 10000 to 5000 (5 seconds) for more frequent updates
+    refetchInterval: 4000, // Changed to 4 seconds as requested
   });
 };

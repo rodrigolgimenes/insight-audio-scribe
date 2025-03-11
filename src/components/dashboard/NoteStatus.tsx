@@ -3,10 +3,12 @@ import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 interface NoteStatusProps {
   status: string;
+  progress?: number;
 }
 
-export const NoteStatus = ({ status }: NoteStatusProps) => {
-  console.log("Rendering status:", status);
+export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
+  console.log("Rendering status:", status, "progress:", progress);
+  const displayProgress = Math.round(progress);
   
   switch (status) {
     case "completed":
@@ -27,14 +29,14 @@ export const NoteStatus = ({ status }: NoteStatusProps) => {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Transcribing
+          Transcribing {displayProgress}%
         </span>
       );
     case "pending":
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Pending
+          Pending {displayProgress > 0 ? `${displayProgress}%` : ''}
         </span>
       );
     case "processing":
@@ -42,7 +44,7 @@ export const NoteStatus = ({ status }: NoteStatusProps) => {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Processing
+          Processing {displayProgress}%
         </span>
       );
   }

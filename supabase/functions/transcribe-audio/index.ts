@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { handleTranscription, corsHeaders } from './handlers.ts';
 import { createSupabaseClient } from './supabaseClient.ts';
 import { handleTranscriptionError } from './supabaseClient.ts';
+import { updateNoteProgress } from './utils/dataOperations.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -26,6 +27,25 @@ serve(async (req) => {
       isLargeFile, 
       isRetry
     });
+    
+    if (noteId) {
+      // Update note status to transcribing and set initial progress
+      const supabase = createSupabaseClient();
+      await updateNoteProgress(supabase, noteId, 'transcribing', 10);
+      
+      // Set up progress update intervals
+      const progressInterval = setInterval(async () => {
+        try {
+          const currentProgress = Math.min(95, Math.floor(10 + Math.random() * 30));
+          await updateNoteProgress(supabase, noteId, 'transcribing', currentProgress);
+        } catch (error) {
+          console.error('[transcribe-audio] Error in progress update:', error);
+        }
+      }, 5000);
+      
+      // Set timeout to clear the interval
+      setTimeout(() => clearInterval(progressInterval), 120000);
+    }
     
     const transcriptionText = await handleTranscription({
       recordingId,

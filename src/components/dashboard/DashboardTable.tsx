@@ -9,6 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RecordingModeIcon } from "@/components/dashboard/RecordingModeIcon";
 import { NoteStatus } from "@/components/dashboard/NoteStatus";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardTableProps {
   notes: Note[] | undefined;
@@ -28,6 +30,61 @@ export const DashboardTable = ({
   onToggleNoteSelection
 }: DashboardTableProps) => {
   const navigate = useNavigate();
+  const [notesProgress, setNotesProgress] = useState<Record<string, number>>({});
+
+  // Setup realtime listeners for note progress updates
+  useEffect(() => {
+    if (!notes || notes.length === 0) return;
+    
+    // Get initial progress values
+    const fetchInitialProgress = async () => {
+      const { data } = await supabase
+        .from('notes')
+        .select('id, processing_progress')
+        .in('id', notes.map(note => note.id));
+        
+      if (data) {
+        const progressMap: Record<string, number> = {};
+        data.forEach(note => {
+          progressMap[note.id] = note.processing_progress || 0;
+        });
+        setNotesProgress(progressMap);
+      }
+    };
+    
+    fetchInitialProgress();
+    
+    // Setup realtime subscription
+    const channel = supabase
+      .channel('notes-progress')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes'
+        },
+        (payload) => {
+          if (payload.new && 'id' in payload.new && 'processing_progress' in payload.new) {
+            setNotesProgress(prev => ({
+              ...prev,
+              [payload.new.id]: payload.new.processing_progress || 0
+            }));
+          }
+        }
+      )
+      .subscribe();
+      
+    // Set up a refresh interval (every 4 seconds)
+    const intervalId = setInterval(() => {
+      fetchInitialProgress();
+    }, 4000);
+    
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(intervalId);
+    };
+  }, [notes]);
 
   if (isLoading) {
     return (
@@ -80,8 +137,10 @@ export const DashboardTable = ({
       </TableHeader>
       <TableBody>
         {notes.map((note) => {
-          // Log each note's duration for debugging
-          console.log(`Note ${note.id} duration:`, note.duration);
+          // Get progress from state or fallback to note's progress
+          const progress = notesProgress[note.id] !== undefined 
+            ? notesProgress[note.id] 
+            : note.processing_progress || 0;
           
           return (
             <TableRow 
@@ -115,7 +174,7 @@ export const DashboardTable = ({
                 <RecordingModeIcon mode="mic" />
               </TableCell>
               <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
-                <NoteStatus status={note.status || 'processing'} />
+                <NoteStatus status={note.status || 'processing'} progress={progress} />
               </TableCell>
             </TableRow>
           );

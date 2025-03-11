@@ -27,6 +27,15 @@ export async function updateRecordingAndNote(
     // Then update note
     await updateNote(supabase, noteId, transcriptionText);
     
+    // Update note status to completed and set progress to 100%
+    await supabase
+      .from('notes')
+      .update({
+        status: 'completed',
+        processing_progress: 100
+      })
+      .eq('id', noteId);
+    
     console.log('[transcribe-audio] Successfully updated recording and note with transcription');
   } catch (error) {
     console.error('[transcribe-audio] Error in updateRecordingAndNote:', error);
@@ -120,5 +129,41 @@ export async function verifyRecordingAndNoteLink(
   } catch (error) {
     console.error('[transcribe-audio] Error in verifyRecordingAndNoteLink:', error);
     return false;
+  }
+}
+
+/**
+ * Update note status and progress during transcription process
+ * @param supabase Supabase client
+ * @param noteId Note ID
+ * @param status Status to set
+ * @param progress Progress percentage (0-100)
+ */
+export async function updateNoteProgress(
+  supabase: any,
+  noteId: string,
+  status: string,
+  progress: number
+) {
+  console.log(`[transcribe-audio] Updating note ${noteId} status to "${status}" with progress ${progress}%`);
+  
+  try {
+    const { error } = await supabase
+      .from('notes')
+      .update({
+        status: status,
+        processing_progress: progress
+      })
+      .eq('id', noteId);
+      
+    if (error) {
+      console.error('[transcribe-audio] Error updating note progress:', error);
+      throw error;
+    }
+    
+    console.log('[transcribe-audio] Successfully updated note progress');
+  } catch (error) {
+    console.error('[transcribe-audio] Error in updateNoteProgress:', error);
+    // Don't throw error here to avoid interrupting the main process
   }
 }
