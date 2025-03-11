@@ -38,10 +38,21 @@ export const useAudioUrl = (audioUrl: string | null) => {
       // If it has URL parameters, remove them
       cleanPath = cleanPath.split('?')[0];
       
+      // Handle URL encoded characters if present
+      let decodedPath = cleanPath;
+      try {
+        if (cleanPath.includes('%')) {
+          decodedPath = decodeURIComponent(cleanPath);
+          console.log('[useAudioUrl] Decoded path:', decodedPath);
+        }
+      } catch (e) {
+        console.error('[useAudioUrl] Error decoding path:', e);
+      }
+      
       console.log('[useAudioUrl] Cleaned path:', cleanPath);
 
       // First check if the file exists
-      const pathParts = cleanPath.split('/');
+      const pathParts = decodedPath.split('/');
       const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
       const fileName = pathParts[pathParts.length - 1];
       
@@ -52,7 +63,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
         .from('audio_recordings')
         .list(bucketFolder, {
           limit: 100,
-          search: fileName
+          search: fileName.split('%')[0] // Search for the first part before any encoding
         });
 
       if (listError) {
@@ -60,7 +71,22 @@ export const useAudioUrl = (audioUrl: string | null) => {
         throw new Error(`Failed to check file existence: ${listError.message}`);
       }
 
-      const fileExists = existsList && existsList.some(file => file.name === fileName);
+      // Try to find exact file match first
+      let exactFile = existsList?.find(file => file.name === fileName);
+      
+      // If no exact match and filename has encoded characters, try to find similar files
+      if (!exactFile && fileName.includes('%')) {
+        const fileNameBase = fileName.split('%')[0];
+        const similarFiles = existsList?.filter(file => file.name.startsWith(fileNameBase));
+        
+        if (similarFiles && similarFiles.length > 0) {
+          exactFile = similarFiles[0];
+          decodedPath = `${bucketFolder}/${exactFile.name}`;
+          console.log('[useAudioUrl] Found similar file:', exactFile.name);
+        }
+      }
+      
+      const fileExists = !!exactFile;
       
       console.log('[useAudioUrl] File existence check:', { 
         fileExists, 
@@ -76,7 +102,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
       const { data: signedData, error: signedError } = await supabase
         .storage
         .from('audio_recordings')
-        .createSignedUrl(cleanPath, 3600);
+        .createSignedUrl(decodedPath, 3600);
 
       if (signedError) {
         console.error('[useAudioUrl] Error creating signed URL:', signedError);
@@ -117,7 +143,7 @@ export const useAudioUrl = (audioUrl: string | null) => {
     }
   }, [audioUrl, toast, retryCount, maxRetries]);
 
-  // Auto-retry mechanism
+  // Auto-retry mechanism with exponential backoff
   useEffect(() => {
     if (error && retryCount < maxRetries) {
       const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff with max 10s

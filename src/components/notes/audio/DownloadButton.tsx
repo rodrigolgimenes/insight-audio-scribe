@@ -49,10 +49,21 @@ export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: Downloa
       // If it has URL parameters, remove them
       cleanPath = cleanPath.split('?')[0];
       
+      // Handle URL encoded characters if present
+      let decodedPath = cleanPath;
+      try {
+        if (cleanPath.includes('%')) {
+          decodedPath = decodeURIComponent(cleanPath);
+          console.log('[DownloadButton] Decoded path:', decodedPath);
+        }
+      } catch (e) {
+        console.error('[DownloadButton] Error decoding path:', e);
+      }
+      
       console.log('[DownloadButton] Clean path:', cleanPath);
 
       // First verify the file exists
-      const pathParts = cleanPath.split('/');
+      const pathParts = decodedPath.split('/');
       const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
       const fileName = pathParts[pathParts.length - 1];
       
@@ -61,7 +72,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: Downloa
         .from('audio_recordings')
         .list(bucketFolder, {
           limit: 100,
-          search: fileName
+          search: fileName.split('%')[0] // Search for the first part before any encoding
         });
 
       if (listError) {
@@ -69,8 +80,23 @@ export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: Downloa
         throw new Error(`Failed to check file existence: ${listError.message}`);
       }
 
-      const fileExists = fileList?.some(file => file.name === fileName);
+      // Check for exact match first
+      let exactFile = fileList?.find(file => file.name === fileName);
       
+      // If no exact match and filename has encoded characters, try to find similar files
+      if (!exactFile && fileName.includes('%')) {
+        const fileNameBase = fileName.split('%')[0];
+        const similarFiles = fileList?.filter(file => file.name.startsWith(fileNameBase));
+        
+        if (similarFiles && similarFiles.length > 0) {
+          exactFile = similarFiles[0];
+          decodedPath = `${bucketFolder}/${exactFile.name}`;
+          console.log('[DownloadButton] Found similar file:', exactFile.name);
+        }
+      }
+      
+      const fileExists = !!exactFile;
+
       if (!fileExists) {
         throw new Error(`File not found in storage: ${cleanPath}`);
       }
@@ -79,7 +105,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: Downloa
       const { data: signedData, error: signError } = await supabase
         .storage
         .from('audio_recordings')
-        .createSignedUrl(cleanPath, 3600);
+        .createSignedUrl(decodedPath, 3600);
 
       if (signError || !signedData?.signedUrl) {
         console.error('[DownloadButton] Error generating signed URL:', signError);
@@ -96,7 +122,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: Downloa
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName.split('.')[0] + '.mp3';
+      a.download = exactFile.name.split('.')[0] + '.mp3';
       
       document.body.appendChild(a);
       a.click();
@@ -135,7 +161,7 @@ export const DownloadButton = ({ publicUrl, isAudioReady, onRetryLoad }: Downloa
         variant="ghost" 
         size="sm"
         onClick={handleRetry}
-        className="text-blue-500 hover:bg-blue-50"
+        className="text-green-500 hover:bg-green-50"
       >
         <RefreshCw className="h-4 w-4 mr-2" />
         Retry Loading

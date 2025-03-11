@@ -1,4 +1,3 @@
-
 import React from "react";
 import { AlertCircle, Info } from "lucide-react";
 
@@ -19,8 +18,25 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
                       error.toLowerCase().includes('timed out');
   const isDurationError = error.toLowerCase().includes('duration');
 
+  // Clean up encoded file paths for better display
+  let displayError = error;
+  if (isFileNotFoundError && error.includes('%')) {
+    try {
+      displayError = error.replace(/([^:]+)%[^:]+/g, (match) => {
+        const parts = match.split(':');
+        if (parts.length > 1) {
+          return `${parts[0]}: [encoded filename]`;
+        }
+        return match;
+      });
+    } catch (e) {
+      // Keep original error if decoding fails
+      console.error('Error cleaning up file path:', e);
+    }
+  }
+
   if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && !isTimeoutError && !isDurationError) {
-    return <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>;
+    return <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{displayError}</div>;
   }
 
   return (
@@ -28,7 +44,7 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
       <div className="flex items-start">
         <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 text-red-600" />
         <div>
-          <p className="font-medium">{error}</p>
+          <p className="font-medium">{displayError}</p>
           
           {isFileNotFoundError && (
             <div className="mt-3">
@@ -37,6 +53,7 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
                 <li>The file may have been deleted or not uploaded correctly</li>
                 <li>Try uploading a new file again</li>
                 <li>Check if you have a stable internet connection</li>
+                <li>If your filename contains special characters, try renaming it with simple characters</li>
                 <li>If you just uploaded this file, please wait a moment and try again</li>
               </ul>
             </div>

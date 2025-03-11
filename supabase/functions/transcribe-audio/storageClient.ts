@@ -4,8 +4,19 @@ import { withRetry } from './retryUtils.ts';
 export async function downloadAudioFile(supabase: any, filePath: string): Promise<Blob> {
   console.log(`[transcribe-audio] Starting download of file: ${filePath}`);
   
+  // Decode URL components if present in the filename
+  let decodedPath = filePath;
+  try {
+    if (filePath.includes('%')) {
+      decodedPath = decodeURIComponent(filePath);
+      console.log(`[transcribe-audio] Decoded file path: ${decodedPath}`);
+    }
+  } catch (e) {
+    console.error(`[transcribe-audio] Error decoding file path, using original: ${e.message}`);
+  }
+  
   // First check if the file exists
-  const pathParts = filePath.split('/');
+  const pathParts = decodedPath.split('/');
   const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
   const fileName = pathParts[pathParts.length - 1];
   
@@ -26,7 +37,23 @@ export async function downloadAudioFile(supabase: any, filePath: string): Promis
     throw new Error(`Folder not found in storage: ${bucketFolder}`);
   }
   
-  const fileExists = existsData.some((file: any) => file.name === fileName);
+  // Try both the original filename and decoded filename
+  let fileExists = existsData.some((file: any) => file.name === fileName);
+  
+  // If the file wasn't found and contains URI-encoded characters, try matching with just the first part
+  if (!fileExists && fileName.includes('%')) {
+    const fileNameBase = fileName.split('%')[0];
+    const matchingFiles = existsData.filter((file: any) => file.name.startsWith(fileNameBase));
+    
+    if (matchingFiles.length > 0) {
+      fileExists = true;
+      // Use the first matching file
+      fileName = matchingFiles[0].name;
+      decodedPath = `${bucketFolder}/${fileName}`;
+      console.log(`[transcribe-audio] Found similar file: ${fileName}`);
+    }
+  }
+  
   console.log(`[transcribe-audio] File existence check: ${fileExists ? 'Found' : 'Not found'}`);
   
   if (!fileExists) {
@@ -36,12 +63,12 @@ export async function downloadAudioFile(supabase: any, filePath: string): Promis
   
   return withRetry(
     async () => {
-      console.log(`[transcribe-audio] Downloading file: ${filePath}`);
+      console.log(`[transcribe-audio] Downloading file: ${decodedPath}`);
       
       const { data, error } = await supabase
         .storage
         .from('audio_recordings')
-        .download(filePath);
+        .download(decodedPath);
 
       if (error) {
         console.error('[transcribe-audio] Download error:', error);
