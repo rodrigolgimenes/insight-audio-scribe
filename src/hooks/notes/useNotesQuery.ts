@@ -15,6 +15,7 @@ export const useNotesQuery = () => {
   return useQuery({
     queryKey: ["uncategorized-notes"],
     queryFn: async () => {
+      // First, get notes without folders from the view
       const { data, error } = await supabase
         .from("notes_without_folders")
         .select(`
@@ -29,8 +30,6 @@ export const useNotesQuery = () => {
           user_id,
           duration,
           audio_url,
-          status,
-          processing_progress,
           tags (
             id,
             name,
@@ -42,16 +41,41 @@ export const useNotesQuery = () => {
 
       if (error) throw error;
       
-      // Check for notes that should be completed but aren't
+      // Get the note IDs to check their status in the notes table
+      const noteIds = (data || []).map(note => note.id).filter(Boolean);
+      
+      if (noteIds.length === 0) {
+        return [] as NoteWithTags[];
+      }
+      
+      // Fetch status information from the actual notes table
+      const { data: notesWithStatus, error: statusError } = await supabase
+        .from("notes")
+        .select("id, status, processing_progress, original_transcript")
+        .in('id', noteIds);
+        
+      if (statusError) {
+        console.error("Error fetching note statuses:", statusError);
+      }
+      
+      // Create a map of note statuses for quick lookup
+      const statusMap = new Map();
       const notesToUpdate = [];
-      for (const note of data || []) {
+      
+      (notesWithStatus || []).forEach(note => {
+        statusMap.set(note.id, {
+          status: note.status,
+          processing_progress: note.processing_progress || 0
+        });
+        
+        // Check if note should be completed but isn't
         if (note.original_transcript && 
             (note.status === 'processing' || note.status === 'transcribing')) {
           notesToUpdate.push(note.id);
         }
-      }
+      });
       
-      // Update status for notes that have transcripts but aren't marked as completed
+      // Update notes that should be completed
       if (notesToUpdate.length > 0) {
         await supabase
           .from('notes')
@@ -60,37 +84,29 @@ export const useNotesQuery = () => {
             processing_progress: 100 
           })
           .in('id', notesToUpdate);
-          
-        // Refresh the data after updates
-        const { data: updatedData } = await supabase
-          .from("notes_without_folders")
-          .select(`
-            id,
-            title,
-            original_transcript,
-            processed_content,
-            full_prompt,
-            created_at,
-            updated_at,
-            recording_id,
-            user_id,
-            duration,
-            audio_url,
-            status,
-            processing_progress,
-            tags (
-              id,
-              name,
-              color
-            )
-          `)
-          .order('created_at', { ascending: false })
-          .limit(50);
-          
-        return (updatedData || []) as NoteWithTags[];
+        
+        // Update our status map with the new statuses
+        notesToUpdate.forEach(id => {
+          statusMap.set(id, { status: 'completed', processing_progress: 100 });
+        });
       }
       
-      return (data || []) as NoteWithTags[];
+      // Merge the data from notes_without_folders with status information
+      const notesWithTags = (data || []).map(note => {
+        const statusInfo = statusMap.get(note.id) || { 
+          status: 'processing', 
+          processing_progress: 0 
+        };
+        
+        return {
+          ...note,
+          status: statusInfo.status,
+          processing_progress: statusInfo.processing_progress,
+          tags: note.tags || []
+        } as NoteWithTags;
+      });
+      
+      return notesWithTags;
     },
     refetchInterval: 10000, // Refresh every 10 seconds to catch status updates
   });
