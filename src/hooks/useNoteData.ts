@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
 import { useToast } from "@/components/ui/use-toast";
@@ -8,6 +8,7 @@ export const useNoteData = () => {
   const { noteId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(noteId || '');
 
@@ -20,6 +21,47 @@ export const useNoteData = () => {
     navigate("/app");
     return { note: null, isLoadingNote: false, folders: [], currentFolder: null, tags: [] };
   }
+
+  const retryTranscription = async (noteId: string) => {
+    const { error } = await supabase.functions
+      .invoke('transcribe-audio', {
+        body: { 
+          noteId,
+          isRetry: true
+        }
+      });
+
+    if (error) {
+      console.error('Error retrying transcription:', error);
+      toast({
+        title: "Error",
+        description: "Failed to retry transcription. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // Update note status locally
+    await supabase
+      .from('notes')
+      .update({ 
+        status: 'processing',
+        processing_progress: 0,
+        error_message: null
+      })
+      .eq('id', noteId);
+
+    // Invalidate queries to refresh the data
+    queryClient.invalidateQueries(['note', noteId]);
+    queryClient.invalidateQueries(['note-tags', noteId]);
+    
+    toast({
+      title: "Success",
+      description: "Transcription process restarted. This may take a few minutes.",
+    });
+
+    return true;
+  };
 
   const { data: note, isLoading: isLoadingNote } = useQuery({
     queryKey: ["note", noteId],
@@ -171,5 +213,6 @@ export const useNoteData = () => {
     folders,
     currentFolder,
     tags,
+    retryTranscription
   };
 };
