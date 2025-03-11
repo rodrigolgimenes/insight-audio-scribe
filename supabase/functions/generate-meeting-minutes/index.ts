@@ -9,7 +9,7 @@ const corsHeaders = {
 
 interface RequestBody {
   noteId: string;
-  isRegeneration?: boolean;
+  isRegeneration?: boolean; // Kept for backward compatibility, but not used
 }
 
 serve(async (req) => {
@@ -18,8 +18,8 @@ serve(async (req) => {
   }
 
   try {
-    const { noteId, isRegeneration } = await req.json() as RequestBody;
-    console.log('Starting minutes generation with params:', { noteId, isRegeneration });
+    const { noteId } = await req.json() as RequestBody;
+    console.log('Starting minutes generation with params:', { noteId });
 
     if (!noteId) {
       throw new Error('Note ID is required');
@@ -171,7 +171,7 @@ Adaptações Específicas:
       details: error instanceof Error ? error.stack : undefined
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200 // Mantemos 200 para evitar erro de CORS
+      status: 200 // Keep 200 to avoid CORS errors
     });
   }
 });

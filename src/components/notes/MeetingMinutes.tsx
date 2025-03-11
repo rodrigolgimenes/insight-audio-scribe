@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { AudioControlBar } from "./AudioControlBar";
 import { useMeetingMinutes } from "./minutes/useMeetingMinutes";
 import { MinutesContent } from "./minutes/MinutesContent";
-import { RegenerateButton } from "./minutes/RegenerateButton";
 import { LoadingSpinner } from "./minutes/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import { Edit2 } from "lucide-react";
@@ -73,28 +72,6 @@ export const MeetingMinutes = ({
     setDraftContent(null);
   };
 
-  const handleRegenerate = async () => {
-    if (!transcript) {
-      toast({
-        title: "Error",
-        description: "Cannot regenerate minutes without transcript",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await generateMinutes({ isRegeneration: true });
-    } catch (error) {
-      console.error('Error regenerating minutes:', error);
-      toast({
-        title: "Error",
-        description: "Failed to regenerate meeting minutes",
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
     const shouldGenerateMinutes = 
       !isLoadingInitialContent &&
@@ -112,7 +89,7 @@ export const MeetingMinutes = ({
           console.error('Error auto-generating minutes:', error);
           toast({
             title: "Error",
-            description: "Failed to generate initial meeting minutes. You can try regenerating them manually.",
+            description: "Failed to generate initial meeting minutes.",
             variant: "destructive",
           });
         }
@@ -157,14 +134,6 @@ export const MeetingMinutes = ({
               <Edit2 className="h-4 w-4" />
               Edit Meeting Minutes
             </Button>
-          )}
-          
-          {minutes && (
-            <RegenerateButton
-              onRegenerate={handleRegenerate}
-              isGenerating={isGenerating}
-              disabled={!transcript || isEditing}
-            />
           )}
         </div>
 

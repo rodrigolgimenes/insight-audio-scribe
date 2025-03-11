@@ -36,7 +36,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       }
     },
     initialData: initialContent || '',
-    staleTime: 0, // Desabilitar cache para sempre buscar dados frescos
+    staleTime: 0,
     gcTime: 30 * 60 * 1000,
   });
 
@@ -49,7 +49,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       const { data, error: functionError } = await supabase.functions.invoke('generate-meeting-minutes', {
         body: { 
           noteId,
-          isRegeneration
+          isRegeneration: false // Always use false now since we removed regeneration
         },
       });
 
@@ -97,7 +97,6 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
           throw error;
         }
 
-        // Buscar os dados atualizados
         const { data: updatedData, error: fetchError } = await supabase
           .from('meeting_minutes')
           .select('content')
@@ -117,9 +116,7 @@ export const useMeetingMinutes = (noteId: string, initialContent?: string | null
       }
     },
     onSuccess: (newContent) => {
-      // Atualiza imediatamente o cache
       queryClient.setQueryData(['meeting-minutes', noteId], newContent);
-      // Invalida a query para forçar uma nova busca
       queryClient.invalidateQueries({ queryKey: ['meeting-minutes', noteId] });
       toast({
         title: "Success",
