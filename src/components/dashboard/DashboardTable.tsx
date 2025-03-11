@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Loader2, PlusSquare } from "lucide-react";
 import { Note } from "@/integrations/supabase/types/notes";

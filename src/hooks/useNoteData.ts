@@ -70,6 +70,8 @@ export const useNoteData = () => {
         user_id: data.user_id,
         duration: data.recordings?.duration || null,
         audio_url: data.audio_url || null,
+        status: data.status || 'processing',
+        processing_progress: data.processing_progress || 0
       };
 
       return transformedNote;

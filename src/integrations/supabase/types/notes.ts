@@ -11,7 +11,7 @@ export interface Note {
   user_id: string;
   duration: number | null;
   audio_url: string | null;
-  status?: 'processing' | 'completed' | 'error';
+  status?: 'pending' | 'processing' | 'transcribing' | 'completed' | 'error';
   processing_progress?: number;
   folder?: {
     folder_id: string;
