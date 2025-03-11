@@ -3,7 +3,7 @@ import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
 import { Note } from "@/types/notes";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
-import { TranscriptionStatus } from "./TranscriptionStatus";
+import { TranscriptionStatus } from "./transcription/TranscriptionStatus";
 import { MeetingMinutesSection } from "./content/MeetingMinutesSection";
 import { TranscriptSection } from "./content/TranscriptSection";
 import { RetryTranscriptionButton } from "./content/RetryTranscriptionButton";
@@ -25,7 +25,7 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
   useEffect(() => {
     const checkAndAutoRetry = async () => {
       // Check if this is a new file upload (status is pending and no transcription)
-      if ((note.status === 'pending' || note.status === 'uploaded') && 
+      if ((note.status === 'pending') && 
           !note.original_transcript && 
           !isRetrying) {
         
