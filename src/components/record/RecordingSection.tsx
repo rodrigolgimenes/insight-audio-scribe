@@ -6,7 +6,7 @@ import { RecordControls } from "@/components/record/RecordControls";
 import { RecordStatus } from "@/components/record/RecordStatus";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Languages } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -56,6 +56,7 @@ export const RecordingSection = ({
   showPlayButton = true,
   showDeleteButton = true,
 }: RecordingSectionProps) => {
+  const [language, setLanguage] = useState("en");
   const canStartRecording = !!selectedDeviceId;
 
   return (
@@ -103,6 +104,31 @@ export const RecordingSection = ({
                   {device.label}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center justify-between space-x-2">
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="language" className="text-sm text-gray-700">
+              Audio Language
+            </Label>
+            <Languages className="h-4 w-4 text-gray-500" />
+          </div>
+          <Select
+            value={language}
+            onValueChange={setLanguage}
+            disabled={isRecording}
+          >
+            <SelectTrigger className="w-[280px]">
+              <SelectValue placeholder="Select language" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="pt">Portuguese</SelectItem>
+              <SelectItem value="es">Spanish</SelectItem>
+              <SelectItem value="fr">French</SelectItem>
+              <SelectItem value="de">German</SelectItem>
             </SelectContent>
           </Select>
         </div>

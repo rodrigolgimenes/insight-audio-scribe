@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Mic, Loader2 } from "lucide-react";
+import { Mic, FileText, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface SaveRecordingButtonProps {
@@ -28,19 +28,19 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
 
   return (
     <Button 
-      className="bg-[#E91E63] hover:bg-[#D81B60] gap-2 min-w-[140px]"
+      className="bg-[#E91E63] hover:bg-[#D81B60] gap-2 min-w-[180px]"
       onClick={handleClick}
       disabled={!isClickable || isDisabled || isSaving}
     >
       {isSaving ? (
         <>
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Creating...</span>
+          <span>Transcribing...</span>
         </>
       ) : (
         <>
-          <Mic className="h-4 w-4" />
-          <span>Create Note</span>
+          <FileText className="h-4 w-4" />
+          <span>Transcribe Now</span>
         </>
       )}
     </Button>

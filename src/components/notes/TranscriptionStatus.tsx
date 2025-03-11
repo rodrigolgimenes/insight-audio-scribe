@@ -1,7 +1,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, CheckCircle2, FileText, Loader2 } from "lucide-react";
+import { Loader2, AudioLines, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface TranscriptionStatusProps {
   status: string;
@@ -23,7 +23,7 @@ export const TranscriptionStatus = ({
       case 'transcribing':
         return {
           message: "Transcribing audio",
-          icon: <Loader2 className="h-5 w-5 animate-spin text-blue-600" />,
+          icon: <AudioLines className="h-5 w-5 animate-pulse text-blue-600" />,
           color: "text-blue-600"
         };
       case 'generating_minutes':

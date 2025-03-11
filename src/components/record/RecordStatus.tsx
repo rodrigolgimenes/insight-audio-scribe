@@ -1,3 +1,4 @@
+
 interface RecordStatusProps {
   isRecording: boolean;
   isPaused: boolean;
