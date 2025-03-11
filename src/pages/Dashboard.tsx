@@ -3,15 +3,19 @@ import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useNoteManagement } from "@/hooks/useNoteManagement";
-import { Mic, Search } from "lucide-react";
+import { Mic, Search, PlusSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { formatDuration } from "@/utils/formatDuration";
+import { formatDate } from "@/utils/formatDate";
 import { RecordingSheet } from "@/components/dashboard/RecordingSheet";
 import { BulkActions } from "@/components/dashboard/BulkActions";
+import { NoteStatus } from "@/components/dashboard/NoteStatus";
+import { RecordingModeIcon } from "@/components/dashboard/RecordingModeIcon";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,21 +74,26 @@ const Dashboard = () => {
       <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
         <AppSidebar activePage="notes" />
         <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
-          <div className="bg-[#9b87f5] p-4">
+          {/* Header com cor de fundo azul médio (#4285F4) conforme especificações */}
+          <div className="bg-[#4285F4] p-4 shadow-md">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg">
+              <div className="flex items-center flex-1 max-w-2xl bg-white rounded-lg overflow-hidden">
                 <Search className="h-5 w-5 ml-3 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Search files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-0 focus-visible:ring-0"
+                  className="border-0 focus-visible:ring-0 h-10"
                 />
               </div>
               <Sheet open={isRecordingSheetOpen} onOpenChange={setIsRecordingSheetOpen}>
                 <SheetTrigger asChild>
-                  <Button size="icon" variant="ghost" className="bg-[#7E69AB] hover:bg-[#6A5A91] text-white">
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="bg-[#3367D6] hover:bg-[#2A56C6] text-white transition-colors"
+                  >
                     <Mic className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
@@ -92,47 +101,57 @@ const Dashboard = () => {
               </Sheet>
               <Button 
                 onClick={() => navigate('/app/record')}
-                className="bg-white text-[#9b87f5] hover:bg-[#f8f7fd]"
+                className="bg-white text-[#4285F4] hover:bg-[#E8F0FE] transition-colors"
               >
+                <PlusSquare className="h-4 w-4 mr-2" />
                 TRANSCRIBE FILES
               </Button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto">
-            <div className="px-4">
-              <h2 className="text-xl font-semibold my-6">Recent Files</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="sticky top-0 bg-white z-10">
-                    <tr className="border-b text-sm">
-                      <th className="py-3 pl-6 pr-4 text-left w-16">
-                        <div className="flex items-center justify-center w-5 h-5 cursor-pointer" onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectAll();
-                        }}>
-                          <Checkbox 
-                            checked={notes && selectedNotes.length === notes.length}
-                            className="w-4 h-4"
-                          />
+          <div className="flex-1 overflow-auto p-6">
+            <h2 className="text-xl font-semibold mb-4">Recent Files</h2>
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">
+                      <div className="flex items-center justify-center" onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectAll();
+                      }}>
+                        <Checkbox 
+                          checked={notes && selectedNotes.length === notes.length && notes.length > 0}
+                          className="w-4 h-4"
+                        />
+                      </div>
+                    </TableHead>
+                    <TableHead>NAME</TableHead>
+                    <TableHead>UPLOAD DATE</TableHead>
+                    <TableHead>DURATION</TableHead>
+                    <TableHead>MODE</TableHead>
+                    <TableHead>STATUS</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <div className="flex justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-[#4285F4]" />
                         </div>
-                      </th>
-                      <th className="py-3 pl-8 pr-4 text-left text-sm font-medium text-gray-500">NAME</th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">UPLOAD DATE</th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">DURATION</th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">MODE</th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-500">STATUS</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {filteredNotes?.map((note) => (
-                      <tr 
+                        <p className="mt-2 text-sm text-gray-500">Loading your files...</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredNotes && filteredNotes.length > 0 ? (
+                    filteredNotes.map((note) => (
+                      <TableRow 
                         key={note.id}
-                        className="border-b hover:bg-gray-50"
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
                       >
-                        <td className="py-2 pl-6 pr-4">
+                        <TableCell>
                           <div 
-                            className="flex items-center justify-center w-5 h-5 cursor-pointer" 
+                            className="flex items-center justify-center" 
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleNoteSelection(note);
@@ -143,42 +162,41 @@ const Dashboard = () => {
                               className="w-4 h-4"
                             />
                           </div>
-                        </td>
-                        <td className="py-2 pl-8 pr-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">{note.title}</span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">
-                            {new Date(note.created_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">{formatDuration(note.duration || 0)}</span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className="text-[13px]">Auto</span>
-                        </td>
-                        <td className="py-2 px-4 cursor-pointer" onClick={() => navigate(`/app/notes/${note.id}`)}>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                            ${note.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                              note.status === 'error' ? 'bg-red-100 text-red-800' : 
-                              'bg-blue-100 text-blue-800'}`}>
-                            {note.status === 'completed' ? 'Completed' : 
-                             note.status === 'error' ? 'Error' : 
-                             'Processing'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </TableCell>
+                        <TableCell className="font-medium" onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          {note.title}
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          {formatDate(note.created_at)}
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          {formatDuration(note.duration || 0)}
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <RecordingModeIcon mode="mic" />
+                        </TableCell>
+                        <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
+                          <NoteStatus status={note.status || 'processing'} />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <p className="text-gray-500">No files found</p>
+                        <Button 
+                          variant="outline" 
+                          className="mt-4"
+                          onClick={() => navigate('/app/record')}
+                        >
+                          <PlusSquare className="h-4 w-4 mr-2" />
+                          Create your first transcription
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
 
