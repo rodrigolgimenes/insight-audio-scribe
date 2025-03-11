@@ -17,6 +17,10 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
   const isFileNotFound = error?.toLowerCase().includes('not found') || 
                          error?.toLowerCase().includes('file not found');
   
+  const isFileTooLarge = error?.toLowerCase().includes('maximum allowed size') ||
+                         error?.toLowerCase().includes('too large') ||
+                         error?.toLowerCase().includes('exceeds size limit');
+
   const handleRetry = async () => {
     if (!noteId) return;
     
@@ -46,6 +50,18 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
               <li>Check if you have a stable internet connection</li>
               <li>If your filename contains special characters, try renaming it with simple characters</li>
               <li>If you just uploaded this file, please wait a moment and try again</li>
+            </ul>
+          </div>
+        )}
+        
+        {isFileTooLarge && (
+          <div className="mt-3 text-sm">
+            <div className="font-medium text-red-500 mb-1">Tips for large files:</div>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>File size limit is 100MB</li>
+              <li>Very long recordings (over 1 hour) may be too large to process</li>
+              <li>Consider splitting your recording into smaller segments</li>
+              <li>You can compress your audio files to reduce their size</li>
             </ul>
           </div>
         )}

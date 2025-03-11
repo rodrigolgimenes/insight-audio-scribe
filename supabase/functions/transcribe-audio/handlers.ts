@@ -11,8 +11,8 @@ import { transcribeAudio } from './openaiClient.ts';
 import { startMeetingMinutesGeneration } from './utils/dataOperations.ts';
 
 // Constants for file size and duration limits
-export const MAX_AUDIO_DURATION_MS = 60 * 60 * 1000; // 60 minutes in milliseconds
-export const MAX_FILE_SIZE_MB = 24; // 24 MB (OpenAI limit is 25MB)
+export const MAX_AUDIO_DURATION_MS = 120 * 60 * 1000; // 120 minutes in milliseconds (extended from 60)
+export const MAX_FILE_SIZE_MB = 100; // 100 MB (increased from 24MB)
 
 // CORS headers for cross-origin requests
 export const corsHeaders = {
@@ -26,14 +26,16 @@ export async function handleTranscription(requestBody: {
   duration?: number;
   isLargeFile?: boolean;
   isRetry?: boolean;
+  isExtremelyLargeFile?: boolean;
 }) {
-  const { recordingId, noteId, duration, isLargeFile, isRetry } = requestBody;
+  const { recordingId, noteId, duration, isLargeFile, isRetry, isExtremelyLargeFile } = requestBody;
   
   console.log('[transcribe-audio] Starting transcription process with params:', { 
     recordingId, 
     noteId, 
     duration: duration ? `${Math.round(duration/1000/60)} minutes` : 'unknown',
     isLargeFile, 
+    isExtremelyLargeFile,
     isRetry 
   });
   
@@ -41,7 +43,7 @@ export async function handleTranscription(requestBody: {
     throw new Error('Either Recording ID or Note ID is required');
   }
 
-  // Check for file size constraints - now only logging a warning since we support up to 60 minutes
+  // Check for file size constraints - now only logging a warning since we support up to 120 minutes
   if (duration && duration > MAX_AUDIO_DURATION_MS) {
     console.warn('[transcribe-audio] Audio file exceeds maximum recommended duration:', 
       `${Math.round(duration/1000/60)} minutes. Max: ${MAX_AUDIO_DURATION_MS/1000/60} minutes`);
@@ -113,7 +115,7 @@ export async function handleTranscription(requestBody: {
   // Check if file is too large for direct transcription
   if (audioData.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     console.warn('[transcribe-audio] Audio file is too large:', 
-      `${Math.round(audioData.size/1024/1024*100)/100}MB`);
+      `${Math.round(audioData.size/1024/1024*100)/100}MB. Maximum is ${MAX_FILE_SIZE_MB}MB`);
     
     await updateNoteStatus(supabase, note.id, 'error', 0);
     await supabase
@@ -123,19 +125,20 @@ export async function handleTranscription(requestBody: {
       })
       .eq('id', note.id);
       
-    throw new Error('Audio file exceeds size limit for transcription');
+    throw new Error(`Audio file exceeds size limit for transcription (max: ${MAX_FILE_SIZE_MB}MB)`);
   }
 
-  return await processTranscription(supabase, note, recording, audioData);
+  return await processTranscription(supabase, note, recording, audioData, isExtremelyLargeFile);
 }
 
-async function processTranscription(supabase: any, note: any, recording: any, audioData: Blob) {
+async function processTranscription(supabase: any, note: any, recording: any, audioData: Blob, isExtremelyLargeFile?: boolean) {
   // Update status to transcribing with 40% progress
   await updateNoteStatus(supabase, note.id, 'transcribing', 40);
   
   // Set a timeout for transcription - extended for longer recordings
+  const timeoutDuration = isExtremelyLargeFile ? 240 * 60 * 1000 : 120 * 60 * 1000; // 4 hours for very large files, 2 hours otherwise
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Transcription timed out after 120 minutes')), 120 * 60 * 1000);
+    setTimeout(() => reject(new Error(`Transcription timed out after ${timeoutDuration / 60 / 1000} minutes`)), timeoutDuration);
   });
   
   let transcription;

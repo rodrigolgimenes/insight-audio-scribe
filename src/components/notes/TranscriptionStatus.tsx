@@ -31,6 +31,7 @@ export const TranscriptionStatus = ({
   // Convert milliseconds to minutes
   const durationInMinutes = duration && Math.round(duration / 1000 / 60);
   const isLongAudio = durationInMinutes && durationInMinutes > 30;
+  const isVeryLongAudio = durationInMinutes && durationInMinutes > 60;
   
   const statusInfo = getStatusInfo(status);
   const { message, icon, color } = statusInfo;
@@ -78,6 +79,15 @@ export const TranscriptionStatus = ({
         status={status}
         progress={progress}
       />
+      
+      {isVeryLongAudio && status !== 'error' && (
+        <div className="mt-2 text-amber-600 text-sm">
+          <p>This is a very long recording ({durationInMinutes} minutes). Processing may take additional time.</p>
+          {durationInMinutes > 90 && (
+            <p className="mt-1">For recordings over 90 minutes, consider splitting into smaller segments for faster processing.</p>
+          )}
+        </div>
+      )}
       
       {status === 'error' && <TranscriptError error={error} noteId={noteId} />}
       

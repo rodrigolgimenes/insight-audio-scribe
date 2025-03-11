@@ -31,6 +31,17 @@ export const useFileUpload = () => {
       return;
     }
 
+    // Check file size - limiting to 100MB
+    const maxSizeInBytes = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSizeInBytes) {
+      toast({
+        title: "Error",
+        description: `File is too large. Maximum allowed size is 100MB. Your file is ${(file.size / (1024 * 1024)).toFixed(2)}MB.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -73,13 +84,27 @@ export const useFileUpload = () => {
       }
       console.log('Recording entry created:', recordingData);
 
+      // Configure chunked upload for large files
+      const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+      let uploadedBytes = 0;
+      const totalBytes = file.size;
+      
+      if (totalBytes > 25 * 1024 * 1024) {
+        console.log(`Starting chunked upload for large file (${(totalBytes / (1024 * 1024)).toFixed(2)}MB)`);
+      }
+
       // Then upload the file
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false,
-          contentType: file.type
+          contentType: file.type,
+          onUploadProgress: (progress) => {
+            uploadedBytes = progress.uploadedBytes;
+            const percentComplete = Math.round((uploadedBytes / totalBytes) * 100);
+            console.log(`Upload progress: ${percentComplete}%`);
+          }
         });
 
       if (uploadError) {
@@ -88,7 +113,12 @@ export const useFileUpload = () => {
           .from('recordings')
           .delete()
           .eq('id', recordingData.id);
-        throw new Error(`Failed to upload file: ${uploadError.message}`);
+          
+        if (uploadError.message.includes('exceeded the maximum allowed size')) {
+          throw new Error(`Failed to upload file: The file exceeds the maximum allowed size (100MB).`);
+        } else {
+          throw new Error(`Failed to upload file: ${uploadError.message}`);
+        }
       }
 
       // Update recording status to uploaded

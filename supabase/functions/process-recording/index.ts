@@ -46,9 +46,31 @@ serve(async (req) => {
     console.log('[process-recording] Recording data:', recording);
     console.log('[process-recording] Audio duration:', recording.duration, 'ms');
 
+    // Check file size before processing
+    const { data: fileData, error: fileError } = await supabase.storage
+      .from('audio_recordings')
+      .list(recording.file_path.split('/')[0], {
+        search: recording.file_path.split('/')[1]
+      });
+
+    if (fileError) {
+      console.error('[process-recording] Error checking file size:', fileError);
+    } else if (fileData && fileData.length > 0) {
+      const fileSize = fileData[0].metadata?.size || 0;
+      console.log('[process-recording] File size:', fileSize, 'bytes');
+    }
+    
     // Check if file is too large for direct transcription (OpenAI has a 25MB limit)
+    // For OpenAI, we'll consider anything over 25 minutes as large for now
     const isLargeFile = recording.duration && recording.duration > 25 * 60 * 1000; // More than 25 minutes
     console.log('[process-recording] Is large file:', isLargeFile);
+    
+    // For files that are extremely large (over 60 minutes), we'll update the logic
+    const isExtremelyLargeFile = recording.duration && recording.duration > 60 * 60 * 1000; // More than 60 minutes
+    
+    if (isExtremelyLargeFile) {
+      console.log('[process-recording] This file is extremely large and may take longer to process');
+    }
 
     // Update status to processing
     const { error: updateError } = await supabase
@@ -120,7 +142,8 @@ serve(async (req) => {
               noteId: note.id,
               recordingId: recordingId,
               duration: recording.duration,
-              isLargeFile
+              isLargeFile,
+              isExtremelyLargeFile
             }
           });
 
