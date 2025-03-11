@@ -13,7 +13,8 @@ export const useRecordingSave = () => {
     isRecording: boolean,
     handleStopRecording: () => Promise<void>,
     mediaStream: MediaStream | null,
-    audioUrl: string | null
+    audioUrl: string | null,
+    recordedDuration: number = 0
   ) => {
     try {
       if (isRecording) {
@@ -40,7 +41,7 @@ export const useRecordingSave = () => {
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
-          duration: 0,
+          duration: recordedDuration * 1000, // Convert seconds to milliseconds
           file_path: fileName,
           user_id: user.id,
           status: 'pending'
