@@ -6,12 +6,8 @@ export const UploadSection = () => {
   const navigate = useNavigate();
   
   const handleUploadComplete = (noteId: string) => {
-    if (noteId) {
-      navigate(`/app/notes/${noteId}`);
-    } else {
-      // If we don't have a valid note ID, navigate to the dashboard
-      navigate('/app');
-    }
+    // Always navigate to the dashboard instead of individual note
+    navigate('/app');
   };
   
   return (

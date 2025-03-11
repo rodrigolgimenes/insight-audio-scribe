@@ -60,10 +60,10 @@ export function FileUpload({
         if (noteId) {
           console.log("Upload complete, noteId:", noteId);
           
-          // If no callback is provided, navigate to the note page
+          // If no callback is provided, navigate to the dashboard instead of note page
           if (!onUploadComplete) {
-            console.log(`Navigating to /app/notes/${noteId}`);
-            navigate(`/app/notes/${noteId}`);
+            console.log(`Navigating to dashboard after upload`);
+            navigate(`/app`);
             
             // Automatically retry transcription after a brief delay if needed
             setTimeout(async () => {
