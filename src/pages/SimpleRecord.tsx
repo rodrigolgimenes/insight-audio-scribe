@@ -8,7 +8,7 @@ import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { RecordingActions } from "@/components/record/RecordingActions";
-import { useFileUpload } from "@/hooks/useFileUpload";
+import { useFileUpload } from "@/hooks"; // Updated import
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 

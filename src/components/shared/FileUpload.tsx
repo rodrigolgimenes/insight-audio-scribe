@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, Loader2, FileText, AlertCircle } from "lucide-react";
-import { useFileUpload } from "@/hooks/useFileUpload";
+import { useFileUpload } from "@/hooks"; // Updated import
 import { validateFile } from "@/utils/upload/fileValidation";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
