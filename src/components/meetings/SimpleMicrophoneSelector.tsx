@@ -8,8 +8,8 @@ interface SimpleMicrophoneSelectorProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   disabled?: boolean;
-  onRefreshDevices?: () => void;
-  devicesLoading?: boolean;
+  isLoading?: boolean;
+  label?: string;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 

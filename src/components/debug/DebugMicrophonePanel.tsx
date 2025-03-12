@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export function DebugMicrophonePanel() {
   const { permissionState, devices, selectedDeviceId } = useDeviceManager();
 
-  // Log state changes para depuração
+  // Enhanced logging for debugging
   useEffect(() => {
     console.log("[DebugMicrophonePanel] State update:", {
       permissionState,

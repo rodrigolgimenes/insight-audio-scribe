@@ -10,7 +10,7 @@ export function UnifiedRecordingSection() {
   const { selectedDeviceId, permissionState, refreshDevices, devices } = useDeviceManager();
   const [isRecording, setIsRecording] = React.useState(false);
 
-  // Log state changes for debugging
+  // Enhanced debugging logs to track device and permission state
   useEffect(() => {
     console.log("[UnifiedRecordingSection] Device state update:", {
       selectedDeviceId,
@@ -53,16 +53,16 @@ export function UnifiedRecordingSection() {
     console.log('[UnifiedRecordingSection] Stopped recording');
   };
 
-  // Adicionar log detalhado para depurar canRecord
-  console.log("[UnifiedRecordingSection] canRecord check:", { 
+  // Direct, simplified canRecord check with detailed logging
+  const canRecord = permissionState === 'granted' && !!selectedDeviceId;
+  
+  console.log("[UnifiedRecordingSection] canRecord evaluation:", { 
     permissionState, 
     selectedDeviceId,
+    selectedDeviceCheck: !!selectedDeviceId,
     permissionCheck: permissionState === 'granted',
-    deviceCheck: !!selectedDeviceId,
-    result: permissionState === 'granted' && !!selectedDeviceId
+    finalResult: canRecord
   });
-  
-  const canRecord = permissionState === 'granted' && !!selectedDeviceId;
 
   return (
     <Card className="mb-8">

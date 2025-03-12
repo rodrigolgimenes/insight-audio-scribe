@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff } from "lucide-react";
@@ -28,7 +29,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     }
   };
 
-  // Handle device selection
+  // Handle device selection with enhanced logging
   const handleSelect = (deviceId: string) => {
     console.log('[MicrophoneSelector] Selecting device:', deviceId);
     
@@ -46,6 +47,13 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     if (!deviceExists) {
       console.warn('[MicrophoneSelector] Selected device not found in current devices list');
     }
+    
+    // Log device selection
+    console.log('[MicrophoneSelector] Before setting device ID:', {
+      currentSelection: selectedDeviceId,
+      newSelection: deviceId,
+      deviceExists
+    });
     
     // Definir o dispositivo selecionado
     setSelectedDeviceId(deviceId);
