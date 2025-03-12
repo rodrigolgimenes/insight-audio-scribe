@@ -24,7 +24,7 @@ export function DeviceSelector({
   disabled = false,
   hasDevices = true,
 }: DeviceSelectorProps) {
-  // Use audioDevices if provided, otherwise use devices
+  // Safely handle device lists
   const deviceList = audioDevices || devices || [];
   
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
@@ -34,17 +34,23 @@ export function DeviceSelector({
     selectedDevice: string | null;
     permissionRequested: boolean;
   }>({
-    hasDevices: deviceList.length > 0,
-    deviceCount: deviceList.length,
+    hasDevices: Array.isArray(deviceList) && deviceList.length > 0,
+    deviceCount: Array.isArray(deviceList) ? deviceList.length : 0,
     selectedDevice: null,
     permissionRequested: false
   });
 
-  const isSelectDisabled = disabled || deviceList.length === 0;
+  const isSelectDisabled = disabled || !Array.isArray(deviceList) || deviceList.length === 0;
 
+  // Check permissions and handle errors gracefully
   useEffect(() => {
     const checkPermissions = async () => {
       try {
+        if (!navigator.permissions) {
+          console.log('Permissions API not available');
+          return;
+        }
+        
         const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
         setPermissionStatus(result.state);
         
@@ -59,10 +65,11 @@ export function DeviceSelector({
     checkPermissions();
   }, []);
 
+  // Safely select default device if available
   useEffect(() => {
-    if (deviceList.length > 0 && !selectedDeviceId && !disabled) {
+    if (Array.isArray(deviceList) && deviceList.length > 0 && !selectedDeviceId && !disabled) {
       const firstDevice = deviceList[0];
-      if (firstDevice && firstDevice.deviceId) {
+      if (firstDevice && typeof firstDevice === 'object' && firstDevice.deviceId) {
         onDeviceSelect(firstDevice.deviceId);
       }
     }
@@ -73,6 +80,9 @@ export function DeviceSelector({
       onDeviceSelect(value);
     }
   };
+
+  // Safely get device count
+  const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
   return (
     <div className="space-y-2">
@@ -116,19 +126,25 @@ export function DeviceSelector({
           <SelectValue placeholder="Select a microphone" />
         </SelectTrigger>
         <SelectContent>
-          {deviceList.length === 0 ? (
+          {!Array.isArray(deviceList) || deviceList.length === 0 ? (
             <SelectItem value="no-devices" disabled>
               No microphones found
             </SelectItem>
           ) : (
-            deviceList.map((device) => {
-              // Safety check to ensure device and deviceId exist
+            deviceList.map((device, index) => {
+              // Comprehensive safety check for the device object
               if (!device || typeof device !== 'object') {
-                return null;
+                return (
+                  <SelectItem key={`unknown-device-${index}`} value={`unknown-${index}`}>
+                    Unknown device
+                  </SelectItem>
+                );
               }
               
-              const deviceId = device.deviceId || 'unknown';
-              const label = device.label || `Microphone ${deviceId.substring(0, 5)}...`;
+              // Safely extract deviceId and label with fallbacks
+              const deviceId = device.deviceId || `unknown-${index}`;
+              // Ensure we safely handle the label and substring operation
+              const label = device.label || `Microphone ${index + 1}`;
               
               return (
                 <SelectItem 
@@ -144,7 +160,7 @@ export function DeviceSelector({
       </Select>
       
       <div className="text-xs text-gray-500 mt-1">
-        <div>Devices: {deviceList.length} found</div>
+        <div>Devices: {deviceCount} found</div>
         {selectedDeviceId && (
           <div className="truncate max-w-full">
             Selected ID: {selectedDeviceId.substring(0, 10)}...

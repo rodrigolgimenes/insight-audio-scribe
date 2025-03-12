@@ -15,40 +15,50 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Service Worker registration - only in production and if supported
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+// Service Worker registration - with improved error handling
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      // Check if we're in a controlled environment where Service Workers might not be allowed
-      if (window.location.hostname.includes('preview--') || 
-          window.location.hostname.includes('lovable.app')) {
-        console.log('Service Worker registration skipped in preview environment');
-      } else {
-        // Only register in true production environment
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/'
-        });
-        
-        // Handle updates
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New service worker available
-                if (confirm('New version available! Would you like to update?')) {
-                  newWorker.postMessage('SKIP_WAITING');
-                  window.location.reload();
-                }
-              }
-            });
-          }
-        });
+      // Skip service worker registration in preview environments
+      const isPreviewEnvironment = 
+        window.location.hostname.includes('preview--') || 
+        window.location.hostname.includes('lovable.app');
 
-        console.log('ServiceWorker registration successful:', registration.scope);
+      // Only register in true production environment
+      if (isPreviewEnvironment) {
+        console.log('Service Worker registration skipped in preview environment');
+      } else if (import.meta.env.PROD) {
+        // Try to register the service worker
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/'
+          });
+          
+          // Handle updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New service worker available
+                  if (confirm('New version available! Would you like to update?')) {
+                    newWorker.postMessage('SKIP_WAITING');
+                    window.location.reload();
+                  }
+                }
+              });
+            }
+          });
+
+          console.log('ServiceWorker registration successful:', registration.scope);
+        } catch (registrationError) {
+          console.error('ServiceWorker registration failed:', registrationError);
+          // Continue without service worker
+        }
       }
     } catch (error) {
-      console.error('ServiceWorker registration failed:', error);
+      console.error('Error during ServiceWorker registration check:', error);
+      // Continue without service worker
     }
   });
 }
