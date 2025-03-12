@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -8,8 +9,8 @@ import { DeviceSelectTrigger } from "./device/DeviceSelectTrigger";
 import { DeviceSelectContent } from "./device/DeviceSelectContent";
 import { RefreshDevicesButton } from "./device/RefreshDevicesButton";
 import { NoDevicesMessage } from "./device/NoDevicesMessage";
-import { DevicePermissionRequest } from "./device/DevicePermissionError";
-import { DevicePermissionError } from "./device/DevicePermissionRequest";
+import { DevicePermissionRequest } from "./device/DevicePermissionRequest";
+import { DevicePermissionError } from "./device/DevicePermissionError";
 import { useDeviceSelection } from "./device/useDeviceSelection";
 import { DeviceAutoSelection } from "./device/DeviceAutoSelection";
 import { useDeviceAutoRefresh } from "./device/useDeviceAutoRefresh";
