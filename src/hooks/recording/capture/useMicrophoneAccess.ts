@@ -39,8 +39,13 @@ export const useMicrophoneAccess = (
           if (!deviceId) return null;
           console.log('[useMicrophoneAccess] Attempt 1: Using full constraints with exact device ID');
           const audioConstraints = {
-            ...MIC_CONSTRAINTS.audio,
-            deviceId: { exact: deviceId }
+            deviceId: { exact: deviceId },
+            echoCancellation: MIC_CONSTRAINTS.audio.echoCancellation,
+            noiseSuppression: MIC_CONSTRAINTS.audio.noiseSuppression,
+            autoGainControl: MIC_CONSTRAINTS.audio.autoGainControl,
+            channelCount: MIC_CONSTRAINTS.audio.channelCount,
+            sampleRate: MIC_CONSTRAINTS.audio.sampleRate,
+            sampleSize: MIC_CONSTRAINTS.audio.sampleSize
           };
           
           return await navigator.mediaDevices.getUserMedia({
