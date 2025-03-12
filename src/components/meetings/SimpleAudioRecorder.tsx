@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Loader2 } from "lucide-react";
@@ -133,101 +132,30 @@ export const SimpleAudioRecorder = ({
       
       reader.onloadend = async () => {
         const base64data = reader.result as string;
-        const base64Audio = base64data.split(',')[1]; // Remove the data URL part
+        const base64Audio = base64data.split(',')[1];
         
-        // Prepare recording data
-        const recordingInfo = {
-          duration: recordingDuration,
-          mimeType: blob.type
-        };
-        
-        // Call Supabase edge function
-        toast.info("Sending for transcription...");
+        toast.info("Starting transcription...");
         
         try {
-          // Call the new JavaScript transcription edge function
-          const { data, error } = await supabase.functions.invoke('transcribe-js', {
-            body: {
-              audioData: base64Audio,
-              recordingData: recordingInfo
-            }
+          const { data, error } = await supabase.functions.invoke('transcribe-whisper-local', {
+            body: { audioData: base64Audio }
           });
           
-          if (error) {
-            throw new Error(error.message || "Error transcribing audio");
-          }
-          
-          console.log("Transcription response:", data);
+          if (error) throw new Error(error.message);
           
           if (data.success) {
-            // Wait 3 seconds before checking for the transcription
-            toast.info("Processing your audio. Please wait...");
-            onNewTranscription("Processing your audio. Please wait...");
-            
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            
-            // Check transcription status
-            const { data: transcription, error: transcriptionError } = await supabase
-              .from('transcriptions')
-              .select('*')
-              .eq('id', data.transcriptionId)
-              .single();
-            
-            if (transcriptionError) {
-              throw new Error(`Error fetching transcription: ${transcriptionError.message}`);
-            }
-            
-            if (transcription.status === 'completed') {
-              onNewTranscription(transcription.content);
-              toast.success("Transcription completed successfully");
-            } else if (transcription.status === 'error') {
-              throw new Error(`Transcription error: ${transcription.error_message || 'Unknown error'}`);
-            } else {
-              // For processing state, poll every 2 seconds for up to 30 seconds
-              let attempts = 0;
-              const maxAttempts = 15;
-              
-              const pollTranscription = async () => {
-                attempts++;
-                
-                const { data: updatedTranscription, error: pollError } = await supabase
-                  .from('transcriptions')
-                  .select('*')
-                  .eq('id', data.transcriptionId)
-                  .single();
-                
-                if (pollError) {
-                  throw new Error(`Error polling transcription: ${pollError.message}`);
-                }
-                
-                if (updatedTranscription.status === 'completed') {
-                  onNewTranscription(updatedTranscription.content);
-                  toast.success("Transcription completed successfully");
-                  return;
-                } else if (updatedTranscription.status === 'error') {
-                  throw new Error(`Transcription error: ${updatedTranscription.error_message || 'Unknown error'}`);
-                } else if (attempts < maxAttempts) {
-                  // Continue polling
-                  setTimeout(pollTranscription, 2000);
-                } else {
-                  // Give up after max attempts
-                  throw new Error("Transcription timed out. Please try again later.");
-                }
-              };
-              
-              // Start polling
-              pollTranscription();
-            }
+            onNewTranscription(data.transcription);
+            toast.success("Transcription completed successfully");
           } else {
-            throw new Error(data.error || "Unknown error in transcription");
+            throw new Error(data.error || "Unknown error during transcription");
           }
         } catch (invokeError) {
-          console.error("Error invoking function:", invokeError);
-          toast.error("Transcription error", {
+          console.error("Error during transcription:", invokeError);
+          toast.error("Transcription failed", {
             description: invokeError instanceof Error ? invokeError.message : "Unknown error"
           });
+        } finally {
           setIsLoading(false);
-          onNewTranscription("");
         }
       };
     } catch (error) {
