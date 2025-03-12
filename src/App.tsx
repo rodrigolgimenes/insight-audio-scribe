@@ -153,6 +153,11 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            {/* Add a redirect for any /SimpleRecord (with capital S) to the correct lowercase version */}
+            <Route 
+              path="/SimpleRecord" 
+              element={<Navigate to="/simple-record" replace />} 
+            />
             {/* Add a redirect from index to simple-record to ensure accessibility */}
             <Route 
               path="/index" 
