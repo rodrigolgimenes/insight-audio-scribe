@@ -43,6 +43,8 @@ export const useRecordingLifecycle = () => {
 
   // Modified start recording to initialize the recorder after getting the stream
   const wrappedStartRecording = async (selectedDeviceId: string | null) => {
+    console.log('[useRecordingLifecycle] wrappedStartRecording called with device ID:', selectedDeviceId);
+    
     if (isProcessing.current) {
       console.log('[useRecordingLifecycle] Already processing a recording action, ignoring');
       return;

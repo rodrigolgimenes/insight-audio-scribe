@@ -33,49 +33,42 @@ export const RecordControls = ({
   showDeleteButton = true,
 }: RecordControlsProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [buttonClicked, setButtonClicked] = useState(false);
 
   console.log('[RecordControls] Rendering with state:', { 
     isRecording, 
     isPaused, 
     hasRecording, 
     disabled,
-    isProcessing,
-    buttonClicked
+    isProcessing
   });
 
-  // Reset button clicked state when recording state changes
+  // Reset processing state when recording state changes
   useEffect(() => {
-    if (buttonClicked && isRecording) {
-      console.log('[RecordControls] Recording started successfully, resetting button clicked state');
-      setButtonClicked(false);
+    if (isProcessing && isRecording) {
+      console.log('[RecordControls] Recording started successfully, resetting processing state');
       setIsProcessing(false);
     }
-  }, [isRecording, buttonClicked]);
+  }, [isRecording, isProcessing]);
 
   const handleRecordClick = async () => {
     console.log('[RecordControls] Record button clicked, disabled:', disabled, 'isProcessing:', isProcessing);
     if (disabled || isProcessing) return;
     
     setIsProcessing(true);
-    setButtonClicked(true);
     
-    // Call start recording directly - removed setTimeout which was causing issues
     try {
       console.log('[RecordControls] Calling onStartRecording...');
       onStartRecording();
       
       // Set a timeout to clear processing state if recording doesn't start within 5 seconds
       setTimeout(() => {
-        if (buttonClicked) {
+        if (isProcessing && !isRecording) {
           console.log('[RecordControls] Recording didn\'t start within timeout, resetting state');
-          setButtonClicked(false);
           setIsProcessing(false);
         }
       }, 5000);
     } catch (error) {
       console.error('[RecordControls] Error in record button click handler:', error);
-      setButtonClicked(false);
       setIsProcessing(false);
     }
   };

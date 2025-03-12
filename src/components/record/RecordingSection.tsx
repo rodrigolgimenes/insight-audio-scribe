@@ -5,6 +5,7 @@ import { RecordControls } from "@/components/record/RecordControls";
 import { RecordStatus } from "@/components/record/RecordStatus";
 import { RecordingOptions } from "@/components/record/RecordingOptions";
 import { AudioDevice } from "@/hooks/recording/useAudioCapture";
+import { useEffect } from "react";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -45,8 +46,23 @@ export const RecordingSection = ({
   showPlayButton = true,
   showDeleteButton = true,
 }: RecordingSectionProps) => {
-  const canStartRecording = !!selectedDeviceId && deviceSelectionReady;
+  // Um dispositivo de áudio selecionado é o único requisito para iniciar a gravação
+  const canStartRecording = !!selectedDeviceId;
   const hasDevices = audioDevices.length > 0;
+
+  // Log no momento da montagem e quando dependências importantes mudam
+  useEffect(() => {
+    console.log('[RecordingSection] State updated:', {
+      isRecording,
+      isPaused,
+      hasAudioUrl: !!audioUrl,
+      hasStream: !!mediaStream,
+      selectedDeviceId,
+      deviceCount: audioDevices.length,
+      canStartRecording,
+      hasDevices
+    });
+  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, audioDevices.length, canStartRecording, hasDevices]);
 
   return (
     <>

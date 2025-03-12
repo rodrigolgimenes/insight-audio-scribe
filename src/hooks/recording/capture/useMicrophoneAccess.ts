@@ -39,13 +39,13 @@ export const useMicrophoneAccess = (
           if (!deviceId) return null;
           console.log('[useMicrophoneAccess] Attempt 1: Using full constraints with exact device ID');
           
-          // Fix: Type-safe access to the audio constraints
+          // Create empty audio constraints object
           const audioConstraints: MediaTrackConstraints = {
             deviceId: { exact: deviceId }
           };
           
           // Only add these properties if MIC_CONSTRAINTS.audio is an object
-          if (typeof MIC_CONSTRAINTS.audio === 'object') {
+          if (typeof MIC_CONSTRAINTS.audio === 'object' && MIC_CONSTRAINTS.audio !== null) {
             if ('echoCancellation' in MIC_CONSTRAINTS.audio) 
               audioConstraints.echoCancellation = MIC_CONSTRAINTS.audio.echoCancellation;
             if ('noiseSuppression' in MIC_CONSTRAINTS.audio) 
