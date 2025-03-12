@@ -54,11 +54,12 @@ export async function updateRecordingAndNote(
   console.log(`[transcribe-audio] Updating recording ${recordingId} and note ${noteId} with transcription`);
   
   try {
-    // Update the recording status to transcribed
+    // Update the recording status to 'completed' instead of 'transcribed'
+    // 'completed' is a valid status in the recordings table check constraint
     const { error: recordingError } = await supabase
       .from('recordings')
       .update({ 
-        status: 'transcribed',
+        status: 'completed',
         updated_at: new Date().toISOString()
       })
       .eq('id', recordingId);
