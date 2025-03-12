@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Mic, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
+import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
+import { DeviceDebugInfo } from "./DeviceDebugInfo";
+import { formatDeviceLabel } from "./utils/deviceFormatters";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
@@ -119,24 +121,6 @@ export function DeviceSelector({
   // Safely get device count
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
-  // Format device label to be more readable
-  const formatDeviceLabel = (device: MediaDeviceInfo | AudioDevice, index: number): string => {
-    if (!device) return `Microphone ${index + 1}`;
-    
-    // Check if label is available and not empty
-    if (device.label && device.label.trim() !== '') {
-      return device.label;
-    }
-    
-    // If AudioDevice, check displayName
-    if ('displayName' in device && device.displayName && device.displayName.trim() !== '') {
-      return device.displayName;
-    }
-    
-    // Fall back to a numbered microphone if no label is available
-    return `Microphone ${index + 1}`;
-  };
-
   // Find the selected device name for display
   const selectedDeviceName = selectedDeviceId ? 
     deviceList.find(d => d && d.deviceId === selectedDeviceId) ?
@@ -146,31 +130,7 @@ export function DeviceSelector({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium flex items-center gap-1">
-          <Mic className="h-4 w-4" />
-          Audio device
-        </label>
-        
-        <div className="flex items-center">
-          {permissionStatus === 'granted' ? (
-            <div className="text-xs text-green-500 flex items-center">
-              <Check className="h-3 w-3 mr-1" />
-              Allowed
-            </div>
-          ) : permissionStatus === 'denied' ? (
-            <div className="text-xs text-red-500 flex items-center">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Blocked
-            </div>
-          ) : permissionStatus === 'prompt' ? (
-            <div className="text-xs text-amber-500 flex items-center">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Waiting for permission
-            </div>
-          ) : null}
-        </div>
-      </div>
+      <DeviceSelectorLabel permissionStatus={permissionStatus} />
 
       <Select
         value={selectedDeviceId || ""}
@@ -222,14 +182,10 @@ export function DeviceSelector({
         </SelectContent>
       </Select>
       
-      <div className="text-xs text-gray-500 mt-1">
-        <div>Devices: {deviceCount} found</div>
-        {selectedDeviceId && (
-          <div className="truncate max-w-full">
-            Selected ID: {selectedDeviceId.substring(0, 10)}...
-          </div>
-        )}
-      </div>
+      <DeviceDebugInfo 
+        deviceCount={deviceCount} 
+        selectedDeviceId={selectedDeviceId} 
+      />
     </div>
   );
 }
