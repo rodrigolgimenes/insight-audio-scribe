@@ -53,6 +53,15 @@ export function UnifiedRecordingSection() {
     console.log('[UnifiedRecordingSection] Stopped recording');
   };
 
+  // Adicionar log detalhado para depurar canRecord
+  console.log("[UnifiedRecordingSection] canRecord check:", { 
+    permissionState, 
+    selectedDeviceId,
+    permissionCheck: permissionState === 'granted',
+    deviceCheck: !!selectedDeviceId,
+    result: permissionState === 'granted' && !!selectedDeviceId
+  });
+  
   const canRecord = permissionState === 'granted' && !!selectedDeviceId;
 
   return (

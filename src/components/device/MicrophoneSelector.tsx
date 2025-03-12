@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff } from "lucide-react";
@@ -32,14 +31,46 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   // Handle device selection
   const handleSelect = (deviceId: string) => {
     console.log('[MicrophoneSelector] Selecting device:', deviceId);
+    
+    // Verificar se o ID do dispositivo é válido
+    if (!deviceId || deviceId === '') {
+      console.warn('[MicrophoneSelector] Attempted to select invalid device ID');
+      toast.error("Invalid device selection", {
+        description: "The selected device ID is not valid"
+      });
+      return;
+    }
+    
+    // Verificar se o dispositivo existe na lista
+    const deviceExists = devices.some(d => d.deviceId === deviceId);
+    if (!deviceExists) {
+      console.warn('[MicrophoneSelector] Selected device not found in current devices list');
+    }
+    
+    // Definir o dispositivo selecionado
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Show selection toast
+    // Log para depuração
+    console.log('[MicrophoneSelector] Device selected, updated state:', {
+      selectedId: deviceId,
+      foundInList: deviceExists
+    });
+    
+    // Mostrar toast de sucesso
     const device = devices.find(d => d.deviceId === deviceId);
     toast.success(`Selected: ${device?.label || 'Microphone'}`, {
       duration: 2000
     });
+    
+    // Verificar se o contexto foi atualizado corretamente
+    setTimeout(() => {
+      console.log('[MicrophoneSelector] Selection verification:', {
+        expected: deviceId,
+        actual: selectedDeviceId,
+        match: deviceId === selectedDeviceId
+      });
+    }, 100);
   };
   
   // Handle refresh

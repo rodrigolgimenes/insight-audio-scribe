@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
@@ -34,6 +33,16 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Log state changes to help with debugging
+  useEffect(() => {
+    console.log("[DeviceManagerContext] State update:", {
+      devices: devices.length,
+      selectedDeviceId,
+      permissionState,
+      isLoading
+    });
+  }, [devices, selectedDeviceId, permissionState, isLoading]);
 
   // Request microphone permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -170,10 +179,32 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     checkPermissionStatus();
   }, [refreshDevices]);
 
+  // Modifying setSelectedDeviceId to add more logging
+  const handleDeviceSelect = useCallback((deviceId: string) => {
+    console.log("[DeviceManagerContext] Setting selected device:", deviceId);
+    
+    // Validate device exists
+    const deviceExists = devices.some(d => d.deviceId === deviceId);
+    if (!deviceExists) {
+      console.warn("[DeviceManagerContext] Selected device not found in current devices list");
+    }
+    
+    setSelectedDeviceId(deviceId);
+    
+    // Verify state update with a delayed check
+    setTimeout(() => {
+      console.log("[DeviceManagerContext] Device selection verification:", {
+        expected: deviceId,
+        actual: selectedDeviceId,
+        changed: deviceId === selectedDeviceId
+      });
+    }, 100);
+  }, [devices, selectedDeviceId]);
+
   const value = {
     devices,
     selectedDeviceId,
-    setSelectedDeviceId,
+    setSelectedDeviceId: handleDeviceSelect,
     permissionState,
     isLoading,
     refreshDevices,
