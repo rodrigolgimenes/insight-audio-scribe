@@ -1,8 +1,9 @@
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useRecordingState } from "./recording/useRecordingState";
 import { useRecordingLifecycle } from "./recording/useRecordingLifecycle";
 import { useDeviceSelection } from "./recording/useDeviceSelection";
+import { useToast } from "@/hooks/use-toast";
 
 export const useRecording = () => {
   const {
@@ -21,6 +22,8 @@ export const useRecording = () => {
     isSystemAudio,
     setIsSystemAudio,
   } = useRecordingState();
+
+  const { toast } = useToast();
 
   const {
     audioDevices,
@@ -44,19 +47,44 @@ export const useRecording = () => {
     return cleanup;
   }, []);
 
-  const handleStartRecording = async () => {
+  const handleStartRecording = useCallback(async () => {
     console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
     if (!selectedDeviceId) {
       console.error('[useRecording] No device selected for recording');
+      toast({
+        title: "Erro",
+        description: "Selecione um microfone antes de iniciar a gravação.",
+        variant: "destructive",
+      });
       return;
     }
-    await startRecording(selectedDeviceId);
-  };
+    
+    try {
+      await startRecording(selectedDeviceId);
+    } catch (error) {
+      console.error('[useRecording] Error starting recording:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao iniciar gravação. Verifique as permissões do navegador.",
+        variant: "destructive",
+      });
+    }
+  }, [selectedDeviceId, startRecording, toast]);
 
-  const handleStopRecording = async () => {
+  const handleStopRecording = useCallback(async () => {
     console.log('[useRecording] Stopping recording');
-    return await stopRecording();
-  };
+    try {
+      return await stopRecording();
+    } catch (error) {
+      console.error('[useRecording] Error stopping recording:', error);
+      toast({
+        title: "Erro",
+        description: "Falha ao finalizar gravação.",
+        variant: "destructive",
+      });
+      return { blob: null, duration: 0 };
+    }
+  }, [stopRecording, toast]);
 
   return {
     isRecording,

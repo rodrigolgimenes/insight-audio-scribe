@@ -10,6 +10,7 @@ export class AudioRecorder {
   private durationTracker: DurationTracker;
   private streamManager: StreamManager;
   private isRecording = false;
+  private latestBlob: Blob | null = null;
 
   constructor() {
     this.mediaRecorderManager = new MediaRecorderManager();
@@ -26,8 +27,10 @@ export class AudioRecorder {
   }
 
   async startRecording(stream: MediaStream): Promise<void> {
+    console.log('[AudioRecorder] startRecording called, current state:', this.isRecording);
+    
     if (this.isRecording) {
-      console.log('[AudioRecorder] Already recording');
+      console.log('[AudioRecorder] Already recording, ignoring startRecording call');
       return;
     }
 
@@ -45,6 +48,7 @@ export class AudioRecorder {
       this.durationTracker.startTracking();
       this.mediaRecorderManager.start();
       this.isRecording = true;
+      this.latestBlob = null;
       console.log('[AudioRecorder] Recording started successfully');
     } catch (error) {
       console.error('[AudioRecorder] Error starting recording:', error);
@@ -54,6 +58,21 @@ export class AudioRecorder {
   }
 
   async stopRecording(): Promise<RecordingResult> {
+    console.log('[AudioRecorder] stopRecording called, current state:', this.isRecording);
+    if (!this.isRecording) {
+      console.log('[AudioRecorder] Not currently recording, returning cached result');
+      const duration = this.durationTracker.getCurrentDuration();
+      if (this.latestBlob) {
+        return { blob: this.latestBlob, duration };
+      }
+      
+      // Create an empty blob as fallback
+      return { 
+        blob: new Blob([], { type: 'audio/webm' }), 
+        duration: 0 
+      };
+    }
+    
     return new Promise((resolve, reject) => {
       try {
         const finalDuration = this.durationTracker.getCurrentDuration();
@@ -64,16 +83,20 @@ export class AudioRecorder {
         setTimeout(() => {
           try {
             const finalBlob = this.mediaRecorderManager.getFinalBlob();
+            this.latestBlob = finalBlob;
+            
             console.log('[AudioRecorder] Recording stopped:', 
               this.mediaRecorderManager.getRecordingStats(finalDuration)
             );
+            
             this.cleanup();
             resolve({ blob: finalBlob, duration: finalDuration });
           } catch (error) {
             console.error('[AudioRecorder] Error finalizing recording:', error);
+            this.cleanup();
             reject(error);
           }
-        }, 100);
+        }, 300); // Increased timeout to ensure all data is processed
       } catch (error) {
         console.error('[AudioRecorder] Error stopping recording:', error);
         this.cleanup();
@@ -83,6 +106,7 @@ export class AudioRecorder {
   }
 
   pauseRecording(): void {
+    console.log('[AudioRecorder] pauseRecording called, current state:', this.isRecording);
     if (this.isRecording) {
       this.mediaRecorderManager.pause();
       this.durationTracker.pauseTracking();
@@ -91,6 +115,7 @@ export class AudioRecorder {
   }
 
   resumeRecording(): void {
+    console.log('[AudioRecorder] resumeRecording called, current state:', this.isRecording);
     if (this.isRecording) {
       this.mediaRecorderManager.resume();
       this.durationTracker.resumeTracking();
@@ -113,5 +138,9 @@ export class AudioRecorder {
 
   getCurrentDuration(): number {
     return this.durationTracker.getCurrentDuration();
+  }
+  
+  getFinalBlob(): Blob | null {
+    return this.latestBlob || (this.mediaRecorderManager ? this.mediaRecorderManager.getFinalBlob() : null);
   }
 }

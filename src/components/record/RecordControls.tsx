@@ -38,6 +38,31 @@ export const RecordControls = ({
     disabled 
   });
 
+  const handleRecordClick = () => {
+    console.log('[RecordControls] Record button clicked');
+    if (!disabled) {
+      onStartRecording();
+    }
+  };
+
+  const handleStopClick = () => {
+    console.log('[RecordControls] Stop button clicked');
+    if (!disabled) {
+      onStopRecording();
+    }
+  };
+
+  const handlePauseResumeClick = () => {
+    console.log('[RecordControls] Pause/Resume button clicked, isPaused:', isPaused);
+    if (!disabled) {
+      if (isPaused) {
+        onResumeRecording();
+      } else {
+        onPauseRecording();
+      }
+    }
+  };
+
   return (
     <div className="flex items-center justify-center gap-6">
       {showPlayButton && hasRecording && !isRecording && (
@@ -48,7 +73,7 @@ export const RecordControls = ({
           disabled={disabled}
           onClick={onPlay}
         >
-          <Play className="w-6 h-6 text-[#9b87f5]" />
+          <Play className="w-6 h-6 text-[#4285F4]" />
         </Button>
       )}
       
@@ -57,8 +82,8 @@ export const RecordControls = ({
           <Button
             size="icon"
             variant="default"
-            className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-            onClick={isPaused ? onResumeRecording : onPauseRecording}
+            className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6]"
+            onClick={handlePauseResumeClick}
             disabled={disabled}
           >
             {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
@@ -68,18 +93,18 @@ export const RecordControls = ({
             size="icon"
             variant="outline"
             className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-            onClick={onStopRecording}
+            onClick={handleStopClick}
             disabled={disabled}
           >
-            <Square className="w-6 h-6 text-[#9b87f5]" />
+            <Square className="w-6 h-6 text-[#4285F4]" />
           </Button>
         </>
       ) : (
         <Button
           size="icon"
           variant="default"
-          className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-          onClick={onStartRecording}
+          className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6]"
+          onClick={handleRecordClick}
           disabled={disabled}
         >
           <Mic className="w-10 h-10" />
