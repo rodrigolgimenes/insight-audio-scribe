@@ -55,7 +55,9 @@ export function DeviceSelector({
     // Log device information
     console.log('[DeviceSelector] Devices:', deviceList.length, 'Selected:', selectedDeviceId);
     deviceList.forEach((device, index) => {
-      console.log(`[DeviceSelector] Device ${index}:`, device.label, device.deviceId.substring(0, 8) + '...');
+      const deviceId = device.deviceId || "unknown";
+      const shortId = deviceId.substring(0, 8) + '...';
+      console.log(`[DeviceSelector] Device ${index}:`, device.label || "Unnamed device", shortId);
     });
   }, [deviceList, selectedDeviceId, permissionStatus]);
 

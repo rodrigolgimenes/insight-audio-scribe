@@ -22,7 +22,11 @@ const SimpleRecord = () => {
   const { saveRecording, isProcessing: isSaveProcessing } = useRecordingSave();
   const [keepAudio, setKeepAudio] = useState(true);
   const [isPageReady, setIsPageReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Initialize recording functionality
+  const recordingHook = useRecording();
+  
   const {
     isRecording,
     isPaused,
@@ -45,15 +49,31 @@ const SimpleRecord = () => {
     deviceSelectionReady,
     lastAction,
     initError
-  } = useRecording();
+  } = recordingHook;
 
   useEffect(() => {
+    console.log("[SimpleRecord] Component mounted");
+    
     // Short delay to ensure components are rendered properly
     const timer = setTimeout(() => {
       setIsPageReady(true);
-    }, 100);
-    return () => clearTimeout(timer);
+      console.log("[SimpleRecord] Page ready set to true");
+    }, 300);
+    
+    return () => {
+      console.log("[SimpleRecord] Component unmounting");
+      clearTimeout(timer);
+    };
   }, []);
+
+  useEffect(() => {
+    if (initError) {
+      console.error("[SimpleRecord] Recording initialization error:", initError);
+      setError(initError.message);
+    } else {
+      setError(null);
+    }
+  }, [initError]);
 
   useEffect(() => {
     const success = searchParams.get('success');
@@ -69,6 +89,7 @@ const SimpleRecord = () => {
   }, [searchParams, toast]);
 
   const handleSave = async () => {
+    console.log("[SimpleRecord] Save requested");
     try {
       if (isRecording) {
         await handleStopRecording();
@@ -97,6 +118,14 @@ const SimpleRecord = () => {
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
   const hasRecording = !!audioUrl;
 
+  console.log("[SimpleRecord] Render with state:", { 
+    isPageReady, 
+    hasContent: !!processedContent, 
+    isLoading,
+    hasRecording, 
+    deviceSelectionReady 
+  });
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -104,11 +133,11 @@ const SimpleRecord = () => {
         <div className="flex-1">
           <main className="container mx-auto px-4 py-8">
             <div className="max-w-3xl mx-auto">
-              {initError && (
+              {error && (
                 <Alert variant="destructive" className="mb-4">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Error initializing recording: {initError.message}
+                    Error initializing recording: {error}
                   </AlertDescription>
                 </Alert>
               )}

@@ -23,6 +23,9 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   const [modalReady, setModalReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Use the recording hook
+  const recordingHook = useRecording();
+  
   const {
     isRecording,
     isPaused,
@@ -43,15 +46,16 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     deviceSelectionReady,
     lastAction,
     initError
-  } = useRecording();
+  } = recordingHook;
 
   useEffect(() => {
+    console.log('[RecordingModal] Modal open state changed:', isOpen);
     if (isOpen) {
-      console.log('[RecordingModal] Modal opened, initializing...');
       // Short delay to ensure modal is rendered before initializing
       const timer = setTimeout(() => {
         setModalReady(true);
-      }, 100);
+        console.log('[RecordingModal] Modal ready state set to true');
+      }, 300);
       return () => clearTimeout(timer);
     } else {
       // Reset on close
@@ -68,6 +72,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
 
   useEffect(() => {
     if (initError) {
+      console.error('[RecordingModal] Initialization error:', initError);
       setError(initError.message);
     } else {
       setError(null);
@@ -76,6 +81,15 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
 
   const isLoading = isSaving;
   const hasRecording = !!audioUrl;
+
+  console.log('[RecordingModal] Render with state:', { 
+    isOpen, 
+    modalReady, 
+    hasError: !!error,
+    isRecording, 
+    isPaused, 
+    hasAudio: !!audioUrl 
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
