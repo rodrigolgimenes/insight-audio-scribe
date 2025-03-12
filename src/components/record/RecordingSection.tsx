@@ -1,16 +1,12 @@
 
-import React, { useState, useEffect } from "react";
-import { RecordHeader } from "./RecordHeader";
-import { RecordTimer } from "./RecordTimer";
-import { RecordControls } from "./RecordControls";
-import { AudioVisualizer } from "./AudioVisualizer";
-import { DeviceSelector } from "./DeviceSelector";
-import { SystemAudioToggle } from "./SystemAudioToggle";
+import React from "react";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { RecordingValidator } from "@/utils/audio/recordingValidator";
+import { RecordingHeader } from "./sections/RecordingHeader";
+import { RecordingMain } from "./sections/RecordingMain";
+import { RecordingOptions } from "./sections/RecordingOptions";
+import { RecordingActions } from "./sections/RecordingActions";
+import { useDiagnostics } from "@/hooks/recording/useDiagnostics";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -24,7 +20,7 @@ interface RecordingSectionProps {
   handleResumeRecording: () => void;
   handleDelete?: () => void;
   onSystemAudioChange?: (isSystemAudio: boolean) => void;
-  audioDevices: AudioDevice[];  // Changed to only accept AudioDevice[]
+  audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
@@ -62,83 +58,56 @@ export function RecordingSection({
   lastAction,
   onRefreshDevices,
 }: RecordingSectionProps) {
-  const [showDetails, setShowDetails] = useState(false);
-
-  // Log diagnostic information when key props change
-  useEffect(() => {
-    RecordingValidator.logDiagnostics({
-      selectedDeviceId,
-      deviceSelectionReady,
-      audioDevices,
-      isRecording
-    });
-  }, [isRecording, deviceSelectionReady, selectedDeviceId, audioDevices]);
+  // Use our new diagnostics hook
+  useDiagnostics({
+    selectedDeviceId,
+    deviceSelectionReady,
+    audioDevices,
+    isRecording
+  });
 
   return (
     <div className="space-y-4">
-      <RecordHeader 
+      {/* Header Section with Timer */}
+      <RecordingHeader 
         isRecording={isRecording} 
         isPaused={isPaused} 
       />
       
-      <RecordTimer 
-        isRecording={isRecording} 
-        isPaused={isPaused} 
+      {/* Main Recording Controls */}
+      <RecordingMain 
+        isRecording={isRecording}
+        isPaused={isPaused}
+        mediaStream={mediaStream}
+        handleStartRecording={handleStartRecording}
+        handleStopRecording={handleStopRecording}
+        handlePauseRecording={handlePauseRecording}
+        handleResumeRecording={handleResumeRecording}
+        deviceSelectionReady={deviceSelectionReady}
+        selectedDeviceId={selectedDeviceId}
+        audioDevices={audioDevices}
+        lastAction={lastAction}
       />
       
-      <div className="flex flex-col items-center">
-        <AudioVisualizer 
-          mediaStream={mediaStream} 
-          isRecording={isRecording} 
-          isPaused={isPaused} 
-        />
-        
-        <RecordControls 
-          isRecording={isRecording} 
-          isPaused={isPaused} 
-          onStartRecording={handleStartRecording} 
-          onStopRecording={handleStopRecording} 
-          onPauseRecording={handlePauseRecording} 
-          onResumeRecording={handleResumeRecording} 
-          deviceSelectionReady={deviceSelectionReady}
-          selectedDeviceId={selectedDeviceId}
-          audioDevices={audioDevices}
-          showLastAction={true}
-          lastAction={lastAction}
-        />
-      </div>
+      {/* Device and System Audio Options */}
+      <RecordingOptions 
+        isSystemAudio={isSystemAudio}
+        onSystemAudioChange={onSystemAudioChange}
+        audioDevices={audioDevices}
+        selectedDeviceId={selectedDeviceId}
+        onDeviceSelect={onDeviceSelect}
+        deviceSelectionReady={deviceSelectionReady}
+        onRefreshDevices={onRefreshDevices}
+      />
       
-      <div className="mt-6 space-y-4">
-        <DeviceSelector 
-          audioDevices={audioDevices} 
-          selectedDeviceId={selectedDeviceId} 
-          onDeviceSelect={onDeviceSelect} 
-          isReady={deviceSelectionReady}
-          onRefreshDevices={onRefreshDevices}
-        />
-        
-        {onSystemAudioChange && (
-          <SystemAudioToggle 
-            isSystemAudio={isSystemAudio} 
-            onSystemAudioChange={onSystemAudioChange} 
-          />
-        )}
-      </div>
+      {/* Delete Recording Button */}
+      <RecordingActions 
+        showDeleteButton={showDeleteButton}
+        handleDelete={handleDelete}
+        audioUrl={audioUrl}
+      />
       
-      {showDeleteButton && handleDelete && audioUrl && (
-        <div className="flex justify-center mt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDelete}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete recording
-          </Button>
-        </div>
-      )}
-      
+      {/* Diagnostics Panel */}
       {showDiagnosticsPanel && (
         <DiagnosticsPanel
           isRecording={isRecording}
