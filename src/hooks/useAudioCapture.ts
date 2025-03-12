@@ -37,7 +37,7 @@ export const useAudioCapture = () => {
   );
   
   // Get audio devices
-  const getAudioDevicesWrapper = useCallback(async () => {
+  const getAudioDevicesWrapper = useCallback(async (): Promise<{ devices: AudioDevice[], defaultId: string | null }> => {
     try {
       console.log('[useAudioCapture] Enumerating audio devices');
       
@@ -45,7 +45,7 @@ export const useAudioCapture = () => {
       const now = Date.now();
       if (now - lastRefreshTime < 5000 && audioDevices.length > 0) {
         console.log('[useAudioCapture] Using cached devices from recent refresh');
-        return audioDevices;
+        return { devices: audioDevices, defaultId: defaultDeviceId };
       }
       
       setLastRefreshTime(now);
@@ -54,9 +54,6 @@ export const useAudioCapture = () => {
       
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
-      
-      setAudioDevices(devices);
-      setDefaultDeviceId(defaultId);
       
       if (devices.length === 0) {
         toast.error("No microphones found", {
@@ -68,15 +65,18 @@ export const useAudioCapture = () => {
         });
       }
       
-      return devices;
+      setAudioDevices(devices);
+      setDefaultDeviceId(defaultId);
+      
+      return { devices, defaultId };
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       toast.error("Failed to detect microphones", {
         description: error instanceof Error ? error.message : "Unknown error"
       });
-      return [];
+      return { devices: [] as AudioDevice[], defaultId: null };
     }
-  }, [getAudioDevices, audioDevices, lastRefreshTime]);
+  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime]);
   
   // Initial device enumeration
   useEffect(() => {

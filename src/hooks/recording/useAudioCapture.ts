@@ -38,12 +38,12 @@ export const useAudioCapture = () => {
   );
   
   // Get audio devices
-  const getAudioDevicesWrapper = useCallback(async () => {
+  const getAudioDevicesWrapper = useCallback(async (): Promise<{ devices: AudioDevice[], defaultId: string | null }> => {
     try {
       // Prevent multiple simultaneous refreshes
       if (refreshInProgressRef.current) {
         console.log('[useAudioCapture] Refresh already in progress, skipping');
-        return audioDevices;
+        return { devices: audioDevices, defaultId: defaultDeviceId };
       }
       
       refreshInProgressRef.current = true;
@@ -54,7 +54,7 @@ export const useAudioCapture = () => {
       if (now - lastRefreshTime < 5000 && audioDevices.length > 0) {
         console.log('[useAudioCapture] Using cached devices from recent refresh');
         refreshInProgressRef.current = false;
-        return audioDevices;
+        return { devices: audioDevices, defaultId: defaultDeviceId };
       }
       
       setLastRefreshTime(now);
@@ -71,13 +71,13 @@ export const useAudioCapture = () => {
       }
       
       refreshInProgressRef.current = false;
-      return devices;
+      return { devices, defaultId };
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       refreshInProgressRef.current = false;
-      return [];
+      return { devices: [] as AudioDevice[], defaultId: null };
     }
-  }, [getAudioDevices, audioDevices, lastRefreshTime]);
+  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime]);
   
   // Initial device enumeration - only once at mount
   useEffect(() => {
