@@ -60,19 +60,15 @@ export function DeviceSelector({
         hasAttemptedSelection
       });
       
+      // Mark that a manual selection was made to prevent auto-selection
+      // from overriding the user's choice
+      setHasAttemptedSelection(true);
+      
       // Call the callback to update the parent component
       onDeviceSelect(value);
       
       // Log state change intent
       console.log('[DeviceSelector] Device selection dispatched');
-      
-      // Add a delayed check to verify the state was updated
-      setTimeout(() => {
-        console.log('[DeviceSelector] State after selection (timeout check):', {
-          selectedDeviceIdNow: selectedDeviceId,
-          selected: value
-        });
-      }, 100);
     }
   };
 
@@ -93,8 +89,18 @@ export function DeviceSelector({
         deviceExists,
         selectedDeviceId
       });
+      
+      // If selected device no longer exists in the list and we have devices,
+      // we should select the first available one
+      if (!deviceExists && deviceList.length > 0) {
+        console.log('[DeviceSelector] Selected device no longer exists, selecting first available');
+        const firstDevice = deviceList[0];
+        if (firstDevice && firstDevice.deviceId) {
+          onDeviceSelect(firstDevice.deviceId);
+        }
+      }
     }
-  }, [selectedDeviceId, deviceList.length, isReady, permissionState, hasAttemptedSelection]);
+  }, [selectedDeviceId, deviceList, isReady, permissionState, hasAttemptedSelection, onDeviceSelect]);
 
   // Use our extracted hook for auto-refresh logic
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
@@ -135,6 +141,9 @@ export function DeviceSelector({
   // Show permission request button when needed
   const showPermissionRequest = permissionState === 'prompt' || (permissionState === 'denied' && deviceCount === 0);
 
+  // Only show auto-selection when permission is granted and we have devices
+  const showAutoSelection = permissionState === 'granted' && deviceCount > 0;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -147,8 +156,8 @@ export function DeviceSelector({
         />
       </div>
 
-      {/* This component handles auto-selection logic */}
-      {permissionState === 'granted' && (
+      {/* This component handles auto-selection logic - only show when permission granted */}
+      {showAutoSelection && (
         <DeviceAutoSelection
           deviceList={deviceList}
           selectedDeviceId={selectedDeviceId}

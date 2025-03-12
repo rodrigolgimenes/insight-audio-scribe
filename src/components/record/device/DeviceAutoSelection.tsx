@@ -62,8 +62,6 @@ export function DeviceAutoSelection({
       } else {
         console.log('[DeviceAutoSelection] Selected device still valid, no changes needed');
       }
-    } else if (!selectedDeviceId && hasAttemptedSelection) {
-      console.log('[DeviceAutoSelection] No device selected but selection was attempted before');
     }
   }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection, setHasAttemptedSelection]);
   
