@@ -105,6 +105,7 @@ export function RecordingSection({
       
       {/* Device and System Audio Options */}
       <RecordingOptions 
+        isRecording={isRecording}  
         isSystemAudio={isSystemAudio}
         onSystemAudioChange={onSystemAudioChange}
         audioDevices={audioDevices}

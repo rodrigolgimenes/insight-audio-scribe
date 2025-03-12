@@ -44,6 +44,9 @@ export function ModalRecordContent({ recordingHook, error, errorDetails }: Modal
         showPlayButton={true}
         showDeleteButton={true}
         lastAction={recordingHook.lastAction}
+        onRefreshDevices={recordingHook.refreshDevices}
+        devicesLoading={recordingHook.devicesLoading}
+        permissionState={recordingHook.permissionState}
       />
     </>
   );
