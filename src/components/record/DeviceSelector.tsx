@@ -27,10 +27,11 @@ export function DeviceSelector({
   disabled,
   hasDevices
 }: DeviceSelectorProps) {
-  // Log relevant state changes for debugging
+  // Log relevant state for debugging
   useEffect(() => {
     console.log('[DeviceSelector] State updated:', { 
       devicesCount: audioDevices.length,
+      deviceIds: audioDevices.map(d => d.deviceId),
       selectedDeviceId,
       disabled,
       hasDevices
@@ -66,17 +67,17 @@ export function DeviceSelector({
         onValueChange={handleDeviceChange}
         disabled={disabled || !hasDevices}
       >
-        <SelectTrigger className="w-[280px]">
+        <SelectTrigger className="w-[280px] bg-white border-gray-300">
           <SelectValue placeholder="Select a microphone" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="bg-white">
           {audioDevices.length === 0 ? (
             <SelectItem value="no-devices" disabled>
               No microphones found
             </SelectItem>
           ) : (
             audioDevices.map((device, index) => (
-              <SelectItem key={device.deviceId || `device-${index}`} value={device.deviceId}>
+              <SelectItem key={device.deviceId || `device-${index}`} value={device.deviceId || ''}>
                 {device.label || `Microphone ${index + 1}`}
               </SelectItem>
             ))

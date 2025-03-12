@@ -66,14 +66,20 @@ export const useRecording = () => {
     }
   }, [initializeRecorder]);
 
+  // Handle system audio toggle
+  const handleSystemAudioChange = useCallback((enabled: boolean) => {
+    console.log('[useRecording] System audio setting changed to:', enabled);
+    setIsSystemAudio(enabled);
+  }, [setIsSystemAudio]);
+
   const handleStartRecording = useCallback(() => {
     console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
     
-    // Increment the attempts counter for troubleshooting
+    // Increment attempts counter for debugging
     setRecordingAttemptsCount(prev => prev + 1);
     
     if (!selectedDeviceId) {
-      console.error('[useRecording] No device selected for recording');
+      console.error('[useRecording] No device selected');
       toast({
         title: "Error",
         description: "Select a microphone before starting the recording.",
@@ -82,14 +88,8 @@ export const useRecording = () => {
       return;
     }
     
-    if (!deviceSelectionReady) {
-      console.warn('[useRecording] Device selection not ready, but continuing anyway');
-    }
-    
     try {
-      console.log('[useRecording] Calling startRecording with device ID:', selectedDeviceId);
       startRecording(selectedDeviceId);
-      console.log('[useRecording] startRecording function called successfully');
     } catch (error) {
       console.error('[useRecording] Error starting recording:', error);
       toast({
@@ -98,7 +98,7 @@ export const useRecording = () => {
         variant: "destructive",
       });
     }
-  }, [selectedDeviceId, deviceSelectionReady, startRecording, toast]);
+  }, [selectedDeviceId, startRecording, toast]);
 
   const handleStopRecording = useCallback(async () => {
     console.log('[useRecording] Stopping recording');
@@ -124,9 +124,10 @@ export const useRecording = () => {
       mediaStream: mediaStream ? 'exists' : 'null',
       selectedDeviceId,
       deviceSelectionReady,
-      recordingAttemptsCount
+      recordingAttemptsCount,
+      isSystemAudio
     });
-  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady, recordingAttemptsCount]);
+  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady, recordingAttemptsCount, isSystemAudio]);
 
   return {
     isRecording,
@@ -142,7 +143,7 @@ export const useRecording = () => {
     handleResumeRecording,
     handleDelete,
     handleSaveRecording,
-    setIsSystemAudio,
+    setIsSystemAudio: handleSystemAudioChange,
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,

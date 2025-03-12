@@ -46,11 +46,11 @@ export const RecordingSection = ({
   showPlayButton = true,
   showDeleteButton = true,
 }: RecordingSectionProps) => {
-  // Um dispositivo de áudio selecionado é o único requisito para iniciar a gravação
-  const canStartRecording = !!selectedDeviceId;
+  // A selected microphone is required to start recording
+  const canStartRecording = !!selectedDeviceId && audioDevices.length > 0;
   const hasDevices = audioDevices.length > 0;
 
-  // Log no momento da montagem e quando dependências importantes mudam
+  // Log state changes for debugging
   useEffect(() => {
     console.log('[RecordingSection] State updated:', {
       isRecording,
@@ -60,9 +60,10 @@ export const RecordingSection = ({
       selectedDeviceId,
       deviceCount: audioDevices.length,
       canStartRecording,
-      hasDevices
+      hasDevices,
+      isSystemAudio
     });
-  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, audioDevices.length, canStartRecording, hasDevices]);
+  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, audioDevices.length, canStartRecording, hasDevices, isSystemAudio]);
 
   return (
     <>

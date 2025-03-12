@@ -1,24 +1,24 @@
 
-import { Button } from "@/components/ui/button";
-import { Mic, Pause, Play, Square } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Mic, Square, Pause, Play, Trash2 } from "lucide-react";
 
 interface RecordControlsProps {
   isRecording: boolean;
   isPaused: boolean;
   hasRecording: boolean;
   onStartRecording: () => void;
-  onStopRecording: () => void | Promise<void>;
+  onStopRecording: () => void;
   onPauseRecording: () => void;
   onResumeRecording: () => void;
   onDelete: () => void;
-  onPlay: () => void;
+  onPlay?: () => void;
   disabled?: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
 }
 
-export const RecordControls = ({
+export function RecordControls({
   isRecording,
   isPaused,
   hasRecording,
@@ -31,140 +31,135 @@ export const RecordControls = ({
   disabled = false,
   showPlayButton = true,
   showDeleteButton = true,
-}: RecordControlsProps) => {
-  const [isProcessing, setIsProcessing] = useState(false);
+}: RecordControlsProps) {
+  const [buttonState, setButtonState] = useState<'idle' | 'recording' | 'paused'>('idle');
 
-  console.log('[RecordControls] Rendering with state:', { 
-    isRecording, 
-    isPaused, 
-    hasRecording, 
-    disabled,
-    isProcessing
-  });
-
-  // Reset processing state when recording state changes
+  // Update button state based on props
   useEffect(() => {
-    if (isProcessing && isRecording) {
-      console.log('[RecordControls] Recording started successfully, resetting processing state');
-      setIsProcessing(false);
-    }
-  }, [isRecording, isProcessing]);
-
-  const handleRecordClick = () => {
-    console.log('[RecordControls] Record button clicked, disabled:', disabled, 'isProcessing:', isProcessing);
-    if (disabled || isProcessing) return;
-    
-    setIsProcessing(true);
-    
-    try {
-      console.log('[RecordControls] Calling onStartRecording...');
-      // Call directly without wrapping in async/await - this was causing issues
-      onStartRecording();
-      
-      // Set a timeout to clear processing state if recording doesn't start within 5 seconds
-      setTimeout(() => {
-        if (isProcessing && !isRecording) {
-          console.log('[RecordControls] Recording didn\'t start within timeout, resetting state');
-          setIsProcessing(false);
-        }
-      }, 5000);
-    } catch (error) {
-      console.error('[RecordControls] Error in record button click handler:', error);
-      setIsProcessing(false);
-    }
-  };
-
-  const handleStopClick = async () => {
-    console.log('[RecordControls] Stop button clicked');
-    if (disabled || isProcessing) return;
-    
-    setIsProcessing(true);
-    try {
-      await onStopRecording();
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handlePauseResumeClick = () => {
-    console.log('[RecordControls] Pause/Resume button clicked, isPaused:', isPaused);
-    if (disabled || isProcessing) return;
-    
-    if (isPaused) {
-      onResumeRecording();
+    if (isRecording) {
+      setButtonState(isPaused ? 'paused' : 'recording');
     } else {
-      onPauseRecording();
+      setButtonState('idle');
+    }
+    
+    console.log('[RecordControls] State updated:', { 
+      isRecording, 
+      isPaused, 
+      hasRecording, 
+      disabled,
+      buttonState: isRecording ? (isPaused ? 'paused' : 'recording') : 'idle'
+    });
+  }, [isRecording, isPaused, hasRecording]);
+
+  // Start recording handler
+  const handleStartClick = () => {
+    console.log('[RecordControls] Start button clicked, disabled:', disabled);
+    if (!disabled) {
+      onStartRecording();
     }
   };
 
   return (
-    <div className="flex items-center justify-center gap-6">
-      {showPlayButton && hasRecording && !isRecording && (
-        <Button
-          size="icon"
-          variant="outline"
-          className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-          disabled={disabled || isProcessing}
-          onClick={onPlay}
-        >
-          <Play className="w-6 h-6 text-[#4285F4]" />
-        </Button>
-      )}
-      
-      {isRecording ? (
-        <>
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex justify-center space-x-4">
+        {buttonState === 'idle' && (
           <Button
-            size="icon"
-            variant="default"
-            className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6]"
-            onClick={handlePauseResumeClick}
-            disabled={disabled || isProcessing}
-          >
-            {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
-          </Button>
-          
-          <Button
+            type="button"
             size="icon"
             variant="outline"
-            className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-            onClick={handleStopClick}
-            disabled={disabled || isProcessing}
+            className={`h-16 w-16 rounded-full ${
+              disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#4285F4] text-white hover:bg-[#3367D6]'
+            }`}
+            onClick={handleStartClick}
+            disabled={disabled}
+            aria-label="Start Recording"
           >
-            <Square className="w-6 h-6 text-[#4285F4]" />
+            <Mic className="h-8 w-8" />
           </Button>
-        </>
-      ) : (
-        <Button
-          size="icon"
-          variant="default"
-          className={`w-20 h-20 rounded-full transition-colors ${
-            isProcessing 
-              ? "bg-[#3367D6] cursor-wait" 
-              : "bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6]"
-          }`}
-          onClick={handleRecordClick}
-          disabled={disabled || isProcessing}
-          aria-label="Start Recording"
-        >
-          <Mic className="w-10 h-10" />
-        </Button>
-      )}
-      
-      {showDeleteButton && hasRecording && !isRecording && (
-        <Button
-          size="icon"
-          variant="outline"
-          className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-          onClick={onDelete}
-          disabled={disabled || isProcessing}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-red-500">
-            <path d="M3 6h18"></path>
-            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-          </svg>
-        </Button>
-      )}
+        )}
+
+        {buttonState === 'recording' && (
+          <>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-16 w-16 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800"
+              onClick={onPauseRecording}
+              aria-label="Pause Recording"
+            >
+              <Pause className="h-8 w-8" />
+            </Button>
+
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+              onClick={onStopRecording}
+              aria-label="Stop Recording"
+            >
+              <Square className="h-8 w-8" />
+            </Button>
+          </>
+        )}
+
+        {buttonState === 'paused' && (
+          <>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600"
+              onClick={onResumeRecording}
+              aria-label="Resume Recording"
+            >
+              <Play className="h-8 w-8" />
+            </Button>
+
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+              onClick={onStopRecording}
+              aria-label="Stop Recording"
+            >
+              <Square className="h-8 w-8" />
+            </Button>
+          </>
+        )}
+
+        {hasRecording && !isRecording && (
+          <div className="flex space-x-4">
+            {showPlayButton && onPlay && (
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600"
+                onClick={onPlay}
+                aria-label="Play Recording"
+              >
+                <Play className="h-8 w-8" />
+              </Button>
+            )}
+
+            {showDeleteButton && (
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+                onClick={onDelete}
+                aria-label="Delete Recording"
+              >
+                <Trash2 className="h-8 w-8" />
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
-};
+}
