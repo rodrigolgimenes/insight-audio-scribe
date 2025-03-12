@@ -11,7 +11,7 @@ import { useSystemAudio } from "./useSystemAudio";
 import { useRecorderInitialization } from "./useRecorderInitialization";
 import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
 import { useRecordingLogger } from "./useRecordingLogger";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 
 /**
  * Main hook that combines all recording functionality
@@ -22,6 +22,31 @@ export const useRecording = () => {
   
   // Main state
   const recordingState = useRecordingState();
+  
+  // Create a wrapped version of setSelectedDeviceId that adds logging
+  const originalSetSelectedDeviceId = recordingState.setSelectedDeviceId;
+  recordingState.setSelectedDeviceId = (deviceId: string | null) => {
+    console.log('[useRecordingHook] setSelectedDeviceId called with:', deviceId);
+    console.log('[useRecordingHook] Current state before update:', {
+      selectedDeviceId: recordingState.selectedDeviceId,
+      deviceSelectionReady: deviceSelectionReady,
+      isRecording: recordingState.isRecording
+    });
+    
+    // Call original function
+    originalSetSelectedDeviceId(deviceId);
+    
+    // Log after update (will show previous value due to closure)
+    console.log('[useRecordingHook] State update initiated, will verify in next render');
+    
+    // Add timeout to verify state update
+    setTimeout(() => {
+      console.log('[useRecordingHook] State after update (timeout check):', {
+        selectedDeviceId: recordingState.selectedDeviceId,
+        deviceId
+      });
+    }, 100);
+  };
 
   // Error handling
   const {
@@ -37,6 +62,16 @@ export const useRecording = () => {
     devicesLoading,
     permissionState
   } = useDeviceSelection();
+
+  // Log device selection state changes
+  useEffect(() => {
+    console.log('[useRecordingHook] Device selection state updated:', {
+      deviceSelectionReady,
+      audioDevicesCount: audioDevices.length,
+      permissionState,
+      selectedDeviceId: recordingState.selectedDeviceId
+    });
+  }, [deviceSelectionReady, audioDevices.length, permissionState, recordingState.selectedDeviceId]);
 
   // Media stream handling
   const { streamManager } = useMediaStream(recordingState.setLastAction);

@@ -41,9 +41,27 @@ export function RecordControls({
   const [clickTime, setClickTime] = useState<number | null>(null);
   const [canStart, setCanStart] = useState(false);
   
+  // Log props changes
+  useEffect(() => {
+    console.log('[RecordControls] Props updated:', {
+      isRecording,
+      isPaused,
+      deviceSelectionReady,
+      selectedDeviceId,
+      audioDevicesCount: audioDevices.length,
+      canStart
+    });
+  }, [isRecording, isPaused, deviceSelectionReady, selectedDeviceId, audioDevices.length, canStart]);
+  
   // Validate recording prerequisites when dependencies change
   useEffect(() => {
     if (isRecording) return; // No need to validate if already recording
+    
+    console.log('[RecordControls] Validating prerequisites with:', {
+      selectedDeviceId,
+      deviceSelectionReady,
+      audioDevicesCount: audioDevices.length
+    });
     
     const diagnostics = RecordingValidator.validatePrerequisites({
       selectedDeviceId,
@@ -51,13 +69,25 @@ export function RecordControls({
       audioDevices
     });
     
+    const previousCanStart = canStart;
     setCanStart(diagnostics.canStartRecording);
     
-    console.log('[RecordControls] Can start recording:', diagnostics.canStartRecording);
+    console.log('[RecordControls] Can start recording:', diagnostics.canStartRecording, 
+      'changed:', previousCanStart !== diagnostics.canStartRecording);
+    
+    console.log('[RecordControls] Validation details:', {
+      canStart: diagnostics.canStartRecording,
+      hasDevices: diagnostics.hasDevices,
+      deviceSelected: diagnostics.deviceSelected,
+      deviceSelectionReady: diagnostics.deviceSelectionReady,
+      permissionsGranted: diagnostics.permissionsGranted,
+      issues: diagnostics.issues
+    });
+    
     if (!diagnostics.canStartRecording) {
       console.log('[RecordControls] Recording start issues:', diagnostics.issues);
     }
-  }, [deviceSelectionReady, selectedDeviceId, audioDevices, isRecording]);
+  }, [deviceSelectionReady, selectedDeviceId, audioDevices, isRecording, canStart]);
 
   const handleButtonClick = (action: string, callback: () => void) => {
     setButtonPressed(action);
@@ -67,6 +97,14 @@ export function RecordControls({
     
     // Log diagnostics before attempting to start recording
     if (action === 'start') {
+      console.log('[RecordControls] Starting recording, current state:', {
+        selectedDeviceId,
+        deviceSelectionReady,
+        audioDevicesCount: audioDevices.length,
+        isRecording,
+        canStart
+      });
+      
       RecordingValidator.logDiagnostics({
         selectedDeviceId,
         deviceSelectionReady,

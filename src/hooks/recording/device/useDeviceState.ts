@@ -1,5 +1,5 @@
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 /**
  * Hook for managing device selection state
@@ -19,6 +19,17 @@ export const useDeviceState = () => {
   const permissionCheckedRef = useRef(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
+  // Log state changes
+  useEffect(() => {
+    console.log('[useDeviceState] State updated:', {
+      selectedDeviceId,
+      deviceSelectionReady,
+      permissionGranted,
+      initAttempted: deviceInitializationAttempted.current,
+      lastSelectedDevice: lastSelectedDeviceRef.current
+    });
+  }, [selectedDeviceId, deviceSelectionReady, permissionGranted]);
+
   const handleDeviceSelect = (deviceId: string) => {
     // Validate the device ID
     if (!deviceId || deviceId === '') {
@@ -27,12 +38,26 @@ export const useDeviceState = () => {
     }
     
     console.log('[useDeviceState] Setting device ID:', deviceId);
+    console.log('[useDeviceState] Previous state:', {
+      selectedDeviceId,
+      deviceSelectionReady,
+      lastSelectedDevice: lastSelectedDeviceRef.current
+    });
     
+    // Update state
     setSelectedDeviceId(deviceId);
     lastSelectedDeviceRef.current = deviceId;
     setDeviceSelectionReady(true);
     
     console.log('[useDeviceState] Device selected successfully:', deviceId);
+    
+    // Add timeout to verify state update
+    setTimeout(() => {
+      console.log('[useDeviceState] State after update (timeout check):', {
+        selectedDeviceId,
+        lastSelectedDevice: lastSelectedDeviceRef.current
+      });
+    }, 100);
   };
 
   return {

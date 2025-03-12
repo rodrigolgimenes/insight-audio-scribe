@@ -14,6 +14,13 @@ export class RecordingValidator {
   }) {
     const { selectedDeviceId, deviceSelectionReady, audioDevices, permissionsGranted = true } = options;
     
+    console.log('[RecordingValidator] Validating with:', {
+      selectedDeviceId,
+      deviceSelectionReady,
+      audioDevicesCount: audioDevices.length,
+      permissionsGranted
+    });
+    
     const diagnostics = {
       canStartRecording: false,
       hasDevices: audioDevices.length > 0,
@@ -50,6 +57,11 @@ export class RecordingValidator {
       diagnostics.deviceSelectionReady && 
       diagnostics.permissionsGranted;
     
+    console.log('[RecordingValidator] Validation result:', {
+      canStartRecording: diagnostics.canStartRecording,
+      issues: diagnostics.issues.length > 0 ? diagnostics.issues : 'none'
+    });
+    
     return diagnostics;
   }
   
@@ -80,6 +92,14 @@ export class RecordingValidator {
     } else {
       console.log('No issues detected');
     }
+    
+    if (rest.audioDevices.length > 0) {
+      console.log('Available devices:');
+      rest.audioDevices.forEach((device, index) => {
+        console.log(`- Device ${index + 1}: ID=${device.deviceId} Label=${device.label || 'Unnamed device'}`);
+      });
+    }
+    
     console.groupEnd();
     
     return diagnostics;
