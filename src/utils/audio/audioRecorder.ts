@@ -14,6 +14,7 @@ export class AudioRecorder {
   private isInitialized = false;
   private latestBlob: Blob | null = null;
   private recordingStartTime: number | null = null;
+  private hasInitError = false;
 
   constructor() {
     this.mediaRecorderManager = new MediaRecorderManager();
@@ -33,7 +34,8 @@ export class AudioRecorder {
     console.log('[AudioRecorder] startRecording called, current state:', {
       isRecording: this.isRecording,
       isPaused: this.isPaused,
-      isInitialized: this.isInitialized
+      isInitialized: this.isInitialized,
+      hasInitError: this.hasInitError
     });
     
     if (this.isRecording) {
@@ -41,7 +43,18 @@ export class AudioRecorder {
       return;
     }
 
+    if (this.hasInitError) {
+      console.log('[AudioRecorder] Resetting from previous error state');
+      this.hasInitError = false;
+      this.cleanup();
+    }
+
     try {
+      // Verify we have a valid stream with audio tracks
+      if (!stream) {
+        throw new Error('No media stream provided');
+      }
+      
       // Validate stream before proceeding
       logAudioTracks(stream);
       validateAudioTracks(stream);
@@ -51,7 +64,9 @@ export class AudioRecorder {
       this.streamManager.initialize(stream, () => {
         if (this.isRecording) {
           console.log('[AudioRecorder] Stream ended unexpectedly, stopping recording');
-          this.stopRecording();
+          this.stopRecording().catch(error => {
+            console.error('[AudioRecorder] Error in stream ended callback:', error);
+          });
         }
       });
 
@@ -69,6 +84,7 @@ export class AudioRecorder {
       console.log('[AudioRecorder] Recording started successfully at', new Date(this.recordingStartTime).toISOString());
     } catch (error) {
       console.error('[AudioRecorder] Error starting recording:', error);
+      this.hasInitError = true;
       this.cleanup();
       throw error;
     }
@@ -121,7 +137,7 @@ export class AudioRecorder {
             this.cleanup();
             reject(error);
           }
-        }, 300); // Increased timeout to ensure all data is processed
+        }, 500); // Increased timeout to ensure all data is processed
       } catch (error) {
         console.error('[AudioRecorder] Error stopping recording:', error);
         this.cleanup();
@@ -162,14 +178,20 @@ export class AudioRecorder {
     }
   }
 
+  resetState(): void {
+    console.log('[AudioRecorder] Resetting state');
+    this.isRecording = false;
+    this.isPaused = false;
+    this.hasInitError = false;
+    this.recordingStartTime = null;
+    this.cleanup();
+  }
+
   private cleanup(): void {
     console.log('[AudioRecorder] Cleaning up resources');
     this.mediaRecorderManager.cleanup();
     this.durationTracker.cleanup();
     this.streamManager.cleanup();
-    this.isRecording = false;
-    this.isPaused = false;
-    this.recordingStartTime = null;
     console.log('[AudioRecorder] Cleanup complete');
   }
 

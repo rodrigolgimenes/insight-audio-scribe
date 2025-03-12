@@ -1,5 +1,5 @@
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useRecordingState } from "./recording/useRecordingState";
 import { useRecordingLifecycle } from "./recording/useRecordingLifecycle";
 import { useDeviceSelection } from "./recording/useDeviceSelection";
@@ -24,6 +24,7 @@ export const useRecording = () => {
   } = useRecordingState();
 
   const { toast } = useToast();
+  const [initError, setInitError] = useState<Error | null>(null);
 
   const {
     audioDevices,
@@ -43,13 +44,27 @@ export const useRecording = () => {
     getCurrentDuration
   } = useRecordingLifecycle();
 
+  // Clear any initialization errors when device selection changes
   useEffect(() => {
-    const cleanup = initializeRecorder();
-    return cleanup;
+    setInitError(null);
+  }, [selectedDeviceId]);
+
+  useEffect(() => {
+    console.log('[useRecording] Initializing recorder...');
+    try {
+      const cleanup = initializeRecorder();
+      console.log('[useRecording] Recorder initialized successfully');
+      
+      return cleanup;
+    } catch (error) {
+      console.error('[useRecording] Error initializing recorder:', error);
+      setInitError(error instanceof Error ? error : new Error('Unknown error initializing recorder'));
+      return () => {};
+    }
   }, [initializeRecorder]);
 
   const handleStartRecording = useCallback(async () => {
-    console.log('[useRecording] Starting recording with device ID:', selectedDeviceId, 'Ready:', deviceSelectionReady);
+    console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
     
     if (!selectedDeviceId) {
       console.error('[useRecording] No device selected for recording');
@@ -72,7 +87,9 @@ export const useRecording = () => {
     }
     
     try {
+      console.log('[useRecording] Calling startRecording with device ID:', selectedDeviceId);
       await startRecording(selectedDeviceId);
+      console.log('[useRecording] Recording started successfully');
     } catch (error) {
       console.error('[useRecording] Error starting recording:', error);
       toast({
@@ -98,6 +115,18 @@ export const useRecording = () => {
     }
   }, [stopRecording, toast]);
 
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log('[useRecording] State updated:', { 
+      isRecording, 
+      isPaused, 
+      audioUrl: audioUrl ? 'exists' : 'null',
+      mediaStream: mediaStream ? 'exists' : 'null',
+      selectedDeviceId,
+      deviceSelectionReady
+    });
+  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady]);
+
   return {
     isRecording,
     isPaused,
@@ -117,6 +146,7 @@ export const useRecording = () => {
     selectedDeviceId,
     setSelectedDeviceId,
     deviceSelectionReady,
-    getCurrentDuration
+    getCurrentDuration,
+    initError
   };
 };

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MIC_CONSTRAINTS } from "./audioConfig";
 import { useSystemAudio } from "./useSystemAudio";
@@ -17,15 +17,66 @@ export const useAudioCapture = () => {
   const { captureSystemAudio } = useSystemAudio();
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
+  const [permissionGranted, setPermissionGranted] = useState(false);
 
-  const getAudioDevices = async (): Promise<AudioDevice[]> => {
+  // Define a function to check and request device permissions
+  const checkPermissions = useCallback(async (): Promise<boolean> => {
     try {
-      console.log('[useAudioCapture] Requesting microphone permission for device enumeration');
+      console.log('[useAudioCapture] Checking microphone permissions');
       
-      // Always request permission first to enumerate devices
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request permission
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       
-      console.log('[useAudioCapture] Permission granted, enumerating devices');
+      if (permissionStatus.state === 'granted') {
+        console.log('[useAudioCapture] Microphone permission already granted');
+        setPermissionGranted(true);
+        return true;
+      }
+      
+      if (permissionStatus.state === 'prompt') {
+        console.log('[useAudioCapture] Permission prompt will be shown');
+        // We need to explicitly request the permission
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // If we got this far, permission was granted
+        stream.getTracks().forEach(track => track.stop()); // Clean up
+        setPermissionGranted(true);
+        console.log('[useAudioCapture] Permission granted after prompt');
+        return true;
+      }
+      
+      if (permissionStatus.state === 'denied') {
+        console.error('[useAudioCapture] Microphone permission denied');
+        toast({
+          title: "Error",
+          description: "Microphone access denied. Please enable microphone permissions in your browser settings.",
+          variant: "destructive",
+        });
+        setPermissionGranted(false);
+        return false;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('[useAudioCapture] Error checking permissions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to check microphone permissions.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [toast]);
+
+  const getAudioDevices = useCallback(async (): Promise<AudioDevice[]> => {
+    try {
+      // First check if we have permission
+      const hasPermission = await checkPermissions();
+      if (!hasPermission) {
+        console.warn('[useAudioCapture] Cannot list devices without permission');
+        return [];
+      }
+      
+      console.log('[useAudioCapture] Enumerating audio devices');
       const devices = await navigator.mediaDevices.enumerateDevices();
       
       const audioInputs = devices
@@ -37,7 +88,7 @@ export const useAudioCapture = () => {
           
           return {
             deviceId: device.deviceId,
-            label: device.label || `Microfone ${device.deviceId.slice(0, 5)}...`,
+            label: device.label || `Microphone ${device.deviceId.slice(0, 5)}...`,
             kind: device.kind,
             isDefault
           };
@@ -46,13 +97,25 @@ export const useAudioCapture = () => {
       console.log('[useAudioCapture] Found audio devices:', audioInputs);
 
       if (audioInputs.length === 0) {
-        throw new Error('Nenhum microfone encontrado');
+        toast({
+          title: "Warning",
+          description: "No microphones found. Please connect a microphone and try again.",
+          variant: "destructive",
+        });
+        return [];
       }
       
-      // Select first device as default if there's no obvious default
+      // Look for default device
+      const defaultDevice = audioInputs.find(device => device.isDefault);
       const firstDeviceId = audioInputs[0].deviceId;
-      setDefaultDeviceId(firstDeviceId);
-      console.log('[useAudioCapture] First device selected as default:', audioInputs[0].label);
+      
+      if (defaultDevice) {
+        console.log('[useAudioCapture] Found default device:', defaultDevice.label);
+        setDefaultDeviceId(defaultDevice.deviceId);
+      } else {
+        console.log('[useAudioCapture] No default device found, using first device:', firstDeviceId);
+        setDefaultDeviceId(firstDeviceId);
+      }
       
       setAudioDevices(audioInputs);
       
@@ -61,17 +124,24 @@ export const useAudioCapture = () => {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       toast({
         title: "Error",
-        description: "Não foi possível listar os dispositivos de áudio. Verifique as permissões do seu navegador.",
+        description: "Failed to list audio devices. Check browser permissions.",
         variant: "destructive",
       });
       return [];
     }
-  };
+  }, [checkPermissions, toast]);
 
-  const requestMicrophoneAccess = async (deviceId: string | null, isSystemAudio: boolean): Promise<MediaStream | null> => {
+  const requestMicrophoneAccess = useCallback(async (deviceId: string | null, isSystemAudio: boolean): Promise<MediaStream | null> => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Seu navegador não suporta captura de áudio');
+        throw new Error('Your browser does not support audio capture');
+      }
+
+      // Make sure we have permission first
+      const hasPermission = await checkPermissions();
+      if (!hasPermission) {
+        console.error('[useAudioCapture] Cannot access microphone without permission');
+        return null;
       }
 
       console.log('[useAudioCapture] Requesting microphone access:', {
@@ -96,7 +166,7 @@ export const useAudioCapture = () => {
         
         // Check if we actually got any tracks
         if (!micStream || micStream.getAudioTracks().length === 0) {
-          throw new Error('Não foi possível acessar o microfone selecionado');
+          throw new Error('Failed to access the selected microphone');
         }
         
         console.log('[useAudioCapture] Microphone stream obtained:', {
@@ -115,7 +185,7 @@ export const useAudioCapture = () => {
         });
         
         if (!micStream || micStream.getAudioTracks().length === 0) {
-          throw new Error('Não foi possível acessar o microfone');
+          throw new Error('Failed to access microphone');
         }
       }
 
@@ -130,8 +200,8 @@ export const useAudioCapture = () => {
         } catch (systemError) {
           console.error('[useAudioCapture] Failed to capture system audio:', systemError);
           toast({
-            title: "Aviso",
-            description: "Não foi possível capturar o áudio do sistema. Usando apenas o microfone.",
+            title: "Notice",
+            description: "Could not capture system audio. Using microphone only.",
             variant: "default",
           });
         }
@@ -139,7 +209,7 @@ export const useAudioCapture = () => {
 
       const audioTracks = micStream.getAudioTracks();
       if (audioTracks.length === 0) {
-        throw new Error('Não foi possível capturar áudio do dispositivo selecionado');
+        throw new Error('Failed to capture audio from the selected device');
       }
 
       console.log('[useAudioCapture] Final audio stream details:', {
@@ -159,19 +229,42 @@ export const useAudioCapture = () => {
       console.error('[useAudioCapture] Error accessing audio:', error);
       
       toast({
-        title: "Erro",
+        title: "Error",
         description: handleAudioError(error, isSystemAudio),
         variant: "destructive",
       });
       
       return null;
     }
-  };
+  }, [checkPermissions, captureSystemAudio, toast]);
+
+  // Listen for device changes
+  useEffect(() => {
+    const handleDeviceChange = () => {
+      console.log('[useAudioCapture] Media devices changed, updating device list');
+      getAudioDevices().catch(error => {
+        console.error('[useAudioCapture] Error updating devices on change:', error);
+      });
+    };
+
+    // Only set listener if we have permission
+    if (permissionGranted) {
+      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+      
+      return () => {
+        navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      };
+    }
+    
+    return undefined;
+  }, [permissionGranted, getAudioDevices]);
 
   return {
     requestMicrophoneAccess,
     getAudioDevices,
     audioDevices,
     defaultDeviceId,
+    permissionGranted,
+    checkPermissions
   };
 };

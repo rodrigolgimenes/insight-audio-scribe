@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
@@ -29,6 +30,18 @@ export function RecordingSheet() {
     deviceSelectionReady
   } = useRecording();
 
+  // Log component state for debugging
+  useEffect(() => {
+    console.log('[RecordingSheet] State updated:', { 
+      isRecording, 
+      isPaused, 
+      audioUrl: audioUrl ? 'exists' : 'null',
+      deviceSelectionReady,
+      selectedDeviceId,
+      audioDevices: audioDevices.length
+    });
+  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length]);
+
   const handleTimeLimit = () => {
     handleStopRecording().then(() => {
       console.log('[RecordingSheet] Recording stopped due to time limit');
@@ -53,7 +66,10 @@ export function RecordingSheet() {
           audioUrl={audioUrl}
           mediaStream={mediaStream}
           isSystemAudio={isSystemAudio}
-          handleStartRecording={handleStartRecording}
+          handleStartRecording={() => {
+            console.log('[RecordingSheet] Start recording button clicked');
+            handleStartRecording();
+          }}
           handleStopRecording={() => handleStopRecording().then(() => {
             console.log('[RecordingSheet] Recording stopped manually');
           })}
@@ -61,10 +77,16 @@ export function RecordingSheet() {
           handleResumeRecording={handleResumeRecording}
           handleDelete={handleDelete}
           handleTimeLimit={handleTimeLimit}
-          onSystemAudioChange={setIsSystemAudio}
+          onSystemAudioChange={(value) => {
+            console.log('[RecordingSheet] System audio changed:', value);
+            setIsSystemAudio(value);
+          }}
           audioDevices={audioDevices}
           selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={setSelectedDeviceId}
+          onDeviceSelect={(deviceId) => {
+            console.log('[RecordingSheet] Device selected:', deviceId);
+            setSelectedDeviceId(deviceId);
+          }}
           deviceSelectionReady={deviceSelectionReady}
           showPlayButton={false}
           showDeleteButton={true}
@@ -72,7 +94,10 @@ export function RecordingSheet() {
 
         <div className="mt-6 flex justify-center">
           <SaveRecordingButton
-            onSave={handleSaveRecording}
+            onSave={() => {
+              console.log('[RecordingSheet] Save button clicked');
+              handleSaveRecording();
+            }}
             isSaving={isSaving}
             isDisabled={!isRecording && !audioUrl}
           />

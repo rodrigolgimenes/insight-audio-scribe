@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Mic, Pause, Play, Square } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -33,25 +33,53 @@ export const RecordControls = ({
   showDeleteButton = true,
 }: RecordControlsProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [buttonClicked, setButtonClicked] = useState(false);
 
   console.log('[RecordControls] Rendering with state:', { 
     isRecording, 
     isPaused, 
     hasRecording, 
     disabled,
-    isProcessing
+    isProcessing,
+    buttonClicked
   });
 
-  const handleRecordClick = async () => {
+  // Reset button clicked state when recording state changes
+  useEffect(() => {
+    if (buttonClicked && isRecording) {
+      console.log('[RecordControls] Recording started successfully, resetting button clicked state');
+      setButtonClicked(false);
+      setIsProcessing(false);
+    }
+  }, [isRecording, buttonClicked]);
+
+  const handleRecordClick = () => {
     console.log('[RecordControls] Record button clicked');
     if (disabled || isProcessing) return;
     
     setIsProcessing(true);
-    try {
-      await onStartRecording();
-    } finally {
-      setIsProcessing(false);
-    }
+    setButtonClicked(true);
+    
+    // Using setTimeout to ensure UI updates before potentially heavy operation
+    setTimeout(() => {
+      try {
+        console.log('[RecordControls] Calling onStartRecording...');
+        onStartRecording();
+        
+        // Set a timeout to clear processing state if recording doesn't start within 5 seconds
+        setTimeout(() => {
+          if (buttonClicked) {
+            console.log('[RecordControls] Recording didn\'t start within timeout, resetting state');
+            setButtonClicked(false);
+            setIsProcessing(false);
+          }
+        }, 5000);
+      } catch (error) {
+        console.error('[RecordControls] Error in record button click handler:', error);
+        setButtonClicked(false);
+        setIsProcessing(false);
+      }
+    }, 0);
   };
 
   const handleStopClick = async () => {
@@ -117,7 +145,11 @@ export const RecordControls = ({
         <Button
           size="icon"
           variant="default"
-          className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] transition-colors"
+          className={`w-20 h-20 rounded-full transition-colors ${
+            isProcessing 
+              ? "bg-[#3367D6] cursor-wait" 
+              : "bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6]"
+          }`}
           onClick={handleRecordClick}
           disabled={disabled || isProcessing}
         >
