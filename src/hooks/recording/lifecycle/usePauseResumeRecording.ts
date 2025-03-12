@@ -2,47 +2,56 @@
 import { useCallback } from "react";
 
 export function usePauseResumeRecording(
-  recorder: React.RefObject<any>,
-  state: { 
-    setIsPaused: (value: boolean) => void;
-  }
+  recorder: React.RefObject<any>
 ) {
-  const handlePauseRecording = useCallback(() => {
+  // Pause recording
+  const pauseRecording = useCallback(() => {
     console.log('[usePauseResumeRecording] Pausing recording');
     
     if (!recorder.current) {
-      throw new Error('Recorder not initialized');
+      console.error('[usePauseResumeRecording] Recorder is not initialized');
+      return;
     }
-
-    try {
-      recorder.current.pauseRecording();
-      state.setIsPaused(true);
-      console.log('[usePauseResumeRecording] Recording paused successfully');
-    } catch (error) {
-      console.error('[usePauseResumeRecording] Error pausing recording:', error);
-      throw error;
+    
+    if (!recorder.current.isCurrentlyRecording()) {
+      console.warn('[usePauseResumeRecording] Not recording, cannot pause');
+      return;
     }
-  }, [recorder, state]);
+    
+    if (recorder.current.isPausedState()) {
+      console.warn('[usePauseResumeRecording] Already paused');
+      return;
+    }
+    
+    recorder.current.pauseRecording();
+    console.log('[usePauseResumeRecording] Recording paused');
+  }, [recorder]);
 
-  const handleResumeRecording = useCallback(() => {
+  // Resume recording
+  const resumeRecording = useCallback(() => {
     console.log('[usePauseResumeRecording] Resuming recording');
     
     if (!recorder.current) {
-      throw new Error('Recorder not initialized');
+      console.error('[usePauseResumeRecording] Recorder is not initialized');
+      return;
     }
-
-    try {
-      recorder.current.resumeRecording();
-      state.setIsPaused(false);
-      console.log('[usePauseResumeRecording] Recording resumed successfully');
-    } catch (error) {
-      console.error('[usePauseResumeRecording] Error resuming recording:', error);
-      throw error;
+    
+    if (!recorder.current.isCurrentlyRecording()) {
+      console.warn('[usePauseResumeRecording] Not recording, cannot resume');
+      return;
     }
-  }, [recorder, state]);
+    
+    if (!recorder.current.isPausedState()) {
+      console.warn('[usePauseResumeRecording] Not paused, nothing to resume');
+      return;
+    }
+    
+    recorder.current.resumeRecording();
+    console.log('[usePauseResumeRecording] Recording resumed');
+  }, [recorder]);
 
   return {
-    handlePauseRecording,
-    handleResumeRecording
+    pauseRecording,
+    resumeRecording
   };
 }
