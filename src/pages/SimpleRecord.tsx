@@ -85,6 +85,11 @@ const SimpleRecord = () => {
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
   const hasRecording = !!audioUrl;
 
+  const handleSystemAudioChange = (enabled: boolean) => {
+    console.log("Setting system audio to:", enabled);
+    setIsSystemAudio(enabled);
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -106,7 +111,7 @@ const SimpleRecord = () => {
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
                     handleTimeLimit={handleTimeLimit}
-                    onSystemAudioChange={setIsSystemAudio}
+                    onSystemAudioChange={handleSystemAudioChange}
                     audioDevices={audioDevices}
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
