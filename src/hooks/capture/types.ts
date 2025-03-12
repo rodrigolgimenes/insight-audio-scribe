@@ -16,6 +16,7 @@ export const toAudioDevice = (
     label: device.label,
     isDefault,
     displayName: device.label || `Microphone ${index + 1}`,
-    index
+    index,
+    toJSON: device.toJSON
   };
 };
