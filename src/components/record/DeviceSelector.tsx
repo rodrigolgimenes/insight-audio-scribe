@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
@@ -9,9 +9,11 @@ import { DeviceSelectTrigger } from "./device/DeviceSelectTrigger";
 import { DeviceSelectContent } from "./device/DeviceSelectContent";
 import { RefreshDevicesButton } from "./device/RefreshDevicesButton";
 import { NoDevicesMessage } from "./device/NoDevicesMessage";
-import { Button } from "@/components/ui/button";
-import { Mic, RefreshCw, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { DevicePermissionRequest } from "./device/DevicePermissionRequest";
+import { DevicePermissionError } from "./device/DevicePermissionError";
+import { useDeviceSelection } from "./device/useDeviceSelection";
+import { DeviceAutoSelection } from "./device/DeviceAutoSelection";
+import { useDeviceAutoRefresh } from "./device/useDeviceAutoRefresh";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
@@ -41,17 +43,23 @@ export function DeviceSelector({
   // Use audioDevices if provided, otherwise fall back to devices
   const deviceList = audioDevices || devices || [];
   
-  const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
-  const [hasAttemptedSelection, setHasAttemptedSelection] = useState(false);
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [autoRefreshCount, setAutoRefreshCount] = useState(0);
-  const [lastDeviceCount, setLastDeviceCount] = useState(0);
-  const isMounted = useRef(true);
-  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Use our extracted hook for device selection logic
+  const {
+    hasAttemptedSelection,
+    setHasAttemptedSelection,
+    isRequesting,
+    permissionStatus,
+    handleRequestPermission
+  } = useDeviceSelection(onRefreshDevices, permissionState);
   
+  // Use our extracted hook for auto-refresh logic
+  const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
+  useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
+  
+  // Debug information
   const debugInfo = {
     hasDevices: Array.isArray(deviceList) && deviceList.length > 0,
-    deviceCount: Array.isArray(deviceList) ? deviceList.length : 0,
+    deviceCount,
     selectedDevice: selectedDeviceId,
     permissionRequested: !!permissionStatus
   };
@@ -61,124 +69,6 @@ export function DeviceSelector({
     disabled || 
     permissionState === 'denied' || 
     (deviceList.length === 0 && !devicesLoading); // Allow interaction during loading
-  
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      if (autoRefreshTimerRef.current) {
-        clearTimeout(autoRefreshTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Check permissions and handle errors gracefully
-  useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        if (!navigator.permissions) {
-          console.log('[DeviceSelector] Permissions API not available');
-          return;
-        }
-        
-        const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        if (isMounted.current) {
-          setPermissionStatus(result.state);
-        }
-        
-        result.addEventListener('change', () => {
-          if (isMounted.current) {
-            setPermissionStatus(result.state);
-            // Refresh devices when permissions change
-            if (result.state === 'granted' && onRefreshDevices) {
-              onRefreshDevices();
-            }
-          }
-        });
-      } catch (error) {
-        console.error('[DeviceSelector] Error checking permissions:', error);
-      }
-    };
-    
-    checkPermissions();
-  }, [onRefreshDevices]);
-
-  // Track device count changes to help diagnose issues
-  useEffect(() => {
-    const currentCount = deviceList.length;
-    if (currentCount !== lastDeviceCount) {
-      console.log(`[DeviceSelector] Device count changed: ${lastDeviceCount} -> ${currentCount}`);
-      setLastDeviceCount(currentCount);
-      
-      // Reset auto-refresh counter when we get devices
-      if (currentCount > 0) {
-        setAutoRefreshCount(0);
-        if (autoRefreshTimerRef.current) {
-          clearTimeout(autoRefreshTimerRef.current);
-          autoRefreshTimerRef.current = null;
-        }
-      }
-    }
-  }, [deviceList.length, lastDeviceCount]);
-
-  // Attempt periodic refreshes when no devices are found
-  useEffect(() => {
-    if (deviceList.length === 0 && !devicesLoading && onRefreshDevices && autoRefreshCount < 5) {
-      // Clear any existing timer
-      if (autoRefreshTimerRef.current) {
-        clearTimeout(autoRefreshTimerRef.current);
-      }
-      
-      // Set a new auto-refresh timer
-      const delay = Math.min(2000 * (autoRefreshCount + 1), 8000);
-      console.log(`[DeviceSelector] Setting auto-refresh timer #${autoRefreshCount + 1} for ${delay}ms`);
-      
-      autoRefreshTimerRef.current = setTimeout(() => {
-        if (isMounted.current && deviceList.length === 0 && onRefreshDevices) {
-          console.log(`[DeviceSelector] Auto-refreshing devices (attempt #${autoRefreshCount + 1})`);
-          onRefreshDevices();
-          setAutoRefreshCount(prev => prev + 1);
-        }
-      }, delay);
-    }
-    
-    return () => {
-      if (autoRefreshTimerRef.current) {
-        clearTimeout(autoRefreshTimerRef.current);
-      }
-    };
-  }, [deviceList.length, devicesLoading, onRefreshDevices, autoRefreshCount]);
-
-  // Auto-select a device when devices become available
-  useEffect(() => {
-    if (Array.isArray(deviceList) && deviceList.length > 0) {
-      if (!hasAttemptedSelection) {
-        setHasAttemptedSelection(true);
-        
-        // Only auto-select if no device is already selected
-        if (!selectedDeviceId) {
-          const firstDevice = deviceList[0];
-          if (firstDevice && typeof firstDevice === 'object') {
-            const deviceId = firstDevice.deviceId || '';
-            if (deviceId) {
-              console.log('[DeviceSelector] Auto-selecting first device:', deviceId);
-              onDeviceSelect(deviceId);
-            }
-          }
-        }
-      } else if (!selectedDeviceId || !deviceList.some(d => d.deviceId === selectedDeviceId)) {
-        // If we have a selection but it's no longer valid, select first available
-        const firstDevice = deviceList[0];
-        if (firstDevice && typeof firstDevice === 'object') {
-          const deviceId = firstDevice.deviceId || '';
-          if (deviceId) {
-            console.log('[DeviceSelector] Re-selecting first device after device list change:', deviceId);
-            onDeviceSelect(deviceId);
-          }
-        }
-      }
-    }
-  }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection]);
 
   const handleDeviceChange = (value: string) => {
     if (value && value !== selectedDeviceId) {
@@ -186,22 +76,6 @@ export function DeviceSelector({
       onDeviceSelect(value);
     }
   };
-
-  const handleRequestPermission = async () => {
-    if (!onRefreshDevices || isRequesting) return;
-    
-    setIsRequesting(true);
-    try {
-      await onRefreshDevices();
-    } finally {
-      if (isMounted.current) {
-        setIsRequesting(false);
-      }
-    }
-  };
-
-  // Safely get device count
-  const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
   // Find the selected device name for display
   let selectedDeviceName = "Select a microphone";
@@ -231,16 +105,20 @@ export function DeviceSelector({
         />
       </div>
 
+      {/* This component handles auto-selection logic */}
+      <DeviceAutoSelection
+        deviceList={deviceList}
+        selectedDeviceId={selectedDeviceId}
+        onDeviceSelect={onDeviceSelect}
+        hasAttemptedSelection={hasAttemptedSelection}
+        setHasAttemptedSelection={setHasAttemptedSelection}
+      />
+
       {showPermissionRequest ? (
-        <Button 
-          onClick={handleRequestPermission}
-          className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white"
-          disabled={isRequesting}
-        >
-          <Mic className="h-4 w-4" />
-          {isRequesting ? 'Requesting access...' : 'Allow microphone access'}
-          {isRequesting && <RefreshCw className="h-4 w-4 animate-spin" />}
-        </Button>
+        <DevicePermissionRequest 
+          onRequestPermission={handleRequestPermission}
+          isRequesting={isRequesting}
+        />
       ) : (
         <Select
           value={selectedDeviceId || ""}
@@ -256,14 +134,7 @@ export function DeviceSelector({
         </Select>
       )}
       
-      {permissionState === 'denied' && (
-        <div className="text-red-500 text-xs mt-1 flex items-start gap-1">
-          <AlertTriangle className="h-3 w-3 mt-0.5 flex-shrink-0" />
-          <span>
-            Microphone access denied. Please allow access in your browser settings and refresh the page.
-          </span>
-        </div>
-      )}
+      {permissionState === 'denied' && <DevicePermissionError />}
       
       <NoDevicesMessage showWarning={showNoDevicesWarning} />
       

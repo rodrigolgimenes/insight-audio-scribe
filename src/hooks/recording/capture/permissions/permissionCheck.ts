@@ -43,7 +43,7 @@ export const usePermissionCheck = (
             return true;
           }
           
-          // Use triple equals when comparing string literals to ensure type safety
+          // Fix for TS error - use strict equality check with string literal
           if (permissionResult.state === 'denied') {
             if (showToast) {
               toast.error("Microphone access denied", {

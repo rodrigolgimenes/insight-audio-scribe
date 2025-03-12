@@ -1,18 +1,14 @@
 
 /**
- * Types related to permission handling
+ * Valid permission states with "unknown" state
  */
+export type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
-export type PermissionState = 'granted' | 'denied' | 'prompt' | 'unknown';
-
+/**
+ * Options for permission check function
+ */
 export interface PermissionCheckOptions {
   showToast?: boolean;
   retry?: boolean;
   maxRetries?: number;
 }
-
-export interface PermissionResult {
-  permissionState: PermissionState;
-  checkPermissions: () => Promise<boolean>;
-}
-
