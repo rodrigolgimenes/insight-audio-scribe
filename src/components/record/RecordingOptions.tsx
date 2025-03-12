@@ -31,7 +31,6 @@ export function RecordingOptions({
   permissionState = 'unknown'
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
-  const hasDevices = audioDevices.length > 0;
 
   // Add logging to track device and permission states
   useEffect(() => {
@@ -41,10 +40,10 @@ export function RecordingOptions({
       selectedDeviceId,
       deviceSelectionReady,
       permissionState,
-      hasDevices,
+      hasDevices: audioDevices.length > 0,
       devicesLoading
     });
-  }, [audioDevices.length, selectedDeviceId, deviceSelectionReady, permissionState, hasDevices, devicesLoading]);
+  }, [audioDevices.length, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading]);
 
   // Log on every render for consistency
   console.log('[RecordingOptions RENDER]', {
@@ -61,7 +60,6 @@ export function RecordingOptions({
         selectedDeviceId={selectedDeviceId}
         onDeviceSelect={onDeviceSelect}
         disabled={isRecording}
-        hasDevices={hasDevices}
         isReady={deviceSelectionReady}
         onRefreshDevices={onRefreshDevices}
         devicesLoading={devicesLoading}

@@ -73,7 +73,6 @@ export function RecordingOptions({
           onDeviceSelect(deviceId);
         }}
         disabled={isRecording}
-        hasDevices={hasDevices}
         isReady={deviceSelectionReady}
         onRefreshDevices={() => {
           console.log('[RecordingOptions] Refresh devices triggered');
