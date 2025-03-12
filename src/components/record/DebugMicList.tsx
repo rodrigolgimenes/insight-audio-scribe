@@ -29,7 +29,7 @@ export function DebugMicList() {
     console.log('[DebugMicList] Refreshing devices');
     
     try {
-      setIsLoading(true);
+      // No need to manually set isLoading as the hook will handle that
       const result = await detectDevices(true);
       // We need to access the devices array from the result object
       const refreshedDevices = result.devices;
@@ -41,9 +41,8 @@ export function DebugMicList() {
     } catch (error) {
       console.error('[DebugMicList] Error refreshing devices:', error);
       toast.error("Failed to refresh microphones");
-    } finally {
-      setIsLoading(false);
     }
+    // The hook will handle setting isLoading back to false
   };
   
   // Handle requesting permission
