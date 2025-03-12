@@ -26,14 +26,14 @@ export const useMediaStream = (
       let stream;
       if (isSystemAudio) {
         // First get the microphone stream
-        const micStream = await requestMicrophoneAccess(deviceId);
+        const micStream = await requestMicrophoneAccess(deviceId, isSystemAudio);
         if (!micStream) {
           throw new Error('Failed to get microphone stream');
         }
         // Then use it to capture system audio
-        stream = await captureSystemAudio(micStream);
+        stream = await captureSystemAudio(micStream, isSystemAudio);
       } else {
-        stream = await requestMicrophoneAccess(deviceId);
+        stream = await requestMicrophoneAccess(deviceId, isSystemAudio);
       }
       
       if (stream) {
