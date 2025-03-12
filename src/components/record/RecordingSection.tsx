@@ -70,6 +70,15 @@ export function RecordingSection({
     isRecording
   });
 
+  // Log device information on every render
+  console.log('[RecordingSection RENDER]', {
+    audioDevicesCount: audioDevices.length,
+    audioDevices: audioDevices.map(d => ({ id: d.deviceId, label: d.label })),
+    selectedDeviceId,
+    deviceSelectionReady,
+    permissionState
+  });
+
   return (
     <div className="space-y-4">
       {/* Header Section with Timer */}

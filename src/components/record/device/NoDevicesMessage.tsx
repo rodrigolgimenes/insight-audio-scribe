@@ -24,6 +24,7 @@ export function NoDevicesMessage({
           <li>No microphone is connected</li>
           <li>Your microphone isn't recognized by the browser</li>
           <li>Your browser needs to be refreshed</li>
+          <li>The device list is still loading</li>
         </ul>
       </p>
       
@@ -37,6 +38,10 @@ export function NoDevicesMessage({
           Scan for Microphones
         </Button>
       )}
+      
+      <div className="mt-3 text-xs text-amber-600 pt-2 border-t border-amber-200 w-full text-center">
+        If you've already granted permission but no microphones appear, try refreshing the page
+      </div>
     </div>
   );
 }

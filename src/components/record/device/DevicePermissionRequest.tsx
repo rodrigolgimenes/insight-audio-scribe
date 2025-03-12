@@ -32,6 +32,8 @@ export function DevicePermissionRequest({
       
       <p className="text-xs text-blue-600 text-center">
         When prompted by your browser, please click "Allow" to continue.
+        <br />
+        <span className="font-semibold mt-1 block">After granting permission, microphones will appear in the dropdown.</span>
       </p>
     </div>
   );

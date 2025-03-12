@@ -58,6 +58,21 @@ export function DeviceSelector({
   // Use audioDevices if provided, otherwise use devices
   const deviceList = audioDevices || devices || [];
   
+  // CRITICALLY IMPORTANT: Log detailed device information on EVERY render
+  console.log('[DeviceSelector RENDER] Device props received:', {
+    deviceCount: deviceList.length,
+    deviceSourceType: audioDevices ? 'audioDevices prop' : devices ? 'devices prop' : 'empty arrays',
+    permissionState,
+    isReady,
+    hasDevices,
+    devicesLoading,
+    selectedDeviceId,
+    devices: deviceList.map(d => ({
+      id: d.deviceId,
+      label: d.label || 'No label'
+    }))
+  });
+  
   // Log detailed device list on mount and when it changes
   useEffect(() => {
     console.log('[DeviceSelector] Device list updated:', {
@@ -70,6 +85,14 @@ export function DeviceSelector({
     
     // Force a re-render whenever device list changes
     setForceRenderKey(prev => prev + 1);
+    
+    // Show toast when devices change
+    if (deviceList.length > 0) {
+      toast.success(`Found ${deviceList.length} microphone(s)`, {
+        id: "device-list-updated",
+        duration: 3000
+      });
+    }
   }, [deviceList]);
   
   // Improved device change handler with validation and debugging
@@ -207,7 +230,14 @@ export function DeviceSelector({
         <RefreshDevicesButton 
           onRefreshDevices={handleForceRefresh} 
           isLoading={devicesLoading || isRequesting}
+          deviceCount={deviceCount}
         />
+      </div>
+      
+      {/* Source debugging info - IMPORTANT */}
+      <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+        <div><strong>Source:</strong> {audioDevices ? 'audioDevices prop' : devices && devices.length > 0 ? 'devices prop' : 'empty arrays'}</div>
+        <div><strong>Devices:</strong> {deviceCount} found | <strong>Permission:</strong> {permissionState}</div>
       </div>
 
       {/* Auto-selection logic - only show when permission granted */}

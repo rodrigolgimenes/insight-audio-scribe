@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { DeviceSelector } from "../DeviceSelector";
 import { SystemAudioToggle } from "../SystemAudioToggle";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -27,6 +27,18 @@ export const RecordingOptions = ({
   devicesLoading = false,
   permissionState = 'unknown'
 }: RecordingOptionsProps) => {
+  // Log device information on every render for debugging
+  useEffect(() => {
+    console.log('[RecordingOptions] Received props:', {
+      audioDevicesCount: audioDevices.length,
+      audioDevices: audioDevices.map(d => ({ id: d.deviceId, label: d.label })),
+      selectedDeviceId,
+      deviceSelectionReady,
+      permissionState,
+      devicesLoading
+    });
+  }, [audioDevices, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading]);
+
   return (
     <div className="mt-6 space-y-4">
       <DeviceSelector 
@@ -47,4 +59,4 @@ export const RecordingOptions = ({
       )}
     </div>
   );
-};
+}
