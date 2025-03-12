@@ -23,16 +23,7 @@ export const usePermissionCheck = (
     // Prevent multiple simultaneous permission checks
     if (permissionCheckInProgressRef.current) {
       console.log('[usePermissionCheck] Permission check already in progress');
-      // If we already know permission is granted, return that
-      if (permissionStatus === 'granted') {
-        return true;
-      }
-      // Wait for ongoing check
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(permissionStatus === 'granted');
-        }, 1000);
-      });
+      return permissionStatus === 'granted';
     }
     
     permissionCheckInProgressRef.current = true;
@@ -45,14 +36,14 @@ export const usePermissionCheck = (
           const permissionResult = await navigator.permissions.query({ name: 'microphone' as PermissionName });
           console.log('[usePermissionCheck] Permission status:', permissionResult.state);
           
+          setPermissionStatus(permissionResult.state as PermissionState);
+          
           if (permissionResult.state === 'granted') {
-            console.log('[usePermissionCheck] Microphone permission already granted');
-            setPermissionStatus('granted');
             permissionCheckInProgressRef.current = false;
             return true;
-          } else if (permissionResult.state === 'denied') {
-            console.warn('[usePermissionCheck] Microphone permission denied');
-            setPermissionStatus('denied');
+          }
+          
+          if (permissionResult.state === 'denied') {
             if (showToast) {
               toast.error("Microphone access denied", {
                 description: "Please allow microphone access in your browser settings"
@@ -61,100 +52,57 @@ export const usePermissionCheck = (
             permissionCheckInProgressRef.current = false;
             return false;
           }
-          // If status is prompt, we'll fall through to request permission
-          setPermissionStatus('prompt');
         } catch (err) {
           console.warn('[usePermissionCheck] Error checking permissions:', err);
-          // Fall through to getUserMedia approach
         }
       }
-      
-      // Try to get a stream as a way to request permissions
-      console.log('[usePermissionCheck] Requesting temporary stream to check permissions');
-      
+
+      // Try to request permission directly through getUserMedia
       try {
         const stream = await requestMicrophonePermission();
-        
-        // If we get here, permission was granted
-        console.log('[usePermissionCheck] Successfully got microphone access');
-        
-        // Clean up stream
-        cleanupMediaStream(stream);
-        
-        // Update status
-        setPermissionStatus('granted');
-        
-        // Reset retry counter on success
-        retryCountRef.current = 0;
-        
-        // Show success toast (only on initial grant)
-        if (permissionStatus !== 'granted' && showToast) {
-          toast.success("Microphone access granted");
+        if (stream) {
+          setPermissionStatus('granted');
+          cleanupMediaStream(stream);
+          permissionCheckInProgressRef.current = false;
+          return true;
         }
-        
-        permissionCheckInProgressRef.current = false;
-        return true;
       } catch (error) {
-        console.error('[usePermissionCheck] Error requesting microphone permission:', error);
+        console.error('[usePermissionCheck] Error requesting permission:', error);
         
-        // Update permission status based on error
         if (error instanceof DOMException) {
           if (error.name === 'NotAllowedError') {
             setPermissionStatus('denied');
+            if (showToast) {
+              showPermissionErrorToast(error);
+            }
+          } else if (error.name === 'NotFoundError') {
+            if (showToast) {
+              toast.error("No microphone found", {
+                description: "Please connect a microphone and try again"
+              });
+            }
           }
         }
         
-        // Decide if we should retry
-        if (retry && retryCountRef.current < maxRetries && 
-            !(error instanceof DOMException && error.name === 'NotAllowedError')) {
-          console.log(`[usePermissionCheck] Scheduling retry (attempt ${retryCountRef.current + 1})`);
+        // If retries are enabled and we haven't exceeded max retries
+        if (retry && retryCountRef.current < maxRetries) {
           retryCountRef.current++;
-          
           permissionCheckInProgressRef.current = false;
-          
-          // Wait a bit and try again with a simpler request
-          return new Promise(resolve => {
-            setTimeout(async () => {
-              try {
-                // Simpler request for the retry
-                const retryStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                cleanupMediaStream(retryStream);
-                setPermissionStatus('granted');
-                resolve(true);
-              } catch (retryError) {
-                console.error('[usePermissionCheck] Retry also failed:', retryError);
-                
-                if (showToast) {
-                  showPermissionErrorToast(retryError);
-                }
-                
-                if (retryError instanceof DOMException && retryError.name === 'NotAllowedError') {
-                  setPermissionStatus('denied');
-                }
-                
-                resolve(false);
-              }
-            }, 1500);
-          });
+          return checkPermissions(options);
         }
         
-        // Show error toast if requested
-        if (showToast) {
-          showPermissionErrorToast(error);
-        }
-        
+        setPermissionStatus('denied');
         permissionCheckInProgressRef.current = false;
         return false;
       }
+      
+      // If we get here without a clear result, assume we need prompt
+      setPermissionStatus('prompt');
+      permissionCheckInProgressRef.current = false;
+      return false;
     } catch (error) {
-      console.error('[usePermissionCheck] Unexpected error during permission check:', error);
-      
-      if (showToast) {
-        toast.error("Unexpected error", {
-          description: error instanceof Error ? error.message : "Unknown error checking permissions"
-        });
-      }
-      
+      console.error('[usePermissionCheck] Unexpected error:', error);
+      setPermissionStatus('unknown');
       permissionCheckInProgressRef.current = false;
       return false;
     }

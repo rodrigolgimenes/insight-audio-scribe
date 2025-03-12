@@ -3,7 +3,7 @@
  * Types related to permission handling
  */
 
-export type PermissionState = 'granted' | 'denied' | 'prompt' | null;
+export type PermissionState = 'granted' | 'denied' | 'prompt' | 'unknown';
 
 export interface PermissionCheckOptions {
   showToast?: boolean;
@@ -15,3 +15,4 @@ export interface PermissionResult {
   permissionState: PermissionState;
   checkPermissions: () => Promise<boolean>;
 }
+

@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import { PermissionState } from "./types";
 
 /**
- * Helper hook to monitor microphone permission changes
+ * Hook to monitor microphone permission changes
  */
 export const usePermissionMonitor = () => {
-  const [permissionStatus, setPermissionStatus] = useState<PermissionState>(null);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionState>('unknown');
 
   useEffect(() => {
     const monitorPermission = async () => {
@@ -35,6 +35,7 @@ export const usePermissionMonitor = () => {
         });
       } catch (err) {
         console.warn('[usePermissionMonitor] Error setting up permission monitoring:', err);
+        setPermissionStatus('unknown');
       }
     };
     
