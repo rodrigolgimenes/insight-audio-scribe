@@ -22,6 +22,7 @@ interface RecordControlsProps {
     success: boolean;
     error?: string;
   };
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
 export function RecordControls({
@@ -35,7 +36,8 @@ export function RecordControls({
   selectedDeviceId = null,
   audioDevices = [],
   showLastAction = false,
-  lastAction
+  lastAction,
+  permissionState = 'unknown'
 }: RecordControlsProps) {
   const [buttonPressed, setButtonPressed] = useState<string | null>(null);
   const [clickTime, setClickTime] = useState<number | null>(null);
@@ -49,9 +51,10 @@ export function RecordControls({
       deviceSelectionReady,
       selectedDeviceId,
       audioDevicesCount: audioDevices.length,
+      permissionState,
       canStart
     });
-  }, [isRecording, isPaused, deviceSelectionReady, selectedDeviceId, audioDevices.length, canStart]);
+  }, [isRecording, isPaused, deviceSelectionReady, selectedDeviceId, audioDevices.length, permissionState, canStart]);
   
   // Validate recording prerequisites when dependencies change
   useEffect(() => {
@@ -60,13 +63,15 @@ export function RecordControls({
     console.log('[RecordControls] Validating prerequisites with:', {
       selectedDeviceId,
       deviceSelectionReady,
-      audioDevicesCount: audioDevices.length
+      audioDevicesCount: audioDevices.length,
+      permissionState
     });
     
     const diagnostics = RecordingValidator.validatePrerequisites({
       selectedDeviceId,
       deviceSelectionReady,
-      audioDevices
+      audioDevices,
+      permissionState
     });
     
     const previousCanStart = canStart;
@@ -75,19 +80,10 @@ export function RecordControls({
     console.log('[RecordControls] Can start recording:', diagnostics.canStartRecording, 
       'changed:', previousCanStart !== diagnostics.canStartRecording);
     
-    console.log('[RecordControls] Validation details:', {
-      canStart: diagnostics.canStartRecording,
-      hasDevices: diagnostics.hasDevices,
-      deviceSelected: diagnostics.deviceSelected,
-      deviceSelectionReady: diagnostics.deviceSelectionReady,
-      permissionsGranted: diagnostics.permissionsGranted,
-      issues: diagnostics.issues
-    });
-    
     if (!diagnostics.canStartRecording) {
       console.log('[RecordControls] Recording start issues:', diagnostics.issues);
     }
-  }, [deviceSelectionReady, selectedDeviceId, audioDevices, isRecording, canStart]);
+  }, [deviceSelectionReady, selectedDeviceId, audioDevices, isRecording, canStart, permissionState]);
 
   const handleButtonClick = (action: string, callback: () => void) => {
     setButtonPressed(action);
@@ -201,7 +197,11 @@ export function RecordControls({
         <div className={canStart ? "text-green-500" : "text-amber-500"}>
           {canStart 
             ? "Microphone selected and ready" 
-            : "Waiting for microphone permission or device selection..."}
+            : permissionState === 'denied'
+              ? "Microphone access denied - check browser settings"
+              : permissionState === 'prompt'
+                ? "Click 'Allow' when prompted for microphone access"
+                : "Waiting for microphone permission or device selection..."}
         </div>
         {showLastAction && lastAction && (
           <div className={cn(

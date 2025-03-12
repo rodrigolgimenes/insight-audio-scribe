@@ -21,6 +21,7 @@ interface RecordingMainProps {
     success: boolean;
     error?: string;
   };
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
 export const RecordingMain = ({
@@ -34,7 +35,8 @@ export const RecordingMain = ({
   deviceSelectionReady,
   selectedDeviceId,
   audioDevices,
-  lastAction
+  lastAction,
+  permissionState = 'unknown'
 }: RecordingMainProps) => {
   return (
     <div className="flex flex-col items-center">
@@ -56,6 +58,7 @@ export const RecordingMain = ({
         audioDevices={audioDevices}
         showLastAction={true}
         lastAction={lastAction}
+        permissionState={permissionState}
       />
     </div>
   );
