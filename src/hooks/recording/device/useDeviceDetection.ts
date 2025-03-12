@@ -79,12 +79,8 @@ export const useDeviceDetection = (
         // Reset attempts counter on success
         setRefreshAttempts(0);
         
-        // Show success toast only once
-        if (refreshAttempts > 0) {
-          toast.success(`Found ${newDevices.length} microphone(s)`, {
-            description: "You can now select a microphone from the dropdown"
-          });
-        }
+        // Remove success toast - we don't want to show it anymore
+        // Previously had a toast.success here
       }
       
       setIsLoading(false);

@@ -120,12 +120,8 @@ export const useAudioCapture = () => {
         // We found devices, reset retry counter
         currentRetryAttemptRef.current = 0;
         
-        // Show success message only if this came after a failed attempt
-        if (audioDevices.length === 0) {
-          toast.success(`Found ${devices.length} microphone(s)`, {
-            description: "Select a microphone from the dropdown"
-          });
-        }
+        // Remove success message - we don't want to show it anymore
+        // Previously had toast.success here
         
         // Update our state
         setAudioDevices(devices);

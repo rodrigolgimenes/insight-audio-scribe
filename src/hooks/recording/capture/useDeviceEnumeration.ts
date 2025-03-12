@@ -164,14 +164,8 @@ export const useDeviceEnumeration = (
         tempStream.getTracks().forEach(track => track.stop());
       }
       
-      // Only show the toast once per session and only if actually found devices
-      if (!hasShownToastRef.current && convertedDevices.length > 0) {
-        toast.success(`Found ${convertedDevices.length} microphone(s)`, {
-          description: "Select a microphone from the dropdown",
-          id: "mics-found" // Use ID to prevent duplicates
-        });
-        hasShownToastRef.current = true;
-      }
+      // Remove success message - we don't want to show it anymore
+      // Previously had a toast.success here
       
       // Reset attempt counter on success
       attemptCountRef.current = 0;
