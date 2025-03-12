@@ -10,7 +10,7 @@ import { DeviceSelectContent } from "./device/DeviceSelectContent";
 import { RefreshDevicesButton } from "./device/RefreshDevicesButton";
 import { NoDevicesMessage } from "./device/NoDevicesMessage";
 import { Button } from "@/components/ui/button";
-import { MicrophoneIcon, RefreshCw, AlertTriangle } from "lucide-react";
+import { Mic, RefreshCw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 interface DeviceSelectorProps {
@@ -193,7 +193,7 @@ export function DeviceSelector({
           className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white"
           disabled={isRequesting}
         >
-          <MicrophoneIcon className="h-4 w-4" />
+          <Mic className="h-4 w-4" />
           {isRequesting ? 'Requesting access...' : 'Allow microphone access'}
           {isRequesting && <RefreshCw className="h-4 w-4 animate-spin" />}
         </Button>

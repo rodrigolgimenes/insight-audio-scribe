@@ -83,10 +83,10 @@ export const useDeviceSelection = () => {
         setDeviceSelectionReady(false);
       }
       
-      return devices;
+      return { devices, defaultId: null };
     }
     
-    return [];
+    return { devices: [], defaultId: null };
   };
   
   // Use device initialization hook with our modified refreshDevices function
