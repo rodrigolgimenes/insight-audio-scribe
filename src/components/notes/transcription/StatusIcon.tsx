@@ -16,7 +16,7 @@ export const StatusIcon: React.FC<StatusIconProps> = ({ status, className = "" }
     case "transcribing":
       return <File className={`h-5 w-5 text-palatinate-blue ${className}`} />;
     case "generating_minutes":
-      return <FileText className={`h-5 w-5 text-primary-dark ${className}`} />;
+      return <FileText className={`h-5 w-5 text-palatinate-blue ${className}`} />;
     case "completed":
       return <CheckCircle className={`h-5 w-5 text-green-600 ${className}`} />;
     case "error":

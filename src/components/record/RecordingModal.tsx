@@ -28,10 +28,27 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   const [recoveryAttempt, setRecoveryAttempt] = useState(0);
   
   try {
-    PageLoadTracker.trackPhase('Recording Hook Initialization Start', true);
-    const recordingHook = useRecording();
-    PageLoadTracker.trackPhase('Recording Hook Initialization Complete', true);
-    
+    // Use a try-catch to handle potential initialization errors
+    let recordingHook;
+    try {
+      PageLoadTracker.trackPhase('Recording Hook Initialization Start', true);
+      recordingHook = useRecording();
+      PageLoadTracker.trackPhase('Recording Hook Initialization Complete', true);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error initializing recorder';
+      console.error("Failed to initialize recording hook:", e);
+      return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+          <DialogContent>
+            <ModalRecordError 
+              errorMessage={`A critical error occurred while loading the recorder: ${errorMessage}`}
+              details={e instanceof Error ? e.stack : undefined}
+            />
+          </DialogContent>
+        </Dialog>
+      );
+    }
+
     // Loading progress simulation
     useEffect(() => {
       if (isOpen && !modalReady) {
@@ -66,7 +83,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
           toast.success("Audio recorder ready", {
             description: "You can now start recording"
           });
-        }, 300);
+        }, 500); // Increased delay to ensure components are ready
         
         return () => clearTimeout(timer);
       } else {
@@ -162,8 +179,8 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
       </Dialog>
     );
   } catch (error) {
-    const errorMessage = error.message || "Unknown error";
-    const errorDetails = error.stack || "";
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorDetails = error instanceof Error ? error.stack || "" : "";
     
     PageLoadTracker.trackPhase('Fatal Error in Modal', false, errorMessage);
     console.error("[RecordingModal] Fatal error:", error);

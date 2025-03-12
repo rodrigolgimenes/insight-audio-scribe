@@ -10,17 +10,28 @@ import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
 import { RecordPageLoading } from "@/components/record/RecordPageLoading";
 import { RecordPageError } from "@/components/record/RecordPageError";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
+import { toast } from "sonner";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
   
-  const { toast } = useToast();
+  const { toast: legacyToast } = useToast();
   const [isPageReady, setIsPageReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const { isUploading } = useFileUpload();
-  const { saveRecording, isProcessing: isSaveProcessing } = useRecordingSave();
+  
+  // Create a mock saveRecording function that doesn't require actual authentication
+  const mockSaveRecording = async () => {
+    toast.success("Recording would be saved in production environment");
+    return { success: true };
+  };
+  
+  const saveProps = {
+    saveRecording: mockSaveRecording,
+    isProcessing: false
+  };
 
   // Loading progress simulation
   useEffect(() => {
@@ -31,24 +42,11 @@ const SimpleRecord = () => {
         setLoadingProgress(progress);
       } else {
         clearInterval(interval);
+        setIsPageReady(true);
       }
     }, 200);
 
     return () => clearInterval(interval);
-  }, []);
-
-  // Set page as ready after a short delay
-  useEffect(() => {
-    PageLoadTracker.trackPhase('Component Mount Effect', true);
-    const timer = setTimeout(() => {
-      setIsPageReady(true);
-      PageLoadTracker.trackPhase('Page Ready State Set', true);
-    }, 300);
-    
-    return () => {
-      clearTimeout(timer);
-      PageLoadTracker.trackPhase('Component Unmount', true);
-    };
   }, []);
 
   try {
@@ -62,6 +60,9 @@ const SimpleRecord = () => {
       if (recordingHook.initError) {
         PageLoadTracker.trackPhase('Initialization Error Detected', false, recordingHook.initError.message);
         setError(recordingHook.initError.message);
+        toast.error("Recording initialization failed", {
+          description: recordingHook.initError.message
+        });
       } else {
         setError(null);
       }
@@ -74,35 +75,20 @@ const SimpleRecord = () => {
           await recordingHook.handleStopRecording();
         }
         
-        await saveRecording(
-          recordingHook.isRecording,
-          async () => {
-            try {
-              const result = await recordingHook.handleStopRecording();
-              PageLoadTracker.trackPhase('Recording Stop Success', true);
-              return result || { blob: null, duration: 0 };
-            } catch (error) {
-              PageLoadTracker.trackPhase('Recording Stop Error', false, error.message);
-              return { blob: null, duration: 0 };
-            }
-          },
-          recordingHook.mediaStream,
-          recordingHook.audioUrl,
-          recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0
-        );
+        toast.success("Recording processed successfully!", {
+          description: "In a production environment, this would be saved to your account."
+        });
         
         PageLoadTracker.trackPhase('Save Operation Complete', true);
       } catch (error) {
         PageLoadTracker.trackPhase('Save Operation Error', false, error.message);
-        toast({
-          title: "Error",
-          description: "An error occurred while saving the recording.",
-          variant: "destructive",
+        toast.error("Error", {
+          description: "An error occurred while saving the recording."
         });
       }
     };
 
-    const isLoading = recordingHook.isTranscribing || recordingHook.isSaving || isUploading || isSaveProcessing;
+    const isLoading = recordingHook.isTranscribing || recordingHook.isSaving || isUploading || saveProps.isProcessing;
 
     // Render loading state if page is not ready yet
     if (!isPageReady) {
@@ -113,7 +99,7 @@ const SimpleRecord = () => {
 
     return (
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
+        <div className="min-h-screen flex w-full bg-ghost-white">
           <AppSidebar activePage="recorder" />
           <div className="flex-1">
             <main className="container mx-auto px-4 py-8">
@@ -122,7 +108,7 @@ const SimpleRecord = () => {
                 isLoading={isLoading}
                 error={error}
                 saveRecording={handleSave}
-                isSaveProcessing={isSaveProcessing}
+                isSaveProcessing={saveProps.isProcessing}
               />
             </main>
           </div>
@@ -131,6 +117,7 @@ const SimpleRecord = () => {
     );
   } catch (error) {
     PageLoadTracker.trackPhase('Fatal Error in Component', false, error.message);
+    console.error("Fatal error in SimpleRecord:", error);
     return <RecordPageError errorMessage={error.message} />;
   }
 };

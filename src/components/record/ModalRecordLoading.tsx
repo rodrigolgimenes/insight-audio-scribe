@@ -16,14 +16,14 @@ export function ModalRecordLoading({
 }: ModalRecordLoadingProps) {
   return (
     <div className="flex flex-col items-center justify-center py-8">
-      <h2 className="text-xl font-semibold text-[#4285F4] mb-4">Loading Recording Components</h2>
+      <h2 className="text-xl font-semibold text-palatinate-blue mb-4">Loading Recording Components</h2>
       
       {isIndeterminate ? (
         <div className="flex items-center justify-center w-full mb-4">
-          <Loader2 className="h-8 w-8 text-[#4285F4] animate-spin" />
+          <Loader2 className="h-8 w-8 text-palatinate-blue animate-spin" />
         </div>
       ) : (
-        <Progress value={loadingProgress} className="w-full max-w-md mb-4 bg-[#E8F0FE]" />
+        <Progress value={loadingProgress} className="w-full max-w-md mb-4 bg-lavender-web" />
       )}
       
       <p className="text-sm text-muted-foreground">

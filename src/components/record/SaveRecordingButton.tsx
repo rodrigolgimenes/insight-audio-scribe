@@ -38,16 +38,14 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
       onSave();
     } catch (error) {
       console.error('[SaveRecordingButton] Error saving:', error);
-      toast.error("Failed to save recording", {
-        description: error.message || "An unknown error occurred"
-      });
+      toast.error("Failed to save recording");
       setIsClickable(true); // Reset on error
     }
   };
 
   return (
     <Button 
-      className="bg-palatinate-blue hover:bg-primary-dark active:bg-primary-dark/90 text-white gap-2 w-full max-w-[220px] rounded-md"
+      className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white gap-2 w-full max-w-[220px] rounded-md"
       onClick={handleClick}
       disabled={isDisabled || isSaving}
     >

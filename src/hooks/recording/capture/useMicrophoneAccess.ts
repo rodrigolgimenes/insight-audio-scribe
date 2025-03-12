@@ -2,13 +2,13 @@
 import { useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { handleAudioError } from "../audioErrorHandler";
-import { MIC_CONSTRAINTS } from "../audioConfig";
+import { toast } from "sonner";
 
 export const useMicrophoneAccess = (
   checkPermissions: () => Promise<boolean>,
   captureSystemAudio: (micStream: MediaStream, isSystemAudio: boolean) => Promise<MediaStream | null>
 ) => {
-  const { toast } = useToast();
+  const { toast: legacyToast } = useToast();
 
   const requestMicrophoneAccess = useCallback(async (deviceId: string | null, isSystemAudio: boolean): Promise<MediaStream | null> => {
     try {
@@ -19,51 +19,42 @@ export const useMicrophoneAccess = (
       }
 
       // Check permissions first
-      const hasPermission = await checkPermissions();
-      if (!hasPermission) {
-        console.error('[useMicrophoneAccess] Permission denied');
-        toast({
-          title: "Error",
-          description: "Microphone access denied. Please enable microphone permissions in your browser.",
-          variant: "destructive",
-        });
-        return null;
+      let hasPermission = true;
+      try {
+        hasPermission = await checkPermissions();
+      } catch (permError) {
+        console.warn('[useMicrophoneAccess] Permission check failed, will try direct access:', permError);
       }
-
-      if (!deviceId) {
-        console.error('[useMicrophoneAccess] No device ID provided');
-        toast({
-          title: "Error",
-          description: "Please select a microphone first.",
-          variant: "destructive",
-        });
-        return null;
-      }
-
-      console.log('[useMicrophoneAccess] Requesting microphone with device ID:', deviceId);
       
-      // Create constraints based on the selected device
+      if (!hasPermission) {
+        console.warn('[useMicrophoneAccess] Permission check returned false, will try direct access anyway');
+      }
+
+      console.log('[useMicrophoneAccess] Requesting microphone...');
+      
+      // Create constraints based on the selected device or use default
       const constraints: MediaStreamConstraints = {
-        audio: {
-          deviceId: { exact: deviceId },
-          echoCancellation: { ideal: true },
-          noiseSuppression: { ideal: true },
-          autoGainControl: { ideal: true },
-        },
+        audio: deviceId ? 
+          { deviceId: { ideal: deviceId } } : 
+          { 
+            echoCancellation: { ideal: true },
+            noiseSuppression: { ideal: true },
+            autoGainControl: { ideal: true }
+          },
         video: false
       };
       
       let micStream: MediaStream;
       
       try {
-        console.log('[useMicrophoneAccess] Attempting with exact device ID constraint');
+        console.log('[useMicrophoneAccess] Attempting with constraints:', constraints);
         micStream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err) {
-        console.warn('[useMicrophoneAccess] Failed with exact device ID, trying fallback', err);
+        console.warn('[useMicrophoneAccess] Failed with specific constraints, trying generic audio access', err);
         
-        // Fallback to simpler constraints if needed
+        // Fallback to generic audio constraints
         micStream = await navigator.mediaDevices.getUserMedia({
-          audio: { deviceId: deviceId },
+          audio: true,
           video: false
         });
       }
@@ -86,6 +77,10 @@ export const useMicrophoneAccess = (
           muted: track.muted
         });
       });
+      
+      toast.success("Microphone access granted", {
+        description: audioTracks[0].label || "Default microphone"
+      });
 
       // If system audio is requested, attempt to capture it
       if (isSystemAudio) {
@@ -96,6 +91,7 @@ export const useMicrophoneAccess = (
           
           if (systemStream) {
             console.log('[useMicrophoneAccess] System audio captured successfully');
+            toast.success("System audio captured successfully");
             return systemStream;
           } else {
             console.warn('[useMicrophoneAccess] System audio capture returned null, falling back to mic only');
@@ -103,11 +99,7 @@ export const useMicrophoneAccess = (
           }
         } catch (systemError) {
           console.error('[useMicrophoneAccess] System audio capture failed:', systemError);
-          toast({
-            title: "Warning",
-            description: "Could not capture system audio. Using microphone only.",
-            variant: "default",
-          });
+          toast.error("Could not capture system audio. Using microphone only.");
           
           // Continue with just the microphone stream
           return micStream;
@@ -119,15 +111,13 @@ export const useMicrophoneAccess = (
     } catch (error) {
       console.error('[useMicrophoneAccess] Error accessing audio:', error);
       
-      toast({
-        title: "Error",
-        description: handleAudioError(error, isSystemAudio),
-        variant: "destructive",
+      toast.error("Microphone access error", {
+        description: handleAudioError(error, isSystemAudio)
       });
       
       return null;
     }
-  }, [checkPermissions, captureSystemAudio, toast]);
+  }, [checkPermissions, captureSystemAudio]);
 
   return {
     requestMicrophoneAccess
