@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DeviceSelector } from "./DeviceSelector";
 import { LanguageSelector } from "./LanguageSelector";
 import { SystemAudioToggle } from "./SystemAudioToggle";
@@ -24,6 +24,14 @@ export function RecordingOptions({
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
   const hasDevices = audioDevices.length > 0;
+
+  // Auto-select first device if none is selected and devices are available
+  useEffect(() => {
+    if (hasDevices && !selectedDeviceId && audioDevices.length > 0) {
+      console.log('[RecordingOptions] Auto-selecting first device:', audioDevices[0].deviceId);
+      onDeviceSelect(audioDevices[0].deviceId);
+    }
+  }, [hasDevices, selectedDeviceId, audioDevices, onDeviceSelect]);
 
   return (
     <div className="space-y-6 mb-8">

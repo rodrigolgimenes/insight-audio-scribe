@@ -48,6 +48,11 @@ export const useRecordingLifecycle = () => {
       return;
     }
     
+    if (!selectedDeviceId) {
+      console.error('[useRecordingLifecycle] No device ID provided');
+      return;
+    }
+    
     isProcessing.current = true;
     
     try {
@@ -62,7 +67,19 @@ export const useRecordingLifecycle = () => {
         return;
       }
       
-      console.log('[useRecordingLifecycle] Starting audio recorder with stream:', stream.id);
+      // Verify we have audio tracks
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        console.error('[useRecordingLifecycle] No audio tracks in stream');
+        isProcessing.current = false;
+        return;
+      }
+      
+      console.log('[useRecordingLifecycle] Starting audio recorder with stream:', {
+        streamId: stream.id,
+        audioTracks: audioTracks.length,
+        track0Label: audioTracks[0]?.label || 'unknown'
+      });
       
       // Then start recording with the obtained stream
       await audioRecorder.current.startRecording(stream);

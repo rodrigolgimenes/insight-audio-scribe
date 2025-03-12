@@ -40,7 +40,15 @@ export function useStartRecording(
 
       try {
         console.log('[useStartRecording] Requesting microphone access with device ID:', selectedDeviceId);
-        const stream = await requestMicrophoneAccess(selectedDeviceId, recordingState.isSystemAudio);
+        
+        // Try with system audio first if enabled
+        let stream = await requestMicrophoneAccess(selectedDeviceId, recordingState.isSystemAudio);
+        
+        // If that fails, try without system audio
+        if (!stream && recordingState.isSystemAudio) {
+          console.log('[useStartRecording] Failed with system audio, trying without it');
+          stream = await requestMicrophoneAccess(selectedDeviceId, false);
+        }
         
         if (!stream) {
           console.error('[useStartRecording] Failed to get media stream');
@@ -65,6 +73,17 @@ export function useStartRecording(
           });
           return null;
         }
+
+        // Log track details for debugging
+        audioTracks.forEach((track, index) => {
+          console.log(`[useStartRecording] Audio track ${index}:`, {
+            label: track.label,
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState,
+            settings: track.getSettings()
+          });
+        });
 
         // Store the stream in state for UI updates
         recordingState.setMediaStream(stream);

@@ -20,39 +20,88 @@ export const useMicrophoneAccess = (
       const hasPermission = await checkPermissions();
       if (!hasPermission) {
         console.error('[useMicrophoneAccess] Cannot access microphone without permission');
+        toast({
+          title: "Error",
+          description: "Microphone access denied. Please enable microphone permissions in your browser settings.",
+          variant: "destructive",
+        });
         return null;
       }
 
       console.log('[useMicrophoneAccess] Requesting microphone access with deviceId:', deviceId);
 
-      // First try with exact device ID constraint
-      let micStream: MediaStream;
-      try {
-        // Create deep copy of constraints to avoid reference issues
-        const audioConstraints: MediaTrackConstraints = {
-          ...JSON.parse(JSON.stringify(MIC_CONSTRAINTS.audio)),
-          deviceId: deviceId ? { exact: deviceId } : undefined
-        };
-
-        console.log('[useMicrophoneAccess] Using constraints:', JSON.stringify(audioConstraints));
+      // First try with exact device ID constraint - fallbacks if needed
+      let micStream: MediaStream | null = null;
+      
+      const attempts = [
+        // Attempt 1: Try with full constraints and exact device ID
+        async () => {
+          if (!deviceId) return null;
+          console.log('[useMicrophoneAccess] Attempt 1: Using full constraints with exact device ID');
+          const audioConstraints = {
+            ...MIC_CONSTRAINTS.audio,
+            deviceId: { exact: deviceId }
+          };
+          
+          return await navigator.mediaDevices.getUserMedia({
+            audio: audioConstraints,
+            video: false
+          });
+        },
         
-        micStream = await navigator.mediaDevices.getUserMedia({
-          audio: audioConstraints,
-          video: false
-        });
-      } catch (micError) {
-        console.warn('[useMicrophoneAccess] Failed with advanced constraints, trying basic config:', micError);
-        // Fallback to basic constraints
-        micStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-          video: false 
-        });
+        // Attempt 2: Try with only device ID constraint
+        async () => {
+          if (!deviceId) return null;
+          console.log('[useMicrophoneAccess] Attempt 2: Using only device ID constraint');
+          return await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: deviceId } },
+            video: false
+          });
+        },
+        
+        // Attempt 3: Try with ideal device ID (non-exact)
+        async () => {
+          if (!deviceId) return null;
+          console.log('[useMicrophoneAccess] Attempt 3: Using ideal device ID (non-exact)');
+          return await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { ideal: deviceId } },
+            video: false
+          });
+        },
+        
+        // Attempt 4: Just try with simple audio: true
+        async () => {
+          console.log('[useMicrophoneAccess] Attempt 4: Using audio: true as last resort');
+          return await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: false
+          });
+        }
+      ];
+      
+      // Try each method until one works
+      for (const attemptFn of attempts) {
+        try {
+          const stream = await attemptFn();
+          if (stream && stream.getAudioTracks().length > 0) {
+            micStream = stream;
+            break;
+          }
+        } catch (err) {
+          console.warn('[useMicrophoneAccess] Attempt failed, trying next method:', err);
+        }
+      }
+      
+      if (!micStream) {
+        console.error('[useMicrophoneAccess] All attempts to get microphone stream failed');
+        throw new Error('Failed to access microphone after multiple attempts');
       }
       
       // Check if we got audio tracks
-      if (!micStream || micStream.getAudioTracks().length === 0) {
+      const audioTracks = micStream.getAudioTracks();
+      if (audioTracks.length === 0) {
         console.error('[useMicrophoneAccess] No audio tracks in stream');
-        throw new Error('Failed to access microphone');
+        throw new Error('Failed to access microphone - no audio tracks');
       }
       
       console.log('[useMicrophoneAccess] Microphone stream obtained:', {

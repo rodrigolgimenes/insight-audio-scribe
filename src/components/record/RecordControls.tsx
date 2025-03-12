@@ -53,33 +53,31 @@ export const RecordControls = ({
     }
   }, [isRecording, buttonClicked]);
 
-  const handleRecordClick = () => {
-    console.log('[RecordControls] Record button clicked');
+  const handleRecordClick = async () => {
+    console.log('[RecordControls] Record button clicked, disabled:', disabled, 'isProcessing:', isProcessing);
     if (disabled || isProcessing) return;
     
     setIsProcessing(true);
     setButtonClicked(true);
     
-    // Using setTimeout to ensure UI updates before potentially heavy operation
-    setTimeout(() => {
-      try {
-        console.log('[RecordControls] Calling onStartRecording...');
-        onStartRecording();
-        
-        // Set a timeout to clear processing state if recording doesn't start within 5 seconds
-        setTimeout(() => {
-          if (buttonClicked) {
-            console.log('[RecordControls] Recording didn\'t start within timeout, resetting state');
-            setButtonClicked(false);
-            setIsProcessing(false);
-          }
-        }, 5000);
-      } catch (error) {
-        console.error('[RecordControls] Error in record button click handler:', error);
-        setButtonClicked(false);
-        setIsProcessing(false);
-      }
-    }, 0);
+    // Call start recording directly - removed setTimeout which was causing issues
+    try {
+      console.log('[RecordControls] Calling onStartRecording...');
+      onStartRecording();
+      
+      // Set a timeout to clear processing state if recording doesn't start within 5 seconds
+      setTimeout(() => {
+        if (buttonClicked) {
+          console.log('[RecordControls] Recording didn\'t start within timeout, resetting state');
+          setButtonClicked(false);
+          setIsProcessing(false);
+        }
+      }, 5000);
+    } catch (error) {
+      console.error('[RecordControls] Error in record button click handler:', error);
+      setButtonClicked(false);
+      setIsProcessing(false);
+    }
   };
 
   const handleStopClick = async () => {

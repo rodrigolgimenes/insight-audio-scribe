@@ -46,7 +46,9 @@ export const useRecording = () => {
 
   // Clear any initialization errors when device selection changes
   useEffect(() => {
-    setInitError(null);
+    if (selectedDeviceId) {
+      setInitError(null);
+    }
   }, [selectedDeviceId]);
 
   useEffect(() => {
@@ -77,13 +79,7 @@ export const useRecording = () => {
     }
     
     if (!deviceSelectionReady) {
-      console.error('[useRecording] Device selection not ready');
-      toast({
-        title: "Error",
-        description: "Please wait, microphone initialization in progress.",
-        variant: "destructive",
-      });
-      return;
+      console.warn('[useRecording] Device selection not ready, but continuing anyway');
     }
     
     try {
