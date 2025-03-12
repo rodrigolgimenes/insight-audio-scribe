@@ -1,11 +1,46 @@
 
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 
 /**
  * Hook to check and request microphone permissions
  */
 export const usePermissions = () => {
+  const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
+
+  // Monitor permission changes
+  useEffect(() => {
+    const monitorPermission = async () => {
+      if (!navigator.permissions) {
+        console.log('[usePermissions] Permissions API not available');
+        return;
+      }
+
+      try {
+        const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+        setPermissionStatus(status.state);
+        
+        // Listen for changes
+        status.addEventListener('change', () => {
+          console.log('[usePermissions] Permission status changed:', status.state);
+          setPermissionStatus(status.state);
+          
+          if (status.state === 'granted') {
+            toast.success("Microphone access granted");
+          } else if (status.state === 'denied') {
+            toast.error("Microphone access denied", {
+              description: "Please allow microphone access in your browser settings"
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('[usePermissions] Error setting up permission monitoring:', err);
+      }
+    };
+    
+    monitorPermission();
+  }, []);
+
   // Function to check if we have microphone permission
   const checkPermissions = useCallback(async (): Promise<boolean> => {
     console.log('[usePermissions] Checking microphone permissions');
@@ -44,6 +79,9 @@ export const usePermissions = () => {
       // Clean up stream
       stream.getTracks().forEach(track => track.stop());
       
+      // Show success toast
+      toast.success("Microphone access granted");
+      
       return true;
     } catch (error) {
       console.error('[usePermissions] Error requesting microphone permission:', error);
@@ -68,6 +106,7 @@ export const usePermissions = () => {
   }, []);
 
   return {
+    permissionStatus,
     checkPermissions
   };
 };

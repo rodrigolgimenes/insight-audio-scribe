@@ -1,9 +1,10 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useMicrophoneAccess } from "./capture/useMicrophoneAccess";
 import { usePermissions } from "./capture/usePermissions";
 import { useDeviceEnumeration } from "./capture/useDeviceEnumeration";
 import { AudioDevice } from "./capture/types";
+import { toast } from "sonner";
 
 /**
  * Hook for accessing and managing audio devices
@@ -11,6 +12,7 @@ import { AudioDevice } from "./capture/types";
 export const useAudioCapture = () => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
   
   // Initialize permissions hook
   const { checkPermissions } = usePermissions();
@@ -39,6 +41,15 @@ export const useAudioCapture = () => {
     try {
       console.log('[useAudioCapture] Enumerating audio devices');
       
+      // Check if it's been less than 5 seconds since the last refresh
+      const now = Date.now();
+      if (now - lastRefreshTime < 5000 && audioDevices.length > 0) {
+        console.log('[useAudioCapture] Using cached devices from recent refresh');
+        return audioDevices;
+      }
+      
+      setLastRefreshTime(now);
+      
       const { devices, defaultId } = await getAudioDevices();
       
       console.log('[useAudioCapture] Found audio devices:', devices.length);
@@ -47,12 +58,30 @@ export const useAudioCapture = () => {
       setAudioDevices(devices);
       setDefaultDeviceId(defaultId);
       
+      if (devices.length === 0) {
+        toast.error("No microphones found", {
+          description: "Please connect a microphone and try again"
+        });
+      } else {
+        toast.success(`Found ${devices.length} microphone(s)`, {
+          description: "Select a microphone to start recording"
+        });
+      }
+      
       return devices;
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
+      toast.error("Failed to detect microphones", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
       return [];
     }
-  }, [getAudioDevices]);
+  }, [getAudioDevices, audioDevices, lastRefreshTime]);
+  
+  // Initial device enumeration
+  useEffect(() => {
+    getAudioDevicesWrapper();
+  }, [getAudioDevicesWrapper]);
   
   return {
     audioDevices,

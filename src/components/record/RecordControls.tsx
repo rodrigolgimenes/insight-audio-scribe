@@ -40,6 +40,8 @@ export function RecordControls({
     setClickTime(Date.now());
     
     console.log(`[RecordControls] Button clicked: ${action} at ${new Date().toISOString()}`);
+    console.log(`[RecordControls] Device selection ready: ${deviceSelectionReady}`);
+    
     try {
       callback();
       console.log(`[RecordControls] Callback executed for: ${action}`);
@@ -63,7 +65,7 @@ export function RecordControls({
 
   // Log when device selection state changes
   useEffect(() => {
-    console.log('[RecordControls] Device selection ready:', deviceSelectionReady);
+    console.log('[RecordControls] Device selection ready state changed:', deviceSelectionReady);
   }, [deviceSelectionReady]);
 
   return (
@@ -130,9 +132,11 @@ export function RecordControls({
       {/* Status and Diagnostic Information */}
       <div className="text-xs text-gray-500 mt-2">
         <div>Status: {isRecording ? (isPaused ? "Paused" : "Recording") : "Ready"}</div>
-        {!deviceSelectionReady && (
-          <div className="text-amber-500">Waiting for microphone permission or device selection...</div>
-        )}
+        <div className={!deviceSelectionReady ? "text-amber-500" : "text-green-500"}>
+          {!deviceSelectionReady 
+            ? "Waiting for microphone permission or device selection..." 
+            : "Microphone selected and ready"}
+        </div>
         {showLastAction && lastAction && (
           <div className={cn(
             "text-xs mt-1",

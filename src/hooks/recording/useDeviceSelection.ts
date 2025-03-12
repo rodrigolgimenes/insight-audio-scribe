@@ -16,9 +16,6 @@ export const useDeviceSelection = () => {
       setSelectedDeviceId(deviceId);
       setDeviceSelectionReady(true);
       console.log('[useDeviceSelection] Device selected successfully:', deviceId);
-      
-      // Update device selection ready state
-      setDeviceSelectionReady(true);
       toast.success("Microphone selected successfully");
     } else {
       console.warn('[useDeviceSelection] Attempted to select invalid device ID:', deviceId);
@@ -86,6 +83,17 @@ export const useDeviceSelection = () => {
       }
     }
   }, [selectedDeviceId, audioDevices, defaultDeviceId, handleDeviceSelect]);
+
+  // Ensure we properly update the deviceSelectionReady state when a device is selected
+  useEffect(() => {
+    if (selectedDeviceId && audioDevices.length > 0) {
+      const deviceExists = audioDevices.some(device => device.deviceId === selectedDeviceId);
+      if (deviceExists && !deviceSelectionReady) {
+        console.log('[useDeviceSelection] Device exists but not marked as ready - fixing state');
+        setDeviceSelectionReady(true);
+      }
+    }
+  }, [selectedDeviceId, audioDevices, deviceSelectionReady]);
 
   return {
     audioDevices,

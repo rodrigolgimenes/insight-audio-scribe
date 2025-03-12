@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertCircle, Mic, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { toast } from "sonner";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
@@ -72,9 +73,10 @@ export function DeviceSelector({
       if (firstDevice && typeof firstDevice === 'object') {
         const deviceId = firstDevice.deviceId || '';
         if (deviceId) {
-          onDeviceSelect(deviceId);
           console.log('[DeviceSelector] Auto-selecting first device:', deviceId, 
             'label', firstDevice.label || ('displayName' in firstDevice ? firstDevice.displayName : 'No label'));
+          onDeviceSelect(deviceId);
+          toast.success("Microphone auto-selected");
         }
       }
     }
@@ -92,13 +94,25 @@ export function DeviceSelector({
           console.log(`[DeviceSelector] Device ${i}:`, device.deviceId, label);
         }
       });
+      
+      // Update the debug info
+      setDebugInfo(prev => ({
+        ...prev,
+        hasDevices: deviceList.length > 0,
+        deviceCount: deviceList.length,
+        selectedDevice: selectedDeviceId
+      }));
     }
-  }, [deviceList]);
+  }, [deviceList, selectedDeviceId]);
 
   const handleDeviceChange = (value: string) => {
     if (value) {
       console.log('[DeviceSelector] Device selected by user:', value);
       onDeviceSelect(value);
+      // Add a delay to ensure the state is updated
+      setTimeout(() => {
+        toast.success("Microphone selected");
+      }, 100);
     }
   };
 
