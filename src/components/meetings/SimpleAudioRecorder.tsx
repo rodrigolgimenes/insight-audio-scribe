@@ -101,8 +101,8 @@ export const SimpleAudioRecorder = ({
       setIsLoading(false);
     } catch (error) {
       console.error("Error starting recording:", error);
-      toast.error("Erro ao iniciar gravação", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+      toast.error("Error starting recording", {
+        description: error instanceof Error ? error.message : "Unknown error"
       });
       setIsLoading(false);
     }
@@ -116,7 +116,7 @@ export const SimpleAudioRecorder = ({
   
   const handleSubmitAudio = async () => {
     if (!audioUrl) {
-      toast.error("Nenhuma gravação disponível");
+      toast.error("No recording available");
       return;
     }
     
@@ -142,10 +142,11 @@ export const SimpleAudioRecorder = ({
         };
         
         // Call Supabase edge function
-        toast.info("Enviando para transcrição...");
+        toast.info("Sending for transcription...");
         
         try {
-          const { data, error } = await supabase.functions.invoke('transcribe-whisper', {
+          // Call the new JavaScript transcription edge function
+          const { data, error } = await supabase.functions.invoke('transcribe-js', {
             body: {
               audioData: base64Audio,
               recordingData: recordingInfo
@@ -153,57 +154,86 @@ export const SimpleAudioRecorder = ({
           });
           
           if (error) {
-            throw new Error(error.message || "Erro ao transcrever áudio");
+            throw new Error(error.message || "Error transcribing audio");
           }
           
-          console.log("Resposta da transcrição:", data);
+          console.log("Transcription response:", data);
           
           if (data.success) {
-            // Caso seja o modo simulado, esperamos 3 segundos antes de buscar a transcrição
-            if (data.simulationMode) {
-              toast.info("Modo de simulação detectado, aguardando processamento...");
-              await new Promise(resolve => setTimeout(resolve, 3000));
-              
-              // Verificar transcrição
-              const { data: transcription, error: transcriptionError } = await supabase
-                .from('transcriptions')
-                .select('*')
-                .eq('id', data.transcriptionId)
-                .single();
-              
-              if (transcriptionError) {
-                throw new Error(`Erro ao buscar transcrição: ${transcriptionError.message}`);
-              }
-              
-              if (transcription.status === 'completed') {
-                onNewTranscription(transcription.content);
-                toast.success("Transcrição concluída com sucesso");
-              } else if (transcription.status === 'error') {
-                throw new Error(`Erro na transcrição: ${transcription.error_message || 'Erro desconhecido'}`);
-              } else {
-                toast.warning("Transcrição ainda em processamento, tente novamente em alguns instantes");
-              }
+            // Wait 3 seconds before checking for the transcription
+            toast.info("Processing your audio. Please wait...");
+            onNewTranscription("Processing your audio. Please wait...");
+            
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Check transcription status
+            const { data: transcription, error: transcriptionError } = await supabase
+              .from('transcriptions')
+              .select('*')
+              .eq('id', data.transcriptionId)
+              .single();
+            
+            if (transcriptionError) {
+              throw new Error(`Error fetching transcription: ${transcriptionError.message}`);
+            }
+            
+            if (transcription.status === 'completed') {
+              onNewTranscription(transcription.content);
+              toast.success("Transcription completed successfully");
+            } else if (transcription.status === 'error') {
+              throw new Error(`Transcription error: ${transcription.error_message || 'Unknown error'}`);
             } else {
-              // Em modo normal, usamos a resposta direta
-              onNewTranscription(data.transcription);
-              toast.success("Transcrição concluída com sucesso");
+              // For processing state, poll every 2 seconds for up to 30 seconds
+              let attempts = 0;
+              const maxAttempts = 15;
+              
+              const pollTranscription = async () => {
+                attempts++;
+                
+                const { data: updatedTranscription, error: pollError } = await supabase
+                  .from('transcriptions')
+                  .select('*')
+                  .eq('id', data.transcriptionId)
+                  .single();
+                
+                if (pollError) {
+                  throw new Error(`Error polling transcription: ${pollError.message}`);
+                }
+                
+                if (updatedTranscription.status === 'completed') {
+                  onNewTranscription(updatedTranscription.content);
+                  toast.success("Transcription completed successfully");
+                  return;
+                } else if (updatedTranscription.status === 'error') {
+                  throw new Error(`Transcription error: ${updatedTranscription.error_message || 'Unknown error'}`);
+                } else if (attempts < maxAttempts) {
+                  // Continue polling
+                  setTimeout(pollTranscription, 2000);
+                } else {
+                  // Give up after max attempts
+                  throw new Error("Transcription timed out. Please try again later.");
+                }
+              };
+              
+              // Start polling
+              pollTranscription();
             }
           } else {
-            throw new Error(data.error || "Erro desconhecido na transcrição");
+            throw new Error(data.error || "Unknown error in transcription");
           }
         } catch (invokeError) {
-          console.error("Erro na invocação da função:", invokeError);
-          toast.error("Erro na transcrição", {
-            description: invokeError instanceof Error ? invokeError.message : "Erro desconhecido"
+          console.error("Error invoking function:", invokeError);
+          toast.error("Transcription error", {
+            description: invokeError instanceof Error ? invokeError.message : "Unknown error"
           });
+          setIsLoading(false);
+          onNewTranscription("");
         }
-        
-        setIsLoading(false);
       };
     } catch (error) {
       console.error("Error submitting audio:", error);
-      toast.error("Erro ao enviar áudio", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+      toast.error("Error submitting audio", {
+        description: error instanceof Error ? error.message : "Unknown error"
       });
       setIsLoading(false);
     }
@@ -232,14 +262,14 @@ export const SimpleAudioRecorder = ({
             <Button
               onClick={startRecording}
               disabled={isLoading}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="bg-green-500 hover:bg-green-600 text-white"
             >
               {isLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
               ) : (
                 <Mic className="h-5 w-5 mr-2" />
               )}
-              Iniciar Gravação
+              Start Recording
             </Button>
           ) : (
             <Button
@@ -248,7 +278,7 @@ export const SimpleAudioRecorder = ({
               className="bg-red-500 hover:bg-red-600 text-white"
             >
               <StopCircle className="h-5 w-5 mr-2" />
-              Parar Gravação
+              Stop Recording
             </Button>
           )}
         </div>
@@ -260,15 +290,15 @@ export const SimpleAudioRecorder = ({
             <Button
               onClick={handleSubmitAudio}
               disabled={isLoading}
-              className="w-full mt-2 bg-green-500 hover:bg-green-600 text-white"
+              className="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Transcrevendo...
+                  Transcribing...
                 </>
               ) : (
-                "Transcrever Áudio"
+                "Transcribe Audio"
               )}
             </Button>
           </div>

@@ -12,8 +12,9 @@ const TestRecordMeeting = () => {
   const [error, setError] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<string | null>(null);
   const [status, setStatus] = useState<string>('idle'); // idle, recording, processing, completed, error
+  const [isLoading, setIsLoading] = useState(false);
   
-  const handleTranscriptionComplete = (text: string) => {
+  const handleNewTranscription = (text: string) => {
     if (text === "Processing your audio with fast-whisper. Please wait...") {
       setStatus('processing');
     } else {
@@ -21,11 +22,6 @@ const TestRecordMeeting = () => {
       setStatus('completed');
       setError(null);
     }
-  };
-  
-  const handleError = (errorMessage: string) => {
-    setError(errorMessage);
-    setStatus('error');
   };
   
   const getStatusBadge = () => {
@@ -69,9 +65,9 @@ const TestRecordMeeting = () => {
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
                   <SimpleAudioRecorder
-                    onTranscriptionComplete={handleTranscriptionComplete}
-                    onError={handleError}
-                    onStatusChange={setStatus}
+                    onNewTranscription={handleNewTranscription}
+                    isLoading={isLoading}
+                    setIsLoading={setIsLoading}
                   />
                 </div>
                 
@@ -86,7 +82,7 @@ const TestRecordMeeting = () => {
                       </CardHeader>
                       <CardContent>
                         <p className="text-gray-500">
-                          Your audio is being processed by the fast-whisper service. This might take a moment depending 
+                          Your audio is being processed by the transcription service. This might take a moment depending 
                           on the length of your recording. Please wait...
                         </p>
                         <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
@@ -145,14 +141,13 @@ const TestRecordMeeting = () => {
                       </CardHeader>
                       <CardContent>
                         <ol className="list-decimal ml-5 space-y-2 text-gray-600">
-                          <li>Select your microphone from the dropdown menu.</li>
                           <li>Click "Start Recording" and speak clearly.</li>
                           <li>When finished, click "Stop Recording".</li>
-                          <li>Click "Transcribe with Fast-Whisper" to process the audio.</li>
+                          <li>Click "Transcribe Audio" to process the recording.</li>
                           <li>Wait for the transcription to complete.</li>
                         </ol>
                         <div className="mt-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
-                          This demo uses the fast-whisper library for efficient and accurate speech recognition.
+                          This demo uses JavaScript-based transcription for efficient and accurate speech recognition.
                         </div>
                       </CardContent>
                     </Card>
