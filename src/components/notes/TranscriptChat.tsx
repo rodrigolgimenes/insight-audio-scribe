@@ -37,8 +37,8 @@ export const TranscriptChat = ({ note }: ChatComponentProps) => {
     if (!trimmedInput) {
       console.log('TranscriptChat - Validation failed: Empty input');
       toast({
-        title: "Entrada inválida",
-        description: "Por favor, digite uma mensagem antes de enviar.",
+        title: "Invalid input",
+        description: "Please type a message before sending.",
         variant: "destructive",
       });
       return;
@@ -50,8 +50,8 @@ export const TranscriptChat = ({ note }: ChatComponentProps) => {
         type: typeof note.original_transcript
       });
       toast({
-        title: "Erro na transcrição",
-        description: "A transcrição não está disponível no momento. Por favor, tente novamente.",
+        title: "Transcription error",
+        description: "The transcription is not available at the moment. Please try again.",
         variant: "destructive",
       });
       return;
@@ -80,7 +80,7 @@ export const TranscriptChat = ({ note }: ChatComponentProps) => {
 
       if (error) {
         console.error('TranscriptChat - Supabase function error:', error);
-        throw new Error(error.message || "Erro ao processar mensagem");
+        throw new Error(error.message || "Error processing message");
       }
 
       if (data?.message) {
@@ -92,19 +92,19 @@ export const TranscriptChat = ({ note }: ChatComponentProps) => {
         setMessages(prev => [...prev, assistantMessage]);
       } else {
         console.error('TranscriptChat - Invalid response:', data);
-        throw new Error("Resposta inválida do servidor");
+        throw new Error("Invalid response from server");
       }
     } catch (error) {
       console.error('TranscriptChat - Error in chat process:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível processar sua mensagem. Tente novamente.",
+        title: "Error",
+        description: "Could not process your message. Please try again.",
         variant: "destructive",
       });
       
       const errorMessage: Message = {
         role: 'assistant',
-        content: "Desculpe, ocorreu um erro ao processar sua pergunta. Por favor, tente novamente."
+        content: "Sorry, there was an error processing your question. Please try again."
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -113,9 +113,14 @@ export const TranscriptChat = ({ note }: ChatComponentProps) => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
-      e.preventDefault();
-      handleSendMessage();
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        // Allow new line with Shift+Enter
+        return;
+      } else if (!isLoading) {
+        e.preventDefault();
+        handleSendMessage();
+      }
     }
   };
 

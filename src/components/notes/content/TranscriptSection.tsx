@@ -15,7 +15,9 @@ export const TranscriptSection: React.FC<TranscriptSectionProps> = ({ note }) =>
         transcript={note.original_transcript} 
         noteId={note.id}
       />
-      <TranscriptChat note={note} />
+      <div className="w-full">
+        <TranscriptChat note={note} />
+      </div>
     </div>
   );
 };

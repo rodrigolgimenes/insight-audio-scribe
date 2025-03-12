@@ -1,6 +1,8 @@
+
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Send, Square } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ChatInputProps {
   input: string;
@@ -21,18 +23,22 @@ export const ChatInput = ({
 }: ChatInputProps) => {
   return (
     <div className="border-t p-4 bg-white">
-      <div className="flex gap-2 items-center">
-        <Input
-          id="chat-input"
-          name="chat-input"
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyPress={onKeyPress}
-          placeholder="Digite sua pergunta sobre a transcrição..."
-          disabled={isLoading}
-          className="flex-1 py-3 px-4 rounded-lg"
-          type="text"
-        />
+      <div className="flex gap-2 items-end">
+        <div className="flex-1 relative">
+          <ScrollArea className="max-h-[180px]">
+            <Textarea
+              id="chat-input"
+              name="chat-input"
+              value={input}
+              onChange={(e) => onInputChange(e.target.value)}
+              onKeyDown={onKeyPress}
+              placeholder="Type your question about the transcript..."
+              disabled={isLoading}
+              className="flex-1 py-3 px-4 rounded-lg min-h-[60px] resize-none"
+              rows={Math.min(input.split('\n').length || 1, 8)}
+            />
+          </ScrollArea>
+        </div>
         <div className="flex gap-2">
           {isLoading ? (
             <Button 
