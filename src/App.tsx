@@ -31,9 +31,11 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,
       retry: 1,
-      // Add error handling to prevent crashes
-      onError: (error) => {
-        console.error("Query error:", error);
+      // Updated error handling to use the new API
+      meta: {
+        onError: (error: Error) => {
+          console.error("Query error:", error);
+        }
       }
     },
   },
