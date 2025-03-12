@@ -25,15 +25,15 @@ export function SimpleMicrophoneSelector({
   const [devicesLoading, setDevicesLoading] = useState(false);
   
   // Log device information on every render for debugging
+  console.log('[SimpleMicrophoneSelector RENDER]', {
+    deviceCount: devices.length,
+    deviceDetails: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
+    selectedDeviceId,
+    permissionState,
+    timestamp: new Date().toISOString()
+  });
+  
   useEffect(() => {
-    console.log('[SimpleMicrophoneSelector] Received devices:', {
-      deviceCount: devices.length,
-      deviceDetails: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
-      selectedDeviceId,
-      permissionState,
-      timestamp: new Date().toISOString()
-    });
-    
     // If permission is granted but no devices, try refreshing
     if (permissionState === 'granted' && devices.length === 0 && onRefreshDevices && !devicesLoading) {
       console.log('[SimpleMicrophoneSelector] Permission granted but no devices, triggering refresh');
@@ -45,7 +45,7 @@ export function SimpleMicrophoneSelector({
       console.log('[SimpleMicrophoneSelector] Devices available but no selection, selecting first device');
       onDeviceSelect(devices[0].deviceId);
     }
-  }, [devices, selectedDeviceId, permissionState]);
+  }, [devices, selectedDeviceId, permissionState, devicesLoading, onRefreshDevices]);
 
   const toggleDropdown = () => {
     if (!disabled) {
@@ -57,6 +57,12 @@ export function SimpleMicrophoneSelector({
     console.log('[SimpleMicrophoneSelector] Selecting device:', deviceId);
     onDeviceSelect(deviceId);
     setIsOpen(false);
+    
+    // Show selection toast
+    const device = devices.find(d => d.deviceId === deviceId);
+    toast.success(`Selected: ${device?.label || 'Microphone'}`, {
+      duration: 2000
+    });
   };
   
   const handleRefresh = async () => {
@@ -140,6 +146,22 @@ export function SimpleMicrophoneSelector({
                 {device.label || `Microphone ${index + 1}`}
               </button>
             ))
+          )}
+          
+          {/* Refresh option at bottom of list */}
+          {onRefreshDevices && (
+            <button
+              type="button"
+              className="w-full text-left p-3 hover:bg-gray-100 text-blue-600 flex items-center justify-center border-t border-gray-200"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRefresh();
+              }}
+              disabled={devicesLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${devicesLoading ? 'animate-spin' : ''}`} />
+              Refresh Microphone List
+            </button>
           )}
         </div>
       )}

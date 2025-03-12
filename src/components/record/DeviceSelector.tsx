@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -16,26 +17,22 @@ import { useDeviceAutoRefresh } from "./device/useDeviceAutoRefresh";
 import { toast } from "sonner";
 
 interface DeviceSelectorProps {
-  devices?: MediaDeviceInfo[];
-  audioDevices?: AudioDevice[];
+  audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   isReady?: boolean;
   disabled?: boolean;
-  hasDevices?: boolean;
   onRefreshDevices?: () => void;
   devicesLoading?: boolean;
   permissionState?: 'prompt'|'granted'|'denied'|'unknown';
 }
 
 export function DeviceSelector({
-  devices = [],
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
   isReady = true,
   disabled = false,
-  hasDevices = true,
   onRefreshDevices,
   devicesLoading = false,
   permissionState = 'unknown',
@@ -54,50 +51,47 @@ export function DeviceSelector({
     handleRequestPermission
   } = useDeviceSelection(onRefreshDevices, permissionState);
   
-  // Use audioDevices if provided, otherwise use devices
-  const deviceList = audioDevices || devices || [];
-  
   // CRITICALLY IMPORTANT: Log detailed device information on EVERY render
-  console.log('[DeviceSelector RENDER] Device props received:', {
+  console.log('[DeviceSelector RENDER]', {
     compName: 'DeviceSelector',
-    deviceCount: deviceList.length,
-    deviceSourceType: audioDevices ? 'audioDevices prop' : devices ? 'devices prop' : 'empty arrays',
+    deviceCount: audioDevices.length,
     permissionState,
     permissionStatus,
     isReady,
-    hasDevices,
     devicesLoading,
     selectedDeviceId,
-    devices: deviceList.map(d => ({
+    devices: audioDevices.map(d => ({
       id: d.deviceId,
       label: d.label || 'No label'
-    }))
+    })),
+    timestamp: new Date().toISOString()
   });
   
   // Log detailed device list on mount and when it changes
   useEffect(() => {
     console.log('[DeviceSelector] Device list updated:', {
       compName: 'DeviceSelector',
-      deviceCount: deviceList.length,
+      deviceCount: audioDevices.length,
       permissionState,
       localPermissionStatus: permissionStatus,
-      devices: deviceList.map(d => ({
+      devices: audioDevices.map(d => ({
         id: d.deviceId,
         label: d.label || 'No label'
-      }))
+      })),
+      timestamp: new Date().toISOString()
     });
     
     // Force a re-render whenever device list changes
     setForceRenderKey(prev => prev + 1);
     
     // Show toast when devices change
-    if (deviceList.length > 0) {
-      toast.success(`Found ${deviceList.length} microphone(s)`, {
+    if (audioDevices.length > 0) {
+      toast.success(`Found ${audioDevices.length} microphone(s)`, {
         id: "device-list-updated",
         duration: 3000
       });
     }
-  }, [deviceList, permissionState, permissionStatus]);
+  }, [audioDevices, permissionState, permissionStatus]);
   
   // Improved device change handler with validation and debugging
   const handleDeviceChange = (value: string) => {
@@ -114,11 +108,11 @@ export function DeviceSelector({
     });
     
     // Validate device exists in list
-    const deviceExists = deviceList.some(d => d && d.deviceId === value);
+    const deviceExists = audioDevices.some(d => d && d.deviceId === value);
     if (!deviceExists) {
       console.error('[DeviceSelector] Selected device not in device list!', {
         selectedValue: value,
-        availableDevices: deviceList.map(d => d.deviceId)
+        availableDevices: audioDevices.map(d => d.deviceId)
       });
       
       toast.error("Device selection error", {
@@ -157,13 +151,13 @@ export function DeviceSelector({
 
   // If selected device is not in the list but we have devices, select the first one
   useEffect(() => {
-    if (deviceList.length > 0 && selectedDeviceId) {
-      const deviceExists = deviceList.some(d => d && d.deviceId === selectedDeviceId);
+    if (audioDevices.length > 0 && selectedDeviceId) {
+      const deviceExists = audioDevices.some(d => d && d.deviceId === selectedDeviceId);
       
       if (!deviceExists) {
         console.warn('[DeviceSelector] Selected device no longer exists in list:', {
           selectedDeviceId,
-          availableDevices: deviceList.map(d => d.deviceId)
+          availableDevices: audioDevices.map(d => d.deviceId)
         });
         
         // Only auto-select if no manual selection was made recently
@@ -171,21 +165,21 @@ export function DeviceSelector({
         const elapsed = now - selectionTime;
         
         if (elapsed > 3000) { // Only override if last manual selection was more than 3 seconds ago
-          const firstDeviceId = deviceList[0].deviceId;
+          const firstDeviceId = audioDevices[0].deviceId;
           console.log('[DeviceSelector] Auto-selecting first available device:', firstDeviceId);
           onDeviceSelect(firstDeviceId);
         }
       }
     }
-  }, [deviceList, selectedDeviceId, selectionTime, onDeviceSelect]);
+  }, [audioDevices, selectedDeviceId, selectionTime, onDeviceSelect]);
 
   // Use our hook for auto-refresh
-  const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
+  const deviceCount = audioDevices.length;
   useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
   
   // Debug info
   const debugInfo = {
-    hasDevices: Array.isArray(deviceList) && deviceList.length > 0,
+    hasDevices: audioDevices.length > 0,
     deviceCount,
     selectedDevice: selectedDeviceId,
     permissionRequested: !!permissionStatus
@@ -195,19 +189,19 @@ export function DeviceSelector({
   const isSelectDisabled = 
     disabled || 
     permissionState === 'denied' || 
-    (deviceList.length === 0 && !devicesLoading); // Allow interaction during loading
+    (audioDevices.length === 0 && !devicesLoading); // Allow interaction during loading
 
   // Find selected device name for display
   let selectedDeviceName = "Select a microphone";
   
-  if (selectedDeviceId && deviceList.length > 0) {
-    const selectedDevice = deviceList.find(d => d && d.deviceId === selectedDeviceId);
+  if (selectedDeviceId && audioDevices.length > 0) {
+    const selectedDevice = audioDevices.find(d => d && d.deviceId === selectedDeviceId);
     if (selectedDevice) {
-      selectedDeviceName = formatDeviceLabel(selectedDevice as MediaDeviceInfo, 0);
+      selectedDeviceName = formatDeviceLabel(selectedDevice, 0);
     } else {
       console.warn('[DeviceSelector] Selected device not found in device list:', {
         selectedDeviceId,
-        availableDevices: deviceList.map(d => d && d.deviceId)
+        availableDevices: audioDevices.map(d => d && d.deviceId)
       });
     }
   }
@@ -240,14 +234,13 @@ export function DeviceSelector({
       
       {/* Source debugging info - IMPORTANT */}
       <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-        <div><strong>Source:</strong> {audioDevices ? 'audioDevices prop' : devices && devices.length > 0 ? 'devices prop' : 'empty arrays'}</div>
         <div><strong>Devices:</strong> {deviceCount} found | <strong>Permission:</strong> {permissionState} | <strong>Local Permission:</strong> {permissionStatus}</div>
       </div>
 
       {/* Auto-selection logic - only show when permission granted */}
       {showAutoSelection && (
         <DeviceAutoSelection
-          deviceList={deviceList}
+          deviceList={audioDevices}
           selectedDeviceId={selectedDeviceId}
           onDeviceSelect={onDeviceSelect}
           hasAttemptedSelection={hasAttemptedSelection}
@@ -271,7 +264,7 @@ export function DeviceSelector({
             isDisabled={isSelectDisabled}
             isLoading={devicesLoading}
           />
-          <DeviceSelectContent deviceList={deviceList} isLoading={devicesLoading} />
+          <DeviceSelectContent deviceList={audioDevices} isLoading={devicesLoading} />
         </Select>
       )}
       
@@ -280,6 +273,7 @@ export function DeviceSelector({
       <NoDevicesMessage 
         showWarning={showNoDevicesWarning} 
         onRefresh={onRefreshDevices}
+        permissionState={permissionState}
       />
       
       <DeviceDebugInfo 
