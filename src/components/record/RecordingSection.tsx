@@ -24,7 +24,7 @@ interface RecordingSectionProps {
   handleResumeRecording: () => void;
   handleDelete?: () => void;
   onSystemAudioChange?: (isSystemAudio: boolean) => void;
-  audioDevices: MediaDeviceInfo[] | AudioDevice[];
+  audioDevices: AudioDevice[];  // Changed to only accept AudioDevice[]
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
@@ -148,7 +148,7 @@ export function RecordingSection({
           deviceId={selectedDeviceId}
           lastAction={lastAction}
           onRefreshDevices={onRefreshDevices}
-          deviceCount={Array.isArray(audioDevices) ? audioDevices.length : 0}
+          deviceCount={audioDevices.length}
         />
       )}
     </div>
