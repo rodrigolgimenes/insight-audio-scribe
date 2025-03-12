@@ -1,5 +1,6 @@
 
 import { NoteData } from '../types.ts';
+import { VALID_NOTE_STATUSES } from '../constants.ts';
 
 /**
  * Retrieves note data from the database
@@ -59,9 +60,7 @@ export async function updateNoteStatus(
   
   try {
     // Validate status against allowed values to prevent constraint violations
-    const validStatuses = ['pending', 'processing', 'transcribing', 'generating_minutes', 'transcribed', 'completed', 'error'];
-    
-    if (!validStatuses.includes(status)) {
+    if (!VALID_NOTE_STATUSES.includes(status)) {
       console.error(`[transcribe-audio] Invalid status: ${status}. Using 'processing' instead.`);
       status = 'processing'; // Fallback to a safe default value
     }

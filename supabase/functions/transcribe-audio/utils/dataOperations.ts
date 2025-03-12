@@ -1,5 +1,6 @@
 
 import { updateNoteStatus } from '../supabaseClient.ts';
+import { VALID_NOTE_STATUSES } from '../constants.ts';
 
 /**
  * Updates the note progress in a consistent way
@@ -17,9 +18,7 @@ export async function updateNoteProgress(
   console.log(`[transcribe-audio] Updating note ${noteId} progress: status=${status}, progress=${progress}%`);
   
   // Validate status against allowed values to prevent constraint violations
-  const validStatuses = ['pending', 'processing', 'transcribing', 'generating_minutes', 'transcribed', 'completed', 'error'];
-  
-  if (!validStatuses.includes(status)) {
+  if (!VALID_NOTE_STATUSES.includes(status)) {
     console.error(`[transcribe-audio] Invalid status: ${status}. Using 'processing' instead.`);
     status = 'processing'; // Fallback to a safe default value
   }

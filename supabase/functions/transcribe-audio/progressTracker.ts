@@ -27,28 +27,28 @@ export class ProgressTracker {
    * Update progress to started stage
    */
   async markStarted() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribing', PROGRESS_STAGES.STARTED);
+    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.STARTED);
   }
 
   /**
    * Update progress to downloading stage
    */
   async markDownloading() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribing', PROGRESS_STAGES.DOWNLOADING);
+    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.DOWNLOADING);
   }
 
   /**
    * Update progress to downloaded stage
    */
   async markDownloaded() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribing', PROGRESS_STAGES.DOWNLOADED);
+    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.DOWNLOADED);
   }
 
   /**
    * Update progress to processing stage
    */
   async markProcessing() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribing', PROGRESS_STAGES.PROCESSING);
+    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.PROCESSING);
   }
 
   /**
