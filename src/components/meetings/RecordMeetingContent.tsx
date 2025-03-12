@@ -1,12 +1,10 @@
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, StopCircle, Pause, PlayCircle, Save, Loader2 } from "lucide-react";
+import { Mic, StopCircle, Pause, PlayCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRecording } from "@/hooks/useRecording";
-import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
 import { TestDeviceSelector } from "./TestDeviceSelector";
 
 interface RecordMeetingContentProps {
@@ -26,10 +24,40 @@ export function RecordMeetingContent({
 }: RecordMeetingContentProps) {
   const recordingHook = useRecording();
   const [savingProgress, setSavingProgress] = useState(0);
+  const [recordingTimer, setRecordingTimer] = useState(0);
   
-  const handleSaveRecording = async () => {
+  // Timer for recording duration
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (recordingHook.isRecording && !recordingHook.isPaused) {
+      interval = setInterval(() => {
+        setRecordingTimer(prev => prev + 1);
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [recordingHook.isRecording, recordingHook.isPaused]);
+  
+  // Reset timer when recording stops
+  useEffect(() => {
+    if (!recordingHook.isRecording) {
+      setRecordingTimer(0);
+    }
+  }, [recordingHook.isRecording]);
+  
+  // Format seconds to MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  const handleTranscribe = async () => {
     if (!recordingHook.audioUrl) {
-      toast.error("No recording to save");
+      toast.error("No recording to transcribe");
       return;
     }
     
@@ -42,13 +70,13 @@ export function RecordMeetingContent({
         await recordingHook.handleStopRecording();
       }
       
-      setSavingProgress(20);
+      setSavingProgress(30);
       
       // Get the audio blob
       const response = await fetch(recordingHook.audioUrl);
       const blob = await response.blob();
       
-      setSavingProgress(30);
+      setSavingProgress(50);
       
       // Convert blob to base64
       const reader = new FileReader();
@@ -68,7 +96,7 @@ export function RecordMeetingContent({
       reader.readAsDataURL(blob);
       const base64Data = await base64Promise;
       
-      setSavingProgress(40);
+      setSavingProgress(70);
       
       // Upload to Supabase Edge Function for processing
       toast.info("Sending for transcription...");
@@ -76,7 +104,6 @@ export function RecordMeetingContent({
         body: { 
           audioData: base64Data,
           recordingData: {
-            isSystemAudio: recordingHook.isSystemAudio,
             duration: recordingHook.getCurrentDuration() || 0,
             mimeType: blob.type
           }
@@ -106,137 +133,133 @@ export function RecordMeetingContent({
       setSavingProgress(0);
     }
   };
-  
-  const handleRefreshDevices = () => {
-    if (recordingHook.refreshDevices) {
-      recordingHook.refreshDevices();
-    }
-  };
 
   return (
-    <div className="grid md:grid-cols-2 gap-8">
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Gravação</h2>
-            
-            <AudioVisualizer 
-              mediaStream={recordingHook.mediaStream}
-              isRecording={recordingHook.isRecording}
-              isPaused={recordingHook.isPaused}
-            />
-            
-            <div className="flex flex-wrap justify-center gap-3 mt-4">
-              {!recordingHook.isRecording ? (
-                <Button 
-                  onClick={recordingHook.handleStartRecording} 
-                  className="bg-primary text-white hover:bg-primary/90"
-                  disabled={isLoading || !recordingHook.deviceSelectionReady}
-                >
-                  <Mic className="h-4 w-4 mr-2" />
-                  Iniciar Gravação
-                </Button>
-              ) : (
-                <>
-                  {!recordingHook.isPaused ? (
-                    <Button 
-                      onClick={recordingHook.handlePauseRecording}
-                      variant="outline"
-                      disabled={isLoading}
-                    >
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pausar
-                    </Button>
-                  ) : (
-                    <Button 
-                      onClick={recordingHook.handleResumeRecording}
-                      variant="outline"
-                      disabled={isLoading}
-                    >
-                      <PlayCircle className="h-4 w-4 mr-2" />
-                      Continuar
-                    </Button>
-                  )}
-                  
-                  <Button 
-                    onClick={recordingHook.handleStopRecording}
-                    variant="destructive"
-                    disabled={isLoading}
-                  >
-                    <StopCircle className="h-4 w-4 mr-2" />
-                    Parar
-                  </Button>
-                </>
-              )}
-            </div>
-            
-            <div className="mt-6">
-              <Button
-                onClick={handleSaveRecording}
-                disabled={isLoading || !recordingHook.audioUrl || isUploading}
-                className="w-full bg-primary hover:bg-primary/90"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processando ({savingProgress}%)
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Salvar e Transcrever
-                  </>
-                )}
-              </Button>
-            </div>
-            
-            <NoDevicesMessage 
-              showWarning={recordingHook.audioDevices.length === 0 && recordingHook.deviceSelectionReady}
-              onRefresh={handleRefreshDevices}
-            />
+    <div className="max-w-md mx-auto">
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center">
+            <Mic className="h-5 w-5 mr-2" />
+            <h2 className="text-lg font-medium">Record Audio</h2>
           </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Controles e Configurações</h2>
-            
+          {recordingHook.isRecording && (
+            <div className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+              <span className="h-2 w-2 bg-white rounded-full mr-1 animate-pulse"></span>
+              Recording
+            </div>
+          )}
+        </div>
+        
+        <div className="p-4">
+          {/* Audio visualizer or progress bar */}
+          <div className="h-16 bg-gray-100 rounded-md mb-4 flex items-center justify-center">
+            {recordingHook.isRecording ? (
+              <div className="h-0.5 w-full max-w-[90%] bg-blue-500 relative">
+                <div className="absolute right-0 top-1/2 transform -translate-y-1/2 h-3 w-3 bg-blue-500 rounded-full"></div>
+              </div>
+            ) : (
+              <div className="text-gray-500 text-sm">Ready to record</div>
+            )}
+          </div>
+          
+          {/* Recording status and timer */}
+          {recordingHook.isRecording && (
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="h-3 w-3 bg-red-500 rounded-full mr-2"></div>
+                <span className="text-sm font-medium">Recording</span>
+              </div>
+              <div className="text-sm">{formatTime(recordingTimer)}</div>
+            </div>
+          )}
+          
+          {/* Device selector */}
+          <div className="mb-4">
             <TestDeviceSelector 
               audioDevices={recordingHook.audioDevices}
               selectedDeviceId={recordingHook.selectedDeviceId}
               onDeviceSelect={recordingHook.setSelectedDeviceId}
-              onRefreshDevices={recordingHook.refreshDevices}
               isLoading={recordingHook.devicesLoading}
+              label="Audio Device"
             />
-            
-            <div className="flex items-center mt-4">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 mr-2 rounded border-gray-300"
-                  checked={recordingHook.isSystemAudio}
-                  onChange={(e) => recordingHook.setIsSystemAudio(e.target.checked)}
-                  disabled={recordingHook.isRecording}
-                />
-                <span className="text-sm">Capturar áudio do sistema (compartilhamento de tela)</span>
-              </label>
-            </div>
-            
-            {recordingHook.audioUrl && (
-              <div className="mt-6">
-                <h3 className="text-sm font-medium mb-2">Pré-visualização</h3>
-                <audio 
-                  src={recordingHook.audioUrl} 
-                  controls 
-                  className="w-full" 
-                />
+          </div>
+          
+          {/* Recording controls */}
+          <div className="space-y-3">
+            {!recordingHook.isRecording ? (
+              <Button 
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                disabled={isLoading || !recordingHook.deviceSelectionReady}
+                onClick={recordingHook.handleStartRecording}
+              >
+                <Mic className="h-5 w-5 mr-2" />
+                Start Recording
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                {!recordingHook.isPaused ? (
+                  <Button 
+                    className="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                    onClick={recordingHook.handlePauseRecording}
+                    disabled={isLoading}
+                  >
+                    <Pause className="h-5 w-5 mr-2" />
+                    Pause Recording
+                  </Button>
+                ) : (
+                  <Button 
+                    className="w-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                    onClick={recordingHook.handleResumeRecording}
+                    disabled={isLoading}
+                  >
+                    <PlayCircle className="h-5 w-5 mr-2" />
+                    Resume Recording
+                  </Button>
+                )}
+                
+                <Button 
+                  className="w-full bg-red-500 hover:bg-red-600 text-white"
+                  onClick={recordingHook.handleStopRecording}
+                  disabled={isLoading}
+                >
+                  <StopCircle className="h-5 w-5 mr-2" />
+                  Stop Recording
+                </Button>
               </div>
             )}
+            
+            {recordingHook.audioUrl && (
+              <Button
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={handleTranscribe}
+                disabled={isLoading || isUploading}
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Processing ({savingProgress}%)
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-2">TRANSCRIBE</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
-        </CardContent>
-      </Card>
+          
+          {/* Audio preview */}
+          {recordingHook.audioUrl && !recordingHook.isRecording && (
+            <div className="mt-4">
+              <audio 
+                src={recordingHook.audioUrl} 
+                controls 
+                className="w-full" 
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { RecordMeetingContent } from "@/components/meetings/RecordMeetingContent";
@@ -13,24 +13,35 @@ const TestRecordMeeting = () => {
   const [transcription, setTranscription] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
+  const handleUploadStart = () => {
+    setIsUploading(true);
+    setError(null);
+  };
+  
   const handleUploadSuccess = (transcriptionText: string) => {
     setTranscription(transcriptionText);
+    setIsUploading(false);
     toast.success("Audio transcribed successfully!");
+  };
+  
+  const handleError = (errorMessage: string) => {
+    setError(errorMessage);
+    setIsUploading(false);
   };
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-ghost-white">
+      <div className="min-h-screen flex w-full bg-gray-50">
         <AppSidebar activePage="test-record" />
-        <div className="flex-1 bg-ghost-white">
+        <div className="flex-1">
           <main className="container mx-auto px-4 py-8">
             <div className="space-y-8">
               <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold tracking-tight">Record Meeting (Test)</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Audio Recording</h1>
               </div>
               
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="mb-6">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     {error}
@@ -41,9 +52,9 @@ const TestRecordMeeting = () => {
               <RecordMeetingContent 
                 isLoading={isLoading}
                 isUploading={isUploading}
-                onUploadStart={() => setIsUploading(true)}
+                onUploadStart={handleUploadStart}
                 onUploadComplete={handleUploadSuccess}
-                onError={setError}
+                onError={handleError}
               />
               
               {transcription && (
