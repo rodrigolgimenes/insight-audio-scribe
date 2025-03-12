@@ -17,12 +17,22 @@ export const useRobustDeviceDetection = (
   const [refreshAttempts, setRefreshAttempts] = useState(0);
   const mountedRef = useRef(true);
   const detectionInProgressRef = useRef(false);
+  const autoRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear auto-retry on unmount
+  useEffect(() => {
+    return () => {
+      if (autoRetryTimeoutRef.current) {
+        clearTimeout(autoRetryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Enhanced permission check with multiple retry strategies
   const requestPermission = useCallback(async (showToast = true): Promise<boolean> => {
     if (detectionInProgressRef.current) {
       console.log('[useRobustDeviceDetection] Permission check already in progress, skipping duplicate request');
-      return false;
+      return permissionState === 'granted';
     }
 
     detectionInProgressRef.current = true;
@@ -30,116 +40,53 @@ export const useRobustDeviceDetection = (
     
     try {
       setHasAttemptedPermission(true);
+      setIsLoading(true);
       
-      // Check with the Permissions API first if available
-      if (navigator.permissions) {
-        try {
-          const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-          if (!mountedRef.current) return false;
-          
-          console.log('[useRobustDeviceDetection] Permission status:', permissionStatus.state);
-          setPermissionState(permissionStatus.state);
-          
-          if (permissionStatus.state === 'granted') {
-            console.log('[useRobustDeviceDetection] Permission already granted via Permissions API');
-            detectionInProgressRef.current = false;
-            return true;
-          } else if (permissionStatus.state === 'denied') {
-            if (showToast) {
-              toast.error("Microphone access denied", {
-                description: "Please allow microphone access in your browser settings and refresh the page",
-                duration: 5000,
-                id: "mic-permission-denied"
-              });
-            }
-            detectionInProgressRef.current = false;
-            return false;
-          }
-          // If it's 'prompt', we'll continue to the getUserMedia approach
-        } catch (err) {
-          console.warn('[useRobustDeviceDetection] Error using Permissions API:', err);
-          // Continue to the getUserMedia approach
-        }
-      }
+      // Use our improved checkPermissions method
+      const hasPermission = await checkPermissions();
       
-      // Request access with getUserMedia
-      try {
-        console.log('[useRobustDeviceDetection] Requesting permission with getUserMedia...');
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        if (!mountedRef.current) {
-          stream.getTracks().forEach(track => track.stop());
-          return false;
-        }
-        
-        // If we get here, permission has been granted
-        console.log('[useRobustDeviceDetection] Permission granted successfully!');
-        setPermissionState('granted');
-        
-        // Always stop the temporary stream
-        stream.getTracks().forEach(track => track.stop());
-        
-        if (showToast) {
-          toast.success("Microphone access granted", {
-            id: "mic-permission-granted"
-          });
-        }
-        
-        detectionInProgressRef.current = false;
-        return true;
-      } catch (err) {
-        console.error('[useRobustDeviceDetection] getUserMedia error:', err);
-        
-        if (!mountedRef.current) return false;
-        
-        if (err instanceof DOMException) {
-          if (err.name === 'NotAllowedError') {
-            setPermissionState('denied');
-            if (showToast) {
-              toast.error("Microphone access denied", {
-                description: "Please allow microphone access in your browser settings and refresh the page",
-                duration: 5000,
-                id: "mic-permission-denied"
-              });
-            }
-          } else if (err.name === 'NotFoundError') {
-            if (showToast) {
-              toast.error("No microphone found", {
-                description: "Please connect a microphone and try again",
-                id: "no-mic-found"
-              });
-            }
-          }
-        } else {
-          if (showToast) {
-            toast.error("Failed to access microphone", {
-              description: err instanceof Error ? err.message : "Unknown error",
-              id: "mic-access-failed"
-            });
-          }
-        }
-        
+      if (!mountedRef.current) {
         detectionInProgressRef.current = false;
         return false;
       }
+      
+      // Update our permission state based on the result
+      setPermissionState(hasPermission ? 'granted' : 'denied');
+      setIsLoading(false);
+      detectionInProgressRef.current = false;
+      
+      return hasPermission;
     } catch (err) {
       console.error('[useRobustDeviceDetection] Unexpected error during permission request:', err);
-      if (mountedRef.current && showToast) {
-        toast.error("Failed to access microphone", {
-          description: err instanceof Error ? err.message : "Unknown error",
-          id: "mic-access-failed"
-        });
+      
+      if (mountedRef.current) {
+        setIsLoading(false);
+        setPermissionState('unknown');
+        
+        if (showToast) {
+          toast.error("Failed to access microphone", {
+            description: err instanceof Error ? err.message : "Unknown error",
+            id: "mic-access-failed"
+          });
+        }
       }
+      
       detectionInProgressRef.current = false;
       return false;
     }
-  }, []);
+  }, [checkPermissions, permissionState]);
 
   // Enhanced device detection with improved error handling and recovery strategies
   const detectDevices = useCallback(async (forceRefresh = false): Promise<{devices: AudioDevice[], defaultId: string | null}> => {
     if (detectionInProgressRef.current && !forceRefresh) {
       console.log('[useRobustDeviceDetection] Device detection already in progress, skipping duplicate request');
       return { devices, defaultId: null };
+    }
+    
+    // Clear any scheduled auto-retry
+    if (autoRetryTimeoutRef.current) {
+      clearTimeout(autoRetryTimeoutRef.current);
+      autoRetryTimeoutRef.current = null;
     }
     
     detectionInProgressRef.current = true;
@@ -149,6 +96,7 @@ export const useRobustDeviceDetection = (
     try {
       // First ensure we have permission
       const hasPermission = await requestPermission(false);
+      
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
         return { devices: [], defaultId: null };
@@ -173,11 +121,25 @@ export const useRobustDeviceDetection = (
       }
       
       console.log(`[useRobustDeviceDetection] Found ${newDevices.length} devices`);
+      
+      // Update devices
       setDevices(newDevices);
       
-      // If no devices found, show appropriate toast
+      // If no devices found, schedule an auto-retry
       if (newDevices.length === 0) {
         setRefreshAttempts(prev => prev + 1);
+        
+        // Schedule auto-retry if we haven't tried too many times
+        if (refreshAttempts < 3) {
+          console.log('[useRobustDeviceDetection] Scheduling auto-retry for device detection');
+          autoRetryTimeoutRef.current = setTimeout(() => {
+            if (mountedRef.current) {
+              console.log('[useRobustDeviceDetection] Auto-retrying device detection');
+              detectionInProgressRef.current = false;
+              detectDevices(true);
+            }
+          }, 2000);
+        }
         
         // Only show toast after multiple failed attempts
         if (refreshAttempts >= 1) {
@@ -202,6 +164,13 @@ export const useRobustDeviceDetection = (
       } else {
         // Reset attempts counter on success
         setRefreshAttempts(0);
+        
+        // Show success toast only once
+        if (refreshAttempts > 0) {
+          toast.success(`Found ${newDevices.length} microphone(s)`, {
+            description: "You can now select a microphone from the dropdown"
+          });
+        }
       }
       
       setIsLoading(false);
@@ -220,6 +189,18 @@ export const useRobustDeviceDetection = (
       
       // Increment attempt counter
       setRefreshAttempts(prev => prev + 1);
+      
+      // Schedule auto-retry if we haven't tried too many times
+      if (refreshAttempts < 3) {
+        console.log('[useRobustDeviceDetection] Scheduling auto-retry after error');
+        autoRetryTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            console.log('[useRobustDeviceDetection] Auto-retrying after error');
+            detectionInProgressRef.current = false;
+            detectDevices(true);
+          }
+        }, 2000);
+      }
       
       // Show error toast after multiple failures
       if (refreshAttempts >= 1) {
@@ -264,6 +245,11 @@ export const useRobustDeviceDetection = (
     return () => {
       mountedRef.current = false;
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      
+      // Clear any scheduled auto-retry
+      if (autoRetryTimeoutRef.current) {
+        clearTimeout(autoRetryTimeoutRef.current);
+      }
     };
   }, [detectDevices]);
 

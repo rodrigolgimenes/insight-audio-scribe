@@ -1,26 +1,27 @@
 
+import { AudioDevice as OriginalAudioDevice } from "../../../utils/audio/types";
+
 /**
- * Extended interface for audio devices with additional information
+ * Extended AudioDevice type that includes additional properties
  */
 export interface AudioDevice extends MediaDeviceInfo {
-  /** A user-friendly display name for the device */
-  displayName: string;
-  /** Whether this is the default audio device */
   isDefault: boolean;
-  /** The index of this device in the array of devices */
+  displayName: string;
   index: number;
 }
 
 /**
- * Convert MediaDeviceInfo to AudioDevice with better naming
+ * Helper to convert from MediaDeviceInfo to AudioDevice with better naming
  */
 export function toAudioDevice(device: MediaDeviceInfo, isDefault: boolean = false, index: number = 0): AudioDevice {
   return {
-    ...device,
+    deviceId: device.deviceId,
+    groupId: device.groupId,
+    kind: device.kind,
+    label: device.label,
     isDefault,
     displayName: device.label || `Microphone ${index + 1}`,
     index,
-    groupId: device.groupId,
     toJSON: device.toJSON
   };
 }
