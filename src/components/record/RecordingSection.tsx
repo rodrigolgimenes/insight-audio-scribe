@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { RecordHeader } from "./RecordHeader";
 import { RecordTimer } from "./RecordTimer";
 import { RecordControls } from "./RecordControls";
