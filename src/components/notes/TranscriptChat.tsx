@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -123,7 +124,7 @@ export const TranscriptChat = ({ note }: ChatComponentProps) => {
   };
 
   return (
-    <div className="mt-8 max-w-3xl mx-auto">
+    <div className="w-full mt-8">
       <h2 className="text-xl font-semibold text-gray-700 mb-4">Chat with Transcript</h2>
       
       <div className="border rounded-lg shadow-lg bg-white overflow-hidden">
