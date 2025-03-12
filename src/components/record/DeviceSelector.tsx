@@ -44,17 +44,17 @@ export function DeviceSelector({
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
   const [hasAttemptedSelection, setHasAttemptedSelection] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<{
-    hasDevices: boolean;
-    deviceCount: number;
-    selectedDevice: string | null;
-    permissionRequested: boolean;
-  }>({
+  const [autoRefreshCount, setAutoRefreshCount] = useState(0);
+  const [lastDeviceCount, setLastDeviceCount] = useState(0);
+  const isMounted = useRef(true);
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const debugInfo = {
     hasDevices: Array.isArray(deviceList) && deviceList.length > 0,
     deviceCount: Array.isArray(deviceList) ? deviceList.length : 0,
-    selectedDevice: null,
-    permissionRequested: false
-  });
+    selectedDevice: selectedDeviceId,
+    permissionRequested: !!permissionStatus
+  };
 
   // Calculate if select should be disabled - now more granular
   const isSelectDisabled = 
@@ -62,12 +62,13 @@ export function DeviceSelector({
     permissionState === 'denied' || 
     (deviceList.length === 0 && !devicesLoading); // Allow interaction during loading
   
-  // Track if component is mounted
-  const isMounted = useRef(true);
-  
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       isMounted.current = false;
+      if (autoRefreshTimerRef.current) {
+        clearTimeout(autoRefreshTimerRef.current);
+      }
     };
   }, []);
 
@@ -76,7 +77,7 @@ export function DeviceSelector({
     const checkPermissions = async () => {
       try {
         if (!navigator.permissions) {
-          console.log('Permissions API not available');
+          console.log('[DeviceSelector] Permissions API not available');
           return;
         }
         
@@ -102,39 +103,82 @@ export function DeviceSelector({
     checkPermissions();
   }, [onRefreshDevices]);
 
-  // Auto-select a device when devices become available (once only)
+  // Track device count changes to help diagnose issues
   useEffect(() => {
-    if (Array.isArray(deviceList) && deviceList.length > 0 && !hasAttemptedSelection) {
-      setHasAttemptedSelection(true);
+    const currentCount = deviceList.length;
+    if (currentCount !== lastDeviceCount) {
+      console.log(`[DeviceSelector] Device count changed: ${lastDeviceCount} -> ${currentCount}`);
+      setLastDeviceCount(currentCount);
       
-      // Only auto-select if no device is already selected
-      if (!selectedDeviceId) {
+      // Reset auto-refresh counter when we get devices
+      if (currentCount > 0) {
+        setAutoRefreshCount(0);
+        if (autoRefreshTimerRef.current) {
+          clearTimeout(autoRefreshTimerRef.current);
+          autoRefreshTimerRef.current = null;
+        }
+      }
+    }
+  }, [deviceList.length, lastDeviceCount]);
+
+  // Attempt periodic refreshes when no devices are found
+  useEffect(() => {
+    if (deviceList.length === 0 && !devicesLoading && onRefreshDevices && autoRefreshCount < 5) {
+      // Clear any existing timer
+      if (autoRefreshTimerRef.current) {
+        clearTimeout(autoRefreshTimerRef.current);
+      }
+      
+      // Set a new auto-refresh timer
+      const delay = Math.min(2000 * (autoRefreshCount + 1), 8000);
+      console.log(`[DeviceSelector] Setting auto-refresh timer #${autoRefreshCount + 1} for ${delay}ms`);
+      
+      autoRefreshTimerRef.current = setTimeout(() => {
+        if (isMounted.current && deviceList.length === 0 && onRefreshDevices) {
+          console.log(`[DeviceSelector] Auto-refreshing devices (attempt #${autoRefreshCount + 1})`);
+          onRefreshDevices();
+          setAutoRefreshCount(prev => prev + 1);
+        }
+      }, delay);
+    }
+    
+    return () => {
+      if (autoRefreshTimerRef.current) {
+        clearTimeout(autoRefreshTimerRef.current);
+      }
+    };
+  }, [deviceList.length, devicesLoading, onRefreshDevices, autoRefreshCount]);
+
+  // Auto-select a device when devices become available
+  useEffect(() => {
+    if (Array.isArray(deviceList) && deviceList.length > 0) {
+      if (!hasAttemptedSelection) {
+        setHasAttemptedSelection(true);
+        
+        // Only auto-select if no device is already selected
+        if (!selectedDeviceId) {
+          const firstDevice = deviceList[0];
+          if (firstDevice && typeof firstDevice === 'object') {
+            const deviceId = firstDevice.deviceId || '';
+            if (deviceId) {
+              console.log('[DeviceSelector] Auto-selecting first device:', deviceId);
+              onDeviceSelect(deviceId);
+            }
+          }
+        }
+      } else if (!selectedDeviceId || !deviceList.some(d => d.deviceId === selectedDeviceId)) {
+        // If we have a selection but it's no longer valid, select first available
         const firstDevice = deviceList[0];
         if (firstDevice && typeof firstDevice === 'object') {
           const deviceId = firstDevice.deviceId || '';
           if (deviceId) {
-            console.log('[DeviceSelector] Auto-selecting first device:', deviceId);
+            console.log('[DeviceSelector] Re-selecting first device after device list change:', deviceId);
             onDeviceSelect(deviceId);
           }
         }
       }
     }
   }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection]);
-
-  // Update debug info when devices change
-  useEffect(() => {
-    if (isMounted.current && Array.isArray(deviceList)) {
-      console.log('[DeviceSelector] Device list updated:', deviceList.length, 'devices');
-      
-      // Update the debug info
-      setDebugInfo(prev => ({
-        ...prev,
-        hasDevices: deviceList.length > 0,
-        deviceCount: deviceList.length,
-        selectedDevice: selectedDeviceId
-      }));
-    }
-  }, [deviceList, selectedDeviceId]);
 
   const handleDeviceChange = (value: string) => {
     if (value && value !== selectedDeviceId) {

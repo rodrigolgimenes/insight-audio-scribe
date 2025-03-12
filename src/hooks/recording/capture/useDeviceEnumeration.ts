@@ -16,8 +16,9 @@ export const useDeviceEnumeration = (
   const lastEnumerationTimeRef = useRef(0);
   const devicesFetchedRef = useRef(false);
   const attemptCountRef = useRef(0);
+  const maxAttempts = 5; // Aumentado o número máximo de tentativas
 
-  // Function to enumerate audio devices
+  // Function to enumerate audio devices with improved error handling
   const getAudioDevices = useCallback(async () => {
     // Prevent multiple calls in quick succession
     const now = Date.now();
@@ -37,6 +38,7 @@ export const useDeviceEnumeration = (
       if (!hasPermission) {
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
         
+        // Only show toast once
         if (!hasShownToastRef.current) {
           toast.error("Microphone permission required", {
             description: "Please allow microphone access to view available devices",
@@ -52,38 +54,54 @@ export const useDeviceEnumeration = (
         return { devices: [], defaultId: null };
       }
 
-      // Get a temporary stream to ensure we get labels
+      // We now have permission, let's get the devices in a more reliable way
+      
+      // Instead of creating a temporary stream first, try direct enumeration
+      console.log('[useDeviceEnumeration] Calling enumerateDevices() directly first');
+      let devices = await navigator.mediaDevices.enumerateDevices();
+      let audioInputs = devices.filter(device => device.kind === 'audioinput');
+      
+      // If we don't have labels, create a temporary stream to get them
+      const needsLabels = audioInputs.some(device => !device.label);
       let tempStream: MediaStream | null = null;
-      try {
-        console.log('[useDeviceEnumeration] Requesting temporary stream to get device labels');
-        // Force requesting with autoGainControl disabled to work around some browser issues
-        tempStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: { 
-            autoGainControl: false,
-            echoCancellation: true,
-            noiseSuppression: true
-          } 
-        });
-        console.log('[useDeviceEnumeration] Successfully got temporary stream');
-      } catch (err) {
-        console.error('[useDeviceEnumeration] Error getting temporary stream:', err);
-        // Try a simpler audio request as fallback
+      
+      if (needsLabels || audioInputs.length === 0) {
+        console.log('[useDeviceEnumeration] Need labels or no devices found, requesting temporary stream');
         try {
-          console.log('[useDeviceEnumeration] Trying fallback simple audio request');
-          tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (fallbackErr) {
-          console.error('[useDeviceEnumeration] Fallback audio request also failed:', fallbackErr);
+          // Try multiple audio constraint configurations if needed
+          const audioConfigs = [
+            { audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } },
+            { audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: true } },
+            { audio: true }
+          ];
+          
+          for (const config of audioConfigs) {
+            try {
+              console.log('[useDeviceEnumeration] Trying audio config:', config);
+              tempStream = await navigator.mediaDevices.getUserMedia(config);
+              console.log('[useDeviceEnumeration] Successfully got temporary stream');
+              break; // Break the loop if successful
+            } catch (err) {
+              console.warn(`[useDeviceEnumeration] Failed with config ${JSON.stringify(config)}:`, err);
+              // Continue to next config
+            }
+          }
+          
+          if (!tempStream) {
+            throw new Error('All audio configurations failed');
+          }
+          
+          // Re-enumerate devices after getting the stream to get labels
+          await new Promise(resolve => setTimeout(resolve, 500)); // Give browser time to update
+          devices = await navigator.mediaDevices.enumerateDevices();
+          audioInputs = devices.filter(device => device.kind === 'audioinput');
+          
+          console.log('[useDeviceEnumeration] After getting stream, found devices:', audioInputs.length);
+        } catch (err) {
+          console.error('[useDeviceEnumeration] Error getting temporary stream:', err);
+          // Continue anyway, we might still have devices without labels
         }
       }
-
-      // Enumerate devices - with a small timeout to give browsers time to update device lists
-      await new Promise(resolve => setTimeout(resolve, 300));
-      console.log('[useDeviceEnumeration] Calling enumerateDevices()');
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      console.log('[useDeviceEnumeration] Got devices list:', devices);
-      
-      // Filter for audio input devices
-      const audioInputs = devices.filter(device => device.kind === 'audioinput');
       
       if (audioInputs.length === 0) {
         console.warn('[useDeviceEnumeration] No audio input devices found in enumeration results');
@@ -102,13 +120,13 @@ export const useDeviceEnumeration = (
           tempStream.getTracks().forEach(track => track.stop());
         }
         
-        if (attemptCountRef.current < 3) {
+        if (attemptCountRef.current < maxAttempts) {
           // Schedule a retry after a delay
           console.log('[useDeviceEnumeration] Scheduling retry attempt');
           setTimeout(() => {
             enumerationInProgressRef.current = false;
             getAudioDevices();
-          }, 2000);
+          }, 1000); // Faster retry
         }
         
         setAudioDevices([]);
@@ -130,7 +148,6 @@ export const useDeviceEnumeration = (
       // Convert to our internal AudioDevice type with proper labels
       const convertedDevices = audioInputs.map((device, index) => {
         // Check if this is likely the default device
-        // Usually the first device in the list without a specific deviceId
         const isDefault = device.deviceId === 'default' || device.deviceId === '' || 
                           (index === 0 && !foundDefault);
         
@@ -187,20 +204,20 @@ export const useDeviceEnumeration = (
         hasShownToastRef.current = true;
       }
       
+      // Retry with a different approach after error
+      if (attemptCountRef.current < maxAttempts) {
+        // Schedule a retry with a different approach
+        console.log('[useDeviceEnumeration] Scheduling retry with alternative approach');
+        setTimeout(() => {
+          enumerationInProgressRef.current = false;
+          getAudioDevices();
+        }, 1000);
+      }
+      
       setAudioDevices([]);
       setDefaultDeviceId(null);
       enumerationInProgressRef.current = false;
       devicesFetchedRef.current = false;
-      
-      if (attemptCountRef.current < 3) {
-        // Schedule a retry
-        console.log('[useDeviceEnumeration] Scheduling retry after error');
-        setTimeout(() => {
-          enumerationInProgressRef.current = false;
-          getAudioDevices();
-        }, 2000);
-      }
-      
       return { devices: [], defaultId: null };
     }
   }, [checkPermissions, audioDevices, defaultDeviceId]);
@@ -220,7 +237,7 @@ export const useDeviceEnumeration = (
         hasShownToastRef.current = false;
         enumerationInProgressRef.current = false;
         getAudioDevices();
-      }, 1000); // 1000ms debounce
+      }, 500); // Reduzido para 500ms
     };
     
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
