@@ -41,7 +41,7 @@ export const useRecordingLifecycle = () => {
   };
 
   const handleStartRecording = async (selectedDeviceId: string | null) => {
-    console.log('[useRecordingLifecycle] Starting recording process');
+    console.log('[useRecordingLifecycle] Starting recording process with system audio:', isSystemAudio);
     
     if (!session?.user) {
       toast({
