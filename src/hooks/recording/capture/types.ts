@@ -1,6 +1,4 @@
 
-import { AudioDevice as OriginalAudioDevice } from "../../../utils/audio/types";
-
 /**
  * Extended AudioDevice type that includes additional properties
  */
