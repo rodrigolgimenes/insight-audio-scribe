@@ -1,5 +1,5 @@
 
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import { AudioRecorder } from "@/utils/audio/AudioRecorder";
 import { RecordingLogger } from "@/utils/audio/recordingLogger";
 import { useRecordingState } from "./useRecordingState";
@@ -42,7 +42,7 @@ export const useRecordingLifecycle = () => {
   );
 
   // Modified start recording to initialize the recorder after getting the stream
-  const wrappedStartRecording = async (selectedDeviceId: string | null) => {
+  const wrappedStartRecording = useCallback((selectedDeviceId: string | null) => {
     console.log('[useRecordingLifecycle] wrappedStartRecording called with device ID:', selectedDeviceId);
     
     if (isProcessing.current) {
@@ -60,52 +60,64 @@ export const useRecordingLifecycle = () => {
     try {
       console.log('[useRecordingLifecycle] Starting recording with device ID:', selectedDeviceId);
       
-      // First get the stream
-      const stream = await handleStartRecording(selectedDeviceId);
-      
-      if (!stream) {
-        console.error('[useRecordingLifecycle] Failed to get stream from handleStartRecording');
-        isProcessing.current = false;
-        return;
-      }
-      
-      // Verify we have audio tracks
-      const audioTracks = stream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        console.error('[useRecordingLifecycle] No audio tracks in stream');
-        isProcessing.current = false;
-        return;
-      }
-      
-      console.log('[useRecordingLifecycle] Starting audio recorder with stream:', {
-        streamId: stream.id,
-        audioTracks: audioTracks.length,
-        track0Label: audioTracks[0]?.label || 'unknown'
-      });
-      
-      // Then start recording with the obtained stream
-      await audioRecorder.current.startRecording(stream);
-      recordingState.setIsRecording(true);
-      recordingState.setIsPaused(false);
-      
-      console.log('[useRecordingLifecycle] Recording started successfully');
-      
-      // Add inactive event listener to handle unexpected stream end
-      stream.addEventListener('inactive', () => {
-        console.log('[useRecordingLifecycle] Stream became inactive');
-        if (recordingState.isRecording && !isProcessing.current) {
-          handleStopRecording().catch(err => {
-            console.error('[useRecordingLifecycle] Error stopping recording on inactive stream:', err);
+      // First get the stream - using Promise.then instead of async/await to avoid potential issues
+      handleStartRecording(selectedDeviceId)
+        .then(stream => {
+          if (!stream) {
+            console.error('[useRecordingLifecycle] Failed to get stream from handleStartRecording');
+            isProcessing.current = false;
+            return;
+          }
+          
+          // Verify we have audio tracks
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length === 0) {
+            console.error('[useRecordingLifecycle] No audio tracks in stream');
+            isProcessing.current = false;
+            return;
+          }
+          
+          console.log('[useRecordingLifecycle] Starting audio recorder with stream:', {
+            streamId: stream.id,
+            audioTracks: audioTracks.length,
+            track0Label: audioTracks[0]?.label || 'unknown'
           });
-        }
-      });
+          
+          // Then start recording with the obtained stream
+          audioRecorder.current.startRecording(stream)
+            .then(() => {
+              recordingState.setIsRecording(true);
+              recordingState.setIsPaused(false);
+              console.log('[useRecordingLifecycle] Recording started successfully');
+            })
+            .catch(err => {
+              console.error('[useRecordingLifecycle] Error starting recorder:', err);
+            })
+            .finally(() => {
+              isProcessing.current = false;
+            });
+          
+          // Add inactive event listener to handle unexpected stream end
+          stream.addEventListener('inactive', () => {
+            console.log('[useRecordingLifecycle] Stream became inactive');
+            if (recordingState.isRecording && !isProcessing.current) {
+              handleStopRecording().catch(err => {
+                console.error('[useRecordingLifecycle] Error stopping recording on inactive stream:', err);
+              });
+            }
+          });
+        })
+        .catch(error => {
+          console.error('[useRecordingLifecycle] Error getting stream:', error);
+          recordingState.setIsRecording(false); // Make sure to reset state on error
+          isProcessing.current = false;
+        });
     } catch (error) {
       console.error('[useRecordingLifecycle] Error in wrappedStartRecording:', error);
       recordingState.setIsRecording(false); // Make sure to reset state on error
-    } finally {
       isProcessing.current = false;
     }
-  };
+  }, [handleStartRecording, handleStopRecording, recordingState]);
 
   return {
     initializeRecorder,

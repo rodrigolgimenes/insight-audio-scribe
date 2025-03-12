@@ -25,6 +25,7 @@ export const useRecording = () => {
 
   const { toast } = useToast();
   const [initError, setInitError] = useState<Error | null>(null);
+  const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
 
   const {
     audioDevices,
@@ -65,8 +66,11 @@ export const useRecording = () => {
     }
   }, [initializeRecorder]);
 
-  const handleStartRecording = useCallback(async () => {
+  const handleStartRecording = useCallback(() => {
     console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
+    
+    // Increment the attempts counter for troubleshooting
+    setRecordingAttemptsCount(prev => prev + 1);
     
     if (!selectedDeviceId) {
       console.error('[useRecording] No device selected for recording');
@@ -84,8 +88,8 @@ export const useRecording = () => {
     
     try {
       console.log('[useRecording] Calling startRecording with device ID:', selectedDeviceId);
-      await startRecording(selectedDeviceId);
-      console.log('[useRecording] Recording started successfully');
+      startRecording(selectedDeviceId);
+      console.log('[useRecording] startRecording function called successfully');
     } catch (error) {
       console.error('[useRecording] Error starting recording:', error);
       toast({
@@ -119,9 +123,10 @@ export const useRecording = () => {
       audioUrl: audioUrl ? 'exists' : 'null',
       mediaStream: mediaStream ? 'exists' : 'null',
       selectedDeviceId,
-      deviceSelectionReady
+      deviceSelectionReady,
+      recordingAttemptsCount
     });
-  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady]);
+  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady, recordingAttemptsCount]);
 
   return {
     isRecording,
@@ -143,6 +148,7 @@ export const useRecording = () => {
     setSelectedDeviceId,
     deviceSelectionReady,
     getCurrentDuration,
-    initError
+    initError,
+    recordingAttemptsCount
   };
 };

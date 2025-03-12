@@ -50,7 +50,7 @@ export const RecordControls = ({
     }
   }, [isRecording, isProcessing]);
 
-  const handleRecordClick = async () => {
+  const handleRecordClick = () => {
     console.log('[RecordControls] Record button clicked, disabled:', disabled, 'isProcessing:', isProcessing);
     if (disabled || isProcessing) return;
     
@@ -58,6 +58,7 @@ export const RecordControls = ({
     
     try {
       console.log('[RecordControls] Calling onStartRecording...');
+      // Call directly without wrapping in async/await - this was causing issues
       onStartRecording();
       
       // Set a timeout to clear processing state if recording doesn't start within 5 seconds
@@ -143,6 +144,7 @@ export const RecordControls = ({
           }`}
           onClick={handleRecordClick}
           disabled={disabled || isProcessing}
+          aria-label="Start Recording"
         >
           <Mic className="w-10 h-10" />
         </Button>

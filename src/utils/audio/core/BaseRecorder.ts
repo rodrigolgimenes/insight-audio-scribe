@@ -35,7 +35,8 @@ export class BaseRecorder {
       isRecording: this.isRecording,
       isPaused: this.isPaused,
       isInitialized: this.isInitialized,
-      hasInitError: this.hasInitError
+      hasInitError: this.hasInitError,
+      streamTracks: stream ? stream.getTracks().length : 0
     });
     
     if (this.isRecording) {
@@ -70,9 +71,15 @@ export class BaseRecorder {
         }
       });
 
-      // Start tracking duration and recording
+      // Start tracking duration and recording with proper error handling
       this.durationTracker.startTracking();
-      this.mediaRecorderManager.start();
+      
+      try {
+        this.mediaRecorderManager.start();
+      } catch (startError) {
+        console.error('[BaseRecorder] Error starting MediaRecorder:', startError);
+        throw new Error(`Failed to start recording: ${startError.message}`);
+      }
       
       // Update state
       this.isRecording = true;

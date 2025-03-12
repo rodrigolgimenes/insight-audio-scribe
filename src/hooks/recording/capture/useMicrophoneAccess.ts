@@ -33,80 +33,20 @@ export const useMicrophoneAccess = (
       // First try with exact device ID constraint - fallbacks if needed
       let micStream: MediaStream | null = null;
       
-      const attempts = [
-        // Attempt 1: Try with full constraints and exact device ID
-        async () => {
-          if (!deviceId) return null;
-          console.log('[useMicrophoneAccess] Attempt 1: Using full constraints with exact device ID');
-          
-          // Create empty audio constraints object
-          const audioConstraints: MediaTrackConstraints = {
-            deviceId: { exact: deviceId }
-          };
-          
-          // Only add these properties if MIC_CONSTRAINTS.audio is an object
-          if (typeof MIC_CONSTRAINTS.audio === 'object' && MIC_CONSTRAINTS.audio !== null) {
-            if ('echoCancellation' in MIC_CONSTRAINTS.audio) 
-              audioConstraints.echoCancellation = MIC_CONSTRAINTS.audio.echoCancellation;
-            if ('noiseSuppression' in MIC_CONSTRAINTS.audio) 
-              audioConstraints.noiseSuppression = MIC_CONSTRAINTS.audio.noiseSuppression;
-            if ('autoGainControl' in MIC_CONSTRAINTS.audio) 
-              audioConstraints.autoGainControl = MIC_CONSTRAINTS.audio.autoGainControl;
-            if ('channelCount' in MIC_CONSTRAINTS.audio) 
-              audioConstraints.channelCount = MIC_CONSTRAINTS.audio.channelCount;
-            if ('sampleRate' in MIC_CONSTRAINTS.audio) 
-              audioConstraints.sampleRate = MIC_CONSTRAINTS.audio.sampleRate;
-            if ('sampleSize' in MIC_CONSTRAINTS.audio) 
-              audioConstraints.sampleSize = MIC_CONSTRAINTS.audio.sampleSize;
-          }
-          
-          return await navigator.mediaDevices.getUserMedia({
-            audio: audioConstraints,
-            video: false
-          });
-        },
-        
-        // Attempt 2: Try with only device ID constraint
-        async () => {
-          if (!deviceId) return null;
-          console.log('[useMicrophoneAccess] Attempt 2: Using only device ID constraint');
-          return await navigator.mediaDevices.getUserMedia({
-            audio: { deviceId: { exact: deviceId } },
-            video: false
-          });
-        },
-        
-        // Attempt 3: Try with ideal device ID (non-exact)
-        async () => {
-          if (!deviceId) return null;
-          console.log('[useMicrophoneAccess] Attempt 3: Using ideal device ID (non-exact)');
-          return await navigator.mediaDevices.getUserMedia({
-            audio: { deviceId: { ideal: deviceId } },
-            video: false
-          });
-        },
-        
-        // Attempt 4: Just try with simple audio: true
-        async () => {
-          console.log('[useMicrophoneAccess] Attempt 4: Using audio: true as last resort');
-          return await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: false
-          });
-        }
-      ];
-      
-      // Try each method until one works
-      for (const attemptFn of attempts) {
-        try {
-          const stream = await attemptFn();
-          if (stream && stream.getAudioTracks().length > 0) {
-            micStream = stream;
-            break;
-          }
-        } catch (err) {
-          console.warn('[useMicrophoneAccess] Attempt failed, trying next method:', err);
-        }
+      // Simplify approach - just try with basic constraints first
+      try {
+        console.log('[useMicrophoneAccess] Attempting with simple audio constraint and device ID');
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+          video: false
+        });
+      } catch (err) {
+        console.warn('[useMicrophoneAccess] Simple approach failed, trying fallback', err);
+        // Fallback to just audio:true
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false
+        });
       }
       
       if (!micStream) {

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AudioDevice } from "@/hooks/recording/useAudioCapture";
+import { useEffect } from "react";
 
 interface DeviceSelectorProps {
   audioDevices: AudioDevice[];
@@ -26,6 +27,21 @@ export function DeviceSelector({
   disabled,
   hasDevices
 }: DeviceSelectorProps) {
+  // Log relevant state changes for debugging
+  useEffect(() => {
+    console.log('[DeviceSelector] State updated:', { 
+      devicesCount: audioDevices.length,
+      selectedDeviceId,
+      disabled,
+      hasDevices
+    });
+  }, [audioDevices, selectedDeviceId, disabled, hasDevices]);
+
+  const handleDeviceChange = (deviceId: string) => {
+    console.log('[DeviceSelector] Device selected:', deviceId);
+    onDeviceSelect(deviceId);
+  };
+
   return (
     <div className="flex items-center justify-between space-x-2">
       <div className="flex items-center space-x-2">
@@ -47,18 +63,24 @@ export function DeviceSelector({
       </div>
       <Select
         value={selectedDeviceId || undefined}
-        onValueChange={onDeviceSelect}
+        onValueChange={handleDeviceChange}
         disabled={disabled || !hasDevices}
       >
         <SelectTrigger className="w-[280px]">
           <SelectValue placeholder="Select a microphone" />
         </SelectTrigger>
         <SelectContent>
-          {audioDevices.map((device, index) => (
-            <SelectItem key={device.deviceId} value={device.deviceId}>
-              {device.label || `Microphone ${index + 1}`}
+          {audioDevices.length === 0 ? (
+            <SelectItem value="no-devices" disabled>
+              No microphones found
             </SelectItem>
-          ))}
+          ) : (
+            audioDevices.map((device, index) => (
+              <SelectItem key={device.deviceId || `device-${index}`} value={device.deviceId}>
+                {device.label || `Microphone ${index + 1}`}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
     </div>
