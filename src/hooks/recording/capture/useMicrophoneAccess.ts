@@ -6,7 +6,7 @@ import { MIC_CONSTRAINTS } from "../audioConfig";
 
 export const useMicrophoneAccess = (
   checkPermissions: () => Promise<boolean>,
-  captureSystemAudio: (micStream: MediaStream) => Promise<MediaStream | null>
+  captureSystemAudio: (micStream: MediaStream, isSystemAudio: boolean) => Promise<MediaStream | null>
 ) => {
   const { toast } = useToast();
 
@@ -92,7 +92,7 @@ export const useMicrophoneAccess = (
         console.log('[useMicrophoneAccess] System audio requested, attempting capture...');
         
         try {
-          const systemStream = await captureSystemAudio(micStream);
+          const systemStream = await captureSystemAudio(micStream, isSystemAudio);
           
           if (systemStream) {
             console.log('[useMicrophoneAccess] System audio captured successfully');

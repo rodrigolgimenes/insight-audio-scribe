@@ -21,7 +21,7 @@ export const useAudioCapture = () => {
   // Initialize microphone access hook
   const { requestMicrophoneAccess } = useMicrophoneAccess(
     checkPermissions,
-    async (micStream) => {
+    async (micStream, isSystemAudio) => {
       try {
         // This is a placeholder that will be replaced by the actual implementation
         // from useSystemAudio.ts when the hook is used

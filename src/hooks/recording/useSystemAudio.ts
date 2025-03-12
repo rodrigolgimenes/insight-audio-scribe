@@ -9,7 +9,7 @@ export const useSystemAudio = (setIsSystemAudio: (value: boolean) => void) => {
 
   // This is a placeholder for the captureSystemAudio method
   // This method will be used to capture system audio from the display media
-  const captureSystemAudio = useCallback(async (micStream: MediaStream): Promise<MediaStream | null> => {
+  const captureSystemAudio = useCallback(async (micStream: MediaStream, isSystemAudio: boolean = true): Promise<MediaStream | null> => {
     console.log('[useSystemAudio] Attempting to capture system audio');
     try {
       // Request system audio stream (via user selection)
