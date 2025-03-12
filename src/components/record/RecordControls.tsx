@@ -218,6 +218,15 @@ export function RecordControls({
             Last click: {new Date(clickTime).toLocaleTimeString()}
           </div>
         )}
+        
+        {/* Debug info */}
+        <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
+          <div>Devices: {audioDevices?.length || 0}</div>
+          <div>Selected ID: {selectedDeviceId || 'None'}</div>
+          <div>Selection Ready: {deviceSelectionReady ? 'Yes' : 'No'}</div>
+          <div>Permission: {permissionState}</div>
+          <div>Can Start: {canStart ? 'Yes' : 'No'}</div>
+        </div>
       </div>
     </div>
   );

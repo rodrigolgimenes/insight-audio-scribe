@@ -38,13 +38,17 @@ export const RecordingMain = ({
   lastAction,
   permissionState = 'unknown'
 }: RecordingMainProps) => {
-  // Add logging to track received props
+  // Enhanced logging to track received props
   useEffect(() => {
     console.log('[RecordingMain] Props received:', {
       deviceSelectionReady,
       selectedDeviceId,
       audioDevicesCount: audioDevices.length,
-      permissionState
+      permissionState,
+      audioDevicesList: audioDevices.map(d => ({
+        id: d.deviceId,
+        label: d.label || 'No label'
+      }))
     });
   }, [deviceSelectionReady, selectedDeviceId, audioDevices, permissionState]);
 
@@ -57,6 +61,12 @@ export const RecordingMain = ({
         selectedDeviceId,
         availableDevices: audioDevices.map(d => d.deviceId)
       });
+      
+      // If selected device doesn't exist in the list but we have devices,
+      // we could potentially auto-select the first device here
+      if (!deviceExists && audioDevices.length > 0) {
+        console.warn('[RecordingMain] Selected device not found in devices list. Consider selecting a valid device.');
+      }
     }
   }, [selectedDeviceId, audioDevices]);
 
