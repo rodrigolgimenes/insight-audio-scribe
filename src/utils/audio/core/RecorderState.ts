@@ -1,110 +1,67 @@
 
-import { RecordingResult } from '../types';
+import { IRecorderState } from '../types/recorderStateTypes';
+import { RecorderStateFactory } from './state/RecorderStateFactory';
 
 /**
  * Manages the state of the audio recorder
+ * @deprecated Use RecorderStateImpl from './state/RecorderStateImpl' instead
  */
-export class RecorderState {
-  private isRecording = false;
-  private isPaused = false;
-  private isInitialized = false;
-  private hasInitError = false;
-  private latestBlob: Blob | null = null;
-  private recordingStartTime: number | null = null;
+export class RecorderState implements IRecorderState {
+  private implementation: IRecorderState;
 
-  /**
-   * Sets the recording state
-   */
+  constructor() {
+    this.implementation = RecorderStateFactory.createRecorderState();
+  }
+
   setIsRecording(isRecording: boolean): void {
-    this.isRecording = isRecording;
+    this.implementation.setIsRecording(isRecording);
   }
 
-  /**
-   * Gets the recording state
-   */
   isCurrentlyRecording(): boolean {
-    return this.isRecording;
+    return this.implementation.isCurrentlyRecording();
   }
 
-  /**
-   * Sets the paused state
-   */
   setIsPaused(isPaused: boolean): void {
-    this.isPaused = isPaused;
+    this.implementation.setIsPaused(isPaused);
   }
 
-  /**
-   * Gets the paused state
-   */
   isPausedState(): boolean {
-    return this.isPaused;
+    return this.implementation.isPausedState();
   }
 
-  /**
-   * Sets the initialization state
-   */
   setIsInitialized(isInitialized: boolean): void {
-    this.isInitialized = isInitialized;
+    this.implementation.setIsInitialized(isInitialized);
   }
 
-  /**
-   * Gets the initialization state
-   */
   isInitializedState(): boolean {
-    return this.isInitialized;
+    return this.implementation.isInitializedState();
   }
 
-  /**
-   * Sets the initialization error state
-   */
   setHasInitError(hasError: boolean): void {
-    this.hasInitError = hasError;
+    this.implementation.setHasInitError(hasError);
   }
 
-  /**
-   * Gets the initialization error state
-   */
   hasInitializationError(): boolean {
-    return this.hasInitError;
+    return this.implementation.hasInitializationError();
   }
 
-  /**
-   * Sets the latest blob
-   */
   setLatestBlob(blob: Blob | null): void {
-    this.latestBlob = blob;
+    this.implementation.setLatestBlob(blob);
   }
 
-  /**
-   * Gets the latest blob
-   */
   getFinalBlob(): Blob | null {
-    return this.latestBlob;
+    return this.implementation.getFinalBlob();
   }
 
-  /**
-   * Sets the recording start time
-   */
   setRecordingStartTime(startTime: number | null): void {
-    this.recordingStartTime = startTime;
+    this.implementation.setRecordingStartTime(startTime);
   }
 
-  /**
-   * Gets the recording start time
-   */
   getRecordingStartTime(): number | null {
-    return this.recordingStartTime;
+    return this.implementation.getRecordingStartTime();
   }
 
-  /**
-   * Resets all state values
-   */
   reset(): void {
-    this.isRecording = false;
-    this.isPaused = false;
-    this.isInitialized = false;
-    this.hasInitError = false;
-    this.recordingStartTime = null;
-    // Note: We don't reset the latestBlob since it might be needed after stopping
+    this.implementation.reset();
   }
 }

@@ -2,7 +2,7 @@
 import { MediaRecorderManager } from '../mediaRecorderManager';
 import { DurationTracker } from '../helpers/durationTracker';
 import { StreamManager } from '../helpers/streamManager';
-import { RecorderState } from './RecorderState';
+import { IRecorderState } from '../types/recorderStateTypes';
 import { RecordingResult } from '../types';
 import { RecordingOperations } from './RecordingOperations';
 import { BaseRecorderLifecycle } from './BaseRecorderLifecycle';
@@ -17,7 +17,7 @@ export class RecorderLifecycle extends BaseRecorderLifecycle {
     private mediaRecorderManager: MediaRecorderManager,
     private durationTracker: DurationTracker,
     private streamManager: StreamManager,
-    private recorderState: RecorderState
+    private recorderState: IRecorderState
   ) {
     super();
     this.recordingOperations = new RecordingOperations(

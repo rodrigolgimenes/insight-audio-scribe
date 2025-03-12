@@ -1,7 +1,7 @@
 
 import { MediaRecorderManager } from '../mediaRecorderManager';
 import { DurationTracker } from '../helpers/durationTracker';
-import { RecorderState } from './RecorderState';
+import { IRecorderState } from '../types/recorderStateTypes';
 import { BaseRecorderLifecycle } from './BaseRecorderLifecycle';
 import { RecordingResult } from '../types';
 
@@ -12,7 +12,7 @@ export class RecordingOperations extends BaseRecorderLifecycle {
   constructor(
     private mediaRecorderManager: MediaRecorderManager,
     private durationTracker: DurationTracker,
-    private recorderState: RecorderState
+    private recorderState: IRecorderState
   ) {
     super();
   }
