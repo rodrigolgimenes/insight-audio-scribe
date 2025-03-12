@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,6 +9,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthCallback } from "@/components/auth/AuthCallback";
 import { AudioDeviceProvider } from "@/context/AudioDeviceContext";
+import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import TestRecordMeeting from "./pages/TestRecordMeeting";
@@ -83,87 +85,90 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          <AudioDeviceProvider>
-            <Toaster />
-            <Sonner />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/notes/:noteId"
-                element={
-                  <ProtectedRoute>
-                    <NotePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/folder/:folderId"
-                element={
-                  <ProtectedRoute>
-                    <FolderPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/uncategorized"
-                element={
-                  <ProtectedRoute>
-                    <UncategorizedFolder />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/tag/:tagId"
-                element={
-                  <ProtectedRoute>
-                    <TagPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/simple-record"
-                element={<SimpleRecord />}
-              />
-              <Route
-                path="/test-record-meeting"
-                element={<TestRecordMeeting />}
-              />
-              <Route
-                path="/test"
-                element={
-                  <ProtectedRoute>
-                    <TestPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route 
-                path="/SimpleRecord" 
-                element={<Navigate to="/simple-record" replace />} 
-              />
-              <Route 
-                path="/index" 
-                element={<Navigate to="/simple-record" replace />} 
-              />
-            </Routes>
-          </AudioDeviceProvider>
+          {/* Wrap the entire app with DeviceManagerProvider for global access */}
+          <DeviceManagerProvider>
+            <AudioDeviceProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/app"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/app/notes/:noteId"
+                  element={
+                    <ProtectedRoute>
+                      <NotePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/app/folder/:folderId"
+                  element={
+                    <ProtectedRoute>
+                      <FolderPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/app/uncategorized"
+                  element={
+                    <ProtectedRoute>
+                      <UncategorizedFolder />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/app/tag/:tagId"
+                  element={
+                    <ProtectedRoute>
+                      <TagPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/simple-record"
+                  element={<SimpleRecord />}
+                />
+                <Route
+                  path="/test-record-meeting"
+                  element={<TestRecordMeeting />}
+                />
+                <Route
+                  path="/test"
+                  element={
+                    <ProtectedRoute>
+                      <TestPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route 
+                  path="/SimpleRecord" 
+                  element={<Navigate to="/simple-record" replace />} 
+                />
+                <Route 
+                  path="/index" 
+                  element={<Navigate to="/simple-record" replace />} 
+                />
+              </Routes>
+            </AudioDeviceProvider>
+          </DeviceManagerProvider>
         </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
