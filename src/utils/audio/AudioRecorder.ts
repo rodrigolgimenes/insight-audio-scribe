@@ -1,9 +1,7 @@
-
 import { DurationTracker } from "./helpers/durationTracker";
 import { StreamManager } from "./helpers/streamManager";
-import { RecordingResult, RecordingStats } from "./types/audioRecorderTypes";
+import { RecordingResult, RecordingStats, RecordingEvent, RecordingObserver } from "./types/audioRecorderTypes";
 import { getSupportedMimeType, createMediaRecorderOptions, logAudioTracks, validateAudioTracks } from "./helpers/mediaRecorderUtils";
-import { RecordingObserver } from "./types";
 
 export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
@@ -40,7 +38,7 @@ export class AudioRecorder {
   /**
    * Notify all observers about an event
    */
-  private notifyObservers(event: { type: string, data?: any }): void {
+  private notifyObservers(event: RecordingEvent): void {
     this.observers.forEach(observer => {
       try {
         observer.update(event);

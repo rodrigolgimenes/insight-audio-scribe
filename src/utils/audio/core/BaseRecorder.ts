@@ -1,10 +1,11 @@
-
 import { RecordingObserver, RecordingResult } from '../types';
 import { MediaRecorderManager } from '../mediaRecorderManager';
 import { DurationTracker } from '../durationTracker';
 import { StreamManager } from '../streamManager';
 import { RecorderState } from './RecorderState';
 import { RecorderLifecycle } from './RecorderLifecycle';
+
+export type { RecordingObserver, RecordingEvent } from '../types/audioRecorderTypes';
 
 export class BaseRecorder {
   protected mediaRecorderManager: MediaRecorderManager;
