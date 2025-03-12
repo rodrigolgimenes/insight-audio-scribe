@@ -1,4 +1,5 @@
 
+import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { PanelLeft } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -10,6 +11,8 @@ import {
   SidebarHeader,
   SidebarInput,
   SidebarSeparator,
+  SidebarGroup,
+  SidebarGroupContent,
 } from "./sidebar-sections"
 import {
   SidebarMenu,
@@ -48,6 +51,8 @@ export {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
   SidebarHeader,
   SidebarInput,
   SidebarMenu,

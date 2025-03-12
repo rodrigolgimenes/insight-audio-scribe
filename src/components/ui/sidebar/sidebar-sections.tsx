@@ -1,4 +1,3 @@
-
 import * as React from "react"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
@@ -58,6 +57,32 @@ export const SidebarSeparator = React.forwardRef<
   />
 ))
 SidebarSeparator.displayName = "SidebarSeparator"
+
+export const SidebarGroup = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    data-sidebar="group"
+    className={cn("flex flex-col gap-2", className)}
+    {...props}
+  />
+))
+SidebarGroup.displayName = "SidebarGroup"
+
+export const SidebarGroupContent = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentProps<"div">
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    data-sidebar="group-content"
+    className={cn("flex flex-col gap-1", className)}
+    {...props}
+  />
+))
+SidebarGroupContent.displayName = "SidebarGroupContent"
 
 export const SidebarContent = React.forwardRef<
   HTMLDivElement,
