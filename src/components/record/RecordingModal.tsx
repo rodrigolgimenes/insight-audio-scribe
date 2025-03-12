@@ -8,7 +8,6 @@ import {
 import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "./RecordingSection";
 import { RecordingActions } from "./RecordingActions";
-import { useToast } from "@/hooks/use-toast";
 
 interface RecordingModalProps {
   isOpen: boolean;
@@ -16,7 +15,6 @@ interface RecordingModalProps {
 }
 
 export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
-  const { toast } = useToast();
   const {
     isRecording,
     isPaused,
@@ -37,13 +35,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   } = useRecording();
 
   const handleTimeLimit = () => {
-    handleStopRecording().then(() => {
-      toast({
-        title: "Time Limit Reached",
-        description: "Recording was stopped after reaching the 60-minute limit. Starting automatic transcription...",
-      });
-      handleSaveRecording();
-    });
+    handleStopRecording().then(() => {});
   };
 
   const isLoading = isSaving;

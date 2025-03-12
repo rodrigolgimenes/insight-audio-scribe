@@ -58,9 +58,8 @@ const SimpleRecord = () => {
     handleStopRecording().then(() => {
       toast({
         title: "Time Limit Reached",
-        description: "Recording was stopped after reaching the 60-minute limit. Starting automatic transcription...",
+        description: "Recording was stopped after reaching the 60-minute limit.",
       });
-      handleSave();
     });
   };
 
@@ -83,13 +82,13 @@ const SimpleRecord = () => {
     }, mediaStream, audioUrl, getCurrentDuration());
   };
 
+  const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
+  const hasRecording = !!audioUrl;
+
   const handleSystemAudioChange = (enabled: boolean) => {
     console.log("Setting system audio to:", enabled);
     setIsSystemAudio(enabled);
   };
-
-  const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
-  const hasRecording = !!audioUrl;
 
   return (
     <SidebarProvider>
