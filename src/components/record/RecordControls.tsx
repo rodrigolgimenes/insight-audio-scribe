@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Mic, Pause, Play, StopCircle } from "lucide-react";
+import { Mic, Pause, Play } from "lucide-react";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -46,27 +46,15 @@ export const RecordControls = ({
       )}
       
       {isRecording ? (
-        <>
-          <Button
-            size="icon"
-            variant="outline"
-            className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-            onClick={() => onStopRecording()}
-            disabled={disabled}
-          >
-            <StopCircle className="w-6 h-6 text-red-500" />
-          </Button>
-          
-          <Button
-            size="icon"
-            variant="default"
-            className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-            onClick={isPaused ? onResumeRecording : onPauseRecording}
-            disabled={disabled}
-          >
-            {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
-          </Button>
-        </>
+        <Button
+          size="icon"
+          variant="default"
+          className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
+          onClick={isPaused ? onResumeRecording : onPauseRecording}
+          disabled={disabled}
+        >
+          {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
+        </Button>
       ) : (
         <Button
           size="icon"

@@ -79,8 +79,10 @@ const SimpleRecord = () => {
     }
     
     // Then use the same saveRecording logic as the one used in the modal
+    // Use a void return type for the callback to match the expected type
     await saveRecording(isRecording, async () => {
-      return await handleStopRecording();
+      const result = await handleStopRecording();
+      return;
     }, mediaStream, audioUrl, getCurrentDuration());
   };
 
