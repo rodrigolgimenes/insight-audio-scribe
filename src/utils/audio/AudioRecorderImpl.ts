@@ -3,7 +3,7 @@ import { StreamManager } from "./helpers/streamManager";
 import { RecordingResult, RecordingStats, RecordingEvent, RecordingObserver } from "./types/audioRecorderTypes";
 import { getSupportedMimeType, createMediaRecorderOptions, logAudioTracks, validateAudioTracks } from "./helpers/mediaRecorderUtils";
 
-export class AudioRecorder {
+export class AudioRecorderImpl {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private durationTracker: DurationTracker;

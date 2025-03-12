@@ -1,9 +1,14 @@
 
-// Re-export from the newer implementation to maintain backward compatibility
-import { AudioRecorder } from './AudioRecorder';
+// Main entry point for audio recording functionality
+import { AudioRecorderImpl } from './AudioRecorderImpl';
 
-// Export the main class
-export { AudioRecorder };
+// Export the implementation class as AudioRecorder
+export class AudioRecorder extends AudioRecorderImpl {}
 
 // Export related types for use in other files
-export type { RecordingResult, RecordingStats, RecordingObserver, RecordingEvent } from './types/audioRecorderTypes';
+export type { 
+  RecordingResult, 
+  RecordingStats, 
+  RecordingObserver, 
+  RecordingEvent 
+} from './types/audioRecorderTypes';
