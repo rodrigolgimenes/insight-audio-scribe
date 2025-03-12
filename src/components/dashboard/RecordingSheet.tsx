@@ -34,7 +34,9 @@ export function RecordingSheet() {
     recordingAttemptsCount,
     initError,
     lastAction,
-    refreshDevices
+    refreshDevices,
+    devicesLoading,
+    permissionState
   } = useRecording();
 
   // Ensure component is mounted before rendering complex components
@@ -56,9 +58,13 @@ export function RecordingSheet() {
       audioDevices: audioDevices.length,
       recordingAttemptsCount,
       hasInitError: !!initError,
-      isComponentReady
+      isComponentReady,
+      devicesLoading,
+      permissionState
     });
-  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length, recordingAttemptsCount, initError, isComponentReady]);
+  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, 
+      audioDevices.length, recordingAttemptsCount, initError, isComponentReady,
+      devicesLoading, permissionState]);
 
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
@@ -127,6 +133,8 @@ export function RecordingSheet() {
               showDeleteButton={true}
               lastAction={lastAction}
               onRefreshDevices={refreshDevices}
+              devicesLoading={devicesLoading}
+              permissionState={permissionState}
             />
 
             <div className="mt-6 flex justify-center">

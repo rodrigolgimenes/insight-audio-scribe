@@ -5,9 +5,13 @@ import { RefreshCw } from "lucide-react";
 
 interface RefreshDevicesButtonProps {
   onRefreshDevices?: () => void;
+  isLoading?: boolean;
 }
 
-export function RefreshDevicesButton({ onRefreshDevices }: RefreshDevicesButtonProps) {
+export function RefreshDevicesButton({ 
+  onRefreshDevices,
+  isLoading = false
+}: RefreshDevicesButtonProps) {
   if (!onRefreshDevices) return null;
   
   return (
@@ -16,9 +20,10 @@ export function RefreshDevicesButton({ onRefreshDevices }: RefreshDevicesButtonP
       size="sm" 
       onClick={onRefreshDevices} 
       className="h-7 px-2"
+      disabled={isLoading}
     >
-      <RefreshCw className="h-3.5 w-3.5 mr-1" />
-      <span className="text-xs">Refresh</span>
+      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+      <span className="text-xs">{isLoading ? 'Refreshing...' : 'Refresh'}</span>
     </Button>
   );
 }

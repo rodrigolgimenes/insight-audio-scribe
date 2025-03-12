@@ -34,6 +34,8 @@ interface RecordingSectionProps {
     error?: string;
   };
   onRefreshDevices?: () => void;
+  devicesLoading?: boolean;
+  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
 }
 
 export function RecordingSection({
@@ -57,8 +59,10 @@ export function RecordingSection({
   showDiagnosticsPanel = true,
   lastAction,
   onRefreshDevices,
+  devicesLoading = false,
+  permissionState = 'unknown',
 }: RecordingSectionProps) {
-  // Use our new diagnostics hook
+  // Use our diagnostics hook
   useDiagnostics({
     selectedDeviceId,
     deviceSelectionReady,
@@ -98,6 +102,8 @@ export function RecordingSection({
         onDeviceSelect={onDeviceSelect}
         deviceSelectionReady={deviceSelectionReady}
         onRefreshDevices={onRefreshDevices}
+        devicesLoading={devicesLoading}
+        permissionState={permissionState}
       />
       
       {/* Delete Recording Button */}
@@ -118,6 +124,8 @@ export function RecordingSection({
           lastAction={lastAction}
           onRefreshDevices={onRefreshDevices}
           deviceCount={audioDevices.length}
+          devicesLoading={devicesLoading}
+          permissionState={permissionState}
         />
       )}
     </div>

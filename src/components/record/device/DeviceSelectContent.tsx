@@ -3,17 +3,27 @@ import React from "react";
 import { SelectContent, SelectItem } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { formatDeviceLabel } from "../utils/deviceFormatters";
+import { Loader2 } from "lucide-react";
 
 interface DeviceSelectContentProps {
   deviceList: (AudioDevice | MediaDeviceInfo)[];
+  isLoading?: boolean;
 }
 
-export function DeviceSelectContent({ deviceList }: DeviceSelectContentProps) {
+export function DeviceSelectContent({ 
+  deviceList,
+  isLoading = false
+}: DeviceSelectContentProps) {
   const hasDevices = Array.isArray(deviceList) && deviceList.length > 0;
   
   return (
     <SelectContent className="max-h-[200px] overflow-y-auto bg-white">
-      {!hasDevices ? (
+      {isLoading ? (
+        <div className="py-6 flex flex-col items-center justify-center text-sm text-gray-500">
+          <Loader2 className="h-5 w-5 animate-spin mb-2" />
+          <span>Detecting microphones...</span>
+        </div>
+      ) : !hasDevices ? (
         <SelectItem value="no-devices" disabled>
           No microphones found
         </SelectItem>

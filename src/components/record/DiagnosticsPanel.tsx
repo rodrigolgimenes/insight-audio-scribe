@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DiagnosticsPanelProps {
@@ -19,6 +19,8 @@ interface DiagnosticsPanelProps {
     error?: string;
   };
   onRefreshDevices?: () => void;
+  devicesLoading?: boolean;
+  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
 }
 
 export function DiagnosticsPanel({
@@ -29,7 +31,9 @@ export function DiagnosticsPanel({
   deviceId,
   deviceCount = 0,
   lastAction,
-  onRefreshDevices
+  onRefreshDevices,
+  devicesLoading = false,
+  permissionState = 'unknown'
 }: DiagnosticsPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   
@@ -57,9 +61,14 @@ export function DiagnosticsPanel({
             size="sm" 
             onClick={onRefreshDevices}
             className="p-0 hover:bg-transparent text-xs text-blue-500"
+            disabled={devicesLoading}
           >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Refresh devices
+            {devicesLoading ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3 mr-1" />
+            )}
+            {devicesLoading ? 'Refreshing...' : 'Refresh devices'}
           </Button>
         )}
       </div>
@@ -67,8 +76,13 @@ export function DiagnosticsPanel({
       <CollapsibleContent className="text-xs text-gray-600 space-y-1 mt-2">
         <div>Recording state: {isRecording ? (isPaused ? "Paused" : "Recording") : "Stopped"}</div>
         <div>Device selection ready: {deviceSelectionReady ? "Yes" : "No"}</div>
-        <div>Device count: {deviceCount}</div>
+        <div>Device count: {deviceCount} {devicesLoading && <span className="text-blue-500">(refreshing...)</span>}</div>
         <div className="truncate max-w-full">Device ID: {deviceId || "None"}</div>
+        <div>Permission: <span className={`
+          ${permissionState === 'granted' ? 'text-green-500' : ''}
+          ${permissionState === 'denied' ? 'text-red-500' : ''}
+          ${permissionState === 'prompt' ? 'text-amber-500' : ''}
+        `}>{permissionState}</span></div>
         
         {mediaStream && (
           <>

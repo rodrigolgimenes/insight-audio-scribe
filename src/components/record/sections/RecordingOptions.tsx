@@ -12,6 +12,8 @@ interface RecordingOptionsProps {
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
   onRefreshDevices?: () => void;
+  devicesLoading?: boolean;
+  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
 }
 
 export const RecordingOptions = ({
@@ -21,7 +23,9 @@ export const RecordingOptions = ({
   selectedDeviceId,
   onDeviceSelect,
   deviceSelectionReady,
-  onRefreshDevices
+  onRefreshDevices,
+  devicesLoading = false,
+  permissionState = 'unknown'
 }: RecordingOptionsProps) => {
   return (
     <div className="mt-6 space-y-4">
@@ -31,6 +35,8 @@ export const RecordingOptions = ({
         onDeviceSelect={onDeviceSelect} 
         isReady={deviceSelectionReady}
         onRefreshDevices={onRefreshDevices}
+        devicesLoading={devicesLoading}
+        permissionState={permissionState}
       />
       
       {onSystemAudioChange && (
