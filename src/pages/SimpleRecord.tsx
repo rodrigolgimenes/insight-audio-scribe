@@ -78,7 +78,7 @@ const SimpleRecord = () => {
         isRecording, 
         async () => {
           const result = await handleStopRecording();
-          return result;
+          return result || { blob: null, duration: 0 }; // Ensure we return a consistent object
         }, 
         mediaStream, 
         audioUrl, 
@@ -123,8 +123,13 @@ const SimpleRecord = () => {
                     isSystemAudio={isSystemAudio}
                     handleStartRecording={handleStartRecording}
                     handleStopRecording={async () => {
-                      const result = await handleStopRecording();
-                      return result;
+                      try {
+                        const result = await handleStopRecording();
+                        return result || { blob: null, duration: 0 };
+                      } catch (error) {
+                        console.error('[RecordingSection] Error stopping recording:', error);
+                        return { blob: null, duration: 0 };
+                      }
                     }}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}

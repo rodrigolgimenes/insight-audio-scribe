@@ -17,8 +17,9 @@ export const useRecordingSave = () => {
     recordedDuration: number = 0
   ) => {
     try {
+      let recordingResult;
       if (isRecording) {
-        await handleStopRecording();
+        recordingResult = await handleStopRecording();
       }
 
       setIsProcessing(true);
