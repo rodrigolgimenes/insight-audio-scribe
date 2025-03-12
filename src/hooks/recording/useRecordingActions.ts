@@ -2,82 +2,104 @@
 import { useCallback } from "react";
 import { RecordingStateType } from "./useRecordingState";
 
+type RecordingLifecycle = {
+  startRecording: (deviceId: string | null, isSystemAudio: boolean) => Promise<boolean>;
+  stopRecording: () => Promise<{ blob: Blob | null; duration: number } | undefined>;
+  pauseRecording: () => void;
+  resumeRecording: () => void;
+};
+
 /**
- * Hook for recording action functions
+ * Hook for providing high-level recording action handlers
  */
 export const useRecordingActions = (
   recordingState: RecordingStateType,
-  startRecording: (deviceId: string | null, isSystemAudio: boolean) => Promise<boolean>,
-  stopRecording: () => Promise<{ blob: Blob | null; duration: number }>,
-  pauseRecording: () => void,
-  resumeRecording: () => void
+  startRecording: RecordingLifecycle["startRecording"],
+  stopRecording: RecordingLifecycle["stopRecording"],
+  pauseRecording: RecordingLifecycle["pauseRecording"],
+  resumeRecording: RecordingLifecycle["resumeRecording"]
 ) => {
   const {
+    isRecording,
+    isPaused,
     setIsRecording,
     setIsPaused,
-    selectedDeviceId,
     isSystemAudio,
-    setLastAction,
-    isRecording,
-    isPaused
+    selectedDeviceId,
+    setLastAction
   } = recordingState;
 
-  // Handle start recording
+  // Start recording
   const handleStartRecording = useCallback(async () => {
-    console.log('[useRecordingActions] Starting recording with device ID:', selectedDeviceId);
-    console.log('[useRecordingActions] System audio enabled:', isSystemAudio);
-    
-    setLastAction({
-      action: 'Start recording',
-      timestamp: Date.now(),
-      success: false
-    });
-    
+    if (isRecording) {
+      console.log('[useRecordingActions] Already recording');
+      return false;
+    }
+
+    console.log('[useRecordingActions] Starting recording');
     try {
-      const started = await startRecording(selectedDeviceId, isSystemAudio);
+      setLastAction({
+        action: 'Start recording',
+        timestamp: Date.now(),
+        success: false
+      });
+
+      const success = await startRecording(selectedDeviceId, isSystemAudio);
       
-      if (started) {
+      if (success) {
         setIsRecording(true);
         setIsPaused(false);
+        
         setLastAction({
           action: 'Start recording',
           timestamp: Date.now(),
           success: true
         });
-        return true;
+        
+        console.log('[useRecordingActions] Recording started successfully');
       } else {
+        console.error('[useRecordingActions] Failed to start recording');
+        
         setLastAction({
           action: 'Start recording',
           timestamp: Date.now(),
           success: false,
           error: 'Failed to start recording'
         });
-        return false;
       }
+      
+      return success;
     } catch (error) {
       console.error('[useRecordingActions] Error starting recording:', error);
+      
       setLastAction({
         action: 'Start recording',
         timestamp: Date.now(),
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+      
       return false;
     }
-  }, [selectedDeviceId, isSystemAudio, startRecording, setIsRecording, setIsPaused, setLastAction]);
+  }, [isRecording, selectedDeviceId, isSystemAudio, startRecording, setIsRecording, setIsPaused, setLastAction]);
 
-  // Handle stop recording
+  // Stop recording
   const handleStopRecording = useCallback(async () => {
+    if (!isRecording) {
+      console.log('[useRecordingActions] Not recording, nothing to stop');
+      return;
+    }
+
     console.log('[useRecordingActions] Stopping recording');
-    
-    setLastAction({
-      action: 'Stop recording',
-      timestamp: Date.now(),
-      success: false
-    });
-    
     try {
+      setLastAction({
+        action: 'Stop recording',
+        timestamp: Date.now(),
+        success: false
+      });
+      
       const result = await stopRecording();
+      
       setIsRecording(false);
       setIsPaused(false);
       
@@ -91,59 +113,83 @@ export const useRecordingActions = (
       return result;
     } catch (error) {
       console.error('[useRecordingActions] Error stopping recording:', error);
+      
       setLastAction({
         action: 'Stop recording',
         timestamp: Date.now(),
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+      
+      // Still need to update state even if there's an error
+      setIsRecording(false);
+      setIsPaused(false);
+      
       throw error;
     }
-  }, [stopRecording, setIsRecording, setIsPaused, setLastAction]);
+  }, [isRecording, stopRecording, setIsRecording, setIsPaused, setLastAction]);
 
-  // Handle pause recording
+  // Pause recording
   const handlePauseRecording = useCallback(() => {
+    if (!isRecording || isPaused) {
+      console.log('[useRecordingActions] Cannot pause: not recording or already paused');
+      return;
+    }
+
     console.log('[useRecordingActions] Pausing recording');
-    
-    if (!isRecording) {
-      console.warn('[useRecordingActions] Cannot pause: not recording');
-      return;
-    }
-    
-    if (isPaused) {
-      console.warn('[useRecordingActions] Already paused');
-      return;
-    }
-    
     try {
       pauseRecording();
       setIsPaused(true);
+      
+      setLastAction({
+        action: 'Pause recording',
+        timestamp: Date.now(),
+        success: true
+      });
+      
+      console.log('[useRecordingActions] Recording paused successfully');
     } catch (error) {
       console.error('[useRecordingActions] Error pausing recording:', error);
+      
+      setLastAction({
+        action: 'Pause recording',
+        timestamp: Date.now(),
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
-  }, [isRecording, isPaused, pauseRecording, setIsPaused]);
+  }, [isRecording, isPaused, pauseRecording, setIsPaused, setLastAction]);
 
-  // Handle resume recording
+  // Resume recording
   const handleResumeRecording = useCallback(() => {
+    if (!isRecording || !isPaused) {
+      console.log('[useRecordingActions] Cannot resume: not recording or not paused');
+      return;
+    }
+
     console.log('[useRecordingActions] Resuming recording');
-    
-    if (!isRecording) {
-      console.warn('[useRecordingActions] Cannot resume: not recording');
-      return;
-    }
-    
-    if (!isPaused) {
-      console.warn('[useRecordingActions] Not paused, cannot resume');
-      return;
-    }
-    
     try {
       resumeRecording();
       setIsPaused(false);
+      
+      setLastAction({
+        action: 'Resume recording',
+        timestamp: Date.now(),
+        success: true
+      });
+      
+      console.log('[useRecordingActions] Recording resumed successfully');
     } catch (error) {
       console.error('[useRecordingActions] Error resuming recording:', error);
+      
+      setLastAction({
+        action: 'Resume recording',
+        timestamp: Date.now(),
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
-  }, [isRecording, isPaused, resumeRecording, setIsPaused]);
+  }, [isRecording, isPaused, resumeRecording, setIsPaused, setLastAction]);
 
   return {
     handleStartRecording,

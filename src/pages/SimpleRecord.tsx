@@ -71,24 +71,19 @@ const SimpleRecord = () => {
   const handleSave = async () => {
     try {
       if (isRecording) {
-        const result = await handleStopRecording();
-        if (!result || !result.blob) {
-          toast({
-            title: "Error",
-            description: "Failed to get recording data.",
-            variant: "destructive",
-          });
-          return;
-        }
+        await handleStopRecording();
       }
       
-      await saveRecording(isRecording, async () => {
-        const result = await handleStopRecording();
-        if (result) {
+      await saveRecording(
+        isRecording, 
+        async () => {
+          const result = await handleStopRecording();
           return result;
-        }
-        return undefined;
-      }, mediaStream, audioUrl, getCurrentDuration());
+        }, 
+        mediaStream, 
+        audioUrl, 
+        getCurrentDuration()
+      );
     } catch (error) {
       console.error('[SimpleRecord] Error in handleSave:', error);
       toast({

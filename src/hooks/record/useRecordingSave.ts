@@ -11,7 +11,7 @@ export const useRecordingSave = () => {
 
   const saveRecording = async (
     isRecording: boolean,
-    handleStopRecording: () => Promise<void>,
+    handleStopRecording: () => Promise<{ blob?: Blob | null; duration?: number } | undefined | void>,
     mediaStream: MediaStream | null,
     audioUrl: string | null,
     recordedDuration: number = 0
