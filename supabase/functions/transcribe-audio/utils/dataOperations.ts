@@ -18,8 +18,9 @@ export async function updateNoteProgress(
   
   // Validate status against allowed values to prevent constraint violations
   if (!VALID_NOTE_STATUSES.includes(status)) {
-    console.error(`[transcribe-audio] Invalid status: ${status}. Using 'processing' instead.`);
+    console.error(`[transcribe-audio] VALIDATION ERROR: Status "${status}" is not valid. Available statuses: ${VALID_NOTE_STATUSES.join(', ')}`);
     status = 'processing'; // Fallback to a safe default value
+    console.log(`[transcribe-audio] Using safe fallback status: ${status}`);
   }
   
   try {
@@ -81,7 +82,8 @@ export async function updateRecordingAndNote(
       throw new Error(`Failed to update recording: ${recordingError.message}`);
     }
     
-    // Validate note status - using "completed" which is definitely in our allowed list
+    // IMPORTANT: Never use 'transcribed' status which isn't in VALID_NOTE_STATUSES
+    // Instead use 'completed' which is a valid status
     let noteStatus = 'completed';
     if (!VALID_NOTE_STATUSES.includes(noteStatus)) {
       console.error(`[transcribe-audio] Invalid note status: ${noteStatus}. Using 'processing' instead.`);

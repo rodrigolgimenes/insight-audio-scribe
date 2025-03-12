@@ -70,11 +70,11 @@ export class ProgressTracker {
 
   /**
    * Update progress to transcribed stage
-   * Note: This must match a valid database status!
+   * Note: We must use a valid database status!
    */
   async markTranscribed() {
-    // Removed 'transcribed' which isn't in VALID_NOTE_STATUSES
-    // Using 'completed' which is a valid status
+    // IMPORTANT: Never use 'transcribed' status which isn't in VALID_NOTE_STATUSES
+    // Instead use 'completed' which is a valid status
     const status = this.validateStatus('completed');
     await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBED);
   }

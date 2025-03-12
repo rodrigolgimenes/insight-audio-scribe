@@ -59,10 +59,11 @@ export async function updateNoteStatus(
   console.log(`[transcribe-audio] Updating note ${noteId} status to ${status} with progress ${progress}%`);
   
   try {
-    // Double validation of status against allowed values
+    // Triple validation of status against allowed values
     if (!VALID_NOTE_STATUSES.includes(status)) {
-      console.error(`[transcribe-audio] Invalid status: ${status}. Using 'processing' instead.`);
+      console.error(`[transcribe-audio] VALIDATION ERROR: Status "${status}" is not valid. Available statuses: ${VALID_NOTE_STATUSES.join(', ')}`);
       status = 'processing'; // Fallback to a safe default value
+      console.log(`[transcribe-audio] Using safe fallback status: ${status}`);
     }
     
     const { error } = await supabase
@@ -122,8 +123,9 @@ export async function updateNote(
     // Validate status before update - using generating_minutes which is valid
     let status = 'generating_minutes';
     if (!VALID_NOTE_STATUSES.includes(status)) {
-      console.error(`[transcribe-audio] Invalid note status: ${status}. Using 'processing' instead.`);
-      status = 'processing';
+      console.error(`[transcribe-audio] VALIDATION ERROR: Status "${status}" is not valid. Available statuses: ${VALID_NOTE_STATUSES.join(', ')}`);
+      status = 'processing'; // Fallback to a safe default value
+      console.log(`[transcribe-audio] Using safe fallback status: ${status}`);
     }
     
     const { error } = await supabase

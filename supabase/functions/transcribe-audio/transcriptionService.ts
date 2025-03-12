@@ -83,6 +83,7 @@ export async function processTranscription(
     transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
     
     // Update progress after successful transcription - using a definitely valid status
+    // IMPORTANT: Never use 'transcribed' status which isn't in VALID_NOTE_STATUSES
     await progressTracker.markTranscribed();
     
     console.log('[transcribe-audio] Transcription completed successfully, text length:', 

@@ -22,6 +22,7 @@ export const PROGRESS_STAGES = {
 };
 
 // Valid status values for the notes table - MUST match exactly with the database enum constraint
+// NEVER use values that are not in this list when updating the database!
 export const VALID_NOTE_STATUSES = [
   'pending',
   'processing',
