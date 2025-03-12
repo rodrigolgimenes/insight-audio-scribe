@@ -111,7 +111,9 @@ export const useDeviceDetection = (
               echoCancellation: false,
               noiseSuppression: false,
               autoGainControl: false,
-              latency: { ideal: 0 }, // Low latency might trigger different device handling
+              // Remove the invalid 'latency' property
+              // Use properties that are valid in MediaTrackConstraints
+              sampleRate: { ideal: 44100 }, // Use valid property instead of latency
               channelCount: { ideal: 1 } // Mono might be compatible with more devices
             }
           });
