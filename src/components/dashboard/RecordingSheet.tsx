@@ -3,8 +3,11 @@ import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
+import { useToast } from "@/hooks/use-toast";
 
 export function RecordingSheet() {
+  const { toast } = useToast();
+  
   const {
     isRecording,
     isPaused,
@@ -22,12 +25,17 @@ export function RecordingSheet() {
     selectedDeviceId,
     setSelectedDeviceId,
     handleSaveRecording,
-    handleDelete
+    handleDelete,
+    deviceSelectionReady
   } = useRecording();
 
   const handleTimeLimit = () => {
     handleStopRecording().then(() => {
       console.log('[RecordingSheet] Recording stopped due to time limit');
+      toast({
+        title: "Time limit reached",
+        description: "Recording has stopped due to time limit",
+      });
     });
   };
 
@@ -57,6 +65,7 @@ export function RecordingSheet() {
           audioDevices={audioDevices}
           selectedDeviceId={selectedDeviceId}
           onDeviceSelect={setSelectedDeviceId}
+          deviceSelectionReady={deviceSelectionReady}
           showPlayButton={false}
           showDeleteButton={true}
         />

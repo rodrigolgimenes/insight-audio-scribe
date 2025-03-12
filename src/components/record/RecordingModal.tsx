@@ -8,6 +8,8 @@ import {
 import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "./RecordingSection";
 import { RecordingActions } from "./RecordingActions";
+import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 
 interface RecordingModalProps {
   isOpen: boolean;
@@ -15,6 +17,9 @@ interface RecordingModalProps {
 }
 
 export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
+  const { toast } = useToast();
+  const [modalReady, setModalReady] = useState(false);
+  
   const {
     isRecording,
     isPaused,
@@ -32,11 +37,31 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    deviceSelectionReady,
   } = useRecording();
+
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[RecordingModal] Modal opened, initializing...');
+      setModalReady(true);
+    } else {
+      // Reset on close
+      if (isRecording) {
+        console.log('[RecordingModal] Modal closed while recording, stopping recording');
+        handleStopRecording().catch(err => {
+          console.error('[RecordingModal] Error stopping recording on modal close:', err);
+        });
+      }
+    }
+  }, [isOpen, isRecording, handleStopRecording]);
 
   const handleTimeLimit = () => {
     handleStopRecording().then(() => {
       console.log('[RecordingModal] Recording stopped due to time limit');
+      toast({
+        title: "Time limit reached",
+        description: "Recording has stopped due to time limit",
+      });
     });
   };
 
@@ -51,35 +76,40 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
-          <RecordingSection
-            isRecording={isRecording}
-            isPaused={isPaused}
-            audioUrl={audioUrl}
-            mediaStream={mediaStream}
-            isSystemAudio={isSystemAudio}
-            handleStartRecording={handleStartRecording}
-            handleStopRecording={() => handleStopRecording().then(() => {
-              console.log('[RecordingModal] Recording stopped manually');
-            })}
-            handlePauseRecording={handlePauseRecording}
-            handleResumeRecording={handleResumeRecording}
-            handleDelete={handleDelete}
-            handleTimeLimit={handleTimeLimit}
-            onSystemAudioChange={setIsSystemAudio}
-            audioDevices={audioDevices}
-            selectedDeviceId={selectedDeviceId}
-            onDeviceSelect={setSelectedDeviceId}
-            showPlayButton={true}
-            showDeleteButton={true}
-          />
+          {modalReady && (
+            <>
+              <RecordingSection
+                isRecording={isRecording}
+                isPaused={isPaused}
+                audioUrl={audioUrl}
+                mediaStream={mediaStream}
+                isSystemAudio={isSystemAudio}
+                handleStartRecording={handleStartRecording}
+                handleStopRecording={() => handleStopRecording().then(() => {
+                  console.log('[RecordingModal] Recording stopped manually');
+                })}
+                handlePauseRecording={handlePauseRecording}
+                handleResumeRecording={handleResumeRecording}
+                handleDelete={handleDelete}
+                handleTimeLimit={handleTimeLimit}
+                onSystemAudioChange={setIsSystemAudio}
+                audioDevices={audioDevices}
+                selectedDeviceId={selectedDeviceId}
+                onDeviceSelect={setSelectedDeviceId}
+                deviceSelectionReady={deviceSelectionReady}
+                showPlayButton={true}
+                showDeleteButton={true}
+              />
 
-          <RecordingActions
-            onSave={handleSaveRecording}
-            isSaving={isSaving}
-            isLoading={isLoading}
-            isRecording={isRecording}
-            hasRecording={hasRecording}
-          />
+              <RecordingActions
+                onSave={handleSaveRecording}
+                isSaving={isSaving}
+                isLoading={isLoading}
+                isRecording={isRecording}
+                hasRecording={hasRecording}
+              />
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

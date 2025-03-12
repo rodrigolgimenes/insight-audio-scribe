@@ -10,7 +10,10 @@ export class AudioRecorder {
   private durationTracker: DurationTracker;
   private streamManager: StreamManager;
   private isRecording = false;
+  private isPaused = false;
+  private isInitialized = false;
   private latestBlob: Blob | null = null;
+  private recordingStartTime: number | null = null;
 
   constructor() {
     this.mediaRecorderManager = new MediaRecorderManager();
@@ -27,7 +30,11 @@ export class AudioRecorder {
   }
 
   async startRecording(stream: MediaStream): Promise<void> {
-    console.log('[AudioRecorder] startRecording called, current state:', this.isRecording);
+    console.log('[AudioRecorder] startRecording called, current state:', {
+      isRecording: this.isRecording,
+      isPaused: this.isPaused,
+      isInitialized: this.isInitialized
+    });
     
     if (this.isRecording) {
       console.log('[AudioRecorder] Already recording, ignoring startRecording call');
@@ -35,21 +42,31 @@ export class AudioRecorder {
     }
 
     try {
+      // Validate stream before proceeding
       logAudioTracks(stream);
       validateAudioTracks(stream);
 
+      // Initialize components with the stream
       this.mediaRecorderManager.initialize(stream);
       this.streamManager.initialize(stream, () => {
         if (this.isRecording) {
+          console.log('[AudioRecorder] Stream ended unexpectedly, stopping recording');
           this.stopRecording();
         }
       });
 
+      // Start tracking duration and recording
       this.durationTracker.startTracking();
       this.mediaRecorderManager.start();
+      
+      // Update state
       this.isRecording = true;
+      this.isPaused = false;
+      this.isInitialized = true;
       this.latestBlob = null;
-      console.log('[AudioRecorder] Recording started successfully');
+      this.recordingStartTime = Date.now();
+      
+      console.log('[AudioRecorder] Recording started successfully at', new Date(this.recordingStartTime).toISOString());
     } catch (error) {
       console.error('[AudioRecorder] Error starting recording:', error);
       this.cleanup();
@@ -58,7 +75,13 @@ export class AudioRecorder {
   }
 
   async stopRecording(): Promise<RecordingResult> {
-    console.log('[AudioRecorder] stopRecording called, current state:', this.isRecording);
+    console.log('[AudioRecorder] stopRecording called, current state:', {
+      isRecording: this.isRecording,
+      isPaused: this.isPaused,
+      recordingDuration: this.durationTracker.getCurrentDuration(),
+      elapsedSinceStart: this.recordingStartTime ? (Date.now() - this.recordingStartTime) / 1000 : 'unknown'
+    });
+    
     if (!this.isRecording) {
       console.log('[AudioRecorder] Not currently recording, returning cached result');
       const duration = this.durationTracker.getCurrentDuration();
@@ -78,8 +101,10 @@ export class AudioRecorder {
         const finalDuration = this.durationTracker.getCurrentDuration();
         this.mediaRecorderManager.stop();
         this.isRecording = false;
+        this.isPaused = false;
         this.durationTracker.stopTracking();
 
+        // Use a timeout to ensure all data is processed
         setTimeout(() => {
           try {
             const finalBlob = this.mediaRecorderManager.getFinalBlob();
@@ -106,20 +131,34 @@ export class AudioRecorder {
   }
 
   pauseRecording(): void {
-    console.log('[AudioRecorder] pauseRecording called, current state:', this.isRecording);
-    if (this.isRecording) {
+    console.log('[AudioRecorder] pauseRecording called, current state:', { 
+      isRecording: this.isRecording,
+      isPaused: this.isPaused
+    });
+    
+    if (this.isRecording && !this.isPaused) {
       this.mediaRecorderManager.pause();
       this.durationTracker.pauseTracking();
+      this.isPaused = true;
       console.log('[AudioRecorder] Recording paused at:', this.durationTracker.getCurrentDuration());
+    } else {
+      console.warn('[AudioRecorder] Cannot pause: not recording or already paused');
     }
   }
 
   resumeRecording(): void {
-    console.log('[AudioRecorder] resumeRecording called, current state:', this.isRecording);
-    if (this.isRecording) {
+    console.log('[AudioRecorder] resumeRecording called, current state:', { 
+      isRecording: this.isRecording,
+      isPaused: this.isPaused
+    });
+    
+    if (this.isRecording && this.isPaused) {
       this.mediaRecorderManager.resume();
       this.durationTracker.resumeTracking();
+      this.isPaused = false;
       console.log('[AudioRecorder] Recording resumed from:', this.durationTracker.getCurrentDuration());
+    } else {
+      console.warn('[AudioRecorder] Cannot resume: not recording or not paused');
     }
   }
 
@@ -129,11 +168,17 @@ export class AudioRecorder {
     this.durationTracker.cleanup();
     this.streamManager.cleanup();
     this.isRecording = false;
+    this.isPaused = false;
+    this.recordingStartTime = null;
     console.log('[AudioRecorder] Cleanup complete');
   }
 
   isCurrentlyRecording(): boolean {
     return this.isRecording;
+  }
+
+  isCurrentlyPaused(): boolean {
+    return this.isPaused;
   }
 
   getCurrentDuration(): number {

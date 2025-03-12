@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { RecordTimer } from "@/components/record/RecordTimer";
@@ -32,6 +33,7 @@ interface RecordingSectionProps {
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
+  deviceSelectionReady?: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
 }
@@ -52,11 +54,12 @@ export const RecordingSection = ({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
+  deviceSelectionReady = false,
   showPlayButton = true,
   showDeleteButton = true,
 }: RecordingSectionProps) => {
   const [language, setLanguage] = useState("en");
-  const canStartRecording = !!selectedDeviceId;
+  const canStartRecording = !!selectedDeviceId && deviceSelectionReady;
   const hasDevices = audioDevices.length > 0;
 
   return (

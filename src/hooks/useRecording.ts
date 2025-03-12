@@ -28,7 +28,8 @@ export const useRecording = () => {
   const {
     audioDevices,
     selectedDeviceId,
-    setSelectedDeviceId
+    setSelectedDeviceId,
+    deviceSelectionReady
   } = useDeviceSelection();
 
   const {
@@ -45,15 +46,26 @@ export const useRecording = () => {
   useEffect(() => {
     const cleanup = initializeRecorder();
     return cleanup;
-  }, []);
+  }, [initializeRecorder]);
 
   const handleStartRecording = useCallback(async () => {
-    console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
+    console.log('[useRecording] Starting recording with device ID:', selectedDeviceId, 'Ready:', deviceSelectionReady);
+    
     if (!selectedDeviceId) {
       console.error('[useRecording] No device selected for recording');
       toast({
-        title: "Erro",
-        description: "Selecione um microfone antes de iniciar a gravação.",
+        title: "Error",
+        description: "Select a microphone before starting the recording.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!deviceSelectionReady) {
+      console.error('[useRecording] Device selection not ready');
+      toast({
+        title: "Error",
+        description: "Please wait, microphone initialization in progress.",
         variant: "destructive",
       });
       return;
@@ -64,12 +76,12 @@ export const useRecording = () => {
     } catch (error) {
       console.error('[useRecording] Error starting recording:', error);
       toast({
-        title: "Erro",
-        description: "Falha ao iniciar gravação. Verifique as permissões do navegador.",
+        title: "Error",
+        description: "Failed to start recording. Check browser permissions.",
         variant: "destructive",
       });
     }
-  }, [selectedDeviceId, startRecording, toast]);
+  }, [selectedDeviceId, deviceSelectionReady, startRecording, toast]);
 
   const handleStopRecording = useCallback(async () => {
     console.log('[useRecording] Stopping recording');
@@ -78,8 +90,8 @@ export const useRecording = () => {
     } catch (error) {
       console.error('[useRecording] Error stopping recording:', error);
       toast({
-        title: "Erro",
-        description: "Falha ao finalizar gravação.",
+        title: "Error",
+        description: "Failed to finalize recording.",
         variant: "destructive",
       });
       return { blob: null, duration: 0 };
@@ -104,6 +116,7 @@ export const useRecording = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
+    deviceSelectionReady,
     getCurrentDuration
   };
 };

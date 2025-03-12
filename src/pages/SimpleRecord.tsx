@@ -38,7 +38,8 @@ const SimpleRecord = () => {
     selectedDeviceId,
     setSelectedDeviceId,
     handleSaveRecording,
-    getCurrentDuration
+    getCurrentDuration,
+    deviceSelectionReady
   } = useRecording();
 
   useEffect(() => {
@@ -115,6 +116,7 @@ const SimpleRecord = () => {
                     audioDevices={audioDevices}
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
+                    deviceSelectionReady={deviceSelectionReady}
                     showPlayButton={false}
                     showDeleteButton={true}
                   />

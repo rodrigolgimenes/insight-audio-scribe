@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Mic, Pause, Play, Square } from "lucide-react";
+import { useState } from "react";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -31,35 +32,48 @@ export const RecordControls = ({
   showPlayButton = true,
   showDeleteButton = true,
 }: RecordControlsProps) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
   console.log('[RecordControls] Rendering with state:', { 
     isRecording, 
     isPaused, 
     hasRecording, 
-    disabled 
+    disabled,
+    isProcessing
   });
 
-  const handleRecordClick = () => {
+  const handleRecordClick = async () => {
     console.log('[RecordControls] Record button clicked');
-    if (!disabled) {
-      onStartRecording();
+    if (disabled || isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      await onStartRecording();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleStopClick = () => {
+  const handleStopClick = async () => {
     console.log('[RecordControls] Stop button clicked');
-    if (!disabled) {
-      onStopRecording();
+    if (disabled || isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      await onStopRecording();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handlePauseResumeClick = () => {
     console.log('[RecordControls] Pause/Resume button clicked, isPaused:', isPaused);
-    if (!disabled) {
-      if (isPaused) {
-        onResumeRecording();
-      } else {
-        onPauseRecording();
-      }
+    if (disabled || isProcessing) return;
+    
+    if (isPaused) {
+      onResumeRecording();
+    } else {
+      onPauseRecording();
     }
   };
 
@@ -70,7 +84,7 @@ export const RecordControls = ({
           size="icon"
           variant="outline"
           className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-          disabled={disabled}
+          disabled={disabled || isProcessing}
           onClick={onPlay}
         >
           <Play className="w-6 h-6 text-[#4285F4]" />
@@ -82,9 +96,9 @@ export const RecordControls = ({
           <Button
             size="icon"
             variant="default"
-            className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6]"
+            className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6]"
             onClick={handlePauseResumeClick}
-            disabled={disabled}
+            disabled={disabled || isProcessing}
           >
             {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
           </Button>
@@ -94,7 +108,7 @@ export const RecordControls = ({
             variant="outline"
             className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
             onClick={handleStopClick}
-            disabled={disabled}
+            disabled={disabled || isProcessing}
           >
             <Square className="w-6 h-6 text-[#4285F4]" />
           </Button>
@@ -103,9 +117,9 @@ export const RecordControls = ({
         <Button
           size="icon"
           variant="default"
-          className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6]"
+          className="w-20 h-20 rounded-full bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] transition-colors"
           onClick={handleRecordClick}
-          disabled={disabled}
+          disabled={disabled || isProcessing}
         >
           <Mic className="w-10 h-10" />
         </Button>
@@ -117,7 +131,7 @@ export const RecordControls = ({
           variant="outline"
           className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
           onClick={onDelete}
-          disabled={disabled}
+          disabled={disabled || isProcessing}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-red-500">
             <path d="M3 6h18"></path>
