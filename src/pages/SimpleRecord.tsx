@@ -10,6 +10,8 @@ import { RecordPageLoading } from "@/components/record/RecordPageLoading";
 import { RecordPageError } from "@/components/record/RecordPageError";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
+import { DeviceListTester } from "@/components/record/DeviceListTester";
+import { Card, CardContent } from "@/components/ui/card";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -99,7 +101,16 @@ const SimpleRecord = () => {
       <div className="min-h-screen flex w-full bg-ghost-white">
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-ghost-white">
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-8 space-y-8">
+            {/* Device Tester Card - Add this at the top */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="text-xl font-bold mb-4">Device Testing</h2>
+                <DeviceListTester />
+              </CardContent>
+            </Card>
+            
+            {/* Original content */}
             <SimpleRecordContent
               recordingHook={recordingHook}
               isLoading={isLoading}
