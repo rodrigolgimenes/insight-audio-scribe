@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { AudioDevice, toAudioDevice } from "../capture/types";
 import { toast } from "sonner";
 
@@ -11,9 +11,21 @@ export const useDeviceEnumeration = (
 ) => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
+  const hasShownToastRef = useRef(false);
+  const enumerationInProgressRef = useRef(false);
+  const lastEnumerationTimeRef = useRef(0);
 
   // Function to enumerate audio devices
   const getAudioDevices = useCallback(async () => {
+    // Prevent multiple calls in quick succession
+    const now = Date.now();
+    if (enumerationInProgressRef.current || (now - lastEnumerationTimeRef.current < 2000 && audioDevices.length > 0)) {
+      console.log('[useDeviceEnumeration] Enumeration already in progress or recently completed, skipping');
+      return { devices: audioDevices, defaultId: defaultDeviceId };
+    }
+    
+    enumerationInProgressRef.current = true;
+    lastEnumerationTimeRef.current = now;
     console.log('[useDeviceEnumeration] Enumerating audio devices');
     
     try {
@@ -23,10 +35,12 @@ export const useDeviceEnumeration = (
       if (!hasPermission) {
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
         toast.error("Microphone permission required", {
-          description: "Please allow microphone access to view available devices"
+          description: "Please allow microphone access to view available devices",
+          id: "mic-permission-required" // Use ID to prevent duplicates
         });
         setAudioDevices([]);
         setDefaultDeviceId(null);
+        enumerationInProgressRef.current = false;
         return { devices: [], defaultId: null };
       }
 
@@ -47,9 +61,13 @@ export const useDeviceEnumeration = (
       
       if (audioInputs.length === 0) {
         console.warn('[useDeviceEnumeration] No audio input devices found');
-        toast.warning("No microphones detected", { 
-          description: "Please connect a microphone and try again"
-        });
+        if (!hasShownToastRef.current) {
+          toast.warning("No microphones detected", { 
+            description: "Please connect a microphone and try again",
+            id: "no-mics-detected" // Use ID to prevent duplicates
+          });
+          hasShownToastRef.current = true;
+        }
         
         // Close temporary stream if it was created
         if (tempStream) {
@@ -58,6 +76,7 @@ export const useDeviceEnumeration = (
         
         setAudioDevices([]);
         setDefaultDeviceId(null);
+        enumerationInProgressRef.current = false;
         return { devices: [], defaultId: null };
       }
       
@@ -101,37 +120,54 @@ export const useDeviceEnumeration = (
         tempStream.getTracks().forEach(track => track.stop());
       }
       
-      // Notify the user
-      toast.success(`Found ${convertedDevices.length} microphone(s)`, {
-        description: "You can select a microphone from the dropdown"
-      });
+      // Only show the toast once
+      if (!hasShownToastRef.current) {
+        toast.success(`Found ${convertedDevices.length} microphone(s)`, {
+          description: "You can select a microphone from the dropdown",
+          id: "mics-found" // Use ID to prevent duplicates
+        });
+        hasShownToastRef.current = true;
+      }
       
+      enumerationInProgressRef.current = false;
       return { devices: convertedDevices, defaultId };
     } catch (error) {
       console.error('[useDeviceEnumeration] Error enumerating devices:', error);
-      toast.error("Failed to detect microphones", {
-        description: error instanceof Error ? error.message : "Unknown error"
-      });
+      if (!hasShownToastRef.current) {
+        toast.error("Failed to detect microphones", {
+          description: error instanceof Error ? error.message : "Unknown error",
+          id: "mic-detection-failed" // Use ID to prevent duplicates
+        });
+        hasShownToastRef.current = true;
+      }
       setAudioDevices([]);
       setDefaultDeviceId(null);
+      enumerationInProgressRef.current = false;
       return { devices: [], defaultId: null };
     }
-  }, [checkPermissions]);
+  }, [checkPermissions, audioDevices, defaultDeviceId]);
 
   // Initial device enumeration
   useEffect(() => {
     getAudioDevices();
     
-    // Set up device change listener
+    // Set up device change listener with debounce
+    let deviceChangeTimeout: ReturnType<typeof setTimeout>;
     const handleDeviceChange = () => {
-      console.log('[useDeviceEnumeration] Media devices changed, refreshing list');
-      getAudioDevices();
+      clearTimeout(deviceChangeTimeout);
+      deviceChangeTimeout = setTimeout(() => {
+        console.log('[useDeviceEnumeration] Media devices changed, refreshing list');
+        // Reset toast flag to allow new toast on device change
+        hasShownToastRef.current = false;
+        getAudioDevices();
+      }, 1000); // 1000ms debounce
     };
     
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      clearTimeout(deviceChangeTimeout);
     };
   }, [getAudioDevices]);
 

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -31,6 +31,7 @@ export function DeviceSelector({
   const deviceList = audioDevices || devices || [];
   
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
+  const autoSelectAttemptedRef = useRef(false);
   const [debugInfo, setDebugInfo] = useState<{
     hasDevices: boolean;
     deviceCount: number;
@@ -68,9 +69,10 @@ export function DeviceSelector({
     checkPermissions();
   }, []);
 
-  // Safely select default device if available
+  // Safely select default device if available - only once
   useEffect(() => {
-    if (Array.isArray(deviceList) && deviceList.length > 0 && !selectedDeviceId && !disabled) {
+    if (Array.isArray(deviceList) && deviceList.length > 0 && !selectedDeviceId && !disabled && !autoSelectAttemptedRef.current) {
+      autoSelectAttemptedRef.current = true;
       const firstDevice = deviceList[0];
       if (firstDevice && typeof firstDevice === 'object') {
         const deviceId = firstDevice.deviceId || '';
@@ -78,7 +80,6 @@ export function DeviceSelector({
           console.log('[DeviceSelector] Auto-selecting first device:', deviceId, 
             'label', firstDevice.label || ('displayName' in firstDevice ? firstDevice.displayName : 'No label'));
           onDeviceSelect(deviceId);
-          toast.success("Microphone auto-selected");
         }
       }
     }
@@ -108,13 +109,9 @@ export function DeviceSelector({
   }, [deviceList, selectedDeviceId]);
 
   const handleDeviceChange = (value: string) => {
-    if (value) {
+    if (value && value !== selectedDeviceId) {
       console.log('[DeviceSelector] Device selected by user:', value);
       onDeviceSelect(value);
-      // Add a delay to ensure the state is updated
-      setTimeout(() => {
-        toast.success("Microphone selected");
-      }, 100);
     }
   };
 
@@ -122,7 +119,7 @@ export function DeviceSelector({
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
   // Find the selected device name for display
-  const selectedDeviceName = selectedDeviceId ? 
+  const selectedDeviceName = selectedDeviceId && deviceList.length > 0 ? 
     deviceList.find(d => d && d.deviceId === selectedDeviceId) ?
       formatDeviceLabel(deviceList.find(d => d && d.deviceId === selectedDeviceId) as MediaDeviceInfo, 0) :
       "Select a microphone" :

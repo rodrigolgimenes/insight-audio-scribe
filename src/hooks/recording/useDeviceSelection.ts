@@ -8,30 +8,48 @@ export const useDeviceSelection = () => {
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
   const { getAudioDevices, audioDevices, defaultDeviceId, requestMicrophoneAccess, checkPermissions } = useAudioCapture();
   const deviceInitializationAttempted = useRef(false);
+  const selectionInProgressRef = useRef(false);
+  const lastSelectedDeviceRef = useRef<string | null>(null);
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
+    // Prevent duplicate selections of the same device
+    if (deviceId === lastSelectedDeviceRef.current && deviceSelectionReady) {
+      console.log('[useDeviceSelection] Device already selected, skipping:', deviceId);
+      return;
+    }
+    
     console.log('[useDeviceSelection] Setting device ID:', deviceId);
     
     if (deviceId) {
       setSelectedDeviceId(deviceId);
       setDeviceSelectionReady(true);
+      lastSelectedDeviceRef.current = deviceId;
       console.log('[useDeviceSelection] Device selected successfully:', deviceId);
-      toast.success("Microphone selected successfully");
+      
+      // Show toast only when selection changes
+      if (deviceId !== lastSelectedDeviceRef.current) {
+        toast.success("Microphone selected successfully", {
+          id: "mic-selected" // Use ID to prevent duplicates
+        });
+      }
     } else {
       console.warn('[useDeviceSelection] Attempted to select invalid device ID:', deviceId);
       setDeviceSelectionReady(false);
-      toast.error("Invalid microphone selection");
+      toast.error("Invalid microphone selection", {
+        id: "invalid-mic-selection" // Use ID to prevent duplicates
+      });
     }
-  }, []);
+  }, [deviceSelectionReady]);
 
   // Initialize devices when the component mounts
   useEffect(() => {
     const initDevices = async () => {
-      if (deviceInitializationAttempted.current) {
-        console.log('[useDeviceSelection] Device initialization already attempted, skipping');
+      if (deviceInitializationAttempted.current || selectionInProgressRef.current) {
+        console.log('[useDeviceSelection] Device initialization already attempted or in progress, skipping');
         return;
       }
       
+      selectionInProgressRef.current = true;
       deviceInitializationAttempted.current = true;
       console.log('[useDeviceSelection] Initializing audio devices');
       
@@ -40,6 +58,7 @@ export const useDeviceSelection = () => {
       
       if (!hasPermission) {
         setDeviceSelectionReady(false);
+        selectionInProgressRef.current = false;
         return;
       }
 
@@ -49,17 +68,21 @@ export const useDeviceSelection = () => {
         
         if (devices.length === 0) {
           console.warn('[useDeviceSelection] No audio devices found');
-          toast.error("No microphones found. Please connect a microphone and try again.");
           setDeviceSelectionReady(false);
+          selectionInProgressRef.current = false;
         } else if (defaultDeviceId) {
           handleDeviceSelect(defaultDeviceId);
+          selectionInProgressRef.current = false;
         } else if (devices.length > 0 && devices[0].deviceId) {
           handleDeviceSelect(devices[0].deviceId);
+          selectionInProgressRef.current = false;
+        } else {
+          selectionInProgressRef.current = false;
         }
       } catch (error) {
         console.error('[useDeviceSelection] Error initializing devices:', error);
-        toast.error("Failed to access audio devices. Check browser permissions.");
         setDeviceSelectionReady(false);
+        selectionInProgressRef.current = false;
       }
     };
     
@@ -73,12 +96,19 @@ export const useDeviceSelection = () => {
       
       if (!deviceExists) {
         console.warn('[useDeviceSelection] Selected device no longer available, resetting selection');
-        setDeviceSelectionReady(false);
         
-        if (defaultDeviceId) {
-          handleDeviceSelect(defaultDeviceId);
-        } else if (audioDevices[0]?.deviceId) {
-          handleDeviceSelect(audioDevices[0].deviceId);
+        // Only try to select a new device if we're not already in the process of selecting
+        if (!selectionInProgressRef.current) {
+          selectionInProgressRef.current = true;
+          setDeviceSelectionReady(false);
+          
+          if (defaultDeviceId) {
+            handleDeviceSelect(defaultDeviceId);
+          } else if (audioDevices[0]?.deviceId) {
+            handleDeviceSelect(audioDevices[0].deviceId);
+          }
+          
+          selectionInProgressRef.current = false;
         }
       }
     }
