@@ -1,6 +1,5 @@
 
 import { useEffect } from "react";
-import { useRecordingError } from "./useRecordingError";
 
 /**
  * Hook to handle recorder initialization and error handling
