@@ -24,7 +24,8 @@ export function RefreshDevicesButton({
     console.log('[RefreshDevicesButton] Received deviceCount:', {
       deviceCount,
       hasDevices,
-      isLoading
+      isLoading,
+      timestamp: new Date().toISOString()
     });
   }, [deviceCount, hasDevices, isLoading]);
   
@@ -32,7 +33,10 @@ export function RefreshDevicesButton({
     <Button 
       variant={hasDevices ? "outline" : "ghost"} 
       size="icon" 
-      onClick={onRefreshDevices}
+      onClick={() => {
+        console.log('[RefreshDevicesButton] Refresh button clicked');
+        onRefreshDevices();
+      }}
       disabled={isLoading}
       className={`h-7 w-7 ${hasDevices ? 'border-green-500 bg-green-100 hover:bg-green-200' : ''}`}
       title={hasDevices ? `${deviceCount} microphone(s) found` : "Refresh microphone list"}

@@ -1,31 +1,51 @@
 
 import React, { useState, useEffect } from "react";
-import { ChevronDown, Mic, AlertCircle } from "lucide-react";
+import { ChevronDown, Mic, AlertCircle, RefreshCw } from "lucide-react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { toast } from "sonner";
 
 interface SimpleMicrophoneSelectorProps {
   devices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   disabled?: boolean;
+  onRefreshDevices?: () => void;
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
 export function SimpleMicrophoneSelector({
   devices,
   selectedDeviceId,
   onDeviceSelect,
-  disabled = false
+  disabled = false,
+  onRefreshDevices,
+  permissionState = 'unknown'
 }: SimpleMicrophoneSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [devicesLoading, setDevicesLoading] = useState(false);
   
   // Log device information on every render for debugging
   useEffect(() => {
     console.log('[SimpleMicrophoneSelector] Received devices:', {
       deviceCount: devices.length,
-      deviceDetails: devices.map(d => ({ id: d.deviceId, label: d.label })),
-      selectedDeviceId
+      deviceDetails: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
+      selectedDeviceId,
+      permissionState,
+      timestamp: new Date().toISOString()
     });
-  }, [devices, selectedDeviceId]);
+    
+    // If permission is granted but no devices, try refreshing
+    if (permissionState === 'granted' && devices.length === 0 && onRefreshDevices && !devicesLoading) {
+      console.log('[SimpleMicrophoneSelector] Permission granted but no devices, triggering refresh');
+      handleRefresh();
+    }
+    
+    // If we have devices but no selection, select the first one
+    if (devices.length > 0 && !selectedDeviceId) {
+      console.log('[SimpleMicrophoneSelector] Devices available but no selection, selecting first device');
+      onDeviceSelect(devices[0].deviceId);
+    }
+  }, [devices, selectedDeviceId, permissionState]);
 
   const toggleDropdown = () => {
     if (!disabled) {
@@ -38,6 +58,23 @@ export function SimpleMicrophoneSelector({
     onDeviceSelect(deviceId);
     setIsOpen(false);
   };
+  
+  const handleRefresh = async () => {
+    if (!onRefreshDevices) return;
+    
+    console.log('[SimpleMicrophoneSelector] Refreshing devices');
+    setDevicesLoading(true);
+    
+    try {
+      await onRefreshDevices();
+      toast.success("Refreshed microphone list");
+    } catch (error) {
+      console.error('[SimpleMicrophoneSelector] Error refreshing devices:', error);
+      toast.error("Failed to refresh microphones");
+    } finally {
+      setDevicesLoading(false);
+    }
+  };
 
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
 
@@ -45,7 +82,19 @@ export function SimpleMicrophoneSelector({
     <div className="w-full relative">
       <div className="text-sm font-medium mb-2 text-gray-700 flex items-center justify-between">
         <span>Select Microphone</span>
-        <span className="text-xs text-blue-600">{devices.length} found</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-blue-600">{devices.length} found</span>
+          {onRefreshDevices && (
+            <button 
+              onClick={handleRefresh}
+              disabled={devicesLoading}
+              className="p-1 rounded-full hover:bg-blue-100 text-blue-600"
+              title="Refresh microphone list"
+            >
+              <RefreshCw className={`h-3 w-3 ${devicesLoading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+        </div>
       </div>
       
       <button
@@ -95,9 +144,10 @@ export function SimpleMicrophoneSelector({
         </div>
       )}
       
-      {/* Debug information */}
-      <div className="mt-1 text-xs text-gray-500">
-        Devices: {devices.length} | Selected: {selectedDeviceId ? 'Yes' : 'No'}
+      {/* Permission state indicator */}
+      <div className="mt-1 text-xs text-gray-500 flex justify-between">
+        <span>Devices: {devices.length} | Selected: {selectedDeviceId ? 'Yes' : 'No'}</span>
+        <span>Permission: {permissionState}</span>
       </div>
     </div>
   );

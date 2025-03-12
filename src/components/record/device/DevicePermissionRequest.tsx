@@ -18,9 +18,21 @@ export function DevicePermissionRequest({
   useEffect(() => {
     console.log('[DevicePermissionRequest] Component rendered with permission state:', {
       permissionState,
-      isRequesting
+      isRequesting,
+      timestamp: new Date().toISOString()
     });
-  }, [permissionState, isRequesting]);
+    
+    // Automatically trigger permission request when component mounts if permission is prompt
+    if (permissionState === 'prompt' && !isRequesting) {
+      console.log('[DevicePermissionRequest] Auto-triggering permission request');
+      // Wait a short time to prevent multiple requests
+      const timer = setTimeout(() => {
+        onRequestPermission();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [permissionState, isRequesting, onRequestPermission]);
 
   return (
     <div className="flex flex-col items-center p-4 bg-blue-50 border border-blue-200 rounded-md space-y-3">
@@ -33,7 +45,10 @@ export function DevicePermissionRequest({
       </div>
       
       <Button
-        onClick={onRequestPermission}
+        onClick={() => {
+          console.log('[DevicePermissionRequest] Permission request button clicked');
+          onRequestPermission();
+        }}
         disabled={isRequesting}
         className="bg-blue-500 hover:bg-blue-600 text-white"
         size="lg"
