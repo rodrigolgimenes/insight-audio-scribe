@@ -1,6 +1,6 @@
 
 import { updateNoteStatus } from '../supabaseClient.ts';
-import { VALID_NOTE_STATUSES } from '../constants.ts';
+import { VALID_NOTE_STATUSES, VALID_RECORDING_STATUSES } from '../constants.ts';
 
 /**
  * Updates the note progress in a consistent way
@@ -61,12 +61,18 @@ export async function updateRecordingAndNote(
   console.log(`[transcribe-audio] Updating recording ${recordingId} and note ${noteId} with transcription`);
   
   try {
-    // Update the recording status to 'completed' instead of 'transcribed'
-    // 'completed' is a valid status in the recordings table check constraint
+    // Validate recording status
+    let recordingStatus = 'completed';
+    if (!VALID_RECORDING_STATUSES.includes(recordingStatus)) {
+      console.error(`[transcribe-audio] Invalid recording status: ${recordingStatus}. Using 'processing' instead.`);
+      recordingStatus = 'processing';
+    }
+    
+    // Update the recording status
     const { error: recordingError } = await supabase
       .from('recordings')
       .update({ 
-        status: 'completed',
+        status: recordingStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', recordingId);
@@ -76,12 +82,18 @@ export async function updateRecordingAndNote(
       throw new Error(`Failed to update recording: ${recordingError.message}`);
     }
     
-    // Make sure we're using a valid status for the notes table
-    // 'transcribed' is the correct status for this stage in the note lifecycle
+    // Validate note status
+    let noteStatus = 'transcribed';
+    if (!VALID_NOTE_STATUSES.includes(noteStatus)) {
+      console.error(`[transcribe-audio] Invalid note status: ${noteStatus}. Using 'processing' instead.`);
+      noteStatus = 'processing';
+    }
+    
+    // Update note with transcription text
     const { error: noteError } = await supabase
       .from('notes')
       .update({
-        status: 'transcribed', // Ensure this matches one of the allowed values in the check constraint
+        status: noteStatus,
         processing_progress: 80,
         original_transcript: transcriptionText,
         updated_at: new Date().toISOString()
@@ -114,8 +126,15 @@ export async function startMeetingMinutesGeneration(
   console.log(`[transcribe-audio] Starting meeting minutes generation for note ${noteId}`);
   
   try {
-    // First update the note to generating_minutes status with 80% progress
-    await updateNoteProgress(supabase, noteId, 'generating_minutes', 80);
+    // Validate status before updating
+    let status = 'generating_minutes';
+    if (!VALID_NOTE_STATUSES.includes(status)) {
+      console.error(`[transcribe-audio] Invalid status for minutes generation: ${status}. Using 'processing' instead.`);
+      status = 'processing';
+    }
+    
+    // Update note status to generating_minutes
+    await updateNoteProgress(supabase, noteId, status, 80);
     
     // Invoke the generate-meeting-minutes function
     const { error } = await supabase.functions

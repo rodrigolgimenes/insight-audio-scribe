@@ -19,71 +19,84 @@ export class ProgressTracker {
    * @param status Status to validate
    * @returns Whether the status is valid
    */
-  private validateStatus(status: string): boolean {
-    return VALID_NOTE_STATUSES.includes(status);
+  private validateStatus(status: string): string {
+    if (!VALID_NOTE_STATUSES.includes(status)) {
+      console.error(`[transcribe-audio] Invalid status requested: ${status}. Using 'processing' instead.`);
+      return 'processing'; // Fallback to a safe default value
+    }
+    return status;
   }
 
   /**
    * Update progress to started stage
    */
   async markStarted() {
-    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.STARTED);
+    const status = this.validateStatus('processing');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.STARTED);
   }
 
   /**
    * Update progress to downloading stage
    */
   async markDownloading() {
-    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.DOWNLOADING);
+    const status = this.validateStatus('processing');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.DOWNLOADING);
   }
 
   /**
    * Update progress to downloaded stage
    */
   async markDownloaded() {
-    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.DOWNLOADED);
+    const status = this.validateStatus('processing');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.DOWNLOADED);
   }
 
   /**
    * Update progress to processing stage
    */
   async markProcessing() {
-    await updateNoteProgress(this.supabase, this.noteId, 'processing', PROGRESS_STAGES.PROCESSING);
+    const status = this.validateStatus('processing');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.PROCESSING);
   }
 
   /**
    * Update progress to transcribing stage
    */
   async markTranscribing() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribing', PROGRESS_STAGES.TRANSCRIBING);
+    const status = this.validateStatus('transcribing');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBING);
   }
 
   /**
    * Update progress to transcribed stage
    */
   async markTranscribed() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribed', PROGRESS_STAGES.TRANSCRIBED);
+    const status = this.validateStatus('transcribed');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBED);
   }
 
   /**
    * Update progress to generating minutes stage
    */
   async markGeneratingMinutes() {
-    await updateNoteProgress(this.supabase, this.noteId, 'generating_minutes', PROGRESS_STAGES.GENERATING_MINUTES);
+    const status = this.validateStatus('generating_minutes');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.GENERATING_MINUTES);
   }
 
   /**
    * Update progress to completed stage
    */
   async markCompleted() {
-    await updateNoteProgress(this.supabase, this.noteId, 'completed', PROGRESS_STAGES.COMPLETED);
+    const status = this.validateStatus('completed');
+    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.COMPLETED);
   }
 
   /**
    * Update progress to error stage
    */
   async markError(errorMessage: string) {
-    await updateNoteProgress(this.supabase, this.noteId, 'error', 0);
+    const status = this.validateStatus('error');
+    await updateNoteProgress(this.supabase, this.noteId, status, 0);
     
     // Add error message to note
     await this.supabase

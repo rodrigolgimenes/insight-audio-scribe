@@ -21,7 +21,7 @@ export const PROGRESS_STAGES = {
   COMPLETED: 100
 };
 
-// Valid status values for the notes table
+// Valid status values for the notes table - these MUST match the database constraint
 export const VALID_NOTE_STATUSES = [
   'pending',
   'processing',
