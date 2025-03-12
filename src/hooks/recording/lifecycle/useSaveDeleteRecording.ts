@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { RecordingStateType } from "../useRecordingState";
 import { useAudioProcessing } from "../useAudioProcessing";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
+import { AudioRecorder } from "@/utils/audio/AudioRecorder";
 
 export function useSaveDeleteRecording(
   recordingState: Pick<RecordingStateType, 

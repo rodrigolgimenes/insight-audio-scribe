@@ -1,20 +1,20 @@
 
-import { RecordingEvent, RecordingObserver, RecordingResult } from './types';
-import { MediaRecorderManager } from './mediaRecorderManager';
-import { DurationTracker } from './durationTracker';
-import { StreamManager } from './streamManager';
-import { logAudioTracks, validateAudioTracks } from './recordingHelpers';
+import { RecordingObserver, RecordingResult } from '../types';
+import { MediaRecorderManager } from '../mediaRecorderManager';
+import { DurationTracker } from '../durationTracker';
+import { StreamManager } from '../streamManager';
+import { logAudioTracks, validateAudioTracks } from '../recordingHelpers';
 
-export class AudioRecorder {
-  private mediaRecorderManager: MediaRecorderManager;
-  private durationTracker: DurationTracker;
-  private streamManager: StreamManager;
-  private isRecording = false;
-  private isPaused = false;
-  private isInitialized = false;
-  private latestBlob: Blob | null = null;
-  private recordingStartTime: number | null = null;
-  private hasInitError = false;
+export class BaseRecorder {
+  protected mediaRecorderManager: MediaRecorderManager;
+  protected durationTracker: DurationTracker;
+  protected streamManager: StreamManager;
+  protected isRecording = false;
+  protected isPaused = false;
+  protected isInitialized = false;
+  protected latestBlob: Blob | null = null;
+  protected recordingStartTime: number | null = null;
+  protected hasInitError = false;
 
   constructor() {
     this.mediaRecorderManager = new MediaRecorderManager();
@@ -31,7 +31,7 @@ export class AudioRecorder {
   }
 
   async startRecording(stream: MediaStream): Promise<void> {
-    console.log('[AudioRecorder] startRecording called, current state:', {
+    console.log('[BaseRecorder] startRecording called, current state:', {
       isRecording: this.isRecording,
       isPaused: this.isPaused,
       isInitialized: this.isInitialized,
@@ -39,12 +39,12 @@ export class AudioRecorder {
     });
     
     if (this.isRecording) {
-      console.log('[AudioRecorder] Already recording, ignoring startRecording call');
+      console.log('[BaseRecorder] Already recording, ignoring startRecording call');
       return;
     }
 
     if (this.hasInitError) {
-      console.log('[AudioRecorder] Resetting from previous error state');
+      console.log('[BaseRecorder] Resetting from previous error state');
       this.hasInitError = false;
       this.cleanup();
     }
@@ -63,9 +63,9 @@ export class AudioRecorder {
       this.mediaRecorderManager.initialize(stream);
       this.streamManager.initialize(stream, () => {
         if (this.isRecording) {
-          console.log('[AudioRecorder] Stream ended unexpectedly, stopping recording');
+          console.log('[BaseRecorder] Stream ended unexpectedly, stopping recording');
           this.stopRecording().catch(error => {
-            console.error('[AudioRecorder] Error in stream ended callback:', error);
+            console.error('[BaseRecorder] Error in stream ended callback:', error);
           });
         }
       });
@@ -81,9 +81,9 @@ export class AudioRecorder {
       this.latestBlob = null;
       this.recordingStartTime = Date.now();
       
-      console.log('[AudioRecorder] Recording started successfully at', new Date(this.recordingStartTime).toISOString());
+      console.log('[BaseRecorder] Recording started successfully at', new Date(this.recordingStartTime).toISOString());
     } catch (error) {
-      console.error('[AudioRecorder] Error starting recording:', error);
+      console.error('[BaseRecorder] Error starting recording:', error);
       this.hasInitError = true;
       this.cleanup();
       throw error;
@@ -91,7 +91,7 @@ export class AudioRecorder {
   }
 
   async stopRecording(): Promise<RecordingResult> {
-    console.log('[AudioRecorder] stopRecording called, current state:', {
+    console.log('[BaseRecorder] stopRecording called, current state:', {
       isRecording: this.isRecording,
       isPaused: this.isPaused,
       recordingDuration: this.durationTracker.getCurrentDuration(),
@@ -99,7 +99,7 @@ export class AudioRecorder {
     });
     
     if (!this.isRecording) {
-      console.log('[AudioRecorder] Not currently recording, returning cached result');
+      console.log('[BaseRecorder] Not currently recording, returning cached result');
       const duration = this.durationTracker.getCurrentDuration();
       if (this.latestBlob) {
         return { blob: this.latestBlob, duration };
@@ -126,20 +126,20 @@ export class AudioRecorder {
             const finalBlob = this.mediaRecorderManager.getFinalBlob();
             this.latestBlob = finalBlob;
             
-            console.log('[AudioRecorder] Recording stopped:', 
+            console.log('[BaseRecorder] Recording stopped:', 
               this.mediaRecorderManager.getRecordingStats(finalDuration)
             );
             
             this.cleanup();
             resolve({ blob: finalBlob, duration: finalDuration });
           } catch (error) {
-            console.error('[AudioRecorder] Error finalizing recording:', error);
+            console.error('[BaseRecorder] Error finalizing recording:', error);
             this.cleanup();
             reject(error);
           }
         }, 500); // Increased timeout to ensure all data is processed
       } catch (error) {
-        console.error('[AudioRecorder] Error stopping recording:', error);
+        console.error('[BaseRecorder] Error stopping recording:', error);
         this.cleanup();
         reject(error);
       }
@@ -147,7 +147,7 @@ export class AudioRecorder {
   }
 
   pauseRecording(): void {
-    console.log('[AudioRecorder] pauseRecording called, current state:', { 
+    console.log('[BaseRecorder] pauseRecording called, current state:', { 
       isRecording: this.isRecording,
       isPaused: this.isPaused
     });
@@ -156,14 +156,14 @@ export class AudioRecorder {
       this.mediaRecorderManager.pause();
       this.durationTracker.pauseTracking();
       this.isPaused = true;
-      console.log('[AudioRecorder] Recording paused at:', this.durationTracker.getCurrentDuration());
+      console.log('[BaseRecorder] Recording paused at:', this.durationTracker.getCurrentDuration());
     } else {
-      console.warn('[AudioRecorder] Cannot pause: not recording or already paused');
+      console.warn('[BaseRecorder] Cannot pause: not recording or already paused');
     }
   }
 
   resumeRecording(): void {
-    console.log('[AudioRecorder] resumeRecording called, current state:', { 
+    console.log('[BaseRecorder] resumeRecording called, current state:', { 
       isRecording: this.isRecording,
       isPaused: this.isPaused
     });
@@ -172,9 +172,9 @@ export class AudioRecorder {
       this.mediaRecorderManager.resume();
       this.durationTracker.resumeTracking();
       this.isPaused = false;
-      console.log('[AudioRecorder] Recording resumed at:', this.durationTracker.getCurrentDuration());
+      console.log('[BaseRecorder] Recording resumed at:', this.durationTracker.getCurrentDuration());
     } else {
-      console.warn('[AudioRecorder] Cannot resume: not recording or not paused');
+      console.warn('[BaseRecorder] Cannot resume: not recording or not paused');
     }
   }
 
@@ -182,17 +182,8 @@ export class AudioRecorder {
     return this.durationTracker.getCurrentDuration();
   }
 
-  // Add methods required by useSaveDeleteRecording.ts
-  isCurrentlyRecording(): boolean {
-    return this.isRecording;
-  }
-
-  getFinalBlob(): Blob | null {
-    return this.latestBlob || (this.mediaRecorderManager ? this.mediaRecorderManager.getFinalBlob() : null);
-  }
-
   cleanup(): void {
-    console.log('[AudioRecorder] Cleanup called');
+    console.log('[BaseRecorder] Cleanup called');
     this.streamManager.cleanup();
     this.durationTracker.cleanup();
     this.mediaRecorderManager.cleanup();

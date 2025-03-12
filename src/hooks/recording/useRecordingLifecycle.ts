@@ -1,6 +1,6 @@
 
 import { useRef } from "react";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
+import { AudioRecorder } from "@/utils/audio/AudioRecorder";
 import { RecordingLogger } from "@/utils/audio/recordingLogger";
 import { useRecordingState } from "./useRecordingState";
 import { useRecorderInit } from "./lifecycle/useRecorderInit";
