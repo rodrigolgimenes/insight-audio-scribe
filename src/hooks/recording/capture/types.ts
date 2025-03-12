@@ -4,4 +4,5 @@ export interface AudioDevice {
   label: string;
   kind: MediaDeviceInfo['kind'];
   isDefault?: boolean;
+  displayName?: string; // Added for better UX display options
 }

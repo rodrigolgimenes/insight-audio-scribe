@@ -14,22 +14,29 @@ export const useAudioCapture = () => {
   const { audioDevices, defaultDeviceId, getAudioDevices } = useDeviceEnumeration(checkPermissions);
   const { requestMicrophoneAccess } = useMicrophoneAccess(checkPermissions, captureSystemAudio);
 
-  // Listen for device changes
+  // Listen for device changes with improved error handling
   useEffect(() => {
-    const handleDeviceChange = () => {
+    const handleDeviceChange = async () => {
       console.log('[useAudioCapture] Media devices changed, updating device list');
-      getAudioDevices().catch(error => {
+      try {
+        await getAudioDevices();
+        console.log('[useAudioCapture] Devices updated successfully after change');
+      } catch (error) {
         console.error('[useAudioCapture] Error updating devices on change:', error);
-      });
+      }
     };
 
     // Only set listener if we have permission
     if (permissionGranted) {
+      console.log('[useAudioCapture] Setting up device change listener');
       navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
       
       return () => {
+        console.log('[useAudioCapture] Removing device change listener');
         navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
       };
+    } else {
+      console.log('[useAudioCapture] Permission not granted, skipping device listener setup');
     }
     
     return undefined;
@@ -41,6 +48,7 @@ export const useAudioCapture = () => {
     audioDevices,
     defaultDeviceId,
     permissionGranted,
-    checkPermissions
+    checkPermissions,
+    hasPermission: permissionGranted // Added alias for better readability
   };
 };
