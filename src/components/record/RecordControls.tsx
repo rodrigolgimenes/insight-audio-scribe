@@ -124,23 +124,23 @@ export function RecordControls({
       
       {/* Status and Diagnostic Information */}
       <div className="text-xs text-gray-500 mt-2">
-        <div>Estado: {isRecording ? (isPaused ? "Pausado" : "Gravando") : "Pronto"}</div>
+        <div>Status: {isRecording ? (isPaused ? "Paused" : "Recording") : "Ready"}</div>
         {!deviceSelectionReady && (
-          <div className="text-amber-500">Aguardando permissão de microfone...</div>
+          <div className="text-amber-500">Waiting for microphone permission...</div>
         )}
         {showLastAction && lastAction && (
           <div className={cn(
             "text-xs mt-1",
             lastAction.success ? "text-green-600" : "text-red-600"
           )}>
-            Última ação: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
-            {lastAction.success ? " Sucesso" : " Falha"}
+            Last action: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
+            {lastAction.success ? " Success" : " Failed"}
             {lastAction.error && <div className="text-red-500">{lastAction.error}</div>}
           </div>
         )}
         {clickTime && (
           <div className="text-xs text-gray-400">
-            Último clique: {new Date(clickTime).toLocaleTimeString()}
+            Last click: {new Date(clickTime).toLocaleTimeString()}
           </div>
         )}
       </div>

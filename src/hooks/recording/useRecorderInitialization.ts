@@ -12,16 +12,20 @@ export const useRecorderInitialization = (
   // Initialize recorder
   useEffect(() => {
     console.log('[useRecorderInitialization] Initializing recorder...');
+    let cleanup = () => {};
+    
     try {
-      const cleanup = initializeRecorder();
+      cleanup = initializeRecorder();
       console.log('[useRecorderInitialization] Recorder initialized successfully');
-      
-      return cleanup;
     } catch (error) {
       console.error('[useRecorderInitialization] Error initializing recorder:', error);
       setInitError(error instanceof Error ? error : new Error('Unknown error initializing recorder'));
-      return () => {};
     }
+    
+    return () => {
+      console.log('[useRecorderInitialization] Cleaning up recorder');
+      cleanup();
+    };
   }, [initializeRecorder, setInitError]);
 
   // Clear any initialization errors when device selection changes
@@ -31,6 +35,4 @@ export const useRecorderInitialization = (
       console.log('[useRecorderInitialization] Device selected, cleared init error');
     }
   }, [selectedDeviceId, setInitError]);
-
-  return {};
 };

@@ -29,25 +29,17 @@ export const useRecording = () => {
     setIsSystemAudio,
     selectedDeviceId, 
     setSelectedDeviceId,
-    setLastAction
+    lastAction,
+    setLastAction,
+    recordingAttemptsCount,
+    setRecordingAttemptsCount
   } = recordingState;
 
   // Error handling
   const {
     initError,
-    setInitError,
-    recordingAttemptsCount,
-    setRecordingAttemptsCount,
-    lastAction
+    setInitError
   } = useRecordingError();
-
-  // Merge the setLastAction into recordingState for easier access
-  const enhancedRecordingState = {
-    ...recordingState,
-    setLastAction,
-    recordingAttemptsCount,
-    setRecordingAttemptsCount
-  };
 
   // Device selection
   const {
@@ -71,7 +63,7 @@ export const useRecording = () => {
     stopRecording,
     pauseRecording,
     resumeRecording
-  } = useRecordingLifecycle(recorder, enhancedRecordingState);
+  } = useRecordingLifecycle(recorder, recordingState);
 
   // Set up action handlers
   const {
@@ -80,7 +72,7 @@ export const useRecording = () => {
     handlePauseRecording,
     handleResumeRecording
   } = useRecordingActions(
-    enhancedRecordingState,
+    recordingState,
     startRecording,
     stopRecording,
     pauseRecording,

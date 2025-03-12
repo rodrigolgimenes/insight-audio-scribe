@@ -12,6 +12,7 @@ export const useRecordingAttemptTracker = (
   useEffect(() => {
     if (isRecording) {
       setRecordingAttemptsCount(prev => prev + 1);
+      console.log('[useRecordingAttemptTracker] Incrementing recording attempts count');
     }
   }, [isRecording, setRecordingAttemptsCount]);
 };
