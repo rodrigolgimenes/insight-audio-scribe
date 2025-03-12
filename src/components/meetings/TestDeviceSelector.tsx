@@ -1,6 +1,6 @@
 
 import React from "react";
-import { DeviceSelector } from "@/components/record/DeviceSelector";
+import { MicrophoneSelector } from "@/components/microphone/MicrophoneSelector";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface TestDeviceSelectorProps {
@@ -14,23 +14,8 @@ interface TestDeviceSelectorProps {
 }
 
 export function TestDeviceSelector({
-  audioDevices,
-  selectedDeviceId,
-  onDeviceSelect,
-  disabled = false,
-  isLoading = false,
-  label = "Select Microphone",
-  permissionState = 'unknown'
-}: TestDeviceSelectorProps) {
-  return (
-    <DeviceSelector
-      audioDevices={audioDevices}
-      selectedDeviceId={selectedDeviceId}
-      onDeviceSelect={onDeviceSelect}
-      disabled={disabled}
-      isReady={!isLoading}
-      devicesLoading={isLoading}
-      permissionState={permissionState}
-    />
-  );
+  disabled = false
+}: Partial<TestDeviceSelectorProps>) {
+  // Just pass through to our centralized MicrophoneSelector component
+  return <MicrophoneSelector disabled={disabled} />;
 }

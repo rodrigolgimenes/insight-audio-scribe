@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from "react";
-import { DeviceSelector } from "./DeviceSelector";
+import { useState } from "react";
+import { MicrophoneSelector } from "@/components/microphone/MicrophoneSelector";
 import { LanguageSelector } from "./LanguageSelector";
 import { SystemAudioToggle } from "./SystemAudioToggle";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -9,53 +9,26 @@ interface RecordingOptionsProps {
   isRecording: boolean;
   isSystemAudio: boolean;
   onSystemAudioChange: (enabled: boolean) => void;
-  audioDevices: AudioDevice[];
-  selectedDeviceId: string | null;
-  onDeviceSelect: (deviceId: string) => void;
+  audioDevices?: AudioDevice[];
+  selectedDeviceId?: string | null;
+  onDeviceSelect?: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
   onRefreshDevices?: () => void;
   devicesLoading?: boolean;
-  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
+  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
 }
 
 export function RecordingOptions({
   isRecording,
   isSystemAudio,
-  onSystemAudioChange,
-  audioDevices,
-  selectedDeviceId,
-  onDeviceSelect,
-  deviceSelectionReady = false,
-  onRefreshDevices,
-  devicesLoading = false,
-  permissionState = 'unknown'
+  onSystemAudioChange
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
-  
-  // Debug logs to track device and permission states
-  useEffect(() => {
-    console.log('[RecordingOptions] State updated:', {
-      audioDevicesCount: audioDevices.length,
-      audioDevices: audioDevices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
-      selectedDeviceId,
-      deviceSelectionReady,
-      permissionState,
-      devicesLoading
-    });
-  }, [audioDevices, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading]);
 
   return (
     <div className="space-y-6 mb-8">
-      <DeviceSelector
-        audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        onDeviceSelect={onDeviceSelect}
-        disabled={isRecording}
-        isReady={deviceSelectionReady}
-        onRefreshDevices={onRefreshDevices}
-        devicesLoading={devicesLoading}
-        permissionState={permissionState}
-      />
+      {/* Use the centralized MicrophoneSelector component */}
+      <MicrophoneSelector disabled={isRecording} />
 
       <LanguageSelector
         language={language}

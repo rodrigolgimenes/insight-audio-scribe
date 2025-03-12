@@ -1,21 +1,22 @@
 
-import React, { useEffect } from "react";
-import { useRobustMicrophoneDetection } from "@/hooks/recording/device/useRobustMicrophoneDetection";
+import React from "react";
+import { useAudioDevices } from "@/context/AudioDeviceContext";
 import { Mic, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { MicrophoneSelector } from "@/components/microphone/MicrophoneSelector";
 
 export function DebugMicList() {
   const { 
     devices, 
     isLoading, 
-    permissionState, 
-    detectDevices, 
-    requestMicrophoneAccess 
-  } = useRobustMicrophoneDetection();
+    permissionState,
+    refreshDevices,
+    requestPermission
+  } = useAudioDevices();
   
   // Log details on render and when state changes
-  useEffect(() => {
+  React.useEffect(() => {
     console.log('[DebugMicList] State updated:', {
       deviceCount: devices.length,
       devices: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
@@ -29,20 +30,12 @@ export function DebugMicList() {
     console.log('[DebugMicList] Refreshing devices');
     
     try {
-      // No need to manually set isLoading as the hook will handle that
-      const result = await detectDevices(true);
-      // We need to access the devices array from the result object
-      const refreshedDevices = result.devices;
-      toast.success(`Refreshed microphone list (found ${refreshedDevices.length})`);
-      console.log('[DebugMicList] Refresh result:', {
-        deviceCount: refreshedDevices.length,
-        devices: refreshedDevices.map(d => ({ id: d.deviceId, label: d.label || 'No label' }))
-      });
+      await refreshDevices();
+      toast.success(`Refreshed microphone list (found ${devices.length})`);
     } catch (error) {
       console.error('[DebugMicList] Error refreshing devices:', error);
       toast.error("Failed to refresh microphones");
     }
-    // The hook will handle setting isLoading back to false
   };
   
   // Handle requesting permission
@@ -50,7 +43,7 @@ export function DebugMicList() {
     console.log('[DebugMicList] Requesting permission');
     
     try {
-      const result = await requestMicrophoneAccess();
+      const result = await requestPermission();
       console.log('[DebugMicList] Permission request result:', result);
     } catch (error) {
       console.error('[DebugMicList] Error requesting permission:', error);
@@ -76,6 +69,9 @@ export function DebugMicList() {
         <div><span className="font-medium">Loading:</span> {isLoading ? 'Yes' : 'No'}</div>
         <div><span className="font-medium">Devices found:</span> {devices.length}</div>
       </div>
+      
+      {/* Use our new MicrophoneSelector component */}
+      <MicrophoneSelector />
       
       {permissionState !== 'granted' && (
         <button
