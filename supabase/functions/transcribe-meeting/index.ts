@@ -1,0 +1,147 @@
+
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.48.1";
+
+// CORS headers for cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Create a Supabase client
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') || '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+);
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Extract form data with audio file and metadata
+    const formData = await req.formData();
+    const audioFile = formData.get('file') as File;
+    const recordingDataJson = formData.get('recordingData') as string;
+    
+    if (!audioFile) {
+      throw new Error('Audio file is missing from the request');
+    }
+
+    // Parse recording metadata
+    const recordingData = recordingDataJson ? JSON.parse(recordingDataJson) : {};
+    
+    console.log('Processing audio file:', {
+      fileName: audioFile.name,
+      fileType: audioFile.type,
+      fileSize: audioFile.size,
+      recordingData
+    });
+
+    // Generate a unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileExtension = audioFile.name.split('.').pop() || 'webm';
+    const fileName = `meeting-recordings/${timestamp}-recording.${fileExtension}`;
+    
+    // Upload file to storage
+    const { data: uploadData, error: uploadError } = await supabase
+      .storage
+      .from('audio-recordings')
+      .upload(fileName, audioFile, {
+        contentType: audioFile.type,
+        upsert: false
+      });
+    
+    if (uploadError) {
+      throw new Error(`Error uploading audio: ${uploadError.message}`);
+    }
+    
+    console.log('Audio uploaded successfully:', uploadData);
+    
+    // Get a public URL for the file (or a signed URL depending on bucket privacy)
+    const { data: { publicUrl } } = supabase
+      .storage
+      .from('audio-recordings')
+      .getPublicUrl(fileName);
+    
+    // Create a record in the transcriptions table
+    const { data: transcriptionData, error: transcriptionError } = await supabase
+      .from('transcriptions')
+      .insert({
+        audio_url: publicUrl,
+        duration_ms: recordingData.duration || 0,
+        status: 'pending',
+        is_system_audio: recordingData.isSystemAudio || false,
+      })
+      .select()
+      .single();
+    
+    if (transcriptionError) {
+      throw new Error(`Error creating transcription record: ${transcriptionError.message}`);
+    }
+    
+    console.log('Transcription record created:', transcriptionData);
+    
+    // Invoke Python backend for transcription (this would normally happen asynchronously)
+    // In a real implementation, this would be a separate service or background task
+    // For the sake of this example, we'll simulate the transcription result
+    
+    // Simulate transcription processing time
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Simulate a transcription result (in production, this would come from the Python service)
+    const simulatedTranscription = "Esta é uma transcrição simulada da reunião. Em um ambiente de produção, a transcrição seria gerada pelo modelo faster-whisper em Python. O texto seria muito mais longo e preciso, baseado no áudio enviado.";
+    
+    // Update the transcription record with the result
+    const { data: updatedTranscription, error: updateError } = await supabase
+      .from('transcriptions')
+      .update({
+        content: simulatedTranscription,
+        status: 'completed',
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', transcriptionData.id)
+      .select()
+      .single();
+    
+    if (updateError) {
+      throw new Error(`Error updating transcription: ${updateError.message}`);
+    }
+    
+    console.log('Transcription completed:', updatedTranscription);
+
+    // Return the transcription result
+    return new Response(
+      JSON.stringify({
+        success: true,
+        transcription: simulatedTranscription,
+        recordId: transcriptionData.id
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Error processing request:', error);
+    
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message
+      }),
+      {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+  }
+});
