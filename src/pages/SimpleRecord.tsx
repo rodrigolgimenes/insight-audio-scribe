@@ -8,7 +8,7 @@ import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { RecordingActions } from "@/components/record/RecordingActions";
-import { useFileUpload } from "@/hooks"; // Updated import
+import { useFileUpload } from "@/hooks"; 
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 
 const SimpleRecord = () => {
@@ -63,11 +63,25 @@ const SimpleRecord = () => {
     });
   };
 
+  // Use the same function as in RecordingModal
   const handleSave = async () => {
-    const recordedDuration = getCurrentDuration();
+    // First check if we need to stop recording
+    if (isRecording) {
+      const { blob, duration } = await handleStopRecording();
+      if (!blob) {
+        toast({
+          title: "Error",
+          description: "Failed to get recording data.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    // Then use the same saveRecording logic as the one used in the modal
     await saveRecording(isRecording, async () => {
-      await handleStopRecording();
-    }, mediaStream, audioUrl, recordedDuration);
+      return await handleStopRecording();
+    }, mediaStream, audioUrl, getCurrentDuration());
   };
 
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
