@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -9,8 +8,8 @@ import { DeviceSelectTrigger } from "./device/DeviceSelectTrigger";
 import { DeviceSelectContent } from "./device/DeviceSelectContent";
 import { RefreshDevicesButton } from "./device/RefreshDevicesButton";
 import { NoDevicesMessage } from "./device/NoDevicesMessage";
-import { DevicePermissionRequest } from "./device/DevicePermissionRequest";
-import { DevicePermissionError } from "./device/DevicePermissionError";
+import { DevicePermissionRequest } from "./device/DevicePermissionError";
+import { DevicePermissionError } from "./device/DevicePermissionRequest";
 import { useDeviceSelection } from "./device/useDeviceSelection";
 import { DeviceAutoSelection } from "./device/DeviceAutoSelection";
 import { useDeviceAutoRefresh } from "./device/useDeviceAutoRefresh";
@@ -40,9 +39,6 @@ export function DeviceSelector({
   devicesLoading = false,
   permissionState = 'unknown',
 }: DeviceSelectorProps) {
-  // Use audioDevices if provided, otherwise fall back to devices
-  const deviceList = audioDevices || devices || [];
-  
   // Use our extracted hook for device selection logic
   const {
     hasAttemptedSelection,
@@ -52,6 +48,44 @@ export function DeviceSelector({
     handleRequestPermission
   } = useDeviceSelection(onRefreshDevices, permissionState);
   
+  // Use audioDevices if provided, otherwise fall back to devices
+  const deviceList = audioDevices || devices || [];
+  
+  const handleDeviceChange = (value: string) => {
+    if (value && value !== selectedDeviceId) {
+      console.log('[DeviceSelector] Manual device selection:', {
+        newDevice: value,
+        previousDevice: selectedDeviceId,
+        hasAttemptedSelection
+      });
+      
+      // Call the callback to update the parent component
+      onDeviceSelect(value);
+      
+      // Log state change intent
+      console.log('[DeviceSelector] Device selection dispatched');
+      
+      // Add a delayed check to verify the state was updated
+      setTimeout(() => {
+        console.log('[DeviceSelector] State after selection (timeout check):', {
+          selectedDeviceIdNow: selectedDeviceId,
+          selected: value
+        });
+      }, 100);
+    }
+  };
+
+  // Log state changes
+  React.useEffect(() => {
+    console.log('[DeviceSelector] Component state updated:', {
+      selectedDeviceId,
+      deviceCount: deviceList.length,
+      isReady,
+      permissionState,
+      hasAttemptedSelection
+    });
+  }, [selectedDeviceId, deviceList.length, isReady, permissionState, hasAttemptedSelection]);
+
   // Use our extracted hook for auto-refresh logic
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
   useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
@@ -70,48 +104,6 @@ export function DeviceSelector({
     permissionState === 'denied' || 
     (deviceList.length === 0 && !devicesLoading); // Allow interaction during loading
 
-  const handleDeviceChange = (value: string) => {
-    if (value && value !== selectedDeviceId) {
-      console.log('[DeviceSelector] Device selected by user:', value);
-      console.log('[DeviceSelector] Current state before selection:', {
-        selectedDeviceId,
-        deviceCount,
-        isReady,
-        permissionState
-      });
-      
-      // Log devices available for selection
-      if (deviceList.length > 0) {
-        console.log('[DeviceSelector] Available devices:', deviceList.map(d => ({
-          id: d.deviceId,
-          label: d.label || 'Unnamed device'
-        })));
-      }
-      
-      // Call the callback to update the parent component
-      console.log('[DeviceSelector] Calling onDeviceSelect with deviceId:', value);
-      onDeviceSelect(value);
-      
-      // Log state change intent
-      console.log('[DeviceSelector] Device selection dispatched. Will log actual state in next render.');
-      
-      // Add a delayed check to verify the state was updated
-      setTimeout(() => {
-        console.log('[DeviceSelector] State after selection (timeout check):', {
-          selectedDeviceIdNow: selectedDeviceId,
-          selected: value
-        });
-      }, 100);
-    } else {
-      console.log('[DeviceSelector] Device selection unchanged or empty:', {
-        value,
-        selectedDeviceId,
-        noChange: value === selectedDeviceId,
-        isEmpty: !value 
-      });
-    }
-  };
-
   // Find the selected device name for display
   let selectedDeviceName = "Select a microphone";
   
@@ -126,16 +118,6 @@ export function DeviceSelector({
       });
     }
   }
-  
-  // Add useEffect to log when props change
-  React.useEffect(() => {
-    console.log('[DeviceSelector] Props updated:', {
-      selectedDeviceId,
-      deviceCount,
-      isReady,
-      permissionState
-    });
-  }, [selectedDeviceId, deviceCount, isReady, permissionState]);
   
   // Determine if we should show a warning about no devices
   const showNoDevicesWarning = deviceCount === 0 && isReady && !devicesLoading && permissionState !== 'denied';
