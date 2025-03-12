@@ -26,6 +26,15 @@ export const useDeviceEnumeration = (
         return { devices: [], defaultId: null };
       }
 
+      // Get a temporary stream to ensure we get labels
+      let tempStream: MediaStream | null = null;
+      try {
+        console.log('[useDeviceEnumeration] Requesting temporary stream to get device labels');
+        tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        console.error('[useDeviceEnumeration] Error getting temporary stream:', err);
+      }
+
       // Enumerate devices
       const devices = await navigator.mediaDevices.enumerateDevices();
       
@@ -34,42 +43,25 @@ export const useDeviceEnumeration = (
       
       if (audioInputs.length === 0) {
         console.warn('[useDeviceEnumeration] No audio input devices found');
+        
+        // Close temporary stream if it was created
+        if (tempStream) {
+          tempStream.getTracks().forEach(track => track.stop());
+        }
+        
         setAudioDevices([]);
         setDefaultDeviceId(null);
         return { devices: [], defaultId: null };
       }
       
       console.log('[useDeviceEnumeration] Found audio devices:', audioInputs.length);
+      audioInputs.forEach((device, i) => {
+        console.log(`[useDeviceEnumeration] Device ${i}:`, device.deviceId, device.label || 'No label');
+      });
       
       // Try to determine the default device
       let foundDefault = false;
       let defaultId = null;
-      
-      // Get actual device labels by requesting a stream first if labels are empty
-      const hasEmptyLabels = audioInputs.some(device => !device.label);
-      if (hasEmptyLabels) {
-        try {
-          console.log('[useDeviceEnumeration] Requesting temporary stream to get device labels');
-          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          
-          // Now that we have permission, enumerate devices again to get labels
-          const devicesWithLabels = await navigator.mediaDevices.enumerateDevices();
-          const audioInputsWithLabels = devicesWithLabels.filter(device => device.kind === 'audioinput');
-          
-          // Stop the temporary stream
-          tempStream.getTracks().forEach(track => track.stop());
-          
-          // Replace our audioInputs with the ones that have labels
-          if (audioInputsWithLabels.length > 0) {
-            console.log('[useDeviceEnumeration] Retrieved devices with labels');
-            audioInputs.length = 0;
-            audioInputs.push(...audioInputsWithLabels);
-          }
-        } catch (error) {
-          console.error('[useDeviceEnumeration] Error getting device labels:', error);
-          // Continue with the devices we have, even without labels
-        }
-      }
       
       // Convert to our internal AudioDevice type with proper labels
       const convertedDevices = audioInputs.map((device, index) => {
@@ -97,6 +89,11 @@ export const useDeviceEnumeration = (
         setDefaultDeviceId(convertedDevices[0].deviceId);
       }
       
+      // Close the temporary stream if it was created
+      if (tempStream) {
+        tempStream.getTracks().forEach(track => track.stop());
+      }
+      
       return { devices: convertedDevices, defaultId };
     } catch (error) {
       console.error('[useDeviceEnumeration] Error enumerating devices:', error);
@@ -109,6 +106,18 @@ export const useDeviceEnumeration = (
   // Initial device enumeration
   useEffect(() => {
     getAudioDevices();
+    
+    // Set up device change listener
+    const handleDeviceChange = () => {
+      console.log('[useDeviceEnumeration] Media devices changed, refreshing list');
+      getAudioDevices();
+    };
+    
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+    };
   }, [getAudioDevices]);
 
   return {

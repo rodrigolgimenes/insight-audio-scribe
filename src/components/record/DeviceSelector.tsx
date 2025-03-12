@@ -73,13 +73,28 @@ export function DeviceSelector({
         const deviceId = firstDevice.deviceId || '';
         if (deviceId) {
           onDeviceSelect(deviceId);
+          console.log('[DeviceSelector] Auto-selecting first device:', deviceId, firstDevice.label || firstDevice.displayName || 'No label');
         }
       }
     }
   }, [deviceList, selectedDeviceId, onDeviceSelect, disabled]);
 
+  // Update debug info when devices change
+  useEffect(() => {
+    if (Array.isArray(deviceList)) {
+      console.log('[DeviceSelector] Device list updated:', deviceList.length, 'devices');
+      deviceList.forEach((device, i) => {
+        if (device) {
+          const label = 'displayName' in device ? device.displayName : (device.label || `Microphone ${i+1}`);
+          console.log(`[DeviceSelector] Device ${i}:`, device.deviceId, label);
+        }
+      });
+    }
+  }, [deviceList]);
+
   const handleDeviceChange = (value: string) => {
     if (value) {
+      console.log('[DeviceSelector] Device selected by user:', value);
       onDeviceSelect(value);
     }
   };
@@ -104,6 +119,13 @@ export function DeviceSelector({
     // Fall back to a numbered microphone if no label is available
     return `Microphone ${index + 1}`;
   };
+
+  // Find the selected device name for display
+  const selectedDeviceName = selectedDeviceId ? 
+    deviceList.find(d => d && d.deviceId === selectedDeviceId) ?
+      formatDeviceLabel(deviceList.find(d => d && d.deviceId === selectedDeviceId) as MediaDeviceInfo, 0) :
+      "Select a microphone" :
+    "Select a microphone";
 
   return (
     <div className="space-y-2">
@@ -144,7 +166,9 @@ export function DeviceSelector({
             isSelectDisabled && "opacity-50 cursor-not-allowed"
           )}
         >
-          <SelectValue placeholder="Select a microphone" />
+          <SelectValue placeholder="Select a microphone">
+            {selectedDeviceName}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {!Array.isArray(deviceList) || deviceList.length === 0 ? (

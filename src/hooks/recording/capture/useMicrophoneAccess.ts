@@ -30,12 +30,17 @@ export const useMicrophoneAccess = (
         console.warn('[useMicrophoneAccess] Permission check returned false, will try direct access anyway');
       }
 
-      console.log('[useMicrophoneAccess] Requesting microphone...');
+      console.log('[useMicrophoneAccess] Requesting microphone with deviceId:', deviceId);
       
       // Create constraints based on the selected device or use default
       const constraints: MediaStreamConstraints = {
         audio: deviceId ? 
-          { deviceId: { ideal: deviceId } } : 
+          { 
+            deviceId: { exact: deviceId },
+            echoCancellation: { ideal: true },
+            noiseSuppression: { ideal: true },
+            autoGainControl: { ideal: true }
+          } : 
           { 
             echoCancellation: { ideal: true },
             noiseSuppression: { ideal: true },
@@ -47,7 +52,7 @@ export const useMicrophoneAccess = (
       let micStream: MediaStream;
       
       try {
-        console.log('[useMicrophoneAccess] Attempting with constraints:', constraints);
+        console.log('[useMicrophoneAccess] Attempting with specific constraints:', JSON.stringify(constraints));
         micStream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err) {
         console.warn('[useMicrophoneAccess] Failed with specific constraints, trying generic audio access', err);

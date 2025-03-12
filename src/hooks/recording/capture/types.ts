@@ -1,7 +1,7 @@
 
 export interface AudioDevice extends MediaDeviceInfo {
   isDefault?: boolean;
-  displayName?: string;
+  displayName: string; // Make this required
   index?: number;
 }
 
@@ -11,8 +11,10 @@ export function toAudioDevice(device: MediaDeviceInfo, isDefault: boolean = fals
   let displayName = '';
   
   if (device.label && device.label.trim() !== '') {
+    // Use the actual label if available
     displayName = device.label;
   } else {
+    // Fall back to a numbered microphone if no label is available
     displayName = `Microphone ${index + 1}`;
   }
 
