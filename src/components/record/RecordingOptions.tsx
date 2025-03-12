@@ -44,13 +44,6 @@ export function RecordingOptions({
     });
   }, [audioDevices, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading]);
 
-  // Log on every render for consistency
-  console.log('[RecordingOptions RENDER]', {
-    audioDevicesCount: audioDevices.length,
-    permissionState,
-    deviceSelectionReady
-  });
-
   return (
     <div className="space-y-6 mb-8">
       <DeviceSelector

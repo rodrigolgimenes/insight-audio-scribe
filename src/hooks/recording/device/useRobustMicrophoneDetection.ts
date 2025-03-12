@@ -1,104 +1,105 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AudioDevice, toAudioDevice } from "@/hooks/recording/capture/types";
+import { AudioDevice, toAudioDevice, PermissionState } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
 
 /**
- * Hook for robust microphone detection across different browsers
+ * Hook for robust microphone detection across different browsers.
  */
 export function useRobustMicrophoneDetection() {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [permissionState, setPermissionState] = useState<'prompt'|'granted'|'denied'|'unknown'>('unknown');
-  const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
-  
-  // Refs for tracking detection state
+  const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
+  const [refreshAttempts, setRefreshAttempts] = useState(0);
+
+  // Refs to track detection and component lifecycle
   const detectionInProgressRef = useRef(false);
-  const detectionAttemptsRef = useRef(0);
   const mountedRef = useRef(true);
-  const lastDetectionTimeRef = useRef(0);
-  const autoRetryTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Check for permission API support
   const hasPermissionsAPI = useRef(!!navigator.permissions);
-  
-  // Cleanup function
+
+  // Clean up on unmount
   const cleanup = useCallback(() => {
     mountedRef.current = false;
-    if (autoRetryTimerRef.current) {
-      clearTimeout(autoRetryTimerRef.current);
-      autoRetryTimerRef.current = null;
-    }
   }, []);
-  
-  // Set up unmount cleanup
+
   useEffect(() => {
     mountedRef.current = true;
     return cleanup;
   }, [cleanup]);
-  
-  // Format devices from MediaDeviceInfo to AudioDevice
+
+  /**
+   * Formats MediaDeviceInfo array into AudioDevice array
+   */
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
     return mediaDevices
-      .filter(device => device.kind === 'audioinput')
+      .filter((device) => device.kind === "audioinput")
       .map((device, index) => {
-        // Use the toAudioDevice helper from types.ts to properly format the device
-        const isDefault = device.deviceId === 'default' || index === 0;
+        // If deviceId is 'default' or if this is the first device, mark as default
+        const isDefault = device.deviceId === "default" || index === 0;
         return toAudioDevice(device, isDefault, index);
       });
   }, []);
-  
-  // Check permission status using Permissions API
-  const checkPermissionStatus = useCallback(async (): Promise<'prompt'|'granted'|'denied'|'unknown'> => {
+
+  /**
+   * Checks the current microphone permission state
+   */
+  const checkPermissionStatus = useCallback(async (): Promise<PermissionState> => {
     if (!hasPermissionsAPI.current) {
-      console.log('[useRobustMicrophoneDetection] Permissions API not available');
-      return 'unknown';
+      console.log("[useRobustMicrophoneDetection] Permissions API not available");
+      return "unknown";
     }
     
     try {
-      const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      console.log('[useRobustMicrophoneDetection] Permission status:', result.state);
-      return result.state as 'prompt'|'granted'|'denied';
+      const result = await navigator.permissions.query({
+        name: "microphone" as PermissionName,
+      });
+      console.log("[useRobustMicrophoneDetection] Permission status:", result.state);
+      return result.state as PermissionState;
     } catch (err) {
-      console.error('[useRobustMicrophoneDetection] Error checking permission:', err);
-      return 'unknown';
+      console.error("[useRobustMicrophoneDetection] Error checking permission:", err);
+      return "unknown";
     }
   }, []);
-  
-  // Request microphone access
+
+  /**
+   * Requests microphone access
+   */
   const requestMicrophoneAccess = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
-    console.log('[useRobustMicrophoneDetection] Requesting microphone access...');
-    
+    console.log("[useRobustMicrophoneDetection] Requesting microphone access...");
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // We got access, now stop the tracks as we only needed them for permission
-      stream.getTracks().forEach(track => track.stop());
-      
+      // Stop tracks immediately after getting permission
+      stream.getTracks().forEach((track) => track.stop());
+
       if (!mountedRef.current) return false;
-      
-      setPermissionState('granted');
+
+      setPermissionState("granted");
       toast.success("Microphone access granted", {
-        id: "mic-permission-granted"
+        id: "mic-permission-granted",
+        duration: 2000
       });
       
       return true;
     } catch (err) {
-      console.error('[useRobustMicrophoneDetection] Microphone access denied:', err);
-      
+      console.error("[useRobustMicrophoneDetection] Microphone access denied:", err);
+
       if (!mountedRef.current) return false;
-      
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setPermissionState('denied');
+
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        setPermissionState("denied");
         toast.error("Microphone access denied", {
           description: "Please allow microphone access in your browser settings",
-          id: "mic-permission-denied"
+          id: "mic-permission-denied",
+          duration: 3000
         });
-      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+      } else if (err instanceof DOMException && err.name === "NotFoundError") {
         toast.error("No microphone found", {
           description: "Please connect a microphone and try again",
-          id: "no-microphone-found"
+          id: "no-microphone-found",
+          duration: 3000
         });
       }
       
@@ -109,153 +110,116 @@ export function useRobustMicrophoneDetection() {
       }
     }
   }, []);
-  
-  // Detect available devices
-  const detectDevices = useCallback(async (forceRefresh = false): Promise<AudioDevice[]> => {
-    // Prevent concurrent detections or rapid successive calls
-    const now = Date.now();
-    if (!forceRefresh && detectionInProgressRef.current) {
-      console.log('[useRobustMicrophoneDetection] Detection already in progress, skipping');
-      return devices;
+
+  /**
+   * Detects audio devices
+   */
+  const detectDevices = useCallback(async (forceRefresh = false): Promise<{
+    devices: AudioDevice[];
+    defaultId: string | null;
+  }> => {
+    // Prevent multiple simultaneous detections
+    if (detectionInProgressRef.current && !forceRefresh) {
+      console.log("[useRobustMicrophoneDetection] Detection already in progress");
+      return { devices, defaultId: devices.length > 0 ? devices[0].deviceId : null };
     }
     
-    // Add short debounce protection unless forced refresh
-    if (!forceRefresh && (now - lastDetectionTimeRef.current < 300)) {
-      console.log('[useRobustMicrophoneDetection] Skipping due to recent detection');
-      return devices;
-    }
-    
-    // Clear any scheduled auto-retry
-    if (autoRetryTimerRef.current) {
-      clearTimeout(autoRetryTimerRef.current);
-      autoRetryTimerRef.current = null;
-    }
-    
-    // Track detection attempt
     detectionInProgressRef.current = true;
-    lastDetectionTimeRef.current = now;
-    detectionAttemptsRef.current++;
-    
-    console.log(`[useRobustMicrophoneDetection] Detecting devices (attempt #${detectionAttemptsRef.current})`);
     setIsLoading(true);
     
+    if (forceRefresh) {
+      setRefreshAttempts(prev => prev + 1);
+    }
+
     try {
-      // Update permission state first (we might already have permission)
+      // Check current permission state
       const permStatus = await checkPermissionStatus();
-      
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
-        return [];
+        return { devices: [], defaultId: null };
       }
       
-      // Update permission state based on check
       setPermissionState(permStatus);
-      
-      // If we don't have permission, request it
-      if (permStatus !== 'granted') {
+
+      // If permission not granted, try to request it
+      if (permStatus !== "granted") {
         const granted = await requestMicrophoneAccess();
-        if (!granted) {
+        if (!granted || !mountedRef.current) {
           setIsLoading(false);
           detectionInProgressRef.current = false;
-          return [];
+          return { devices: [], defaultId: null };
         }
       }
-      
-      // Now enumerate devices
-      console.log('[useRobustMicrophoneDetection] Enumerating devices...');
+
+      // Now that we have permission, enumerate devices
+      console.log("[useRobustMicrophoneDetection] Enumerating devices...");
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
       
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
-        return [];
+        return { devices: [], defaultId: null };
       }
-      
-      // Filter out non-audio input devices and format to our AudioDevice type
+
       const audioInputDevices = formatDevices(
-        mediaDevices.filter(device => device.kind === 'audioinput')
+        mediaDevices.filter((d) => d.kind === "audioinput")
       );
       
-      console.log(`[useRobustMicrophoneDetection] Found ${audioInputDevices.length} audio input devices`);
-      
-      // Try to find default device
-      const defaultDevice = mediaDevices.find(
-        device => device.kind === 'audioinput' && device.deviceId === 'default'
-      );
+      console.log(`[useRobustMicrophoneDetection] Found ${audioInputDevices.length} audio inputs`);
+
+      // Determine default device
+      let defaultId = null;
+      const defaultDevice = audioInputDevices.find(d => d.isDefault);
       
       if (defaultDevice) {
-        setDefaultDeviceId(defaultDevice.deviceId);
+        defaultId = defaultDevice.deviceId;
       } else if (audioInputDevices.length > 0) {
-        // If no default, use the first device
-        setDefaultDeviceId(audioInputDevices[0].deviceId);
-      } else {
-        setDefaultDeviceId(null);
+        defaultId = audioInputDevices[0].deviceId;
       }
-      
-      // Update state with found devices
+
       setDevices(audioInputDevices);
       
-      // Reset attempts counter on success
-      detectionAttemptsRef.current = 0;
-      
-      return audioInputDevices;
+      return { devices: audioInputDevices, defaultId };
     } catch (err) {
-      console.error('[useRobustMicrophoneDetection] Error detecting devices:', err);
+      console.error("[useRobustMicrophoneDetection] Error detecting devices:", err);
       
-      // Set empty devices on error
       if (mountedRef.current) {
         setDevices([]);
       }
       
-      return [];
+      return { devices: [], defaultId: null };
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
         detectionInProgressRef.current = false;
       }
     }
-  }, [devices, checkPermissionStatus, requestMicrophoneAccess, formatDevices]);
-  
-  // Set up device change listener
+  }, [checkPermissionStatus, requestMicrophoneAccess, formatDevices, devices]);
+
+  // Initial detection and device change listener
   useEffect(() => {
     const handleDeviceChange = () => {
-      console.log('[useRobustMicrophoneDetection] Device change event detected');
-      // Reset detection state
-      detectionInProgressRef.current = false;
+      console.log("[useRobustMicrophoneDetection] devicechange event detected");
       detectDevices(true);
     };
-    
+
     // Add listener for device changes
-    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-    
-    // Initial detection
-    detectDevices();
-    
-    // Monitor permission changes if available
-    if (hasPermissionsAPI.current) {
-      navigator.permissions.query({ name: 'microphone' as PermissionName })
-        .then(permissionStatus => {
-          permissionStatus.addEventListener('change', () => {
-            console.log('[useRobustMicrophoneDetection] Permission status changed:', permissionStatus.state);
-            // Force a device detection when permission changes
-            detectDevices(true);
-          });
-        })
-        .catch(err => {
-          console.error('[useRobustMicrophoneDetection] Error setting up permission monitoring:', err);
-        });
-    }
-    
+    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+
+    // Initial device detection
+    detectDevices().catch(console.error);
+
+    // Cleanup
     return () => {
-      // Remove device change listener
-      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      cleanup();
     };
-  }, [detectDevices]);
-  
+  }, [detectDevices, cleanup]);
+
   return {
     devices,
     isLoading,
     permissionState,
-    defaultDeviceId,
+    refreshAttempts,
     detectDevices,
     requestMicrophoneAccess
   };

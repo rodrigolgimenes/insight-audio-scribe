@@ -6,7 +6,12 @@ import { Mic, RefreshCw } from "lucide-react";
 
 export function DeviceListTester() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const { devices, isLoading, permissionState, detectDevices } = useRobustMicrophoneDetection();
+  const { 
+    devices, 
+    isLoading, 
+    permissionState, 
+    detectDevices 
+  } = useRobustMicrophoneDetection();
   
   // Handle device selection
   const handleDeviceSelect = (deviceId: string) => {
@@ -51,7 +56,7 @@ export function DeviceListTester() {
         selectedDeviceId={selectedDeviceId}
         onDeviceSelect={handleDeviceSelect}
         isLoading={isLoading}
-        label="Select Microphone"
+        permissionState={permissionState}
       />
       
       <div className="text-xs text-gray-500 mt-2">

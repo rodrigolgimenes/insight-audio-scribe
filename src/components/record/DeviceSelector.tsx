@@ -1,292 +1,197 @@
 
-import React, { useEffect, useState } from "react";
-import { Select } from "@/components/ui/select";
+import React, { useState, useEffect } from "react";
+import { ChevronDown, Mic, AlertCircle, RefreshCw } from "lucide-react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
-import { DeviceDebugInfo } from "./DeviceDebugInfo";
-import { formatDeviceLabel } from "./utils/deviceFormatters";
-import { DeviceSelectTrigger } from "./device/DeviceSelectTrigger";
-import { DeviceSelectContent } from "./device/DeviceSelectContent";
-import { RefreshDevicesButton } from "./device/RefreshDevicesButton";
-import { NoDevicesMessage } from "./device/NoDevicesMessage";
-import { DevicePermissionRequest } from "./device/DevicePermissionRequest";
-import { DevicePermissionError } from "./device/DevicePermissionError";
-import { useDeviceSelection } from "./device/useDeviceSelection";
-import { DeviceAutoSelection } from "./device/DeviceAutoSelection";
-import { useDeviceAutoRefresh } from "./device/useDeviceAutoRefresh";
 import { toast } from "sonner";
 
 interface DeviceSelectorProps {
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
-  isReady?: boolean;
   disabled?: boolean;
+  isReady?: boolean;
   onRefreshDevices?: () => void;
   devicesLoading?: boolean;
-  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
 export function DeviceSelector({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
-  isReady = true,
   disabled = false,
+  isReady = false,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState = 'unknown',
+  permissionState = 'unknown'
 }: DeviceSelectorProps) {
-  // Track selection changes for debugging
-  const [lastManualSelection, setLastManualSelection] = useState<string | null>(null);
-  const [selectionTime, setSelectionTime] = useState(0);
-  const [forceRenderKey, setForceRenderKey] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
   
-  // Use our hook for device selection logic
-  const {
-    hasAttemptedSelection,
-    setHasAttemptedSelection,
-    isRequesting,
-    permissionStatus,
-    handleRequestPermission
-  } = useDeviceSelection(onRefreshDevices, permissionState);
-  
-  // Calculate device count safely
-  const deviceCount = Array.isArray(audioDevices) ? audioDevices.length : 0;
-  
-  // CRITICALLY IMPORTANT: Log detailed device information on EVERY render
-  console.log('[DeviceSelector RENDER]', {
-    compName: 'DeviceSelector',
-    deviceCount: deviceCount,
-    permissionState,
-    permissionStatus,
-    isReady,
-    devicesLoading,
-    selectedDeviceId,
-    devices: Array.isArray(audioDevices) ? audioDevices.map(d => ({
-      id: d.deviceId,
-      label: d.label || 'No label'
-    })) : 'Invalid device list',
-    timestamp: new Date().toISOString()
-  });
-  
-  // Log detailed device list on mount and when it changes
+  // Log device information on every render for debugging
   useEffect(() => {
-    console.log('[DeviceSelector] Device list updated:', {
-      compName: 'DeviceSelector',
-      deviceCount: deviceCount,
+    console.log('[DeviceSelector RENDER]', {
+      deviceCount: audioDevices.length,
+      deviceDetails: audioDevices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
+      selectedDeviceId,
+      isReady,
       permissionState,
-      localPermissionStatus: permissionStatus,
-      devices: Array.isArray(audioDevices) ? audioDevices.map(d => ({
-        id: d.deviceId,
-        label: d.label || 'No label'
-      })) : 'Invalid device list',
+      devicesLoading,
       timestamp: new Date().toISOString()
     });
-    
-    // Force a re-render whenever device list changes
-    setForceRenderKey(prev => prev + 1);
-    
-    // Show toast when devices change
-    if (deviceCount > 0) {
-      toast.success(`Found ${deviceCount} microphone(s)`, {
-        id: "device-list-updated",
-        duration: 3000
-      });
-    }
-  }, [audioDevices, permissionState, permissionStatus, deviceCount]);
+  }, [audioDevices, selectedDeviceId, isReady, permissionState, devicesLoading]);
   
-  // Improved device change handler with validation and debugging
-  const handleDeviceChange = (value: string) => {
-    if (!value) {
-      console.warn('[DeviceSelector] Empty device ID received, ignoring selection');
-      return;
-    }
-    
-    console.log('[DeviceSelector] Manual device selection:', {
-      newDevice: value,
-      previousSelection: selectedDeviceId,
-      lastManualSelection,
-      time: new Date().toISOString()
-    });
-    
-    // Validate device exists in list
-    const deviceExists = Array.isArray(audioDevices) && audioDevices.some(d => d && d.deviceId === value);
-    if (!deviceExists) {
-      console.error('[DeviceSelector] Selected device not in device list!', {
-        selectedValue: value,
-        availableDevices: Array.isArray(audioDevices) ? audioDevices.map(d => d.deviceId) : 'No devices'
-      });
-      
-      toast.error("Device selection error", {
-        description: "The selected device was not found in the available devices list",
-        id: "device-selection-error"
-      });
-      return;
-    }
-    
-    // Track manual selection
-    setLastManualSelection(value);
-    setSelectionTime(Date.now());
-    
-    // Mark that a selection was made to prevent auto-selection override
-    setHasAttemptedSelection(true);
-    
-    // Call the provided callback to update parent component
-    onDeviceSelect(value);
-    
-    // Log that the selection was dispatched
-    console.log('[DeviceSelector] Device selection dispatched');
-    
-    // Check after a timeout if the selection was applied
-    setTimeout(() => {
-      console.log('[DeviceSelector] Selection verification check:', {
-        expected: value,
-        actual: selectedDeviceId,
-        selectionApplied: value === selectedDeviceId
-      });
-      
-      if (value !== selectedDeviceId) {
-        console.warn('[DeviceSelector] Selection not applied!');
-      }
-    }, 300);
-  };
-
-  // If selected device is not in the list but we have devices, select the first one
+  // Auto-select first device if permission is granted and we have devices
   useEffect(() => {
-    if (deviceCount > 0 && selectedDeviceId) {
-      const deviceExists = audioDevices.some(d => d && d.deviceId === selectedDeviceId);
-      
-      if (!deviceExists) {
-        console.warn('[DeviceSelector] Selected device no longer exists in list:', {
-          selectedDeviceId,
-          availableDevices: audioDevices.map(d => d.deviceId)
-        });
-        
-        // Only auto-select if no manual selection was made recently
-        const now = Date.now();
-        const elapsed = now - selectionTime;
-        
-        if (elapsed > 3000) { // Only override if last manual selection was more than 3 seconds ago
-          const firstDeviceId = audioDevices[0].deviceId;
-          console.log('[DeviceSelector] Auto-selecting first available device:', firstDeviceId);
-          onDeviceSelect(firstDeviceId);
-        }
-      }
+    if (permissionState === 'granted' && audioDevices.length > 0 && !selectedDeviceId && !disabled) {
+      console.log('[DeviceSelector] Auto-selecting first device:', audioDevices[0].deviceId);
+      onDeviceSelect(audioDevices[0].deviceId);
     }
-  }, [audioDevices, selectedDeviceId, selectionTime, onDeviceSelect, deviceCount]);
+  }, [audioDevices, selectedDeviceId, permissionState, disabled, onDeviceSelect]);
 
-  // Use our hook for auto-refresh
-  useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
-  
-  // Debug info
-  const debugInfo = {
-    hasDevices: deviceCount > 0,
-    deviceCount,
-    selectedDevice: selectedDeviceId,
-    permissionRequested: !!permissionStatus
-  };
-
-  // Calculate if select should be disabled
-  const isSelectDisabled = 
-    disabled || 
-    permissionState === 'denied' || 
-    (deviceCount === 0 && !devicesLoading); // Allow interaction during loading
-
-  // Find selected device name for display
-  let selectedDeviceName = "Select a microphone";
-  
-  if (selectedDeviceId && deviceCount > 0) {
-    const selectedDevice = audioDevices.find(d => d && d.deviceId === selectedDeviceId);
-    if (selectedDevice) {
-      selectedDeviceName = formatDeviceLabel(selectedDevice, 0);
-    } else {
-      console.warn('[DeviceSelector] Selected device not found in device list:', {
-        selectedDeviceId,
-        availableDevices: audioDevices.map(d => d && d.deviceId)
-      });
-    }
-  }
-  
-  // Determine if we should show warnings or info
-  const showNoDevicesWarning = deviceCount === 0 && isReady && !devicesLoading && permissionState !== 'denied';
-  const showPermissionRequest = permissionState === 'prompt' || (permissionState === 'denied' && deviceCount === 0);
-  const showAutoSelection = permissionState === 'granted' && deviceCount > 0;
-
-  // Handle force refresh
-  const handleForceRefresh = () => {
-    if (onRefreshDevices) {
-      console.log('[DeviceSelector] Force refreshing devices');
-      onRefreshDevices();
+  const toggleDropdown = () => {
+    if (!disabled && !devicesLoading) {
+      setIsOpen(!isOpen);
     }
   };
 
+  const handleSelect = (deviceId: string) => {
+    console.log('[DeviceSelector] Selecting device:', deviceId);
+    onDeviceSelect(deviceId);
+    setIsOpen(false);
+    
+    // Show success toast when a device is selected
+    const device = audioDevices.find(d => d.deviceId === deviceId);
+    toast.success(`Selected: ${device?.label || 'Microphone'}`, {
+      duration: 2000
+    });
+  };
+  
+  const handleRefresh = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent dropdown toggle
+    
+    if (!onRefreshDevices || devicesLoading) return;
+    
+    console.log('[DeviceSelector] Refreshing devices');
+    
+    try {
+      await onRefreshDevices();
+      toast.success("Refreshed microphone list");
+    } catch (error) {
+      console.error('[DeviceSelector] Error refreshing devices:', error);
+      toast.error("Failed to refresh microphones");
+    }
+  };
+
+  const selectedDevice = audioDevices.find(device => device.deviceId === selectedDeviceId);
+  
+  // Determine if we need to request permissions
+  const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
+  
   return (
-    <div className="space-y-2" key={forceRenderKey}>
-      <div className="flex items-center justify-between">
-        <DeviceSelectorLabel 
-          permissionStatus={permissionState === 'unknown' ? permissionStatus : permissionState} 
-        />
-        <RefreshDevicesButton 
-          onRefreshDevices={handleForceRefresh} 
-          isLoading={devicesLoading || isRequesting}
-          deviceCount={deviceCount}
-        />
+    <div className="w-full">
+      <div className="text-sm font-medium mb-2 text-gray-700 flex items-center justify-between">
+        <span>Select Microphone</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-blue-600">{audioDevices.length} found</span>
+          {onRefreshDevices && (
+            <button 
+              onClick={handleRefresh}
+              disabled={devicesLoading}
+              className="p-1 rounded-full hover:bg-blue-100 text-blue-600"
+              title="Refresh microphone list"
+            >
+              <RefreshCw className={`h-3 w-3 ${devicesLoading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+        </div>
       </div>
       
-      {/* Source debugging info - CRITICAL */}
-      <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-        <div><strong>Devices:</strong> {deviceCount} found | <strong>Permission:</strong> {permissionState} | <strong>Local Permission:</strong> {permissionStatus}</div>
-        <div><strong>Device Selection Ready:</strong> {isReady ? 'Yes' : 'No'} | <strong>Loading:</strong> {devicesLoading ? 'Yes' : 'No'}</div>
-      </div>
-
-      {/* Auto-selection logic - only show when permission granted */}
-      {showAutoSelection && (
-        <DeviceAutoSelection
-          deviceList={audioDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          hasAttemptedSelection={hasAttemptedSelection}
-          setHasAttemptedSelection={setHasAttemptedSelection}
-        />
-      )}
-
-      {showPermissionRequest ? (
-        <DevicePermissionRequest 
-          onRequestPermission={handleRequestPermission}
-          isRequesting={isRequesting}
-        />
-      ) : (
-        <Select
-          value={selectedDeviceId || ""}
-          onValueChange={handleDeviceChange}
-          disabled={isSelectDisabled}
+      {/* Microphone Selector Dropdown */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={toggleDropdown}
+          disabled={disabled || devicesLoading}
+          className={`flex items-center justify-between w-full p-3 bg-white border ${isOpen ? 'border-blue-300 ring-2 ring-blue-500' : 'border-gray-300'} rounded-md text-left text-gray-700 shadow-sm hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
         >
-          <DeviceSelectTrigger 
-            selectedDeviceName={selectedDeviceName}
-            isDisabled={isSelectDisabled}
-            isLoading={devicesLoading}
-          />
-          <DeviceSelectContent deviceList={audioDevices} isLoading={devicesLoading} />
-        </Select>
-      )}
+          {selectedDevice ? (
+            <span className="truncate flex items-center">
+              <Mic className="h-4 w-4 mr-2 text-blue-500" />
+              {selectedDevice.label || `Microphone ${audioDevices.indexOf(selectedDevice) + 1}`}
+            </span>
+          ) : audioDevices.length > 0 ? (
+            <span className="truncate text-amber-600">Select a microphone</span>
+          ) : needsPermission ? (
+            <span className="truncate flex items-center text-amber-600">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Allow microphone access
+            </span>
+          ) : (
+            <span className="truncate flex items-center text-gray-500">
+              <AlertCircle className="h-4 w-4 mr-2 text-amber-500" />
+              No microphones found
+            </span>
+          )}
+          <ChevronDown className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+        
+        {/* Device List Dropdown */}
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+            {audioDevices.length === 0 ? (
+              <div className="p-3 text-amber-500 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-2" />
+                No microphones found
+              </div>
+            ) : (
+              <>
+                {audioDevices.map((device, index) => (
+                  <button
+                    key={device.deviceId}
+                    type="button"
+                    className={`w-full text-left p-3 hover:bg-gray-100 ${
+                      device.deviceId === selectedDeviceId ? 'bg-blue-50 text-blue-600 font-medium' : ''
+                    } flex items-center`}
+                    onClick={() => handleSelect(device.deviceId)}
+                  >
+                    <Mic className={`h-4 w-4 mr-2 ${device.deviceId === selectedDeviceId ? 'text-blue-500' : 'text-gray-500'}`} />
+                    <div className="flex flex-col">
+                      <span>{device.label || `Microphone ${index + 1}`}</span>
+                      {device.isDefault && (
+                        <span className="text-xs text-green-600">Default device</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+            
+            {/* Refresh option at bottom of list */}
+            {onRefreshDevices && (
+              <button
+                type="button"
+                className="w-full text-left p-3 hover:bg-gray-100 text-blue-600 flex items-center justify-center border-t border-gray-200"
+                onClick={handleRefresh}
+                disabled={devicesLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${devicesLoading ? 'animate-spin' : ''}`} />
+                Refresh Microphone List
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       
-      {permissionState === 'denied' && <DevicePermissionError />}
-      
-      <NoDevicesMessage 
-        showWarning={showNoDevicesWarning} 
-        onRefresh={onRefreshDevices}
-        permissionState={permissionState}
-        audioDevices={audioDevices}
-      />
-      
-      <DeviceDebugInfo 
-        deviceCount={deviceCount} 
-        selectedDeviceId={selectedDeviceId} 
-        isLoading={devicesLoading}
-        permissionState={permissionState}
-        showDetails={true}
-      />
+      {/* Permission state and device info */}
+      <div className="mt-1 text-xs text-gray-500 flex justify-between">
+        <div>Devices: {audioDevices.length}</div>
+        <div className={`${permissionState === 'granted' ? 'text-green-600' : 
+                       permissionState === 'denied' ? 'text-red-600' : 'text-amber-600'}`}>
+          Permission: {permissionState}
+        </div>
+      </div>
     </div>
   );
 }

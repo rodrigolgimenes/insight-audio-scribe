@@ -1,25 +1,46 @@
 
 /**
- * Extended AudioDevice type that includes additional properties
+ * Represents an audio input device with additional metadata.
  */
-export interface AudioDevice extends MediaDeviceInfo {
+export interface AudioDevice {
+  deviceId: string;
+  label: string;
+  groupId: string;
+  kind: string;
   isDefault: boolean;
-  displayName: string;
   index: number;
+  displayName?: string;
+  toJSON?: () => object;
 }
 
 /**
- * Helper to convert from MediaDeviceInfo to AudioDevice with better naming
+ * Converts a MediaDeviceInfo to an AudioDevice with additional properties.
  */
-export function toAudioDevice(device: MediaDeviceInfo, isDefault: boolean = false, index: number = 0): AudioDevice {
+export function toAudioDevice(
+  device: MediaDeviceInfo,
+  isDefault: boolean = false,
+  index: number = 0
+): AudioDevice {
   return {
     deviceId: device.deviceId,
+    label: device.label || `Microphone ${index + 1}`,
     groupId: device.groupId,
     kind: device.kind,
-    label: device.label,
     isDefault,
-    displayName: device.label || `Microphone ${index + 1}`,
     index,
-    toJSON: device.toJSON
+    displayName: device.label || `Microphone ${index + 1}`,
+    toJSON: () => ({
+      deviceId: device.deviceId,
+      label: device.label,
+      groupId: device.groupId,
+      kind: device.kind,
+      isDefault,
+      index
+    })
   };
 }
+
+/**
+ * Type for permission states
+ */
+export type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
