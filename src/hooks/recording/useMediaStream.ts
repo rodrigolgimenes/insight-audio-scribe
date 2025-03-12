@@ -10,7 +10,9 @@ export const useMediaStream = (
   setLastAction: (action: {action: string, timestamp: number, success: boolean, error?: string} | null) => void
 ) => {
   const { requestMicrophoneAccess } = useAudioCapture();
-  const { captureSystemAudio } = useSystemAudio(() => {});
+  const { captureSystemAudio } = useSystemAudio((enabled) => {
+    console.log('System audio enabled:', enabled);
+  });
 
   // Wrapper function to request access with action tracking
   const requestMicAccess = useCallback(async (deviceId: string | null, isSystemAudio: boolean) => {
@@ -23,7 +25,13 @@ export const useMediaStream = (
       
       let stream;
       if (isSystemAudio) {
-        stream = await captureSystemAudio();
+        // First get the microphone stream
+        const micStream = await requestMicrophoneAccess(deviceId);
+        if (!micStream) {
+          throw new Error('Failed to get microphone stream');
+        }
+        // Then use it to capture system audio
+        stream = await captureSystemAudio(micStream);
       } else {
         stream = await requestMicrophoneAccess(deviceId);
       }
