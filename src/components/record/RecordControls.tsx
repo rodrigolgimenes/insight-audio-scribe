@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Mic, Pause, Play } from "lucide-react";
+import { Mic, Pause, Play, Square } from "lucide-react";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -31,14 +31,21 @@ export const RecordControls = ({
   showPlayButton = true,
   showDeleteButton = true,
 }: RecordControlsProps) => {
+  console.log('[RecordControls] Rendering with state:', { 
+    isRecording, 
+    isPaused, 
+    hasRecording, 
+    disabled 
+  });
+
   return (
     <div className="flex items-center justify-center gap-6">
-      {showPlayButton && (
+      {showPlayButton && hasRecording && !isRecording && (
         <Button
           size="icon"
           variant="outline"
           className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
-          disabled={!hasRecording || isRecording || disabled}
+          disabled={disabled}
           onClick={onPlay}
         >
           <Play className="w-6 h-6 text-[#9b87f5]" />
@@ -46,15 +53,27 @@ export const RecordControls = ({
       )}
       
       {isRecording ? (
-        <Button
-          size="icon"
-          variant="default"
-          className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
-          onClick={isPaused ? onResumeRecording : onPauseRecording}
-          disabled={disabled}
-        >
-          {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
-        </Button>
+        <>
+          <Button
+            size="icon"
+            variant="default"
+            className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
+            onClick={isPaused ? onResumeRecording : onPauseRecording}
+            disabled={disabled}
+          >
+            {isPaused ? <Mic className="w-10 h-10" /> : <Pause className="w-10 h-10" />}
+          </Button>
+          
+          <Button
+            size="icon"
+            variant="outline"
+            className="w-14 h-14 rounded-full border-2 bg-[#F8F9FE]"
+            onClick={onStopRecording}
+            disabled={disabled}
+          >
+            <Square className="w-6 h-6 text-[#9b87f5]" />
+          </Button>
+        </>
       ) : (
         <Button
           size="icon"

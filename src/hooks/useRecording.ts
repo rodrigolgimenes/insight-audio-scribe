@@ -45,10 +45,16 @@ export const useRecording = () => {
   }, []);
 
   const handleStartRecording = async () => {
+    console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
+    if (!selectedDeviceId) {
+      console.error('[useRecording] No device selected for recording');
+      return;
+    }
     await startRecording(selectedDeviceId);
   };
 
   const handleStopRecording = async () => {
+    console.log('[useRecording] Stopping recording');
     return await stopRecording();
   };
 

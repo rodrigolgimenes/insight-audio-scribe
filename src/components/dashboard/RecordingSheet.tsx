@@ -21,11 +21,14 @@ export function RecordingSheet() {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
-    handleSaveRecording
+    handleSaveRecording,
+    handleDelete
   } = useRecording();
 
   const handleTimeLimit = () => {
-    handleStopRecording().then(() => {});
+    handleStopRecording().then(() => {
+      console.log('[RecordingSheet] Recording stopped due to time limit');
+    });
   };
 
   return (
@@ -43,17 +46,19 @@ export function RecordingSheet() {
           mediaStream={mediaStream}
           isSystemAudio={isSystemAudio}
           handleStartRecording={handleStartRecording}
-          handleStopRecording={() => handleStopRecording().then(() => {})}
+          handleStopRecording={() => handleStopRecording().then(() => {
+            console.log('[RecordingSheet] Recording stopped manually');
+          })}
           handlePauseRecording={handlePauseRecording}
           handleResumeRecording={handleResumeRecording}
-          handleDelete={() => {}}
+          handleDelete={handleDelete}
           handleTimeLimit={handleTimeLimit}
           onSystemAudioChange={setIsSystemAudio}
           audioDevices={audioDevices}
           selectedDeviceId={selectedDeviceId}
           onDeviceSelect={setSelectedDeviceId}
           showPlayButton={false}
-          showDeleteButton={false}
+          showDeleteButton={true}
         />
 
         <div className="mt-6 flex justify-center">

@@ -8,16 +8,17 @@ export const useDeviceSelection = () => {
 
   useEffect(() => {
     const initDevices = async () => {
+      console.log('[useDeviceSelection] Initializing audio devices');
       await getAudioDevices();
     };
     
     initDevices();
   }, []);
 
-  // This effect sets the selected device to the first device in the list when available
+  // This effect sets the selected device to the default device when available
   useEffect(() => {
     if (defaultDeviceId && !selectedDeviceId) {
-      console.log('[useDeviceSelection] Setting first device as default:', defaultDeviceId);
+      console.log('[useDeviceSelection] Setting default device:', defaultDeviceId);
       setSelectedDeviceId(defaultDeviceId);
     }
   }, [defaultDeviceId, selectedDeviceId]);

@@ -34,6 +34,7 @@ export const useRecordingLifecycle = () => {
   const logger = useRef(new RecordingLogger());
 
   const initializeRecorder = () => {
+    console.log('[useRecordingLifecycle] Initializing recorder');
     audioRecorder.current.addObserver(logger.current);
     return () => {
       audioRecorder.current.removeObserver(logger.current);
@@ -41,7 +42,17 @@ export const useRecordingLifecycle = () => {
   };
 
   const handleStartRecording = async (selectedDeviceId: string | null) => {
-    console.log('[useRecordingLifecycle] Starting recording process');
+    console.log('[useRecordingLifecycle] Starting recording process with device:', selectedDeviceId);
+    
+    if (!selectedDeviceId) {
+      console.error('[useRecordingLifecycle] No device selected for recording');
+      toast({
+        title: "Error",
+        description: "Please select a microphone first.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (!session?.user) {
       toast({
@@ -55,7 +66,10 @@ export const useRecordingLifecycle = () => {
 
     try {
       const stream = await requestMicrophoneAccess(selectedDeviceId, isSystemAudio);
-      if (!stream) return;
+      if (!stream) {
+        console.error('[useRecordingLifecycle] Failed to get media stream');
+        return;
+      }
 
       setMediaStream(stream);
       await audioRecorder.current.startRecording(stream);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MIC_CONSTRAINTS } from "./audioConfig";
@@ -19,6 +20,7 @@ export const useAudioCapture = () => {
 
   const getAudioDevices = async (): Promise<AudioDevice[]> => {
     try {
+      console.log('[useAudioCapture] Requesting microphone permission for device enumeration');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       const devices = await navigator.mediaDevices.enumerateDevices();
       
@@ -51,7 +53,7 @@ export const useAudioCapture = () => {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       toast({
         title: "Error",
-        description: "Could not list audio devices",
+        description: "Could not list audio devices. Please check your browser permissions.",
         variant: "destructive",
       });
       return [];
