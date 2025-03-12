@@ -7,7 +7,7 @@ import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
-  audioDevices?: AudioDevice[]; // Allow AudioDevice array
+  audioDevices?: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   isReady?: boolean;
@@ -25,7 +25,7 @@ export function DeviceSelector({
   hasDevices = true,
 }: DeviceSelectorProps) {
   // Use audioDevices if provided, otherwise use devices
-  const deviceList = audioDevices || devices;
+  const deviceList = audioDevices || devices || [];
   
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
   const [debugInfo, setDebugInfo] = useState<{
@@ -40,38 +40,15 @@ export function DeviceSelector({
     permissionRequested: false
   });
 
-  // Should select dropdown be disabled?
   const isSelectDisabled = disabled || deviceList.length === 0;
 
-  useEffect(() => {
-    // Update debug info whenever relevant props change
-    setDebugInfo({
-      hasDevices: deviceList.length > 0,
-      deviceCount: deviceList.length,
-      selectedDevice: selectedDeviceId,
-      permissionRequested: permissionStatus !== null
-    });
-    
-    // Log device information
-    console.log('[DeviceSelector] Devices:', deviceList.length, 'Selected:', selectedDeviceId);
-    deviceList.forEach((device, index) => {
-      const deviceId = device.deviceId || "unknown";
-      const shortId = deviceId.substring(0, 8) + '...';
-      console.log(`[DeviceSelector] Device ${index}:`, device.label || "Unnamed device", shortId);
-    });
-  }, [deviceList, selectedDeviceId, permissionStatus]);
-
-  // Check permission status
   useEffect(() => {
     const checkPermissions = async () => {
       try {
         const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
         setPermissionStatus(result.state);
-        console.log('[DeviceSelector] Permission status:', result.state);
         
-        // Listen for permission changes
         result.addEventListener('change', () => {
-          console.log('[DeviceSelector] Permission changed:', result.state);
           setPermissionStatus(result.state);
         });
       } catch (error) {
@@ -82,17 +59,19 @@ export function DeviceSelector({
     checkPermissions();
   }, []);
 
-  // Auto-select first device if none selected and devices are available
   useEffect(() => {
     if (deviceList.length > 0 && !selectedDeviceId && !disabled) {
-      console.log('[DeviceSelector] Auto-selecting first device');
-      onDeviceSelect(deviceList[0].deviceId);
+      const firstDevice = deviceList[0];
+      if (firstDevice && firstDevice.deviceId) {
+        onDeviceSelect(firstDevice.deviceId);
+      }
     }
   }, [deviceList, selectedDeviceId, onDeviceSelect, disabled]);
 
   const handleDeviceChange = (value: string) => {
-    console.log('[DeviceSelector] Device changed to:', value);
-    onDeviceSelect(value);
+    if (value) {
+      onDeviceSelect(value);
+    }
   };
 
   return (
@@ -143,27 +122,24 @@ export function DeviceSelector({
             </SelectItem>
           ) : (
             deviceList.map((device) => (
-              <SelectItem key={device.deviceId} value={device.deviceId}>
-                {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+              <SelectItem 
+                key={device.deviceId || 'unknown'} 
+                value={device.deviceId || 'unknown'}
+              >
+                {device.label || `Microphone ${(device.deviceId || 'unknown').substring(0, 5)}...`}
               </SelectItem>
             ))
           )}
         </SelectContent>
       </Select>
       
-      {/* Debug information */}
       <div className="text-xs text-gray-500 mt-1">
-        <div>Devices: {debugInfo.deviceCount} found</div>
-        {debugInfo.selectedDevice && (
+        <div>Devices: {deviceList.length} found</div>
+        {selectedDeviceId && (
           <div className="truncate max-w-full">
-            Selected ID: {debugInfo.selectedDevice.substring(0, 10)}...
+            Selected ID: {selectedDeviceId.substring(0, 10)}...
           </div>
         )}
-        {deviceList.length === 0 ? (
-          <div className="text-amber-500">No devices available</div>
-        ) : !selectedDeviceId ? (
-          <div className="text-amber-500">Waiting for selection...</div>
-        ) : null}
       </div>
     </div>
   );

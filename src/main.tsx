@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
@@ -15,11 +14,13 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Service Worker registration and update handling
-if ('serviceWorker' in navigator) {
+// Service Worker registration
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/'
+      });
       
       // Handle updates
       registration.addEventListener('updatefound', () => {
@@ -37,15 +38,10 @@ if ('serviceWorker' in navigator) {
         }
       });
 
-      console.log('ServiceWorker registered successfully:', registration.scope);
+      console.log('ServiceWorker registration successful:', registration.scope);
     } catch (error) {
       console.error('ServiceWorker registration failed:', error);
     }
-  });
-
-  // Handle controller change
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('New ServiceWorker activated');
   });
 }
 

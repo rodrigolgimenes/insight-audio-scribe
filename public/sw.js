@@ -1,4 +1,5 @@
 
+// Cache version and name
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `lovable-cache-${CACHE_VERSION}`;
 
@@ -7,12 +8,6 @@ const STATIC_RESOURCES = [
   '/index.html',
   '/favicon.ico',
 ];
-
-// Cache manager
-const cacheManager = new Worker('/cache-worker.js');
-cacheManager.onmessage = (event) => {
-  console.log('[Service Worker] Cache cleanup status:', event.data);
-};
 
 // Install event - cache static resources
 self.addEventListener('install', (event) => {
@@ -31,10 +26,14 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       await self.clients.claim(); // Take control of all clients
-      cacheManager.postMessage({ 
-        type: 'CLEAN_OLD_CACHES', 
-        cacheVersion: CACHE_NAME 
-      });
+      
+      // Delete old caches
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames
+          .filter(cacheName => cacheName !== CACHE_NAME)
+          .map(cacheName => caches.delete(cacheName))
+      );
     })()
   );
 });
@@ -43,13 +42,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
-      // Try to get the response from cache
-      const cachedResponse = await caches.match(event.request);
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
       try {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
         const response = await fetch(event.request);
         
         // Don't cache non-GET requests or failed responses
