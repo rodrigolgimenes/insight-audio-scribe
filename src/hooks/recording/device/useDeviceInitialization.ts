@@ -6,7 +6,7 @@ import { AudioDevice } from "@/hooks/recording/capture/types";
  * Hook for handling initial device setup and changes
  */
 export const useDeviceInitialization = (
-  refreshDevices: () => Promise<AudioDevice[]>,
+  refreshDevices: () => Promise<{ devices: AudioDevice[]; defaultId: string | null }>,
   deviceInitializationAttempted: React.MutableRefObject<boolean>,
   audioDevices: AudioDevice[],
   selectedDeviceId: string | null,

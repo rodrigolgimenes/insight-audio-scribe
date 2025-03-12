@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -135,10 +136,10 @@ export const useRobustDeviceDetection = (
   }, []);
 
   // Enhanced device detection with improved error handling and recovery strategies
-  const detectDevices = useCallback(async (forceRefresh = false): Promise<AudioDevice[]> => {
+  const detectDevices = useCallback(async (forceRefresh = false): Promise<{devices: AudioDevice[], defaultId: string | null}> => {
     if (detectionInProgressRef.current && !forceRefresh) {
       console.log('[useRobustDeviceDetection] Device detection already in progress, skipping duplicate request');
-      return devices;
+      return { devices, defaultId: null };
     }
     
     detectionInProgressRef.current = true;
@@ -150,23 +151,25 @@ export const useRobustDeviceDetection = (
       const hasPermission = await requestPermission(false);
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
-        return [];
+        return { devices: [], defaultId: null };
       }
       
       if (!hasPermission) {
         console.warn('[useRobustDeviceDetection] Permission not granted, cannot enumerate devices');
         setIsLoading(false);
         detectionInProgressRef.current = false;
-        return [];
+        return { devices: [], defaultId: null };
       }
       
       // Get devices with our existing function
       console.log('[useRobustDeviceDetection] Fetching devices...');
-      const { devices: newDevices } = await getAudioDevices();
+      const result = await getAudioDevices();
+      const newDevices = result.devices;
+      const defaultId = result.defaultId;
       
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
-        return [];
+        return { devices: [], defaultId: null };
       }
       
       console.log(`[useRobustDeviceDetection] Found ${newDevices.length} devices`);
@@ -203,13 +206,13 @@ export const useRobustDeviceDetection = (
       
       setIsLoading(false);
       detectionInProgressRef.current = false;
-      return newDevices;
+      return { devices: newDevices, defaultId };
     } catch (err) {
       console.error('[useRobustDeviceDetection] Error detecting devices:', err);
       
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
-        return [];
+        return { devices: [], defaultId: null };
       }
       
       setIsLoading(false);
@@ -226,7 +229,7 @@ export const useRobustDeviceDetection = (
         });
       }
       
-      return [];
+      return { devices: [], defaultId: null };
     }
   }, [devices, getAudioDevices, requestPermission, refreshAttempts]);
 
@@ -260,7 +263,6 @@ export const useRobustDeviceDetection = (
     
     return () => {
       mountedRef.current = false;
-      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };
   }, [detectDevices]);
 

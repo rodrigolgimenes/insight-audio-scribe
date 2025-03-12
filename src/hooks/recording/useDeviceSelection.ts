@@ -6,6 +6,7 @@ import { useDeviceValidation } from "./device/useDeviceValidation";
 import { useDeviceRefresh } from "./device/useDeviceRefresh";
 import { useDeviceInitialization } from "./device/useDeviceInitialization";
 import { useRobustDeviceDetection } from "./device/useRobustDeviceDetection";
+import { AudioDevice } from "./capture/types";
 
 /**
  * Main hook for device selection management
@@ -66,7 +67,8 @@ export const useDeviceSelection = () => {
       permissionCheckedRef.current = true;
       
       // Perform the device detection
-      const devices = await detectDevices(true);
+      const result = await detectDevices(true);
+      const devices = result.devices;
       
       // Logic to select a device if needed
       if (devices.length > 0) {
@@ -83,7 +85,7 @@ export const useDeviceSelection = () => {
         setDeviceSelectionReady(false);
       }
       
-      return { devices, defaultId: null };
+      return result;
     }
     
     return { devices: [], defaultId: null };

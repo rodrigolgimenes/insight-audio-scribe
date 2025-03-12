@@ -34,7 +34,7 @@ export const useDeviceRefresh = (
       if (!hasPermission) {
         console.warn('[useDeviceRefresh] No microphone permission during refresh');
         setDeviceSelectionReady(false);
-        return [];
+        return { devices: [], defaultId: null };
       }
       
       const devices = await getAudioDevices();
@@ -57,11 +57,11 @@ export const useDeviceRefresh = (
         setDeviceSelectionReady(false);
       }
       
-      return devices;
+      return { devices, defaultId: null };
     } catch (error) {
       console.error('[useDeviceRefresh] Error refreshing devices:', error);
       setDeviceSelectionReady(false);
-      return [];
+      return { devices: [], defaultId: null };
     }
   }, [
     checkPermissions, 
