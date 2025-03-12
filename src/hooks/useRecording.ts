@@ -40,7 +40,8 @@ export const useRecording = () => {
   } = useRecordingLifecycle();
 
   useEffect(() => {
-    return initializeRecorder();
+    const cleanup = initializeRecorder();
+    return cleanup;
   }, []);
 
   const handleStartRecording = async () => {
