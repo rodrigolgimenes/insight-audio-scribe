@@ -19,7 +19,11 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
                       error.toLowerCase().includes('timed out');
   const isDurationError = error.toLowerCase().includes('duration');
   const isEdgeFunctionError = error.toLowerCase().includes('edge function') || 
-                            error.toLowerCase().includes('status code');
+                            error.toLowerCase().includes('status code') ||
+                            error.toLowerCase().includes('service unavailable');
+  const isServiceUnavailable = error.toLowerCase().includes('503') ||
+                             error.toLowerCase().includes('service unavailable') ||
+                             error.toLowerCase().includes('unavailable');
 
   // Clean up encoded file paths for better display
   let displayError = error;
@@ -38,7 +42,8 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
     }
   }
 
-  if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && !isTimeoutError && !isDurationError && !isEdgeFunctionError) {
+  if (!isAudioFormatError && !isFileNotFoundError && !isFileSizeError && 
+      !isTimeoutError && !isDurationError && !isEdgeFunctionError && !isServiceUnavailable) {
     return <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{displayError}</div>;
   }
 
@@ -107,15 +112,15 @@ export const ErrorHelpers: React.FC<ErrorHelpersProps> = ({ error }) => {
             </div>
           )}
           
-          {isEdgeFunctionError && (
+          {(isEdgeFunctionError || isServiceUnavailable) && (
             <div className="mt-3">
               <p className="font-medium flex items-center"><Info className="h-4 w-4 mr-1 text-blue-600" /> Tips to resolve:</p>
               <ul className="list-disc ml-6 mt-1 space-y-1">
-                <li>There was a problem with the processing server</li>
-                <li>This is usually a temporary issue</li>
-                <li>Try the 'Retry' button if available</li>
-                <li>If the problem persists, try uploading a different file format</li>
-                <li>Check if your internet connection is stable</li>
+                <li>The transcription service is temporarily unavailable</li>
+                <li>This is a server-side issue that will resolve automatically</li>
+                <li>Wait a few minutes and try the 'Retry' button</li>
+                <li>If the problem persists after several attempts, contact support</li>
+                <li>You can try again later when the service is less busy</li>
               </ul>
             </div>
           )}

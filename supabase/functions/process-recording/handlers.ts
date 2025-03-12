@@ -61,20 +61,53 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
       // Give Storage time to process the file
       await new Promise(resolve => setTimeout(resolve, 5000));
       
-      const { error: transcribeError } = await supabase.functions
-        .invoke(functionToInvoke, {
-          body: { 
-            noteId: note.id,
-            recordingId: recordingId,
-            duration: recording.duration,
-            isLargeFile,
-            isExtremelyLargeFile
-          }
-        });
+      try {
+        const { error: transcribeError } = await supabase.functions
+          .invoke(functionToInvoke, {
+            body: { 
+              noteId: note.id,
+              recordingId: recordingId,
+              duration: recording.duration,
+              isLargeFile,
+              isExtremelyLargeFile
+            }
+          });
 
-      if (transcribeError) {
-        console.error('[process-recording] Transcription error:', transcribeError);
-        throw transcribeError;
+        if (transcribeError) {
+          console.error('[process-recording] Transcription error:', transcribeError);
+          
+          // Check if this is a service unavailable error
+          const isServiceUnavailable = transcribeError.message && (
+            transcribeError.message.includes('503') ||
+            transcribeError.message.includes('Service Unavailable') ||
+            transcribeError.message.includes('non-2xx status code')
+          );
+          
+          if (isServiceUnavailable) {
+            throw new Error('Transcription service is currently unavailable. Please try again in a few minutes.');
+          } else {
+            throw transcribeError;
+          }
+        }
+      } catch (functionError) {
+        // Handle service availability issues specifically
+        const errorMessage = functionError.message || 'Unknown error';
+        const isServiceUnavailable = 
+          errorMessage.includes('503') || 
+          errorMessage.includes('Service Unavailable') ||
+          errorMessage.includes('non-2xx status code');
+          
+        if (isServiceUnavailable) {
+          await handleProcessingError(
+            supabase, 
+            recordingId, 
+            note.id, 
+            new Error('Edge Function service is currently unavailable. Please try again later.')
+          );
+        } else {
+          await handleProcessingError(supabase, recordingId, note.id, functionError);
+        }
+        return;
       }
 
       console.log('[process-recording] Transcription started successfully');

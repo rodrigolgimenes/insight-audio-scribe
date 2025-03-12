@@ -106,7 +106,7 @@ serve(async (req) => {
       }), 
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 // Changed to 200 to avoid CORS issues
+        status: 200 // Always return 200 to avoid CORS issues, even on errors
       }
     );
   }
