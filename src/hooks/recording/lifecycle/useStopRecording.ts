@@ -1,3 +1,4 @@
+
 import { useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { RecordingStateType } from "../useRecordingState";
@@ -18,7 +19,9 @@ export function useStopRecording(
         return { blob: null, duration: 0 };
       }
       
-      const { blob, duration } = await recorder.current.stopRecording();
+      const result = await recorder.current.stopRecording();
+      const { blob } = result;
+      const duration = result.stats.duration;
       
       recordingState.setIsRecording(false);
       recordingState.setIsPaused(false);

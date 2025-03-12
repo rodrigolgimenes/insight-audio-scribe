@@ -1,24 +1,24 @@
 
 export const handleAudioError = (error: unknown, isSystemAudio: boolean): string => {
-  let errorMessage = 'Erro desconhecido';
+  let errorMessage = 'Unknown error';
   
   if (error instanceof Error) {
     if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-      errorMessage = 'Permissão do microfone negada';
+      errorMessage = 'Microphone permission denied';
     } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-      errorMessage = 'Nenhum microfone encontrado';
+      errorMessage = 'No microphone found';
     } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
-      errorMessage = 'O microfone pode estar em uso por outro aplicativo';
+      errorMessage = 'The microphone may be in use by another application';
     } else if (error.name === 'NotSupportedError') {
-      errorMessage = 'Configuração de áudio não suportada. Tente desconectar e reconectar seu dispositivo USB';
+      errorMessage = 'Audio configuration not supported. Try disconnecting and reconnecting your USB device';
     } else if (error.message.includes('No audio tracks available') || error.message.includes('Nenhuma trilha')) {
-      errorMessage = 'Selecione uma fonte com áudio ao compartilhar sua tela';
+      errorMessage = 'Select a source with audio when sharing your screen';
     } else {
       errorMessage = error.message;
     }
   }
 
   return isSystemAudio 
-    ? `Não foi possível capturar o áudio do sistema: ${errorMessage}`
-    : `Não foi possível acessar o microfone: ${errorMessage}`;
+    ? `Could not capture system audio: ${errorMessage}`
+    : `Could not access microphone: ${errorMessage}`;
 };

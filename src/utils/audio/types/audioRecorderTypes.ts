@@ -1,7 +1,7 @@
 
 export interface RecordingResult {
-  blob: Blob;
-  duration: number;
+  blob: Blob | null;
+  stats: RecordingStats;
 }
 
 export interface AudioTrackInfo {
@@ -19,7 +19,7 @@ export interface RecordingStats {
 }
 
 export interface RecordingEvent {
-  type: 'start' | 'stop' | 'pause' | 'resume' | 'dataAvailable' | 'error';
+  type: 'start' | 'stop' | 'pause' | 'resume' | 'dataAvailable' | 'error' | 'complete';
   data?: {
     chunk?: Blob;
     error?: Error;
