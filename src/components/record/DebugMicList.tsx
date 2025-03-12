@@ -29,7 +29,10 @@ export function DebugMicList() {
     console.log('[DebugMicList] Refreshing devices');
     
     try {
-      const refreshedDevices = await detectDevices(true);
+      setIsLoading(true);
+      const result = await detectDevices(true);
+      // We need to access the devices array from the result object
+      const refreshedDevices = result.devices;
       toast.success(`Refreshed microphone list (found ${refreshedDevices.length})`);
       console.log('[DebugMicList] Refresh result:', {
         deviceCount: refreshedDevices.length,
@@ -38,6 +41,8 @@ export function DebugMicList() {
     } catch (error) {
       console.error('[DebugMicList] Error refreshing devices:', error);
       toast.error("Failed to refresh microphones");
+    } finally {
+      setIsLoading(false);
     }
   };
   
