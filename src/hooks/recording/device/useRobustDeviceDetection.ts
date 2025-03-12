@@ -1,5 +1,5 @@
-
 import { useEffect } from "react";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 import { usePermissionRequest } from "./usePermissionRequest";
 import { useDeviceDetection } from "./useDeviceDetection";
 import { usePermissionMonitoring } from "./usePermissionMonitoring";
