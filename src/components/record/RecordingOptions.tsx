@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DeviceSelector } from "./DeviceSelector";
 import { LanguageSelector } from "./LanguageSelector";
 import { SystemAudioToggle } from "./SystemAudioToggle";
@@ -12,7 +12,10 @@ interface RecordingOptionsProps {
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
+  deviceSelectionReady?: boolean;
   onRefreshDevices?: () => void;
+  devicesLoading?: boolean;
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
 export function RecordingOptions({
@@ -22,10 +25,34 @@ export function RecordingOptions({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
-  onRefreshDevices
+  deviceSelectionReady = false,
+  onRefreshDevices,
+  devicesLoading = false,
+  permissionState = 'unknown'
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
   const hasDevices = audioDevices.length > 0;
+
+  // Add logging to track device and permission states
+  useEffect(() => {
+    console.log('[RecordingOptions] State updated:', {
+      compName: 'RecordingOptions',
+      audioDevicesCount: audioDevices.length,
+      selectedDeviceId,
+      deviceSelectionReady,
+      permissionState,
+      hasDevices,
+      devicesLoading
+    });
+  }, [audioDevices.length, selectedDeviceId, deviceSelectionReady, permissionState, hasDevices, devicesLoading]);
+
+  // Log on every render for consistency
+  console.log('[RecordingOptions RENDER]', {
+    compName: 'RecordingOptions',
+    audioDevicesCount: audioDevices.length,
+    permissionState,
+    deviceSelectionReady
+  });
 
   return (
     <div className="space-y-6 mb-8">
@@ -35,8 +62,10 @@ export function RecordingOptions({
         onDeviceSelect={onDeviceSelect}
         disabled={isRecording}
         hasDevices={hasDevices}
-        isReady={true}
+        isReady={deviceSelectionReady}
         onRefreshDevices={onRefreshDevices}
+        devicesLoading={devicesLoading}
+        permissionState={permissionState}
       />
 
       <LanguageSelector

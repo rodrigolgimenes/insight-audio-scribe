@@ -1,17 +1,27 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic } from "lucide-react";
 
 interface DevicePermissionRequestProps {
   onRequestPermission: () => void;
   isRequesting?: boolean;
+  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
 }
 
 export function DevicePermissionRequest({
   onRequestPermission,
-  isRequesting = false
+  isRequesting = false,
+  permissionState = 'prompt'
 }: DevicePermissionRequestProps) {
+  // Log permission state for debugging
+  useEffect(() => {
+    console.log('[DevicePermissionRequest] Component rendered with permission state:', {
+      permissionState,
+      isRequesting
+    });
+  }, [permissionState, isRequesting]);
+
   return (
     <div className="flex flex-col items-center p-4 bg-blue-50 border border-blue-200 rounded-md space-y-3">
       <Mic className="h-10 w-10 text-blue-500" />
@@ -46,6 +56,11 @@ export function DevicePermissionRequest({
         <br />
         <span className="font-semibold mt-1 block">After granting permission, microphones will appear in the dropdown.</span>
       </p>
+      
+      <div className="mt-1 bg-blue-100 p-2 rounded w-full text-xs text-blue-700">
+        <div><strong>Current permission status:</strong> {permissionState}</div>
+        <div><strong>Request state:</strong> {isRequesting ? 'Requesting...' : 'Ready to request'}</div>
+      </div>
     </div>
   );
 }

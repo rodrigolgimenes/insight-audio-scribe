@@ -6,12 +6,21 @@ import { Button } from "@/components/ui/button";
 interface NoDevicesMessageProps {
   showWarning: boolean;
   onRefresh?: () => void;
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
 export function NoDevicesMessage({ 
   showWarning,
-  onRefresh 
+  onRefresh,
+  permissionState = 'unknown'
 }: NoDevicesMessageProps) {
+  // Log when this component shows a warning
+  React.useEffect(() => {
+    if (showWarning) {
+      console.log('[NoDevicesMessage] Showing no devices warning with permission state:', permissionState);
+    }
+  }, [showWarning, permissionState]);
+  
   if (!showWarning) return null;
   
   return (
@@ -40,7 +49,12 @@ export function NoDevicesMessage({
       )}
       
       <div className="mt-3 text-xs text-amber-600 pt-2 border-t border-amber-200 w-full text-center">
-        If you've already granted permission but no microphones appear, try refreshing the page
+        <div>Permission state: <span className="font-semibold">{permissionState}</span></div>
+        <div className="mt-1">
+          {permissionState === 'granted' 
+            ? "Permission is granted but no microphones were found. Try refreshing or reconnecting your device." 
+            : "If you've already granted permission but no microphones appear, try refreshing the page"}
+        </div>
       </div>
     </div>
   );

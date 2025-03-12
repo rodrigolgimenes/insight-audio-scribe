@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -60,9 +59,11 @@ export function DeviceSelector({
   
   // CRITICALLY IMPORTANT: Log detailed device information on EVERY render
   console.log('[DeviceSelector RENDER] Device props received:', {
+    compName: 'DeviceSelector',
     deviceCount: deviceList.length,
     deviceSourceType: audioDevices ? 'audioDevices prop' : devices ? 'devices prop' : 'empty arrays',
     permissionState,
+    permissionStatus,
     isReady,
     hasDevices,
     devicesLoading,
@@ -76,7 +77,10 @@ export function DeviceSelector({
   // Log detailed device list on mount and when it changes
   useEffect(() => {
     console.log('[DeviceSelector] Device list updated:', {
+      compName: 'DeviceSelector',
       deviceCount: deviceList.length,
+      permissionState,
+      localPermissionStatus: permissionStatus,
       devices: deviceList.map(d => ({
         id: d.deviceId,
         label: d.label || 'No label'
@@ -93,7 +97,7 @@ export function DeviceSelector({
         duration: 3000
       });
     }
-  }, [deviceList]);
+  }, [deviceList, permissionState, permissionStatus]);
   
   // Improved device change handler with validation and debugging
   const handleDeviceChange = (value: string) => {
@@ -237,7 +241,7 @@ export function DeviceSelector({
       {/* Source debugging info - IMPORTANT */}
       <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
         <div><strong>Source:</strong> {audioDevices ? 'audioDevices prop' : devices && devices.length > 0 ? 'devices prop' : 'empty arrays'}</div>
-        <div><strong>Devices:</strong> {deviceCount} found | <strong>Permission:</strong> {permissionState}</div>
+        <div><strong>Devices:</strong> {deviceCount} found | <strong>Permission:</strong> {permissionState} | <strong>Local Permission:</strong> {permissionStatus}</div>
       </div>
 
       {/* Auto-selection logic - only show when permission granted */}

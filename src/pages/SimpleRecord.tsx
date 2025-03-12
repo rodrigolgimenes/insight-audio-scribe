@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -24,16 +23,16 @@ const SimpleRecord = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const { isUploading } = useFileUpload();
 
-  // Initialize recording hook outside of try-catch to ensure proper cleanup
   const recordingHook = useRecording();
   
-  // Log devices for debugging
   useEffect(() => {
-    console.log("[SimpleRecord] Recording hook devices:", {
+    console.log("[SimpleRecord RENDER] Recording hook states:", {
+      compName: 'SimpleRecord',
       deviceCount: recordingHook.audioDevices.length,
       selectedDeviceId: recordingHook.selectedDeviceId,
       deviceSelectionReady: recordingHook.deviceSelectionReady,
       permissionState: recordingHook.permissionState,
+      devicesLoading: recordingHook.devicesLoading,
       devices: recordingHook.audioDevices.map(d => ({
         id: d.deviceId,
         label: d.label || 'No label'
@@ -43,10 +42,10 @@ const SimpleRecord = () => {
     recordingHook.audioDevices, 
     recordingHook.selectedDeviceId, 
     recordingHook.deviceSelectionReady,
-    recordingHook.permissionState
+    recordingHook.permissionState,
+    recordingHook.devicesLoading
   ]);
 
-  // If no device is selected but we have devices, auto-select the first one
   useEffect(() => {
     if (
       recordingHook.audioDevices.length > 0 && 
@@ -58,7 +57,6 @@ const SimpleRecord = () => {
     }
   }, [recordingHook.audioDevices, recordingHook.selectedDeviceId, recordingHook.setSelectedDeviceId]);
   
-  // Loading progress simulation with shorter intervals
   useEffect(() => {
     if (!isPageReady) {
       let progress = 0;
@@ -69,13 +67,12 @@ const SimpleRecord = () => {
           clearInterval(interval);
           setIsPageReady(true);
         }
-      }, 100); // Faster loading simulation
+      }, 100);
 
       return () => clearInterval(interval);
     }
   }, []);
 
-  // Handle initialization errors
   useEffect(() => {
     if (recordingHook.initError) {
       PageLoadTracker.trackPhase('Initialization Error Detected', false, recordingHook.initError.message);
@@ -88,7 +85,6 @@ const SimpleRecord = () => {
     }
   }, [recordingHook.initError]);
 
-  // Create a mock saveRecording function that doesn't require actual authentication
   const mockSaveRecording = async () => {
     toast.success("Recording would be saved in production environment");
     return { success: true };
@@ -121,18 +117,25 @@ const SimpleRecord = () => {
 
   const isLoading = recordingHook.isTranscribing || recordingHook.isSaving || isUploading || saveProps.isProcessing;
 
-  // Show loading state if page is not ready
   if (!isPageReady) {
     return <RecordPageLoading loadingProgress={loadingProgress} />;
   }
 
   PageLoadTracker.trackPhase('Render Main Content', true);
   
-  // Force refresh devices on button click
   const handleForceRefresh = () => {
-    console.log("[SimpleRecord] Force refreshing devices");
+    console.log("[SimpleRecord] Force refreshing devices - BEFORE:", {
+      deviceCount: recordingHook.audioDevices.length,
+      permissionState: recordingHook.permissionState
+    });
+    
     if (recordingHook.refreshDevices) {
-      recordingHook.refreshDevices();
+      recordingHook.refreshDevices().then(() => {
+        console.log("[SimpleRecord] Force refresh completed - AFTER:", {
+          deviceCount: recordingHook.audioDevices.length,
+          permissionState: recordingHook.permissionState
+        });
+      });
       toast.info("Forcing device refresh...");
     }
   };
@@ -143,7 +146,6 @@ const SimpleRecord = () => {
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-ghost-white">
           <main className="container mx-auto px-4 py-8 space-y-8">
-            {/* Debug Controls */}
             <Card className="bg-white shadow">
               <CardContent className="p-4">
                 <h2 className="text-lg font-bold mb-2">Debugging Tools</h2>
@@ -172,9 +174,7 @@ const SimpleRecord = () => {
               </CardContent>
             </Card>
             
-            {/* Debug Microphone Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Debug Mic List - Simple version with direct detection */}
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-bold mb-4">Microphones (Simple Detection)</h2>
@@ -182,7 +182,6 @@ const SimpleRecord = () => {
                 </CardContent>
               </Card>
               
-              {/* Device Tester - Full implementation logic */}
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-bold mb-4">Microphones (Complex Detector)</h2>
@@ -191,7 +190,6 @@ const SimpleRecord = () => {
               </Card>
             </div>
             
-            {/* Device Selection State Debug */}
             <Card className="bg-white shadow">
               <CardContent className="p-6">
                 <h2 className="text-xl font-bold mb-4">Device Selection Debug</h2>
@@ -229,7 +227,6 @@ const SimpleRecord = () => {
               </CardContent>
             </Card>
             
-            {/* Original content */}
             <SimpleRecordContent
               recordingHook={recordingHook}
               isLoading={isLoading}
