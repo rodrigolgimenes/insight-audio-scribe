@@ -41,12 +41,37 @@ export const useDeviceEnumeration = (
       
       console.log('[useDeviceEnumeration] Found audio devices:', audioInputs.length);
       
-      // Convert to AudioDevice objects
       // Try to determine the default device
       let foundDefault = false;
       let defaultId = null;
       
-      // Convert to our internal AudioDevice type
+      // Get actual device labels by requesting a stream first if labels are empty
+      const hasEmptyLabels = audioInputs.some(device => !device.label);
+      if (hasEmptyLabels) {
+        try {
+          console.log('[useDeviceEnumeration] Requesting temporary stream to get device labels');
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          
+          // Now that we have permission, enumerate devices again to get labels
+          const devicesWithLabels = await navigator.mediaDevices.enumerateDevices();
+          const audioInputsWithLabels = devicesWithLabels.filter(device => device.kind === 'audioinput');
+          
+          // Stop the temporary stream
+          tempStream.getTracks().forEach(track => track.stop());
+          
+          // Replace our audioInputs with the ones that have labels
+          if (audioInputsWithLabels.length > 0) {
+            console.log('[useDeviceEnumeration] Retrieved devices with labels');
+            audioInputs.length = 0;
+            audioInputs.push(...audioInputsWithLabels);
+          }
+        } catch (error) {
+          console.error('[useDeviceEnumeration] Error getting device labels:', error);
+          // Continue with the devices we have, even without labels
+        }
+      }
+      
+      // Convert to our internal AudioDevice type with proper labels
       const convertedDevices = audioInputs.map((device, index) => {
         // Check if this is likely the default device
         // Usually the first device in the list without a specific deviceId
@@ -59,8 +84,8 @@ export const useDeviceEnumeration = (
           setDefaultDeviceId(device.deviceId);
         }
         
-        // Create our AudioDevice object
-        return toAudioDevice(device, isDefault);
+        // Create our AudioDevice object with a meaningful display name
+        return toAudioDevice(device, isDefault, index);
       });
       
       setAudioDevices(convertedDevices);

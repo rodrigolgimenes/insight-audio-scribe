@@ -24,7 +24,7 @@ export function DeviceSelector({
   disabled = false,
   hasDevices = true,
 }: DeviceSelectorProps) {
-  // Safely handle device lists
+  // Use audioDevices if provided, otherwise fall back to devices
   const deviceList = audioDevices || devices || [];
   
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
@@ -69,8 +69,11 @@ export function DeviceSelector({
   useEffect(() => {
     if (Array.isArray(deviceList) && deviceList.length > 0 && !selectedDeviceId && !disabled) {
       const firstDevice = deviceList[0];
-      if (firstDevice && typeof firstDevice === 'object' && firstDevice.deviceId) {
-        onDeviceSelect(firstDevice.deviceId);
+      if (firstDevice && typeof firstDevice === 'object') {
+        const deviceId = firstDevice.deviceId || '';
+        if (deviceId) {
+          onDeviceSelect(deviceId);
+        }
       }
     }
   }, [deviceList, selectedDeviceId, onDeviceSelect, disabled]);
@@ -83,6 +86,24 @@ export function DeviceSelector({
 
   // Safely get device count
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
+
+  // Format device label to be more readable
+  const formatDeviceLabel = (device: MediaDeviceInfo | AudioDevice, index: number): string => {
+    if (!device) return `Microphone ${index + 1}`;
+    
+    // Check if label is available and not empty
+    if (device.label && device.label.trim() !== '') {
+      return device.label;
+    }
+    
+    // If AudioDevice, check displayName
+    if ('displayName' in device && device.displayName && device.displayName.trim() !== '') {
+      return device.displayName;
+    }
+    
+    // Fall back to a numbered microphone if no label is available
+    return `Microphone ${index + 1}`;
+  };
 
   return (
     <div className="space-y-2">
@@ -141,10 +162,11 @@ export function DeviceSelector({
                 );
               }
               
-              // Safely extract deviceId and label with fallbacks
+              // Safely extract deviceId with fallbacks
               const deviceId = device.deviceId || `unknown-${index}`;
-              // Ensure we safely handle the label and substring operation
-              const label = device.label || `Microphone ${index + 1}`;
+              
+              // Format the label properly
+              const label = formatDeviceLabel(device, index);
               
               return (
                 <SelectItem 
