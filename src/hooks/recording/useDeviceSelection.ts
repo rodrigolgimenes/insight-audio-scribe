@@ -6,10 +6,18 @@ import { toast } from "sonner";
 export const useDeviceSelection = () => {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
-  const { getAudioDevices, audioDevices, defaultDeviceId, requestMicrophoneAccess, checkPermissions } = useAudioCapture();
+  const { 
+    getAudioDevices, 
+    audioDevices, 
+    defaultDeviceId, 
+    requestMicrophoneAccess, 
+    checkPermissions 
+  } = useAudioCapture();
+  
   const deviceInitializationAttempted = useRef(false);
   const selectionInProgressRef = useRef(false);
   const lastSelectedDeviceRef = useRef<string | null>(null);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
     // Prevent duplicate selections of the same device
@@ -25,13 +33,6 @@ export const useDeviceSelection = () => {
       setDeviceSelectionReady(true);
       lastSelectedDeviceRef.current = deviceId;
       console.log('[useDeviceSelection] Device selected successfully:', deviceId);
-      
-      // Show toast only when selection changes
-      if (deviceId !== lastSelectedDeviceRef.current) {
-        toast.success("Microphone selected successfully", {
-          id: "mic-selected" // Use ID to prevent duplicates
-        });
-      }
     } else {
       console.warn('[useDeviceSelection] Attempted to select invalid device ID:', deviceId);
       setDeviceSelectionReady(false);
@@ -40,6 +41,33 @@ export const useDeviceSelection = () => {
       });
     }
   }, [deviceSelectionReady]);
+
+  // Refresh devices periodically if none are found (up to 3 attempts)
+  const refreshDevices = useCallback(async () => {
+    // Clear any existing timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
+    }
+    
+    console.log('[useDeviceSelection] Refreshing devices manually');
+    
+    try {
+      const devices = await getAudioDevices();
+      console.log('[useDeviceSelection] Device refresh resulted in:', devices.length, 'devices');
+      
+      if (devices.length > 0 && !selectedDeviceId) {
+        // Auto-select first device if none selected
+        if (defaultDeviceId) {
+          handleDeviceSelect(defaultDeviceId);
+        } else if (devices[0].deviceId) {
+          handleDeviceSelect(devices[0].deviceId);
+        }
+      }
+    } catch (error) {
+      console.error('[useDeviceSelection] Error refreshing devices:', error);
+    }
+  }, [getAudioDevices, defaultDeviceId, selectedDeviceId, handleDeviceSelect]);
 
   // Initialize devices when the component mounts
   useEffect(() => {
@@ -70,6 +98,12 @@ export const useDeviceSelection = () => {
           console.warn('[useDeviceSelection] No audio devices found');
           setDeviceSelectionReady(false);
           selectionInProgressRef.current = false;
+          
+          // Schedule a refresh if no devices found (wait 2 seconds)
+          refreshTimeoutRef.current = setTimeout(() => {
+            console.log('[useDeviceSelection] Trying to refresh devices after delay');
+            refreshDevices();
+          }, 2000);
         } else if (defaultDeviceId) {
           handleDeviceSelect(defaultDeviceId);
           selectionInProgressRef.current = false;
@@ -87,7 +121,14 @@ export const useDeviceSelection = () => {
     };
     
     initDevices();
-  }, [getAudioDevices, handleDeviceSelect, defaultDeviceId, checkPermissions]);
+    
+    return () => {
+      // Clean up any pending timeouts
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, [getAudioDevices, handleDeviceSelect, defaultDeviceId, checkPermissions, refreshDevices]);
 
   // Reset selection if selected device is no longer available
   useEffect(() => {
@@ -130,6 +171,6 @@ export const useDeviceSelection = () => {
     selectedDeviceId,
     setSelectedDeviceId: handleDeviceSelect,
     deviceSelectionReady,
-    refreshDevices: getAudioDevices
+    refreshDevices
   };
 };

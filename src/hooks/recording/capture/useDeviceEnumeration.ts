@@ -14,13 +14,14 @@ export const useDeviceEnumeration = (
   const hasShownToastRef = useRef(false);
   const enumerationInProgressRef = useRef(false);
   const lastEnumerationTimeRef = useRef(0);
+  const devicesFetchedRef = useRef(false);
 
   // Function to enumerate audio devices
   const getAudioDevices = useCallback(async () => {
     // Prevent multiple calls in quick succession
     const now = Date.now();
     if (enumerationInProgressRef.current || (now - lastEnumerationTimeRef.current < 2000 && audioDevices.length > 0)) {
-      console.log('[useDeviceEnumeration] Enumeration already in progress or recently completed, skipping');
+      console.log('[useDeviceEnumeration] Enumeration already in progress or recently completed, returning cached devices');
       return { devices: audioDevices, defaultId: defaultDeviceId };
     }
     
@@ -34,13 +35,19 @@ export const useDeviceEnumeration = (
       
       if (!hasPermission) {
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
-        toast.error("Microphone permission required", {
-          description: "Please allow microphone access to view available devices",
-          id: "mic-permission-required" // Use ID to prevent duplicates
-        });
+        
+        if (!hasShownToastRef.current) {
+          toast.error("Microphone permission required", {
+            description: "Please allow microphone access to view available devices",
+            id: "mic-permission-required" // Use ID to prevent duplicates
+          });
+          hasShownToastRef.current = true;
+        }
+        
         setAudioDevices([]);
         setDefaultDeviceId(null);
         enumerationInProgressRef.current = false;
+        devicesFetchedRef.current = false;
         return { devices: [], defaultId: null };
       }
 
@@ -77,6 +84,7 @@ export const useDeviceEnumeration = (
         setAudioDevices([]);
         setDefaultDeviceId(null);
         enumerationInProgressRef.current = false;
+        devicesFetchedRef.current = false;
         return { devices: [], defaultId: null };
       }
       
@@ -120,8 +128,8 @@ export const useDeviceEnumeration = (
         tempStream.getTracks().forEach(track => track.stop());
       }
       
-      // Only show the toast once
-      if (!hasShownToastRef.current) {
+      // Only show the toast once per session and only if actually found devices
+      if (!hasShownToastRef.current && convertedDevices.length > 0) {
         toast.success(`Found ${convertedDevices.length} microphone(s)`, {
           description: "You can select a microphone from the dropdown",
           id: "mics-found" // Use ID to prevent duplicates
@@ -129,6 +137,7 @@ export const useDeviceEnumeration = (
         hasShownToastRef.current = true;
       }
       
+      devicesFetchedRef.current = true;
       enumerationInProgressRef.current = false;
       return { devices: convertedDevices, defaultId };
     } catch (error) {
@@ -143,6 +152,7 @@ export const useDeviceEnumeration = (
       setAudioDevices([]);
       setDefaultDeviceId(null);
       enumerationInProgressRef.current = false;
+      devicesFetchedRef.current = false;
       return { devices: [], defaultId: null };
     }
   }, [checkPermissions, audioDevices, defaultDeviceId]);
@@ -174,6 +184,7 @@ export const useDeviceEnumeration = (
   return {
     audioDevices,
     defaultDeviceId,
-    getAudioDevices
+    getAudioDevices,
+    devicesFetched: devicesFetchedRef.current
   };
 };

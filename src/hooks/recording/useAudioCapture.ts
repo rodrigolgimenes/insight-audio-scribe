@@ -19,7 +19,7 @@ export const useAudioCapture = () => {
   const { checkPermissions } = usePermissions();
   
   // Initialize device enumeration hook
-  const { getAudioDevices } = useDeviceEnumeration(checkPermissions);
+  const { getAudioDevices, devicesFetched } = useDeviceEnumeration(checkPermissions);
   
   // Initialize microphone access hook
   const { requestMicrophoneAccess } = useMicrophoneAccess(
@@ -64,8 +64,11 @@ export const useAudioCapture = () => {
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
       
-      setAudioDevices(devices);
-      setDefaultDeviceId(defaultId);
+      // Only update if we have devices or if we had none before (to avoid flickering)
+      if (devices.length > 0 || audioDevices.length === 0) {
+        setAudioDevices(devices);
+        setDefaultDeviceId(defaultId);
+      }
       
       refreshInProgressRef.current = false;
       return devices;

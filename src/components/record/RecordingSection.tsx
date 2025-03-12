@@ -111,7 +111,8 @@ export function RecordingSection({
           devices={audioDevices} 
           selectedDeviceId={selectedDeviceId} 
           onDeviceSelect={onDeviceSelect} 
-          isReady={deviceSelectionReady} 
+          isReady={deviceSelectionReady}
+          onRefreshDevices={onRefreshDevices}
         />
         
         {onSystemAudioChange && (

@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
 import { DeviceDebugInfo } from "./DeviceDebugInfo";
 import { formatDeviceLabel } from "./utils/deviceFormatters";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
@@ -16,6 +18,7 @@ interface DeviceSelectorProps {
   isReady?: boolean;
   disabled?: boolean;
   hasDevices?: boolean;
+  onRefreshDevices?: () => void;
 }
 
 export function DeviceSelector({
@@ -26,6 +29,7 @@ export function DeviceSelector({
   isReady = true,
   disabled = false,
   hasDevices = true,
+  onRefreshDevices,
 }: DeviceSelectorProps) {
   // Use audioDevices if provided, otherwise fall back to devices
   const deviceList = audioDevices || devices || [];
@@ -44,6 +48,7 @@ export function DeviceSelector({
     permissionRequested: false
   });
 
+  // Calculate if select should be disabled
   const isSelectDisabled = disabled || !Array.isArray(deviceList) || deviceList.length === 0;
 
   // Check permissions and handle errors gracefully
@@ -115,6 +120,14 @@ export function DeviceSelector({
     }
   };
 
+  // Handle refresh click
+  const handleRefresh = () => {
+    if (onRefreshDevices) {
+      console.log('[DeviceSelector] Refreshing devices...');
+      onRefreshDevices();
+    }
+  };
+
   // Safely get device count
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
@@ -127,7 +140,21 @@ export function DeviceSelector({
 
   return (
     <div className="space-y-2">
-      <DeviceSelectorLabel permissionStatus={permissionStatus} />
+      <div className="flex items-center justify-between">
+        <DeviceSelectorLabel permissionStatus={permissionStatus} />
+        
+        {onRefreshDevices && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRefresh} 
+            className="h-7 px-2"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            <span className="text-xs">Refresh</span>
+          </Button>
+        )}
+      </div>
 
       <Select
         value={selectedDeviceId || ""}
@@ -144,7 +171,7 @@ export function DeviceSelector({
             {selectedDeviceName}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-[200px] overflow-y-auto bg-white">
           {!Array.isArray(deviceList) || deviceList.length === 0 ? (
             <SelectItem value="no-devices" disabled>
               No microphones found

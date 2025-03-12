@@ -33,7 +33,8 @@ export function RecordingSheet() {
     deviceSelectionReady,
     recordingAttemptsCount,
     initError,
-    lastAction
+    lastAction,
+    refreshDevices
   } = useRecording();
 
   // Ensure component is mounted before rendering complex components
@@ -125,6 +126,7 @@ export function RecordingSheet() {
               showPlayButton={false}
               showDeleteButton={true}
               lastAction={lastAction}
+              onRefreshDevices={refreshDevices}
             />
 
             <div className="mt-6 flex justify-center">

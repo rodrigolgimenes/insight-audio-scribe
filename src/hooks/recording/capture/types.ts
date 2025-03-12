@@ -1,27 +1,24 @@
 
+/**
+ * Extended interface for audio devices with additional information
+ */
 export interface AudioDevice extends MediaDeviceInfo {
-  isDefault?: boolean;
-  displayName: string; // Make this required
-  index?: number;
+  /** A user-friendly display name for the device */
+  displayName: string;
+  /** Whether this is the default audio device */
+  isDefault: boolean;
+  /** The index of this device in the array of devices */
+  index: number;
 }
 
-// Helper to convert from MediaDeviceInfo to AudioDevice with better naming
+/**
+ * Convert MediaDeviceInfo to AudioDevice with better naming
+ */
 export function toAudioDevice(device: MediaDeviceInfo, isDefault: boolean = false, index: number = 0): AudioDevice {
-  // Create a proper display name
-  let displayName = '';
-  
-  if (device.label && device.label.trim() !== '') {
-    // Use the actual label if available
-    displayName = device.label;
-  } else {
-    // Fall back to a numbered microphone if no label is available
-    displayName = `Microphone ${index + 1}`;
-  }
-
   return {
     ...device,
     isDefault,
-    displayName,
+    displayName: device.label || `Microphone ${index + 1}`,
     index,
     groupId: device.groupId,
     toJSON: device.toJSON

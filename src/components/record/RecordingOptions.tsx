@@ -12,6 +12,7 @@ interface RecordingOptionsProps {
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
+  onRefreshDevices?: () => void;
 }
 
 export function RecordingOptions({
@@ -20,7 +21,8 @@ export function RecordingOptions({
   onSystemAudioChange,
   audioDevices,
   selectedDeviceId,
-  onDeviceSelect
+  onDeviceSelect,
+  onRefreshDevices
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
   const hasDevices = audioDevices.length > 0;
@@ -34,6 +36,7 @@ export function RecordingOptions({
         disabled={isRecording}
         hasDevices={hasDevices}
         isReady={true}
+        onRefreshDevices={onRefreshDevices}
       />
 
       <LanguageSelector
