@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RecordingValidator } from "@/utils/audio/recordingValidator";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -12,6 +13,8 @@ interface RecordControlsProps {
   onPauseRecording: () => void;
   onResumeRecording: () => void;
   deviceSelectionReady: boolean;
+  selectedDeviceId?: string | null;
+  audioDevices?: any[];
   showLastAction?: boolean;
   lastAction?: { 
     action: string; 
@@ -29,18 +32,48 @@ export function RecordControls({
   onPauseRecording,
   onResumeRecording,
   deviceSelectionReady,
+  selectedDeviceId = null,
+  audioDevices = [],
   showLastAction = false,
   lastAction
 }: RecordControlsProps) {
   const [buttonPressed, setButtonPressed] = useState<string | null>(null);
   const [clickTime, setClickTime] = useState<number | null>(null);
+  const [canStart, setCanStart] = useState(false);
+  
+  // Validate recording prerequisites when dependencies change
+  useEffect(() => {
+    if (isRecording) return; // No need to validate if already recording
+    
+    const diagnostics = RecordingValidator.validatePrerequisites({
+      selectedDeviceId,
+      deviceSelectionReady,
+      audioDevices
+    });
+    
+    setCanStart(diagnostics.canStartRecording);
+    
+    console.log('[RecordControls] Can start recording:', diagnostics.canStartRecording);
+    if (!diagnostics.canStartRecording) {
+      console.log('[RecordControls] Recording start issues:', diagnostics.issues);
+    }
+  }, [deviceSelectionReady, selectedDeviceId, audioDevices, isRecording]);
 
   const handleButtonClick = (action: string, callback: () => void) => {
     setButtonPressed(action);
     setClickTime(Date.now());
     
     console.log(`[RecordControls] Button clicked: ${action} at ${new Date().toISOString()}`);
-    console.log(`[RecordControls] Device selection ready: ${deviceSelectionReady}`);
+    
+    // Log diagnostics before attempting to start recording
+    if (action === 'start') {
+      RecordingValidator.logDiagnostics({
+        selectedDeviceId,
+        deviceSelectionReady,
+        audioDevices,
+        isRecording
+      });
+    }
     
     try {
       callback();
@@ -63,23 +96,18 @@ export function RecordControls({
     };
   }, [buttonPressed]);
 
-  // Log when device selection state changes
-  useEffect(() => {
-    console.log('[RecordControls] Device selection ready state changed:', deviceSelectionReady);
-  }, [deviceSelectionReady]);
-
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="flex items-center gap-4">
         {!isRecording ? (
           <Button
             onClick={() => handleButtonClick('start', onStartRecording)}
-            disabled={!deviceSelectionReady || isRecording}
+            disabled={!canStart}
             size="lg"
             className={cn(
               "rounded-full w-16 h-16 bg-red-500 hover:bg-red-600 text-white",
               buttonPressed === 'start' && "animate-pulse",
-              !deviceSelectionReady && "opacity-50 cursor-not-allowed"
+              !canStart && "opacity-50 cursor-not-allowed"
             )}
             aria-label="Start Recording"
             data-test-id="start-recording-button"
@@ -132,10 +160,10 @@ export function RecordControls({
       {/* Status and Diagnostic Information */}
       <div className="text-xs text-gray-500 mt-2">
         <div>Status: {isRecording ? (isPaused ? "Paused" : "Recording") : "Ready"}</div>
-        <div className={!deviceSelectionReady ? "text-amber-500" : "text-green-500"}>
-          {!deviceSelectionReady 
-            ? "Waiting for microphone permission or device selection..." 
-            : "Microphone selected and ready"}
+        <div className={canStart ? "text-green-500" : "text-amber-500"}>
+          {canStart 
+            ? "Microphone selected and ready" 
+            : "Waiting for microphone permission or device selection..."}
         </div>
         {showLastAction && lastAction && (
           <div className={cn(

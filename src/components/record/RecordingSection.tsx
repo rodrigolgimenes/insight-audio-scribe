@@ -10,6 +10,7 @@ import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { RecordingValidator } from "@/utils/audio/recordingValidator";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -63,16 +64,15 @@ export function RecordingSection({
 }: RecordingSectionProps) {
   const [showDetails, setShowDetails] = useState(false);
 
+  // Log diagnostic information when key props change
   useEffect(() => {
-    console.log('[RecordingSection] Props updated:', { 
-      isRecording, 
-      isPaused, 
-      hasAudioUrl: !!audioUrl, 
-      hasMediaStream: !!mediaStream,
+    RecordingValidator.logDiagnostics({
+      selectedDeviceId,
       deviceSelectionReady,
-      deviceCount: audioDevices.length 
+      audioDevices,
+      isRecording
     });
-  }, [isRecording, isPaused, audioUrl, mediaStream, deviceSelectionReady, audioDevices]);
+  }, [isRecording, deviceSelectionReady, selectedDeviceId, audioDevices]);
 
   return (
     <div className="space-y-4">
@@ -101,6 +101,8 @@ export function RecordingSection({
           onPauseRecording={handlePauseRecording} 
           onResumeRecording={handleResumeRecording} 
           deviceSelectionReady={deviceSelectionReady}
+          selectedDeviceId={selectedDeviceId}
+          audioDevices={audioDevices}
           showLastAction={true}
           lastAction={lastAction}
         />
@@ -108,7 +110,7 @@ export function RecordingSection({
       
       <div className="mt-6 space-y-4">
         <DeviceSelector 
-          devices={audioDevices} 
+          audioDevices={audioDevices} 
           selectedDeviceId={selectedDeviceId} 
           onDeviceSelect={onDeviceSelect} 
           isReady={deviceSelectionReady}
@@ -146,6 +148,7 @@ export function RecordingSection({
           deviceId={selectedDeviceId}
           lastAction={lastAction}
           onRefreshDevices={onRefreshDevices}
+          deviceCount={Array.isArray(audioDevices) ? audioDevices.length : 0}
         />
       )}
     </div>

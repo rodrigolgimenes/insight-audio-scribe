@@ -35,7 +35,7 @@ export function DeviceSelector({
   const deviceList = audioDevices || devices || [];
   
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
-  const autoSelectAttemptedRef = useRef(false);
+  const [hasAttemptedSelection, setHasAttemptedSelection] = useState(false);
   const [debugInfo, setDebugInfo] = useState<{
     hasDevices: boolean;
     deviceCount: number;
@@ -50,6 +50,15 @@ export function DeviceSelector({
 
   // Calculate if select should be disabled
   const isSelectDisabled = disabled || !Array.isArray(deviceList) || deviceList.length === 0;
+  
+  // Track if component is mounted
+  const isMounted = useRef(true);
+  
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Check permissions and handle errors gracefully
   useEffect(() => {
@@ -61,10 +70,18 @@ export function DeviceSelector({
         }
         
         const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-        setPermissionStatus(result.state);
+        if (isMounted.current) {
+          setPermissionStatus(result.state);
+        }
         
         result.addEventListener('change', () => {
-          setPermissionStatus(result.state);
+          if (isMounted.current) {
+            setPermissionStatus(result.state);
+            // Refresh devices when permissions change
+            if (result.state === 'granted' && onRefreshDevices) {
+              onRefreshDevices();
+            }
+          }
         });
       } catch (error) {
         console.error('[DeviceSelector] Error checking permissions:', error);
@@ -72,36 +89,31 @@ export function DeviceSelector({
     };
     
     checkPermissions();
-  }, []);
+  }, [onRefreshDevices]);
 
-  // Safely select default device if available - only once
+  // Auto-select a device when devices become available (once only)
   useEffect(() => {
-    if (Array.isArray(deviceList) && deviceList.length > 0 && !selectedDeviceId && !disabled && !autoSelectAttemptedRef.current) {
-      autoSelectAttemptedRef.current = true;
-      const firstDevice = deviceList[0];
-      if (firstDevice && typeof firstDevice === 'object') {
-        const deviceId = firstDevice.deviceId || '';
-        if (deviceId) {
-          console.log('[DeviceSelector] Auto-selecting first device:', deviceId, 
-            'label', firstDevice.label || ('displayName' in firstDevice ? firstDevice.displayName : 'No label'));
-          onDeviceSelect(deviceId);
+    if (Array.isArray(deviceList) && deviceList.length > 0 && !hasAttemptedSelection) {
+      setHasAttemptedSelection(true);
+      
+      // Only auto-select if no device is already selected
+      if (!selectedDeviceId) {
+        const firstDevice = deviceList[0];
+        if (firstDevice && typeof firstDevice === 'object') {
+          const deviceId = firstDevice.deviceId || '';
+          if (deviceId) {
+            console.log('[DeviceSelector] Auto-selecting first device:', deviceId);
+            onDeviceSelect(deviceId);
+          }
         }
       }
     }
-  }, [deviceList, selectedDeviceId, onDeviceSelect, disabled]);
+  }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection]);
 
   // Update debug info when devices change
   useEffect(() => {
-    if (Array.isArray(deviceList)) {
+    if (isMounted.current && Array.isArray(deviceList)) {
       console.log('[DeviceSelector] Device list updated:', deviceList.length, 'devices');
-      deviceList.forEach((device, i) => {
-        if (device) {
-          const label = 'displayName' in device 
-            ? device.displayName 
-            : (device.label || `Microphone ${i+1}`);
-          console.log(`[DeviceSelector] Device ${i}:`, device.deviceId, label);
-        }
-      });
       
       // Update the debug info
       setDebugInfo(prev => ({
@@ -132,11 +144,17 @@ export function DeviceSelector({
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
   // Find the selected device name for display
-  const selectedDeviceName = selectedDeviceId && deviceList.length > 0 ? 
-    deviceList.find(d => d && d.deviceId === selectedDeviceId) ?
-      formatDeviceLabel(deviceList.find(d => d && d.deviceId === selectedDeviceId) as MediaDeviceInfo, 0) :
-      "Select a microphone" :
-    "Select a microphone";
+  let selectedDeviceName = "Select a microphone";
+  
+  if (selectedDeviceId && deviceList.length > 0) {
+    const selectedDevice = deviceList.find(d => d && d.deviceId === selectedDeviceId);
+    if (selectedDevice) {
+      selectedDeviceName = formatDeviceLabel(selectedDevice as MediaDeviceInfo, 0);
+    }
+  }
+  
+  // Determine if we should show a warning about no devices
+  const showNoDevicesWarning = deviceCount === 0 && isReady;
 
   return (
     <div className="space-y-2">
@@ -180,11 +198,7 @@ export function DeviceSelector({
             deviceList.map((device, index) => {
               // Comprehensive safety check for the device object
               if (!device || typeof device !== 'object') {
-                return (
-                  <SelectItem key={`unknown-device-${index}`} value={`unknown-${index}`}>
-                    Unknown device
-                  </SelectItem>
-                );
+                return null;
               }
               
               // Safely extract deviceId with fallbacks
@@ -205,6 +219,12 @@ export function DeviceSelector({
           )}
         </SelectContent>
       </Select>
+      
+      {showNoDevicesWarning && (
+        <div className="text-amber-500 text-xs mt-1">
+          No microphones detected. Please connect a microphone and refresh.
+        </div>
+      )}
       
       <DeviceDebugInfo 
         deviceCount={deviceCount} 
