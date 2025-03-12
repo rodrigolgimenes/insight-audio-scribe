@@ -2,31 +2,22 @@
 import React, { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { RecordMeetingContent } from "@/components/meetings/RecordMeetingContent";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { SimpleAudioRecorder } from "@/components/meetings/SimpleAudioRecorder";
+import { supabase } from "@/integrations/supabase/client";
 
 const TestRecordMeeting = () => {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transcription, setTranscription] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   
-  const handleUploadStart = () => {
-    setIsUploading(true);
+  const handleTranscriptionComplete = (text: string) => {
+    setTranscription(text);
     setError(null);
-  };
-  
-  const handleUploadSuccess = (transcriptionText: string) => {
-    setTranscription(transcriptionText);
-    setIsUploading(false);
-    toast.success("Audio transcribed successfully!");
   };
   
   const handleError = (errorMessage: string) => {
     setError(errorMessage);
-    setIsUploading(false);
   };
 
   return (
@@ -49,16 +40,13 @@ const TestRecordMeeting = () => {
                 </Alert>
               )}
               
-              <RecordMeetingContent 
-                isLoading={isLoading}
-                isUploading={isUploading}
-                onUploadStart={handleUploadStart}
-                onUploadComplete={handleUploadSuccess}
+              <SimpleAudioRecorder
+                onTranscriptionComplete={handleTranscriptionComplete}
                 onError={handleError}
               />
               
               {transcription && (
-                <div className="mt-8 p-6 bg-white rounded-lg shadow">
+                <div className="mt-8 p-6 bg-white rounded-lg shadow max-w-3xl mx-auto">
                   <h2 className="text-xl font-semibold mb-4">Transcription</h2>
                   <div className="p-4 bg-gray-50 rounded border border-gray-200 text-gray-800 max-h-96 overflow-y-auto">
                     {transcription}
