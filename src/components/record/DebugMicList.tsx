@@ -8,54 +8,54 @@ export function DebugMicList() {
   const [permissionState, setPermissionState] = useState<string>("unknown");
 
   useEffect(() => {
-    // Verificar permissão primeiro
+    // Check permission first
     async function checkPermissionAndGetDevices() {
       try {
-        console.log("DebugMicList: Verificando permissão do microfone...");
+        console.log("DebugMicList: Checking microphone permission...");
         
-        // Verifica estado atual da permissão
+        // Check current permission state
         const permission = await navigator.permissions.query({ name: "microphone" as PermissionName });
         setPermissionState(permission.state);
-        console.log("DebugMicList: Estado da permissão:", permission.state);
+        console.log("DebugMicList: Permission state:", permission.state);
         
-        // Se a permissão for negada, não tenta obter dispositivos
+        // If permission is denied, don't attempt to get devices
         if (permission.state === "denied") {
-          setError("Permissão de microfone negada");
+          setError("Microphone permission denied");
           return;
         }
         
-        // Se estiver no estado prompt, solicita acesso explicitamente
+        // If in prompt state, explicitly request access
         if (permission.state === "prompt") {
-          console.log("DebugMicList: Solicitando acesso ao microfone...");
+          console.log("DebugMicList: Requesting microphone access...");
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           stream.getTracks().forEach(track => track.stop());
         }
         
-        // Agora enumera os dispositivos
-        console.log("DebugMicList: Enumerando dispositivos...");
+        // Now enumerate devices
+        console.log("DebugMicList: Enumerating devices...");
         const allDevices = await navigator.mediaDevices.enumerateDevices();
         const audioInputs = allDevices.filter(d => d.kind === "audioinput");
         
-        console.log("DebugMicList: Microfones encontrados:", audioInputs);
+        console.log("DebugMicList: Microphones found:", audioInputs);
         setDevices(audioInputs);
       } catch (err) {
         console.error("DebugMicList error:", err);
-        setError(err instanceof Error ? err.message : "Erro desconhecido");
+        setError(err instanceof Error ? err.message : "Unknown error");
       }
     }
     
     checkPermissionAndGetDevices();
     
-    // Configurar listener para mudanças de dispositivo
+    // Set up device change listener
     const handleDeviceChange = () => {
-      console.log("DebugMicList: Mudança de dispositivo detectada!");
+      console.log("DebugMicList: Device change detected!");
       navigator.mediaDevices.enumerateDevices()
         .then((allDevices) => {
           const audioInputs = allDevices.filter(d => d.kind === "audioinput");
           setDevices(audioInputs);
         })
         .catch((err) => {
-          setError(err instanceof Error ? err.message : "Erro desconhecido");
+          setError(err instanceof Error ? err.message : "Unknown error");
         });
     };
     
@@ -72,7 +72,7 @@ export function DebugMicList() {
         <h2 className="text-lg font-medium mb-2">Debug Mic List</h2>
         
         <div className="text-sm mb-2">
-          <span className="font-medium">Estado da permissão:</span>{" "}
+          <span className="font-medium">Permission state:</span>{" "}
           <span className={`
             ${permissionState === "granted" ? "text-green-500 font-medium" : ""}
             ${permissionState === "denied" ? "text-red-500 font-medium" : ""}
@@ -89,7 +89,7 @@ export function DebugMicList() {
         )}
         
         <div className="text-sm mb-2">
-          <span className="font-medium">Total de microfones:</span> {devices.length}
+          <span className="font-medium">Total microphones:</span> {devices.length}
         </div>
         
         {devices.length > 0 ? (
@@ -98,7 +98,7 @@ export function DebugMicList() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -108,7 +108,7 @@ export function DebugMicList() {
                       {device.deviceId.substring(0, 10)}...
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      {device.label || "Sem nome"}
+                      {device.label || "No name"}
                     </td>
                   </tr>
                 ))}
@@ -117,7 +117,7 @@ export function DebugMicList() {
           </div>
         ) : (
           <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-md">
-            Nenhum microfone encontrado
+            No microphones found
           </div>
         )}
       </CardContent>

@@ -38,7 +38,7 @@ export const RecordingMain = ({
   lastAction,
   permissionState = 'unknown'
 }: RecordingMainProps) => {
-  // Adicionar log para rastrear as props recebidas
+  // Add logging to track received props
   useEffect(() => {
     console.log('[RecordingMain] Props received:', {
       deviceSelectionReady,
@@ -48,7 +48,7 @@ export const RecordingMain = ({
     });
   }, [deviceSelectionReady, selectedDeviceId, audioDevices, permissionState]);
 
-  // Validar se o dispositivo selecionado existe na lista
+  // Validate if selected device exists in list
   useEffect(() => {
     if (selectedDeviceId && audioDevices.length > 0) {
       const deviceExists = audioDevices.some(device => device.deviceId === selectedDeviceId);

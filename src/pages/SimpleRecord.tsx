@@ -105,18 +105,18 @@ const SimpleRecord = () => {
           <main className="container mx-auto px-4 py-8 space-y-8">
             {/* Debug Microphone Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Debug Mic List - Versão simples com detecção direta */}
+              {/* Debug Mic List - Simple version with direct detection */}
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold mb-4">Microfones (Detecção Simples)</h2>
+                  <h2 className="text-xl font-bold mb-4">Microphones (Simple Detection)</h2>
                   <DebugMicList />
                 </CardContent>
               </Card>
               
-              {/* Device Tester - Implementação da lógica completa */}
+              {/* Device Tester - Full implementation logic */}
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold mb-4">Microfones (Detector Complexo)</h2>
+                  <h2 className="text-xl font-bold mb-4">Microphones (Complex Detector)</h2>
                   <DeviceListTester />
                 </CardContent>
               </Card>

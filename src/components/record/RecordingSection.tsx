@@ -91,6 +91,7 @@ export function RecordingSection({
         selectedDeviceId={selectedDeviceId}
         audioDevices={audioDevices}
         lastAction={lastAction}
+        permissionState={permissionState}
       />
       
       {/* Device and System Audio Options */}
