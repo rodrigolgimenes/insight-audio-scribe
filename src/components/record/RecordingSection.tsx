@@ -117,7 +117,7 @@ export function RecordingSection({
         {onSystemAudioChange && (
           <SystemAudioToggle 
             isSystemAudio={isSystemAudio} 
-            onChange={onSystemAudioChange} 
+            onSystemAudioChange={onSystemAudioChange} 
           />
         )}
       </div>
