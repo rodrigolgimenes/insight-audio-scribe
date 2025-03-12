@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
@@ -10,6 +10,7 @@ import { AlertCircle } from "lucide-react";
 
 export function RecordingSheet() {
   const { toast } = useToast();
+  const [isComponentReady, setIsComponentReady] = useState(false);
   
   const {
     isRecording,
@@ -35,6 +36,14 @@ export function RecordingSheet() {
     lastAction
   } = useRecording();
 
+  // Ensure component is mounted before rendering complex components
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsComponentReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Log component state for debugging
   useEffect(() => {
     console.log('[RecordingSheet] State updated:', { 
@@ -45,9 +54,10 @@ export function RecordingSheet() {
       selectedDeviceId,
       audioDevices: audioDevices.length,
       recordingAttemptsCount,
-      hasInitError: !!initError
+      hasInitError: !!initError,
+      isComponentReady
     });
-  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length, recordingAttemptsCount, initError]);
+  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length, recordingAttemptsCount, initError, isComponentReady]);
 
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
@@ -70,60 +80,65 @@ export function RecordingSheet() {
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Tentativas de iniciar gravação: {recordingAttemptsCount}
+              Recording start attempts: {recordingAttemptsCount}
               {lastAction && (
                 <div className="text-xs mt-1">
-                  Última ação: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
+                  Last action: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
                   {lastAction.success ? 
-                    <span className="text-green-600"> Sucesso</span> : 
-                    <span className="text-red-600"> Falha</span>}
+                    <span className="text-green-600"> Success</span> : 
+                    <span className="text-red-600"> Failed</span>}
                 </div>
               )}
             </AlertDescription>
           </Alert>
         )}
 
-        <RecordingSection
-          isRecording={isRecording}
-          isPaused={isPaused}
-          audioUrl={audioUrl}
-          mediaStream={mediaStream}
-          isSystemAudio={isSystemAudio}
-          handleStartRecording={() => {
-            console.log('[RecordingSheet] Start recording button clicked');
-            handleStartRecording();
-          }}
-          handleStopRecording={() => handleStopRecording().then(() => {
-            console.log('[RecordingSheet] Recording stopped manually');
-          })}
-          handlePauseRecording={handlePauseRecording}
-          handleResumeRecording={handleResumeRecording}
-          handleDelete={handleDelete}
-          onSystemAudioChange={(value) => {
-            console.log('[RecordingSheet] System audio changed:', value);
-            setIsSystemAudio(value);
-          }}
-          audioDevices={audioDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={(deviceId) => {
-            console.log('[RecordingSheet] Device selected:', deviceId);
-            setSelectedDeviceId(deviceId);
-          }}
-          deviceSelectionReady={deviceSelectionReady}
-          showPlayButton={false}
-          showDeleteButton={true}
-        />
+        {isComponentReady && (
+          <>
+            <RecordingSection
+              isRecording={isRecording}
+              isPaused={isPaused}
+              audioUrl={audioUrl}
+              mediaStream={mediaStream}
+              isSystemAudio={isSystemAudio}
+              handleStartRecording={() => {
+                console.log('[RecordingSheet] Start recording button clicked');
+                handleStartRecording();
+              }}
+              handleStopRecording={() => handleStopRecording().then(() => {
+                console.log('[RecordingSheet] Recording stopped manually');
+              })}
+              handlePauseRecording={handlePauseRecording}
+              handleResumeRecording={handleResumeRecording}
+              handleDelete={handleDelete}
+              onSystemAudioChange={(value) => {
+                console.log('[RecordingSheet] System audio changed:', value);
+                setIsSystemAudio(value);
+              }}
+              audioDevices={audioDevices}
+              selectedDeviceId={selectedDeviceId}
+              onDeviceSelect={(deviceId) => {
+                console.log('[RecordingSheet] Device selected:', deviceId);
+                setSelectedDeviceId(deviceId);
+              }}
+              deviceSelectionReady={deviceSelectionReady}
+              showPlayButton={false}
+              showDeleteButton={true}
+              lastAction={lastAction}
+            />
 
-        <div className="mt-6 flex justify-center">
-          <SaveRecordingButton
-            onSave={() => {
-              console.log('[RecordingSheet] Save button clicked');
-              handleSaveRecording();
-            }}
-            isSaving={isSaving}
-            isDisabled={!isRecording && !audioUrl}
-          />
-        </div>
+            <div className="mt-6 flex justify-center">
+              <SaveRecordingButton
+                onSave={() => {
+                  console.log('[RecordingSheet] Save button clicked');
+                  handleSaveRecording();
+                }}
+                isSaving={isSaving}
+                isDisabled={!isRecording && !audioUrl}
+              />
+            </div>
+          </>
+        )}
       </div>
     </SheetContent>
   );

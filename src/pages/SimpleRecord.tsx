@@ -10,6 +10,8 @@ import { ProcessedContentSection } from "@/components/record/ProcessedContentSec
 import { RecordingActions } from "@/components/record/RecordingActions";
 import { useFileUpload } from "@/hooks"; 
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const SimpleRecord = () => {
   const { toast } = useToast();
@@ -19,6 +21,7 @@ const SimpleRecord = () => {
   const { isUploading } = useFileUpload();
   const { saveRecording, isProcessing: isSaveProcessing } = useRecordingSave();
   const [keepAudio, setKeepAudio] = useState(true);
+  const [isPageReady, setIsPageReady] = useState(false);
 
   const {
     isRecording,
@@ -39,8 +42,18 @@ const SimpleRecord = () => {
     setSelectedDeviceId,
     handleSaveRecording,
     getCurrentDuration,
-    deviceSelectionReady
+    deviceSelectionReady,
+    lastAction,
+    initError
   } = useRecording();
+
+  useEffect(() => {
+    // Short delay to ensure components are rendered properly
+    const timer = setTimeout(() => {
+      setIsPageReady(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const success = searchParams.get('success');
@@ -77,11 +90,6 @@ const SimpleRecord = () => {
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
   const hasRecording = !!audioUrl;
 
-  const handleSystemAudioChange = (enabled: boolean) => {
-    console.log("Setting system audio to:", enabled);
-    setIsSystemAudio(enabled);
-  };
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -89,7 +97,16 @@ const SimpleRecord = () => {
         <div className="flex-1">
           <main className="container mx-auto px-4 py-8">
             <div className="max-w-3xl mx-auto">
-              {!processedContent ? (
+              {initError && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Error initializing recording: {initError.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {isPageReady && !processedContent ? (
                 <>
                   <RecordingSection
                     isRecording={isRecording}
@@ -102,13 +119,14 @@ const SimpleRecord = () => {
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
-                    onSystemAudioChange={handleSystemAudioChange}
+                    onSystemAudioChange={setIsSystemAudio}
                     audioDevices={audioDevices}
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
                     deviceSelectionReady={deviceSelectionReady}
                     showPlayButton={false}
                     showDeleteButton={true}
+                    lastAction={lastAction}
                   />
 
                   <RecordingActions
@@ -119,7 +137,7 @@ const SimpleRecord = () => {
                     hasRecording={hasRecording}
                   />
                 </>
-              ) : (
+              ) : processedContent ? (
                 <ProcessedContentSection
                   processedContent={processedContent}
                   transcript={transcript}
@@ -128,6 +146,10 @@ const SimpleRecord = () => {
                     mutate: () => {},
                   }}
                 />
+              ) : (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                </div>
               )}
             </div>
           </main>

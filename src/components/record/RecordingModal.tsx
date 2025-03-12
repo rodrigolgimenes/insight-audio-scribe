@@ -10,6 +10,8 @@ import { RecordingSection } from "./RecordingSection";
 import { RecordingActions } from "./RecordingActions";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface RecordingModalProps {
   isOpen: boolean;
@@ -19,6 +21,7 @@ interface RecordingModalProps {
 export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   const { toast } = useToast();
   const [modalReady, setModalReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const {
     isRecording,
@@ -38,12 +41,18 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     selectedDeviceId,
     setSelectedDeviceId,
     deviceSelectionReady,
+    lastAction,
+    initError
   } = useRecording();
 
   useEffect(() => {
     if (isOpen) {
       console.log('[RecordingModal] Modal opened, initializing...');
-      setModalReady(true);
+      // Short delay to ensure modal is rendered before initializing
+      const timer = setTimeout(() => {
+        setModalReady(true);
+      }, 100);
+      return () => clearTimeout(timer);
     } else {
       // Reset on close
       if (isRecording) {
@@ -52,8 +61,18 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
           console.error('[RecordingModal] Error stopping recording on modal close:', err);
         });
       }
+      setModalReady(false);
+      setError(null);
     }
   }, [isOpen, isRecording, handleStopRecording]);
+
+  useEffect(() => {
+    if (initError) {
+      setError(initError.message);
+    } else {
+      setError(null);
+    }
+  }, [initError]);
 
   const isLoading = isSaving;
   const hasRecording = !!audioUrl;
@@ -66,6 +85,13 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          
           {modalReady && (
             <>
               <RecordingSection
@@ -88,6 +114,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
                 deviceSelectionReady={deviceSelectionReady}
                 showPlayButton={true}
                 showDeleteButton={true}
+                lastAction={lastAction}
               />
 
               <RecordingActions
