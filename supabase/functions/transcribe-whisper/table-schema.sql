@@ -1,0 +1,12 @@
+
+-- Esta tabela será criada manualmente pelo usuário no Supabase
+-- CREATE TABLE public.transcriptions (
+--   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+--   audio_url TEXT NOT NULL,
+--   content TEXT NOT NULL,
+--   duration_ms INTEGER,
+--   status TEXT NOT NULL DEFAULT 'pending',
+--   created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+--   processed_at TIMESTAMP WITH TIME ZONE,
+--   is_system_audio BOOLEAN DEFAULT false
+-- );

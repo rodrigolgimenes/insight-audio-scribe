@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Mic, StopCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -164,7 +163,7 @@ export function SimpleAudioRecorder({
     toast.info('Recording stopped');
   };
   
-  // Process the recording and get transcription
+  // Process the recording and get transcription using fast-whisper
   const transcribeAudio = async () => {
     if (!audioUrl) {
       toast.error('No recording to transcribe');
@@ -201,14 +200,17 @@ export function SimpleAudioRecorder({
       
       setProcessingProgress(50);
       
-      // Send to server for transcription
-      const { data, error } = await supabaseCall('transcribe-meeting', { 
-        audioData: base64Data,
-        recordingData: {
-          duration: recordingTime,
-          mimeType: blob.type
-        }
-      });
+      // Send to fast-whisper service via Edge Function
+      const { data, error } = await supabase.functions
+        .invoke('transcribe-whisper', { 
+          body: { 
+            audioData: base64Data,
+            recordingData: {
+              duration: recordingTime,
+              mimeType: blob.type
+            }
+          }
+        });
       
       setProcessingProgress(100);
       
@@ -231,23 +233,6 @@ export function SimpleAudioRecorder({
       setIsProcessing(false);
       setProcessingProgress(0);
     }
-  };
-  
-  // Mock supabase call - replace with actual implementation
-  const supabaseCall = async (functionName: string, payload: any) => {
-    // This is a placeholder - in a real app, use actual supabase client
-    console.log(`Calling ${functionName} with payload:`, payload);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Return mock response
-    return {
-      data: {
-        transcription: "This is a simulated transcription of the audio recording. In a real application, this would be the actual text transcribed from your audio by the server."
-      },
-      error: null
-    };
   };
   
   return (
@@ -312,7 +297,7 @@ export function SimpleAudioRecorder({
                     Processing ({processingProgress}%)
                   </>
                 ) : (
-                  "Transcribe Recording"
+                  "Transcribe with Fast-Whisper"
                 )}
               </Button>
             </div>
