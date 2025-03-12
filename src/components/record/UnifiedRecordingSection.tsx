@@ -70,7 +70,7 @@ export function UnifiedRecordingSection() {
         <h2 className="text-xl font-bold mb-4">Record Audio</h2>
         
         <div className="space-y-6">
-          <MicrophoneSelector disabled={isRecording} />
+          <MicrophoneSelector disabled={isRecording} className="w-full" />
           
           {permissionState !== 'granted' && (
             <div className="bg-amber-50 border border-amber-200 rounded p-3 text-amber-700 text-sm flex items-center">

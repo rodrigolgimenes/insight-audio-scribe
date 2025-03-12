@@ -5,15 +5,17 @@ import { useDeviceManager } from "@/context/DeviceManagerContext";
 
 // Este é um wrapper de compatibilidade para manter imports existentes
 export function MicrophoneSelector(props: { disabled?: boolean; className?: string }) {
-  const { selectedDeviceId, permissionState } = useDeviceManager();
+  const { selectedDeviceId, permissionState, devices } = useDeviceManager();
   
-  // Log para debug
+  // Log mais detalhado para depuração
   useEffect(() => {
     console.log("[MicrophoneSelector Wrapper] Current state:", {
       selectedDeviceId,
-      permissionState
+      permissionState,
+      deviceCount: devices.length,
+      deviceList: devices.map(d => ({ id: d.deviceId, label: d.label }))
     });
-  }, [selectedDeviceId, permissionState]);
+  }, [selectedDeviceId, permissionState, devices]);
   
   return <UnifiedMicrophoneSelector {...props} />;
 }

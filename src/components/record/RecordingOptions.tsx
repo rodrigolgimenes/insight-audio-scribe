@@ -8,7 +8,7 @@ import { AudioDevice } from "@/hooks/recording/capture/types";
 interface RecordingOptionsProps {
   isRecording: boolean;
   isSystemAudio: boolean;
-  onSystemAudioChange: (enabled: boolean) => void;
+  onSystemAudioChange: ((enabled: boolean) => void) | undefined;
   audioDevices?: AudioDevice[];
   selectedDeviceId?: string | null;
   onDeviceSelect?: (deviceId: string) => void;
@@ -25,10 +25,16 @@ export function RecordingOptions({
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
 
+  // Log para auxiliar na depuração
+  console.log("[RecordingOptions] Rendering with:", { isRecording, isSystemAudio });
+
   return (
     <div className="space-y-6 mb-8">
       {/* Use the centralized MicrophoneSelector component */}
-      <MicrophoneSelector disabled={isRecording} />
+      <MicrophoneSelector 
+        disabled={isRecording} 
+        className="w-full" 
+      />
 
       <LanguageSelector
         language={language}
@@ -36,11 +42,13 @@ export function RecordingOptions({
         disabled={isRecording}
       />
 
-      <SystemAudioToggle
-        isSystemAudio={isSystemAudio}
-        onSystemAudioChange={onSystemAudioChange}
-        disabled={isRecording}
-      />
+      {onSystemAudioChange && (
+        <SystemAudioToggle
+          isSystemAudio={isSystemAudio}
+          onSystemAudioChange={onSystemAudioChange}
+          disabled={isRecording}
+        />
+      )}
     </div>
   );
 }
