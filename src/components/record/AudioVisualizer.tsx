@@ -3,19 +3,24 @@ import { useEffect, useRef } from 'react';
 
 interface AudioVisualizerProps {
   isRecording: boolean;
+  isPaused?: boolean;
   stream?: MediaStream;
+  mediaStream?: MediaStream; // Added for compatibility
 }
 
-export const AudioVisualizer = ({ isRecording, stream }: AudioVisualizerProps) => {
+export const AudioVisualizer = ({ isRecording, isPaused, stream, mediaStream }: AudioVisualizerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const analyserRef = useRef<AnalyserNode>();
+  
+  // Use either stream or mediaStream, whichever is provided
+  const audioStream = stream || mediaStream;
 
   useEffect(() => {
-    if (!stream || !isRecording || !canvasRef.current) return;
+    if (!audioStream || !isRecording || !canvasRef.current) return;
 
     const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(stream);
+    const source = audioContext.createMediaStreamSource(audioStream);
     const analyser = audioContext.createAnalyser();
     analyserRef.current = analyser;
     
@@ -60,7 +65,7 @@ export const AudioVisualizer = ({ isRecording, stream }: AudioVisualizerProps) =
       }
       audioContext.close();
     };
-  }, [stream, isRecording]);
+  }, [audioStream, isRecording]);
 
   return (
     <canvas 

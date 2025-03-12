@@ -3,7 +3,7 @@ import { useState } from "react";
 import { DeviceSelector } from "./DeviceSelector";
 import { LanguageSelector } from "./LanguageSelector";
 import { SystemAudioToggle } from "./SystemAudioToggle";
-import { AudioDevice } from "@/hooks/recording/useAudioCapture";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingOptionsProps {
   isRecording: boolean;
@@ -28,11 +28,13 @@ export function RecordingOptions({
   return (
     <div className="space-y-6 mb-8">
       <DeviceSelector
+        devices={[]} // Pass empty array for compatibility
         audioDevices={audioDevices}
         selectedDeviceId={selectedDeviceId}
         onDeviceSelect={onDeviceSelect}
         disabled={isRecording}
         hasDevices={hasDevices}
+        isReady={true}
       />
 
       <LanguageSelector

@@ -3,12 +3,16 @@ import React, { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, Mic, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface DeviceSelectorProps {
-  devices: MediaDeviceInfo[];
+  devices: MediaDeviceInfo[] | AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   isReady: boolean;
+  disabled?: boolean;
+  hasDevices?: boolean;
+  audioDevices?: AudioDevice[]; // Added for compatibility with RecordingOptions
 }
 
 export function DeviceSelector({
@@ -16,7 +20,13 @@ export function DeviceSelector({
   selectedDeviceId,
   onDeviceSelect,
   isReady,
+  disabled = false,
+  hasDevices = true,
+  audioDevices,
 }: DeviceSelectorProps) {
+  // Use audioDevices if provided, otherwise use devices
+  const deviceList = audioDevices || devices;
+  
   const [permissionStatus, setPermissionStatus] = useState<PermissionState | null>(null);
   const [debugInfo, setDebugInfo] = useState<{
     hasDevices: boolean;
@@ -24,8 +34,8 @@ export function DeviceSelector({
     selectedDevice: string | null;
     permissionRequested: boolean;
   }>({
-    hasDevices: false,
-    deviceCount: 0,
+    hasDevices: deviceList.length > 0,
+    deviceCount: deviceList.length,
     selectedDevice: null,
     permissionRequested: false
   });
@@ -33,18 +43,18 @@ export function DeviceSelector({
   useEffect(() => {
     // Update debug info whenever relevant props change
     setDebugInfo({
-      hasDevices: devices.length > 0,
-      deviceCount: devices.length,
+      hasDevices: deviceList.length > 0,
+      deviceCount: deviceList.length,
       selectedDevice: selectedDeviceId,
       permissionRequested: permissionStatus !== null
     });
     
     // Log device information
-    console.log('[DeviceSelector] Devices:', devices.length, 'Selected:', selectedDeviceId);
-    devices.forEach((device, index) => {
+    console.log('[DeviceSelector] Devices:', deviceList.length, 'Selected:', selectedDeviceId);
+    deviceList.forEach((device, index) => {
       console.log(`[DeviceSelector] Device ${index}:`, device.label, device.deviceId.substring(0, 8) + '...');
     });
-  }, [devices, selectedDeviceId, permissionStatus]);
+  }, [deviceList, selectedDeviceId, permissionStatus]);
 
   // Check permission status
   useEffect(() => {
@@ -103,7 +113,7 @@ export function DeviceSelector({
       <Select
         value={selectedDeviceId || ""}
         onValueChange={handleDeviceChange}
-        disabled={!isReady || devices.length === 0}
+        disabled={!isReady || deviceList.length === 0 || disabled}
       >
         <SelectTrigger 
           className={cn(
@@ -114,12 +124,12 @@ export function DeviceSelector({
           <SelectValue placeholder="Select a microphone" />
         </SelectTrigger>
         <SelectContent>
-          {devices.length === 0 ? (
+          {deviceList.length === 0 ? (
             <SelectItem value="no-devices" disabled>
               No microphones found
             </SelectItem>
           ) : (
-            devices.map((device) => (
+            deviceList.map((device) => (
               <SelectItem key={device.deviceId} value={device.deviceId}>
                 {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
               </SelectItem>
@@ -138,7 +148,7 @@ export function DeviceSelector({
         )}
         {!isReady && (
           <div className="text-amber-500">
-            {devices.length === 0 ? "No devices available" : "Waiting for selection..."}
+            {deviceList.length === 0 ? "No devices available" : "Waiting for selection..."}
           </div>
         )}
       </div>

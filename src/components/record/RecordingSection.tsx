@@ -9,6 +9,7 @@ import { SystemAudioToggle } from "./SystemAudioToggle";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -22,7 +23,7 @@ interface RecordingSectionProps {
   handleResumeRecording: () => void;
   handleDelete?: () => void;
   onSystemAudioChange?: (isSystemAudio: boolean) => void;
-  audioDevices: MediaDeviceInfo[];
+  audioDevices: MediaDeviceInfo[] | AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;

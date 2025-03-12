@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { AudioDevice } from "./types";
+import { AudioDevice, toAudioDevice } from "./types";
 
 export const useDeviceEnumeration = (checkPermissions: () => Promise<boolean>) => {
   const { toast } = useToast();
@@ -27,12 +27,7 @@ export const useDeviceEnumeration = (checkPermissions: () => Promise<boolean>) =
                            device.label.toLowerCase().includes('default') || 
                            device.label.toLowerCase().includes('padrão');
           
-          return {
-            deviceId: device.deviceId,
-            label: device.label || `Microphone ${device.deviceId.slice(0, 5)}...`,
-            kind: device.kind,
-            isDefault
-          };
+          return toAudioDevice(device, isDefault);
         });
 
       console.log('[useDeviceEnumeration] Found audio devices:', audioInputs);

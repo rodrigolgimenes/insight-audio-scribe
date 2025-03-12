@@ -7,24 +7,28 @@ import { useEffect } from "react";
 
 interface SystemAudioToggleProps {
   isSystemAudio: boolean;
-  onChange: (enabled: boolean) => void;
+  onChange?: (enabled: boolean) => void;
+  onSystemAudioChange?: (enabled: boolean) => void; // Added for compatibility
   disabled?: boolean;
 }
 
 export function SystemAudioToggle({
   isSystemAudio,
   onChange,
+  onSystemAudioChange,
   disabled = false
 }: SystemAudioToggleProps) {
+  // Use onChange or onSystemAudioChange depending on which was provided
+  const handleChange = (checked: boolean) => {
+    console.log('[SystemAudioToggle] Toggled to:', checked);
+    if (onChange) onChange(checked);
+    if (onSystemAudioChange) onSystemAudioChange(checked);
+  };
+
   // Log when component props change for debugging
   useEffect(() => {
     console.log('[SystemAudioToggle] State updated:', { isSystemAudio, disabled });
   }, [isSystemAudio, disabled]);
-
-  const handleChange = (checked: boolean) => {
-    console.log('[SystemAudioToggle] Toggled to:', checked);
-    onChange(checked);
-  };
 
   return (
     <div className="flex items-center justify-between space-x-2">
