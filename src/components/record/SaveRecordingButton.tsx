@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface SaveRecordingButtonProps {
   onSave: () => void;
@@ -11,6 +12,7 @@ interface SaveRecordingButtonProps {
 
 export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecordingButtonProps) => {
   const [isClickable, setIsClickable] = useState(true);
+  const [clickCount, setClickCount] = useState(0);
 
   useEffect(() => {
     if (!isSaving) {
@@ -24,12 +26,28 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
     
     console.log('[SaveRecordingButton] Save button clicked');
     setIsClickable(false); // Prevent double clicks
-    onSave();
+    setClickCount(prev => prev + 1);
+    
+    if (clickCount > 0) {
+      toast.info("Processing your request", {
+        description: "Please wait while we process your recording"
+      });
+    }
+    
+    try {
+      onSave();
+    } catch (error) {
+      console.error('[SaveRecordingButton] Error saving:', error);
+      toast.error("Failed to save recording", {
+        description: error.message || "An unknown error occurred"
+      });
+      setIsClickable(true); // Reset on error
+    }
   };
 
   return (
     <Button 
-      className="bg-[#9b87f5] hover:bg-[#7E69AB] active:bg-[#7E69AB] text-white gap-2 w-full max-w-[220px] rounded-md"
+      className="bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white gap-2 w-full max-w-[220px] rounded-md"
       onClick={handleClick}
       disabled={isDisabled || isSaving}
     >
