@@ -1,6 +1,6 @@
 
-import { MicrophoneSelector as UnifiedMicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useEffect } from "react";
+import { MicrophoneSelector as UnifiedMicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 
 // Este é um wrapper de compatibilidade para manter imports existentes

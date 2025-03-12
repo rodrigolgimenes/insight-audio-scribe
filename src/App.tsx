@@ -85,7 +85,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <TooltipProvider>
-          {/* Wrap the entire app with DeviceManagerProvider for global access */}
+          {/* IMPORTANT: Single DeviceManagerProvider for global access */}
           <DeviceManagerProvider>
             <AudioDeviceProvider>
               <Toaster />

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +21,16 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   } = useDeviceManager();
   
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Debug log for selector state on mount and updates
+  useEffect(() => {
+    console.log('[MicrophoneSelector] Component state:', {
+      deviceCount: devices.length,
+      selectedDeviceId,
+      permissionState,
+      isLoading
+    });
+  }, [devices.length, selectedDeviceId, permissionState, isLoading]);
   
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -71,9 +81,9 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       duration: 2000
     });
     
-    // Verificar se o contexto foi atualizado corretamente
+    // Verificar se o contexto foi atualizado corretamente (setTimeout for async check)
     setTimeout(() => {
-      console.log('[MicrophoneSelector] Selection verification:', {
+      console.log('[MicrophoneSelector] Selection verification (async):', {
         expected: deviceId,
         actual: selectedDeviceId,
         match: deviceId === selectedDeviceId
@@ -87,12 +97,24 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     
     console.log('[MicrophoneSelector] Refreshing devices');
     await refreshDevices();
+    
+    // Auto-select first device after refresh if none selected
+    if (devices.length > 0 && !selectedDeviceId) {
+      console.log('[MicrophoneSelector] Auto-selecting first device after refresh:', devices[0].deviceId);
+      setSelectedDeviceId(devices[0].deviceId);
+    }
   };
   
   // Handle permission request
   const handleRequestPermission = async () => {
     console.log('[MicrophoneSelector] Requesting permission');
-    await requestPermission();
+    const granted = await requestPermission();
+    
+    if (granted && devices.length > 0 && !selectedDeviceId) {
+      // Auto-select first device if permission was just granted
+      console.log('[MicrophoneSelector] Permission granted, auto-selecting first device:', devices[0].deviceId);
+      setSelectedDeviceId(devices[0].deviceId);
+    }
   };
   
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);

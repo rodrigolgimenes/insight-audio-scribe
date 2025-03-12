@@ -39,6 +39,9 @@ export function DebugMicrophonePanel() {
                   {devices.map(device => (
                     <li key={device.deviceId} className="text-xs truncate">
                       {device.label || `Microphone ${device.index + 1}`}
+                      {device.deviceId === selectedDeviceId && (
+                        <span className="ml-1 text-green-600">(selected)</span>
+                      )}
                     </li>
                   ))}
                 </ul>

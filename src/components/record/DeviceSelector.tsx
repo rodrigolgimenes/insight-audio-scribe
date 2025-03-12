@@ -1,6 +1,6 @@
 
 import React from "react";
-import { MicrophoneSelector } from "@/components/microphone/MicrophoneSelector";
+import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface DeviceSelectorProps {
@@ -18,5 +18,6 @@ export function DeviceSelector({
   disabled = false
 }: Partial<DeviceSelectorProps>) {
   // Just pass through to our centralized MicrophoneSelector component
+  console.log("[DeviceSelector] Rendering unified MicrophoneSelector");
   return <MicrophoneSelector disabled={disabled} />;
 }

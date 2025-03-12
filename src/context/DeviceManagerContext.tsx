@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
@@ -40,7 +41,12 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
       devices: devices.length,
       selectedDeviceId,
       permissionState,
-      isLoading
+      isLoading,
+      deviceDetails: devices.map(d => ({ 
+        id: d.deviceId, 
+        label: d.label,
+        isSelected: d.deviceId === selectedDeviceId 
+      }))
     });
   }, [devices, selectedDeviceId, permissionState, isLoading]);
 
@@ -105,12 +111,18 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
         mediaDevices.filter(d => d.kind === "audioinput")
       );
       
-      console.log(`[DeviceManagerContext] Found ${audioInputDevices.length} audio input devices`);
+      console.log(`[DeviceManagerContext] Found ${audioInputDevices.length} audio input devices:`, 
+        audioInputDevices.map(d => ({ id: d.deviceId, label: d.label }))
+      );
+      
       setDevices(audioInputDevices);
       
       // Auto-select first device if none selected
       if (!selectedDeviceId && audioInputDevices.length > 0) {
-        console.log("[DeviceManagerContext] Auto-selecting first device:", audioInputDevices[0].deviceId);
+        console.log("[DeviceManagerContext] Auto-selecting first device:", {
+          id: audioInputDevices[0].deviceId,
+          label: audioInputDevices[0].label
+        });
         setSelectedDeviceId(audioInputDevices[0].deviceId);
       }
       
@@ -186,9 +198,10 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     // Validate device exists
     const deviceExists = devices.some(d => d.deviceId === deviceId);
     if (!deviceExists) {
-      console.warn("[DeviceManagerContext] Selected device not found in current devices list");
+      console.warn("[DeviceManagerContext] Selected device not found in current devices list, but will still set it");
     }
     
+    // Force render by creating a new state object
     setSelectedDeviceId(deviceId);
     
     // Verify state update with a delayed check

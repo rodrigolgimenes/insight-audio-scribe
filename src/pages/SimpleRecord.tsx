@@ -14,7 +14,6 @@ import { DeviceListTester } from "@/components/record/DeviceListTester";
 import { DebugMicList } from "@/components/record/DebugMicList";
 import { DebugMicrophonePanel } from "@/components/debug/DebugMicrophonePanel";
 import { UnifiedRecordingSection } from "@/components/record/UnifiedRecordingSection";
-import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
 
 const SimpleRecord = () => {
@@ -178,7 +177,7 @@ const SimpleRecord = () => {
               </CardContent>
             </Card>
             
-            {/* Unified Device Manager Demo Section */}
+            {/* Unified Device Manager Demo Section - REMOVED NESTED DeviceManagerProvider */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
               <h2 className="text-xl font-bold mb-4 text-blue-800">Unified Device Manager Demo</h2>
               <p className="text-blue-700 mb-4">
@@ -186,12 +185,10 @@ const SimpleRecord = () => {
                 Both components below share the same device list and selection state.
               </p>
               
-              <DeviceManagerProvider>
-                <div className="space-y-6">
-                  <DebugMicrophonePanel />
-                  <UnifiedRecordingSection />
-                </div>
-              </DeviceManagerProvider>
+              <div className="space-y-6">
+                <DebugMicrophonePanel />
+                <UnifiedRecordingSection />
+              </div>
             </div>
             
             {/* Original Implementation */}

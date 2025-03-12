@@ -34,8 +34,12 @@ export function UnifiedRecordingSection() {
         description: "Using selected microphone"
       });
       
-      // Em uma implementação real, você iniciaria a gravação com o dispositivo selecionado
-      console.log(`[UnifiedRecordingSection] Started recording with device ID: ${selectedDeviceId}`);
+      // Log device being used for recording
+      const device = devices.find(d => d.deviceId === selectedDeviceId);
+      console.log(`[UnifiedRecordingSection] Started recording with device:`, {
+        id: selectedDeviceId,
+        label: device?.label || 'Unknown device'
+      });
     } catch (error) {
       console.error('[UnifiedRecordingSection] Error starting recording:', error);
       toast.error("Failed to start recording", {
@@ -49,7 +53,6 @@ export function UnifiedRecordingSection() {
     setIsRecording(false);
     toast.info("Recording stopped");
     
-    // Em uma implementação real, você pararia a gravação aqui
     console.log('[UnifiedRecordingSection] Stopped recording');
   };
 
