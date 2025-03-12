@@ -38,15 +38,27 @@ export const useMicrophoneAccess = (
         async () => {
           if (!deviceId) return null;
           console.log('[useMicrophoneAccess] Attempt 1: Using full constraints with exact device ID');
-          const audioConstraints = {
-            deviceId: { exact: deviceId },
-            echoCancellation: MIC_CONSTRAINTS.audio.echoCancellation,
-            noiseSuppression: MIC_CONSTRAINTS.audio.noiseSuppression,
-            autoGainControl: MIC_CONSTRAINTS.audio.autoGainControl,
-            channelCount: MIC_CONSTRAINTS.audio.channelCount,
-            sampleRate: MIC_CONSTRAINTS.audio.sampleRate,
-            sampleSize: MIC_CONSTRAINTS.audio.sampleSize
+          
+          // Fix: Type-safe access to the audio constraints
+          const audioConstraints: MediaTrackConstraints = {
+            deviceId: { exact: deviceId }
           };
+          
+          // Only add these properties if MIC_CONSTRAINTS.audio is an object
+          if (typeof MIC_CONSTRAINTS.audio === 'object') {
+            if ('echoCancellation' in MIC_CONSTRAINTS.audio) 
+              audioConstraints.echoCancellation = MIC_CONSTRAINTS.audio.echoCancellation;
+            if ('noiseSuppression' in MIC_CONSTRAINTS.audio) 
+              audioConstraints.noiseSuppression = MIC_CONSTRAINTS.audio.noiseSuppression;
+            if ('autoGainControl' in MIC_CONSTRAINTS.audio) 
+              audioConstraints.autoGainControl = MIC_CONSTRAINTS.audio.autoGainControl;
+            if ('channelCount' in MIC_CONSTRAINTS.audio) 
+              audioConstraints.channelCount = MIC_CONSTRAINTS.audio.channelCount;
+            if ('sampleRate' in MIC_CONSTRAINTS.audio) 
+              audioConstraints.sampleRate = MIC_CONSTRAINTS.audio.sampleRate;
+            if ('sampleSize' in MIC_CONSTRAINTS.audio) 
+              audioConstraints.sampleSize = MIC_CONSTRAINTS.audio.sampleSize;
+          }
           
           return await navigator.mediaDevices.getUserMedia({
             audio: audioConstraints,
