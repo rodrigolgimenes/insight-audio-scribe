@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -7,6 +8,7 @@ import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { RecordingActions } from "@/components/record/RecordingActions";
+import { RecordActions } from "@/components/record/RecordActions";
 import { useFileUpload } from "@/hooks"; 
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 
@@ -17,6 +19,7 @@ const SimpleRecord = () => {
   const [transcript, setTranscript] = useState<string | null>(null);
   const { isUploading } = useFileUpload();
   const { saveRecording, isProcessing: isSaveProcessing } = useRecordingSave();
+  const [keepAudio, setKeepAudio] = useState(true);
 
   const {
     isRecording,
@@ -111,6 +114,16 @@ const SimpleRecord = () => {
                     showPlayButton={false}
                     showDeleteButton={true}
                   />
+
+                  <div className="mt-8 flex justify-center">
+                    <RecordActions
+                      onSave={handleSave}
+                      isSaving={isLoading}
+                      isRecording={isRecording}
+                      keepAudio={keepAudio}
+                      onKeepAudioChange={setKeepAudio}
+                    />
+                  </div>
 
                   <RecordingActions
                     onSave={handleSave}
