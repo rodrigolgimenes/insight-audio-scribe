@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { AudioVisualizer } from "../AudioVisualizer";
 import { RecordControls } from "../RecordControls";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -38,6 +38,28 @@ export const RecordingMain = ({
   lastAction,
   permissionState = 'unknown'
 }: RecordingMainProps) => {
+  // Adicionar log para rastrear as props recebidas
+  useEffect(() => {
+    console.log('[RecordingMain] Props received:', {
+      deviceSelectionReady,
+      selectedDeviceId,
+      audioDevicesCount: audioDevices.length,
+      permissionState
+    });
+  }, [deviceSelectionReady, selectedDeviceId, audioDevices, permissionState]);
+
+  // Validar se o dispositivo selecionado existe na lista
+  useEffect(() => {
+    if (selectedDeviceId && audioDevices.length > 0) {
+      const deviceExists = audioDevices.some(device => device.deviceId === selectedDeviceId);
+      console.log('[RecordingMain] Selected device validation:', {
+        deviceExists,
+        selectedDeviceId,
+        availableDevices: audioDevices.map(d => d.deviceId)
+      });
+    }
+  }, [selectedDeviceId, audioDevices]);
+
   return (
     <div className="flex flex-col items-center">
       <AudioVisualizer 

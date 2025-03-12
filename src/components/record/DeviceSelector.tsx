@@ -40,7 +40,7 @@ export function DeviceSelector({
   devicesLoading = false,
   permissionState = 'unknown',
 }: DeviceSelectorProps) {
-  // Use our extracted hook for device selection logic
+  // Use nosso hook extraído para lógica de seleção de dispositivo
   const {
     hasAttemptedSelection,
     setHasAttemptedSelection,
@@ -49,7 +49,7 @@ export function DeviceSelector({
     handleRequestPermission
   } = useDeviceSelection(onRefreshDevices, permissionState);
   
-  // Use audioDevices if provided, otherwise fall back to devices
+  // Use audioDevices se fornecido, caso contrário, use devices
   const deviceList = audioDevices || devices || [];
   
   const handleDeviceChange = (value: string) => {
@@ -60,19 +60,35 @@ export function DeviceSelector({
         hasAttemptedSelection
       });
       
-      // Mark that a manual selection was made to prevent auto-selection
-      // from overriding the user's choice
+      // Marcar que uma seleção manual foi feita para evitar que a auto-seleção
+      // substitua a escolha do usuário
       setHasAttemptedSelection(true);
       
-      // Call the callback to update the parent component
+      // Debug forcing of prop update
+      console.log('[DeviceSelector] Before calling onDeviceSelect');
+      
+      // Chamar o callback para atualizar o componente pai
       onDeviceSelect(value);
       
-      // Log state change intent
+      // Log final e verificação posterior da alteração
       console.log('[DeviceSelector] Device selection dispatched');
+      
+      // Verificar em um timeout se a seleção foi aplicada
+      setTimeout(() => {
+        console.log('[DeviceSelector] Check if selection was applied:', {
+          expected: value,
+          actual: selectedDeviceId
+        });
+      }, 300);
+    } else {
+      console.log('[DeviceSelector] Device selection ignored - same value or empty:', {
+        selectedValue: value,
+        currentValue: selectedDeviceId
+      });
     }
   };
 
-  // Log state changes
+  // Logar alterações de estado
   useEffect(() => {
     console.log('[DeviceSelector] Component state updated:', {
       selectedDeviceId,
@@ -82,7 +98,7 @@ export function DeviceSelector({
       hasAttemptedSelection
     });
     
-    // Validate device selection to ensure it exists in device list
+    // Validar seleção de dispositivo para garantir que existe na lista de dispositivos
     if (selectedDeviceId && deviceList.length > 0) {
       const deviceExists = deviceList.some(d => d && d.deviceId === selectedDeviceId);
       console.log('[DeviceSelector] Selected device validation:', {
@@ -90,8 +106,8 @@ export function DeviceSelector({
         selectedDeviceId
       });
       
-      // If selected device no longer exists in the list and we have devices,
-      // we should select the first available one
+      // Se o dispositivo selecionado não existe mais na lista e temos dispositivos,
+      // devemos selecionar o primeiro disponível
       if (!deviceExists && deviceList.length > 0) {
         console.log('[DeviceSelector] Selected device no longer exists, selecting first available');
         const firstDevice = deviceList[0];
@@ -102,11 +118,11 @@ export function DeviceSelector({
     }
   }, [selectedDeviceId, deviceList, isReady, permissionState, hasAttemptedSelection, onDeviceSelect]);
 
-  // Use our extracted hook for auto-refresh logic
+  // Use nosso hook extraído para lógica de auto-refresh
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
   useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
   
-  // Debug information
+  // Informações de debug
   const debugInfo = {
     hasDevices: Array.isArray(deviceList) && deviceList.length > 0,
     deviceCount,
@@ -114,14 +130,14 @@ export function DeviceSelector({
     permissionRequested: !!permissionStatus
   };
 
-  // Calculate if select should be disabled - now more granular
+  // Calcular se select deve ser desativado - agora mais granular
   const isSelectDisabled = 
     disabled || 
     permissionState === 'denied' || 
-    (deviceList.length === 0 && !devicesLoading); // Allow interaction during loading
+    (deviceList.length === 0 && !devicesLoading); // Permitir interação durante o carregamento
 
-  // Find the selected device name for display
-  let selectedDeviceName = "Select a microphone";
+  // Encontrar o nome do dispositivo selecionado para exibição
+  let selectedDeviceName = "Selecionar um microfone";
   
   if (selectedDeviceId && deviceList.length > 0) {
     const selectedDevice = deviceList.find(d => d && d.deviceId === selectedDeviceId);
@@ -135,13 +151,13 @@ export function DeviceSelector({
     }
   }
   
-  // Determine if we should show a warning about no devices
+  // Determinar se devemos mostrar um aviso sobre nenhum dispositivo
   const showNoDevicesWarning = deviceCount === 0 && isReady && !devicesLoading && permissionState !== 'denied';
 
-  // Show permission request button when needed
+  // Mostrar botão de solicitação de permissão quando necessário
   const showPermissionRequest = permissionState === 'prompt' || (permissionState === 'denied' && deviceCount === 0);
 
-  // Only show auto-selection when permission is granted and we have devices
+  // Só mostrar auto-seleção quando permissão for concedida e tivermos dispositivos
   const showAutoSelection = permissionState === 'granted' && deviceCount > 0;
 
   return (
@@ -156,7 +172,7 @@ export function DeviceSelector({
         />
       </div>
 
-      {/* This component handles auto-selection logic - only show when permission granted */}
+      {/* Este componente lida com lógica de auto-seleção - só mostrar quando permissão concedida */}
       {showAutoSelection && (
         <DeviceAutoSelection
           deviceList={deviceList}

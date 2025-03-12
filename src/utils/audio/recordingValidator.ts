@@ -40,35 +40,42 @@ export class RecordingValidator {
       issues: [] as string[]
     };
     
-    // Check if we have devices
-    if (!diagnostics.hasDevices) {
-      diagnostics.issues.push('No microphone devices detected');
-    }
-    
-    // Check if a device is selected and exists in the device list
-    if (!diagnostics.deviceSelected) {
-      diagnostics.issues.push('No microphone selected');
-    } else {
-      // Check if the selected device exists in the device list
+    // Verificar explicitamente se o dispositivo existe na lista
+    if (diagnostics.deviceSelected && selectedDeviceId) {
       diagnostics.deviceExists = audioDevices.some(device => device.deviceId === selectedDeviceId);
-      if (!diagnostics.deviceExists) {
-        diagnostics.issues.push('Selected microphone not found in device list');
-      }
+      console.log('[RecordingValidator] Device existence check:', {
+        deviceExists: diagnostics.deviceExists,
+        selectedDeviceId: selectedDeviceId,
+        availableDeviceIds: audioDevices.map(d => d.deviceId)
+      });
     }
     
-    // Check if selection is ready
+    // Verificar se temos dispositivos
+    if (!diagnostics.hasDevices) {
+      diagnostics.issues.push('Nenhum microfone detectado');
+    }
+    
+    // Verificar se um dispositivo está selecionado
+    if (!diagnostics.deviceSelected) {
+      diagnostics.issues.push('Nenhum microfone selecionado');
+    } else if (!diagnostics.deviceExists) {
+      // O dispositivo selecionado não existe na lista de dispositivos
+      diagnostics.issues.push('O microfone selecionado não foi encontrado na lista de dispositivos');
+    }
+    
+    // Verificar se a seleção está pronta
     if (!diagnostics.deviceSelectionReady) {
-      diagnostics.issues.push('Device selection not ready');
+      diagnostics.issues.push('Seleção de dispositivo não está pronta');
     }
     
-    // Check permissions - consider both the boolean flag and the permission state
+    // Verificar permissões - considerar tanto a flag booleana quanto o estado de permissão
     if (!diagnostics.permissionsGranted || diagnostics.permissionState === 'denied') {
-      diagnostics.issues.push('Microphone permission not granted');
+      diagnostics.issues.push('Permissão de microfone não concedida');
     } else if (diagnostics.permissionState === 'prompt') {
-      diagnostics.issues.push('Microphone permission needed - please allow when prompted');
+      diagnostics.issues.push('Permissão de microfone necessária - por favor, permita quando solicitado');
     }
     
-    // Determine if recording can start - add deviceExists check
+    // Determinar se a gravação pode começar - adicionar verificação deviceExists
     diagnostics.canStartRecording = 
       diagnostics.hasDevices && 
       diagnostics.deviceSelected && 
@@ -78,7 +85,7 @@ export class RecordingValidator {
       diagnostics.permissionState !== 'denied' &&
       diagnostics.permissionState !== 'prompt';
     
-    console.log('[RecordingValidator] Validation result:', {
+    console.log('[RecordingValidator] Resultado da validação:', {
       canStartRecording: diagnostics.canStartRecording,
       hasDevices: diagnostics.hasDevices,
       deviceSelected: diagnostics.deviceSelected,
@@ -86,7 +93,7 @@ export class RecordingValidator {
       deviceSelectionReady: diagnostics.deviceSelectionReady,
       permissionsGranted: diagnostics.permissionsGranted,
       permissionState: diagnostics.permissionState,
-      issues: diagnostics.issues.length > 0 ? diagnostics.issues : 'none'
+      issues: diagnostics.issues.length > 0 ? diagnostics.issues : 'nenhum'
     });
     
     return diagnostics;
@@ -106,31 +113,31 @@ export class RecordingValidator {
     const { isRecording, ...rest } = options;
     const diagnostics = this.validatePrerequisites(rest);
     
-    console.group('Recording Diagnostics');
-    console.log('Can start recording:', diagnostics.canStartRecording);
-    console.log('Currently recording:', isRecording);
-    console.log('Has devices:', diagnostics.hasDevices, `(${rest.audioDevices.length} found)`);
-    console.log('Device selected:', diagnostics.deviceSelected, rest.selectedDeviceId);
+    console.group('Diagnóstico de Gravação');
+    console.log('Pode iniciar gravação:', diagnostics.canStartRecording);
+    console.log('Gravando atualmente:', isRecording);
+    console.log('Tem dispositivos:', diagnostics.hasDevices, `(${rest.audioDevices.length} encontrados)`);
+    console.log('Dispositivo selecionado:', diagnostics.deviceSelected, rest.selectedDeviceId);
     
     if (diagnostics.deviceSelected) {
-      console.log('Selected device exists in list:', diagnostics.deviceExists);
+      console.log('Dispositivo selecionado existe na lista:', diagnostics.deviceExists);
     }
     
-    console.log('Device selection ready:', diagnostics.deviceSelectionReady);
-    console.log('Permissions granted:', diagnostics.permissionsGranted);
-    console.log('Permission state:', rest.permissionState || 'unknown');
+    console.log('Seleção de dispositivo pronta:', diagnostics.deviceSelectionReady);
+    console.log('Permissões concedidas:', diagnostics.permissionsGranted);
+    console.log('Estado de permissão:', rest.permissionState || 'desconhecido');
     
     if (diagnostics.issues.length > 0) {
-      console.log('Issues detected:');
+      console.log('Problemas detectados:');
       diagnostics.issues.forEach(issue => console.log(`- ${issue}`));
     } else {
-      console.log('No issues detected');
+      console.log('Nenhum problema detectado');
     }
     
     if (rest.audioDevices.length > 0) {
-      console.log('Available devices:');
+      console.log('Dispositivos disponíveis:');
       rest.audioDevices.forEach((device, index) => {
-        console.log(`- Device ${index + 1}: ID=${device.deviceId} Label=${device.label || 'Unnamed device'}`);
+        console.log(`- Dispositivo ${index + 1}: ID=${device.deviceId} Label=${device.label || 'Dispositivo sem nome'}`);
       });
     }
     
