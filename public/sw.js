@@ -51,7 +51,7 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         
         // Don't cache non-GET requests or failed responses
-        if (!event.request.method === 'GET' || !response || response.status !== 200) {
+        if (event.request.method !== 'GET' || !response || response.status !== 200) {
           return response;
         }
 

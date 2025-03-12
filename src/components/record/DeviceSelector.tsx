@@ -121,14 +121,24 @@ export function DeviceSelector({
               No microphones found
             </SelectItem>
           ) : (
-            deviceList.map((device) => (
-              <SelectItem 
-                key={device.deviceId || 'unknown'} 
-                value={device.deviceId || 'unknown'}
-              >
-                {device.label || `Microphone ${(device.deviceId || 'unknown').substring(0, 5)}...`}
-              </SelectItem>
-            ))
+            deviceList.map((device) => {
+              // Safety check to ensure device and deviceId exist
+              if (!device || typeof device !== 'object') {
+                return null;
+              }
+              
+              const deviceId = device.deviceId || 'unknown';
+              const label = device.label || `Microphone ${deviceId.substring(0, 5)}...`;
+              
+              return (
+                <SelectItem 
+                  key={deviceId} 
+                  value={deviceId}
+                >
+                  {label}
+                </SelectItem>
+              );
+            })
           )}
         </SelectContent>
       </Select>
