@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { MIC_CONSTRAINTS } from "./audioConfig";
 import { useSystemAudio } from "./useSystemAudio";
@@ -9,33 +8,62 @@ export interface AudioDevice {
   deviceId: string;
   label: string;
   kind: MediaDeviceInfo['kind'];
+  isDefault?: boolean;
 }
 
 export const useAudioCapture = () => {
   const { toast } = useToast();
   const { captureSystemAudio } = useSystemAudio();
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
+  const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
 
   const getAudioDevices = async (): Promise<AudioDevice[]> => {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      let defaultDevice: AudioDevice | undefined;
+      
       const audioInputs = devices
         .filter(device => device.kind === 'audioinput')
-        .map(device => ({
-          deviceId: device.deviceId,
-          label: device.label || `Microfone ${device.deviceId.slice(0, 5)}...`,
-          kind: device.kind
-        }));
+        .map(device => {
+          const isDefault = device.deviceId === 'default' || 
+                           device.label.toLowerCase().includes('default') || 
+                           device.label.toLowerCase().includes('padrão');
+          
+          const deviceInfo = {
+            deviceId: device.deviceId,
+            label: device.label || `Microphone ${device.deviceId.slice(0, 5)}...`,
+            kind: device.kind,
+            isDefault
+          };
+          
+          if (isDefault && !defaultDevice) {
+            defaultDevice = deviceInfo;
+          }
+          
+          return deviceInfo;
+        });
 
       setAudioDevices(audioInputs);
+      
+      if (!defaultDevice && audioInputs.length > 0) {
+        defaultDevice = audioInputs[0];
+        defaultDevice.isDefault = true;
+      }
+      
+      if (defaultDevice) {
+        setDefaultDeviceId(defaultDevice.deviceId);
+        console.log('[useAudioCapture] Default device selected:', defaultDevice.label);
+      }
+      
       console.log('[useAudioCapture] Available audio devices:', audioInputs);
       return audioInputs;
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível listar os dispositivos de áudio",
+        title: "Error",
+        description: "Could not list audio devices",
         variant: "destructive",
       });
       return [];
@@ -45,7 +73,7 @@ export const useAudioCapture = () => {
   const requestMicrophoneAccess = async (deviceId: string | null, isSystemAudio: boolean): Promise<MediaStream | null> => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Seu navegador não suporta captura de áudio');
+        throw new Error('Your browser does not support audio capture');
       }
 
       console.log('[useAudioCapture] Requesting microphone access:', {
@@ -55,7 +83,6 @@ export const useAudioCapture = () => {
 
       let micStream: MediaStream;
       try {
-        // Use existing MIC_CONSTRAINTS from audioConfig
         const audioConstraints: MediaTrackConstraints = {
           ...MIC_CONSTRAINTS.audio as MediaTrackConstraints,
           deviceId: deviceId ? { exact: deviceId } : undefined
@@ -92,8 +119,8 @@ export const useAudioCapture = () => {
         } catch (systemError) {
           console.error('[useAudioCapture] Failed to capture system audio:', systemError);
           toast({
-            title: "Aviso",
-            description: "Não foi possível capturar o áudio do sistema. Usando apenas o microfone.",
+            title: "Warning",
+            description: "Could not capture system audio. Using microphone only.",
             variant: "default",
           });
         }
@@ -101,7 +128,7 @@ export const useAudioCapture = () => {
 
       const audioTracks = micStream.getAudioTracks();
       if (audioTracks.length === 0) {
-        throw new Error('Nenhuma fonte de áudio disponível');
+        throw new Error('No audio source available');
       }
 
       console.log('[useAudioCapture] Final audio stream details:', {
@@ -121,7 +148,7 @@ export const useAudioCapture = () => {
       console.error('[useAudioCapture] Error accessing audio:', error);
       
       toast({
-        title: "Erro de Captura",
+        title: "Capture Error",
         description: handleAudioError(error, isSystemAudio),
         variant: "destructive",
       });
@@ -134,5 +161,6 @@ export const useAudioCapture = () => {
     requestMicrophoneAccess,
     getAudioDevices,
     audioDevices,
+    defaultDeviceId,
   };
 };

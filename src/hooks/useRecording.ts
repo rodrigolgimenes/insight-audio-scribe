@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -28,7 +27,7 @@ export const useRecording = () => {
   } = useRecordingState();
 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const { requestMicrophoneAccess, getAudioDevices, audioDevices } = useAudioCapture();
+  const { requestMicrophoneAccess, getAudioDevices, audioDevices, defaultDeviceId } = useAudioCapture();
   const { saveRecording } = useAudioProcessing();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,13 +37,24 @@ export const useRecording = () => {
   const logger = useRef(new RecordingLogger());
 
   useEffect(() => {
-    getAudioDevices();
+    const initDevices = async () => {
+      await getAudioDevices();
+    };
+    
+    initDevices();
     audioRecorder.current.addObserver(logger.current);
     
     return () => {
       audioRecorder.current.removeObserver(logger.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (defaultDeviceId && !selectedDeviceId) {
+      console.log('[useRecording] Setting default device:', defaultDeviceId);
+      setSelectedDeviceId(defaultDeviceId);
+    }
+  }, [defaultDeviceId, selectedDeviceId]);
 
   const handleStartRecording = async () => {
     console.log('[useRecording] Starting recording process');
@@ -96,7 +106,6 @@ export const useRecording = () => {
       setIsPaused(false);
       setMediaStream(null);
 
-      // Create object URL for preview
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
       console.log('[useRecording] Recording stopped successfully with duration (seconds):', duration);

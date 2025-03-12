@@ -58,6 +58,10 @@ export const RecordingSection = ({
 }: RecordingSectionProps) => {
   const [language, setLanguage] = useState("en");
   const canStartRecording = !!selectedDeviceId;
+  const hasDevices = audioDevices.length > 0;
+
+  // Find the default device for display in the dropdown
+  const defaultDevice = audioDevices.find(device => device.isDefault) || audioDevices[0];
 
   return (
     <>
@@ -93,7 +97,7 @@ export const RecordingSection = ({
           <Select
             value={selectedDeviceId || undefined}
             onValueChange={onDeviceSelect}
-            disabled={isRecording}
+            disabled={isRecording || !hasDevices}
           >
             <SelectTrigger className="w-[280px]">
               <SelectValue placeholder="Select a microphone" />
@@ -101,7 +105,7 @@ export const RecordingSection = ({
             <SelectContent>
               {audioDevices.map((device) => (
                 <SelectItem key={device.deviceId} value={device.deviceId}>
-                  {device.label}
+                  {device.label} {device.isDefault ? "(Default)" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
