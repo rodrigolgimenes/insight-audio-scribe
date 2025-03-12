@@ -8,7 +8,7 @@ interface RefreshDevicesButtonProps {
   isLoading?: boolean;
 }
 
-export function RefreshDevicesButton({ 
+export function RefreshDevicesButton({
   onRefreshDevices,
   isLoading = false
 }: RefreshDevicesButtonProps) {
@@ -17,13 +17,13 @@ export function RefreshDevicesButton({
   return (
     <Button 
       variant="ghost" 
-      size="sm" 
-      onClick={onRefreshDevices} 
-      className="h-7 px-2"
+      size="icon" 
+      onClick={onRefreshDevices}
       disabled={isLoading}
+      className="h-7 w-7"
+      title="Refresh microphone list"
     >
-      <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
-      <span className="text-xs">{isLoading ? 'Refreshing...' : 'Refresh'}</span>
+      <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
     </Button>
   );
 }

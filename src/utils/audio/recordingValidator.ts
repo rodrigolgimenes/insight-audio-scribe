@@ -51,29 +51,34 @@ export class RecordingValidator {
       });
     }
     
-    // Check if we have devices
-    if (!diagnostics.hasDevices) {
-      diagnostics.issues.push('No microphones detected');
-    }
-    
-    // Check if a device is selected
-    if (!diagnostics.deviceSelected) {
-      diagnostics.issues.push('No microphone selected');
-    } else if (!diagnostics.deviceExists) {
-      // Selected device doesn't exist in the device list
-      diagnostics.issues.push('The selected microphone was not found in the device list');
-    }
-    
-    // Check if selection is ready
-    if (!diagnostics.deviceSelectionReady) {
-      diagnostics.issues.push('Device selection is not ready');
-    }
-    
-    // Check permissions - consider both the boolean flag and permission state
-    if (!diagnostics.permissionsGranted || diagnostics.permissionState === 'denied') {
-      diagnostics.issues.push('Microphone permission not granted');
-    } else if (diagnostics.permissionState === 'prompt') {
+    // Check permission state first (most critical)
+    if (permissionState === 'denied') {
+      diagnostics.issues.push('Microphone permission denied in browser');
+    } else if (permissionState === 'prompt') {
       diagnostics.issues.push('Microphone permission needed - please allow when prompted');
+    } else if (permissionState === 'unknown') {
+      diagnostics.issues.push('Microphone permission status unknown');
+    }
+    
+    // Only check these if permission isn't explicitly denied
+    if (permissionState !== 'denied') {
+      // Check if we have devices
+      if (!diagnostics.hasDevices) {
+        diagnostics.issues.push('No microphones detected');
+      }
+      
+      // Check if a device is selected
+      if (!diagnostics.deviceSelected) {
+        diagnostics.issues.push('No microphone selected');
+      } else if (!diagnostics.deviceExists) {
+        // Selected device doesn't exist in the device list
+        diagnostics.issues.push('The selected microphone was not found in the device list');
+      }
+      
+      // Check if selection is ready
+      if (!diagnostics.deviceSelectionReady) {
+        diagnostics.issues.push('Device selection is not ready');
+      }
     }
     
     // Determine if recording can start - add deviceExists check
@@ -82,9 +87,7 @@ export class RecordingValidator {
       diagnostics.deviceSelected && 
       diagnostics.deviceExists && 
       diagnostics.deviceSelectionReady && 
-      diagnostics.permissionsGranted &&
-      diagnostics.permissionState !== 'denied' &&
-      diagnostics.permissionState !== 'prompt';
+      (permissionState === 'granted');
     
     console.log('[RecordingValidator] Validation result:', {
       canStartRecording: diagnostics.canStartRecording,

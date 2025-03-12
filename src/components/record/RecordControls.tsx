@@ -42,6 +42,7 @@ export function RecordControls({
   const [buttonPressed, setButtonPressed] = useState<string | null>(null);
   const [clickTime, setClickTime] = useState<number | null>(null);
   const [canStart, setCanStart] = useState(false);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
   
   // Log props changes
   useEffect(() => {
@@ -76,6 +77,7 @@ export function RecordControls({
     
     const previousCanStart = canStart;
     setCanStart(diagnostics.canStartRecording);
+    setValidationIssues(diagnostics.issues);
     
     console.log('[RecordControls] Can start recording:', diagnostics.canStartRecording, 
       'changed:', previousCanStart !== diagnostics.canStartRecording);
@@ -98,14 +100,16 @@ export function RecordControls({
         deviceSelectionReady,
         audioDevicesCount: audioDevices.length,
         isRecording,
-        canStart
+        canStart,
+        deviceExists: selectedDeviceId ? audioDevices.some(d => d.deviceId === selectedDeviceId) : false
       });
       
       RecordingValidator.logDiagnostics({
         selectedDeviceId,
         deviceSelectionReady,
         audioDevices,
-        isRecording
+        isRecording,
+        permissionState
       });
     }
     
@@ -129,6 +133,38 @@ export function RecordControls({
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [buttonPressed]);
+
+  // Determine the specific reason why recording can't start
+  const getStatusMessage = () => {
+    if (canStart) {
+      return "Microphone selected and ready";
+    }
+    
+    if (permissionState === 'denied') {
+      return "Microphone access denied - check browser settings";
+    }
+    
+    if (permissionState === 'prompt') {
+      return "Click 'Allow' when prompted for microphone access";
+    }
+    
+    if (audioDevices.length === 0) {
+      return "No microphones detected";
+    }
+    
+    if (!selectedDeviceId) {
+      return "Please select a microphone";
+    }
+    
+    const deviceExists = selectedDeviceId ? 
+      audioDevices.some(d => d.deviceId === selectedDeviceId) : false;
+    
+    if (!deviceExists) {
+      return "Selected microphone not found - please select another";
+    }
+    
+    return "Waiting for microphone permission or device selection...";
+  };
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -192,16 +228,10 @@ export function RecordControls({
       </div>
       
       {/* Status and Diagnostic Information */}
-      <div className="text-xs text-gray-500 mt-2">
+      <div className="text-sm text-gray-500 mt-2">
         <div>Status: {isRecording ? (isPaused ? "Paused" : "Recording") : "Ready"}</div>
         <div className={canStart ? "text-green-500" : "text-amber-500"}>
-          {canStart 
-            ? "Microphone selected and ready" 
-            : permissionState === 'denied'
-              ? "Microphone access denied - check browser settings"
-              : permissionState === 'prompt'
-                ? "Click 'Allow' when prompted for microphone access"
-                : "Waiting for microphone permission or device selection..."}
+          {getStatusMessage()}
         </div>
         {showLastAction && lastAction && (
           <div className={cn(
@@ -226,6 +256,13 @@ export function RecordControls({
           <div>Selection Ready: {deviceSelectionReady ? 'Yes' : 'No'}</div>
           <div>Permission: {permissionState}</div>
           <div>Can Start: {canStart ? 'Yes' : 'No'}</div>
+          {validationIssues.length > 0 && (
+            <div className="text-amber-600 mt-1">
+              Issues: {validationIssues.map((issue, i) => 
+                <div key={i} className="pl-2">• {issue}</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

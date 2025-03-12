@@ -1,6 +1,6 @@
 
 import React from "react";
-import { AlertCircle } from "lucide-react";
+import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NoDevicesMessageProps {
@@ -8,42 +8,35 @@ interface NoDevicesMessageProps {
   onRefresh?: () => void;
 }
 
-export function NoDevicesMessage({ showWarning, onRefresh }: NoDevicesMessageProps) {
+export function NoDevicesMessage({ 
+  showWarning,
+  onRefresh 
+}: NoDevicesMessageProps) {
   if (!showWarning) return null;
   
   return (
-    <div className="flex items-start gap-1.5 mt-2 text-amber-500">
-      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-      <div className="text-xs space-y-1.5">
-        <p className="font-medium">No microphones detected</p>
-        <ul className="list-disc pl-4 text-amber-600/90 space-y-1">
-          <li>Check if your microphone is connected properly</li>
-          <li>Make sure your microphone isn't disabled in system settings</li>
-          <li>Try unplugging and reconnecting your device</li>
-          <li>Some browsers require a page refresh after connecting a device</li>
+    <div className="flex flex-col items-center p-3 bg-amber-50 border border-amber-200 rounded-md mt-2">
+      <Mic className="h-10 w-10 text-amber-500 mb-2" />
+      <h3 className="text-sm font-medium text-amber-700">No microphones detected</h3>
+      <p className="text-xs text-amber-600 text-center mt-1 mb-3">
+        This could be because:
+        <ul className="list-disc pl-5 mt-1 text-left">
+          <li>No microphone is connected</li>
+          <li>Your microphone isn't recognized by the browser</li>
+          <li>Your browser needs to be refreshed</li>
         </ul>
-        
-        <div className="flex gap-2 mt-2">
-          {onRefresh && (
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="h-7 text-xs px-2 py-1 bg-white"
-              onClick={onRefresh}
-            >
-              Retry Detection
-            </Button>
-          )}
-          <Button 
-            size="sm" 
-            variant="outline" 
-            className="h-7 text-xs px-2 py-1 bg-white"
-            onClick={() => window.location.reload()}
-          >
-            Refresh Page
-          </Button>
-        </div>
-      </div>
+      </p>
+      
+      {onRefresh && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onRefresh}
+          className="bg-white border-amber-300 text-amber-700 hover:bg-amber-100"
+        >
+          Scan for Microphones
+        </Button>
+      )}
     </div>
   );
 }

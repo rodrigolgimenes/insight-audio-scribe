@@ -1,9 +1,9 @@
 
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface DeviceAutoSelectionProps {
-  deviceList: (AudioDevice | MediaDeviceInfo)[];
+  deviceList: AudioDevice[] | MediaDeviceInfo[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   hasAttemptedSelection: boolean;
@@ -17,53 +17,35 @@ export function DeviceAutoSelection({
   hasAttemptedSelection,
   setHasAttemptedSelection
 }: DeviceAutoSelectionProps) {
+  // Auto-selection logic
   useEffect(() => {
-    if (!Array.isArray(deviceList) || deviceList.length === 0) {
-      console.log('[DeviceAutoSelection] No devices available for auto-selection');
-      return;
-    }
-    
-    console.log('[DeviceAutoSelection] Current state:', {
-      deviceCount: deviceList.length,
-      selectedDeviceId,
-      hasAttemptedSelection
-    });
-
-    // Only attempt auto-selection if:
-    // 1. We haven't tried before
-    // 2. No device is currently selected
-    // These two conditions ensure we don't override manual selection
-    if (!hasAttemptedSelection && !selectedDeviceId) {
-      setHasAttemptedSelection(true);
-      console.log('[DeviceAutoSelection] First attempt at selection, no device currently selected');
+    // If we have devices but no selection has been made
+    if (deviceList.length > 0 && !selectedDeviceId && !hasAttemptedSelection) {
+      console.log('[DeviceAutoSelection] No device selected but devices available, auto-selecting first device');
       
-      const firstDevice = deviceList[0];
-      if (firstDevice && typeof firstDevice === 'object') {
-        const deviceId = firstDevice.deviceId || '';
-        if (deviceId) {
-          console.log('[DeviceAutoSelection] Auto-selecting first device:', deviceId);
-          onDeviceSelect(deviceId);
-        }
+      // Get the first device ID
+      const firstDeviceId = deviceList[0].deviceId;
+      
+      if (firstDeviceId) {
+        console.log('[DeviceAutoSelection] Auto-selecting device:', firstDeviceId);
+        onDeviceSelect(firstDeviceId);
+        setHasAttemptedSelection(true);
       }
-    } else if (selectedDeviceId) {
-      // If we have a selection, check if it's still valid
-      const deviceExists = deviceList.some(d => d.deviceId === selectedDeviceId);
+    } 
+    // If the selected device doesn't exist in the list anymore
+    else if (deviceList.length > 0 && selectedDeviceId) {
+      const deviceExists = deviceList.some(device => device.deviceId === selectedDeviceId);
       
       if (!deviceExists) {
-        console.log('[DeviceAutoSelection] Selected device no longer exists, selecting new one');
-        const firstDevice = deviceList[0];
-        if (firstDevice && typeof firstDevice === 'object') {
-          const deviceId = firstDevice.deviceId || '';
-          if (deviceId) {
-            console.log('[DeviceAutoSelection] Selecting new device after list change:', deviceId);
-            onDeviceSelect(deviceId);
-          }
+        console.log('[DeviceAutoSelection] Selected device not found in list, selecting first device');
+        const firstDeviceId = deviceList[0].deviceId;
+        
+        if (firstDeviceId) {
+          onDeviceSelect(firstDeviceId);
         }
-      } else {
-        console.log('[DeviceAutoSelection] Selected device still valid, no changes needed');
       }
     }
   }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection, setHasAttemptedSelection]);
-  
-  return null;
+
+  return null; // This is a logic-only component
 }

@@ -1,8 +1,10 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { AudioVisualizer } from "../AudioVisualizer";
 import { RecordControls } from "../RecordControls";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { RecordingValidator } from "@/utils/audio/recordingValidator";
+import { toast } from "sonner";
 
 interface RecordingMainProps {
   isRecording: boolean;
@@ -38,6 +40,13 @@ export const RecordingMain = ({
   lastAction,
   permissionState = 'unknown'
 }: RecordingMainProps) => {
+  // Track when we need to force selection of a default device
+  const [hasAttemptedDeviceSelection, setHasAttemptedDeviceSelection] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<{
+    canStartRecording: boolean;
+    issues: string[];
+  }>({ canStartRecording: false, issues: [] });
+
   // Enhanced logging to track received props
   useEffect(() => {
     console.log('[RecordingMain] Props received:', {
@@ -50,7 +59,40 @@ export const RecordingMain = ({
         label: d.label || 'No label'
       }))
     });
+    
+    // Re-validate when props change
+    const diagnostics = RecordingValidator.validatePrerequisites({
+      selectedDeviceId,
+      deviceSelectionReady,
+      audioDevices,
+      permissionState
+    });
+    
+    setValidationStatus({
+      canStartRecording: diagnostics.canStartRecording,
+      issues: diagnostics.issues
+    });
   }, [deviceSelectionReady, selectedDeviceId, audioDevices, permissionState]);
+
+  // Handle microphone auto-selection if permission is granted but no device is selected
+  useEffect(() => {
+    // Only proceed if permissions are granted
+    if (permissionState === 'granted' && audioDevices.length > 0 && !hasAttemptedDeviceSelection) {
+      console.log('[RecordingMain] Permission granted with available devices, checking selection...');
+      
+      // Check if we need to select a device
+      if (!selectedDeviceId || !audioDevices.some(d => d.deviceId === selectedDeviceId)) {
+        console.log('[RecordingMain] No valid device selected, should select first available device');
+        setHasAttemptedDeviceSelection(true);
+        
+        // Show toast about devices being found (this will be handled by parent component actually making the selection)
+        toast.info(`Found ${audioDevices.length} microphones`, {
+          description: "Recording is now ready",
+          id: "mic-autodetect"
+        });
+      }
+    }
+  }, [permissionState, audioDevices, selectedDeviceId, hasAttemptedDeviceSelection]);
 
   // Validate if selected device exists in list
   useEffect(() => {
@@ -62,10 +104,12 @@ export const RecordingMain = ({
         availableDevices: audioDevices.map(d => d.deviceId)
       });
       
-      // If selected device doesn't exist in the list but we have devices,
-      // we could potentially auto-select the first device here
+      // If selected device doesn't exist in the list but we have devices, show a warning
       if (!deviceExists && audioDevices.length > 0) {
         console.warn('[RecordingMain] Selected device not found in devices list. Consider selecting a valid device.');
+        
+        // In a real app you might want to auto-select here, but we're just warning for now
+        // to avoid unexpected behavior for the user
       }
     }
   }, [selectedDeviceId, audioDevices]);
@@ -92,6 +136,17 @@ export const RecordingMain = ({
         lastAction={lastAction}
         permissionState={permissionState}
       />
+      
+      {validationStatus.issues.length > 0 && (
+        <div className="mt-4 text-sm text-amber-600 bg-amber-50 p-2 rounded">
+          <p className="font-medium">Recording may not work correctly:</p>
+          <ul className="list-disc pl-5 mt-1">
+            {validationStatus.issues.map((issue, idx) => (
+              <li key={idx}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
