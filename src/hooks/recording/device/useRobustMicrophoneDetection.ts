@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AudioDevice } from "@/hooks/recording/capture/types";
+import { AudioDevice, toAudioDevice } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
 
 /**
@@ -41,12 +40,11 @@ export function useRobustMicrophoneDetection() {
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
     return mediaDevices
       .filter(device => device.kind === 'audioinput')
-      .map(device => ({
-        deviceId: device.deviceId,
-        groupId: device.groupId,
-        kind: device.kind,
-        label: device.label || `Microphone ${device.deviceId.substring(0, 5)}...`
-      }));
+      .map((device, index) => {
+        // Use the toAudioDevice helper from types.ts to properly format the device
+        const isDefault = device.deviceId === 'default' || index === 0;
+        return toAudioDevice(device, isDefault, index);
+      });
   }, []);
   
   // Check permission status using Permissions API
