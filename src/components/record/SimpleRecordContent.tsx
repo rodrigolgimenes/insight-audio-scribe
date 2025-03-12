@@ -74,8 +74,8 @@ export function SimpleRecordContent({
         
         <div className="space-y-8">
           <ProcessedContentSection
-            isRecording={recordingHook.isRecording}
             audioUrl={recordingHook.audioUrl}
+            isRecording={recordingHook.isRecording}
             isLoading={isLoading}
           />
           

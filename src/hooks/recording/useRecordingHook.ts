@@ -32,7 +32,8 @@ export const useRecording = () => {
   // Device selection
   const {
     audioDevices,
-    deviceSelectionReady
+    deviceSelectionReady,
+    refreshDevices
   } = useDeviceSelection();
 
   // Media stream handling
@@ -110,6 +111,7 @@ export const useRecording = () => {
     audioDevices,
     deviceSelectionReady,
     getCurrentDuration,
-    initError
+    initError,
+    refreshDevices // Make sure we expose this function
   };
 };
