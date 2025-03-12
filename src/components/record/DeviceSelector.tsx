@@ -44,6 +44,7 @@ export function DeviceSelector({
   // Track selection changes for debugging
   const [lastManualSelection, setLastManualSelection] = useState<string | null>(null);
   const [selectionTime, setSelectionTime] = useState(0);
+  const [forceRenderKey, setForceRenderKey] = useState(0);
   
   // Use our hook for device selection logic
   const {
@@ -66,6 +67,9 @@ export function DeviceSelector({
         label: d.label || 'No label'
       }))
     });
+    
+    // Force a re-render whenever device list changes
+    setForceRenderKey(prev => prev + 1);
   }, [deviceList]);
   
   // Improved device change handler with validation and debugging
@@ -190,16 +194,12 @@ export function DeviceSelector({
   const handleForceRefresh = () => {
     if (onRefreshDevices) {
       console.log('[DeviceSelector] Force refreshing devices');
-      toast.info("Refreshing device list...", {
-        id: "force-refresh",
-        duration: 2000
-      });
       onRefreshDevices();
     }
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" key={forceRenderKey}>
       <div className="flex items-center justify-between">
         <DeviceSelectorLabel 
           permissionStatus={permissionState === 'unknown' ? permissionStatus : permissionState} 
@@ -243,7 +243,10 @@ export function DeviceSelector({
       
       {permissionState === 'denied' && <DevicePermissionError />}
       
-      <NoDevicesMessage showWarning={showNoDevicesWarning} />
+      <NoDevicesMessage 
+        showWarning={showNoDevicesWarning} 
+        onRefresh={onRefreshDevices}
+      />
       
       <DeviceDebugInfo 
         deviceCount={deviceCount} 
