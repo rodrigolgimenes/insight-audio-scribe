@@ -21,7 +21,7 @@ export const useMediaStream = (
         success: false
       });
       
-      const stream = await requestMicrophoneAccess(deviceId, isSystemAudio, captureSystemAudio);
+      const stream = await requestMicrophoneAccess(deviceId, isSystemAudio);
       
       if (stream) {
         setLastAction({

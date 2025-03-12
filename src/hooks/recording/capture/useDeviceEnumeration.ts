@@ -2,23 +2,17 @@
 import { useState, useCallback, useEffect } from "react";
 import { AudioDevice, toAudioDevice } from "../capture/types";
 
-type DeviceEnumerationResult = {
-  audioDevices: AudioDevice[];
-  defaultDeviceId: string | null;
-  getAudioDevices: () => Promise<AudioDevice[]>;
-};
-
 /**
  * Hook to handle device enumeration with permission checking
  */
 export const useDeviceEnumeration = (
   checkPermissions: () => Promise<boolean>
-): DeviceEnumerationResult => {
+) => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
 
   // Function to enumerate audio devices
-  const getAudioDevices = useCallback(async (): Promise<AudioDevice[]> => {
+  const getAudioDevices = useCallback(async () => {
     console.log('[useDeviceEnumeration] Enumerating audio devices');
     
     try {
@@ -29,7 +23,7 @@ export const useDeviceEnumeration = (
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
         setAudioDevices([]);
         setDefaultDeviceId(null);
-        return [];
+        return { devices: [], defaultId: null };
       }
 
       // Enumerate devices
@@ -42,7 +36,7 @@ export const useDeviceEnumeration = (
         console.warn('[useDeviceEnumeration] No audio input devices found');
         setAudioDevices([]);
         setDefaultDeviceId(null);
-        return [];
+        return { devices: [], defaultId: null };
       }
       
       console.log('[useDeviceEnumeration] Found audio devices:', audioInputs.length);
@@ -50,6 +44,7 @@ export const useDeviceEnumeration = (
       // Convert to AudioDevice objects
       // Try to determine the default device
       let foundDefault = false;
+      let defaultId = null;
       
       // Convert to our internal AudioDevice type
       const convertedDevices = audioInputs.map((device, index) => {
@@ -59,6 +54,7 @@ export const useDeviceEnumeration = (
         
         if (isDefault && !foundDefault) {
           foundDefault = true;
+          defaultId = device.deviceId;
           console.log('[useDeviceEnumeration] Found default device:', device.deviceId, device.label);
           setDefaultDeviceId(device.deviceId);
         }
@@ -71,16 +67,17 @@ export const useDeviceEnumeration = (
       
       // If we didn't find a default, use the first device
       if (!foundDefault && convertedDevices.length > 0) {
+        defaultId = convertedDevices[0].deviceId;
         console.log('[useDeviceEnumeration] Using first device as default:', convertedDevices[0].deviceId);
         setDefaultDeviceId(convertedDevices[0].deviceId);
       }
       
-      return convertedDevices;
+      return { devices: convertedDevices, defaultId };
     } catch (error) {
       console.error('[useDeviceEnumeration] Error enumerating devices:', error);
       setAudioDevices([]);
       setDefaultDeviceId(null);
-      return [];
+      return { devices: [], defaultId: null };
     }
   }, [checkPermissions]);
 

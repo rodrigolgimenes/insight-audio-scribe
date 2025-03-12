@@ -16,7 +16,7 @@ export const useAudioCapture = () => {
   const { checkPermissions } = usePermissions();
   
   // Initialize device enumeration hook
-  const { enumerateAudioDevices } = useDeviceEnumeration();
+  const { getAudioDevices } = useDeviceEnumeration(checkPermissions);
   
   // Initialize microphone access hook
   const { requestMicrophoneAccess } = useMicrophoneAccess(
@@ -35,11 +35,11 @@ export const useAudioCapture = () => {
   );
   
   // Get audio devices
-  const getAudioDevices = useCallback(async () => {
+  const getAudioDevicesWrapper = useCallback(async () => {
     try {
       console.log('[useAudioCapture] Enumerating audio devices');
       
-      const { devices, defaultId } = await enumerateAudioDevices();
+      const { devices, defaultId } = await getAudioDevices();
       
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
@@ -52,12 +52,12 @@ export const useAudioCapture = () => {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       return [];
     }
-  }, [enumerateAudioDevices]);
+  }, [getAudioDevices]);
   
   return {
     audioDevices,
     defaultDeviceId,
-    getAudioDevices,
+    getAudioDevices: getAudioDevicesWrapper,
     requestMicrophoneAccess,
     checkPermissions
   };

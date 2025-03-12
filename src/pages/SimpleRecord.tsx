@@ -84,7 +84,10 @@ const SimpleRecord = () => {
       
       await saveRecording(isRecording, async () => {
         const result = await handleStopRecording();
-        return result;
+        if (result) {
+          return result;
+        }
+        return undefined;
       }, mediaStream, audioUrl, getCurrentDuration());
     } catch (error) {
       console.error('[SimpleRecord] Error in handleSave:', error);
