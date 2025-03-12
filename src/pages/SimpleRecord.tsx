@@ -11,6 +11,7 @@ import { RecordPageError } from "@/components/record/RecordPageError";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
 import { DeviceListTester } from "@/components/record/DeviceListTester";
+import { DebugMicList } from "@/components/record/DebugMicList";
 import { Card, CardContent } from "@/components/ui/card";
 
 const SimpleRecord = () => {
@@ -102,13 +103,24 @@ const SimpleRecord = () => {
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-ghost-white">
           <main className="container mx-auto px-4 py-8 space-y-8">
-            {/* Device Tester Card - Add this at the top */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-xl font-bold mb-4">Device Testing</h2>
-                <DeviceListTester />
-              </CardContent>
-            </Card>
+            {/* Debug Microphone Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Debug Mic List - Versão simples com detecção direta */}
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-bold mb-4">Microfones (Detecção Simples)</h2>
+                  <DebugMicList />
+                </CardContent>
+              </Card>
+              
+              {/* Device Tester - Implementação da lógica completa */}
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-bold mb-4">Microfones (Detector Complexo)</h2>
+                  <DeviceListTester />
+                </CardContent>
+              </Card>
+            </div>
             
             {/* Original content */}
             <SimpleRecordContent
