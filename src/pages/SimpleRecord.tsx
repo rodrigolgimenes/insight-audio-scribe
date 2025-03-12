@@ -8,13 +8,17 @@ import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { RecordingActions } from "@/components/record/RecordingActions";
-import { useFileUpload } from "@/hooks"; 
+import { useFileUpload } from "@/hooks";
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
+import { Progress } from "@/components/ui/progress";
 
 const SimpleRecord = () => {
-  console.log("[SimpleRecord] Component rendering");
+  PageLoadTracker.init();
+  PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
+
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
@@ -24,202 +28,205 @@ const SimpleRecord = () => {
   const [keepAudio, setKeepAudio] = useState(true);
   const [isPageReady, setIsPageReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
-  // Initialize recording functionality - simplify initialization to prevent errors
-  console.log("[SimpleRecord] About to initialize recording hook");
-  const recordingHook = useRecording();
-  
-  const {
-    isRecording,
-    isPaused,
-    audioUrl,
-    mediaStream,
-    isSaving,
-    isTranscribing,
-    isSystemAudio,
-    handleStartRecording,
-    handleStopRecording,
-    handlePauseRecording,
-    handleResumeRecording,
-    handleDelete,
-    setIsSystemAudio,
-    audioDevices,
-    selectedDeviceId,
-    setSelectedDeviceId,
-    deviceSelectionReady,
-    getCurrentDuration,
-    lastAction,
-    initError
-  } = recordingHook;
+  // Initialize recording functionality
+  try {
+    PageLoadTracker.trackPhase('Recording Hook Initialization Start', true);
+    const recordingHook = useRecording();
+    PageLoadTracker.trackPhase('Recording Hook Initialization Complete', true);
 
-  console.log("[SimpleRecord] Recording hook initialized successfully");
+    const {
+      isRecording,
+      isPaused,
+      audioUrl,
+      mediaStream,
+      isSaving,
+      isTranscribing,
+      isSystemAudio,
+      handleStartRecording,
+      handleStopRecording,
+      handlePauseRecording,
+      handleResumeRecording,
+      handleDelete,
+      setIsSystemAudio,
+      audioDevices,
+      selectedDeviceId,
+      setSelectedDeviceId,
+      deviceSelectionReady,
+      getCurrentDuration,
+      lastAction,
+      initError
+    } = recordingHook;
 
-  useEffect(() => {
-    console.log("[SimpleRecord] Component mounted");
-    
-    // Short delay to ensure components are rendered properly
-    const timer = setTimeout(() => {
-      setIsPageReady(true);
-      console.log("[SimpleRecord] Page ready set to true");
-    }, 300);
-    
-    return () => {
-      console.log("[SimpleRecord] Component unmounting");
-      clearTimeout(timer);
-    };
-  }, []);
+    // Loading progress simulation
+    useEffect(() => {
+      let progress = 0;
+      const interval = setInterval(() => {
+        if (progress < 100) {
+          progress += 10;
+          setLoadingProgress(progress);
+        } else {
+          clearInterval(interval);
+        }
+      }, 200);
 
-  // Handle initialization errors
-  useEffect(() => {
-    if (initError) {
-      console.error("[SimpleRecord] Recording initialization error:", initError);
-      setError(initError.message);
-    } else {
-      setError(null);
-    }
-  }, [initError]);
+      return () => clearInterval(interval);
+    }, []);
 
-  // Handle success messages from URL parameters
-  useEffect(() => {
-    const success = searchParams.get('success');
-    const sessionId = searchParams.get('session_id');
-    
-    if (success === 'true' && sessionId) {
-      toast({
-        title: "Subscription Activated",
-        description: "Your subscription has been successfully activated. You can now start recording!",
-        duration: 5000,
-      });
-    }
-  }, [searchParams, toast]);
-
-  // Create a robust save handler
-  const handleSave = async () => {
-    console.log("[SimpleRecord] Save requested");
-    try {
-      if (isRecording) {
-        console.log("[SimpleRecord] Stopping recording before saving");
-        await handleStopRecording();
-      }
+    useEffect(() => {
+      PageLoadTracker.trackPhase('Component Mount Effect', true);
+      const timer = setTimeout(() => {
+        setIsPageReady(true);
+        PageLoadTracker.trackPhase('Page Ready State Set', true);
+      }, 300);
       
-      console.log("[SimpleRecord] Calling saveRecording");
-      await saveRecording(
-        isRecording, 
-        async () => {
-          try {
-            const result = await handleStopRecording();
-            console.log("[SimpleRecord] Stop recording result:", result);
-            return result || { blob: null, duration: 0 };
-          } catch (error) {
-            console.error("[SimpleRecord] Error stopping recording in save handler:", error);
-            return { blob: null, duration: 0 };
-          }
-        }, 
-        mediaStream, 
-        audioUrl, 
-        getCurrentDuration ? getCurrentDuration() : 0
-      );
-    } catch (error) {
-      console.error('[SimpleRecord] Error in handleSave:', error);
-      toast({
-        title: "Error",
-        description: "An error occurred while saving the recording.",
-        variant: "destructive",
-      });
-    }
-  };
+      return () => {
+        clearTimeout(timer);
+        PageLoadTracker.trackPhase('Component Unmount', true);
+      };
+    }, []);
 
-  const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
-  const hasRecording = !!audioUrl;
+    // Handle initialization errors
+    useEffect(() => {
+      if (initError) {
+        PageLoadTracker.trackPhase('Initialization Error Detected', false, initError.message);
+        setError(initError.message);
+      } else {
+        setError(null);
+      }
+    }, [initError]);
 
-  console.log("[SimpleRecord] Render with state:", { 
-    isPageReady, 
-    hasContent: !!processedContent, 
-    isLoading,
-    hasRecording, 
-    deviceSelectionReady,
-    audioDevicesCount: audioDevices?.length || 0,
-    isRecording,
-    isPaused
-  });
+    const handleSave = async () => {
+      PageLoadTracker.trackPhase('Save Operation Started', true);
+      try {
+        if (isRecording) {
+          await handleStopRecording();
+        }
+        
+        await saveRecording(
+          isRecording,
+          async () => {
+            try {
+              const result = await handleStopRecording();
+              PageLoadTracker.trackPhase('Recording Stop Success', true);
+              return result || { blob: null, duration: 0 };
+            } catch (error) {
+              PageLoadTracker.trackPhase('Recording Stop Error', false, error.message);
+              return { blob: null, duration: 0 };
+            }
+          },
+          mediaStream,
+          audioUrl,
+          getCurrentDuration ? getCurrentDuration() : 0
+        );
+        
+        PageLoadTracker.trackPhase('Save Operation Complete', true);
+      } catch (error) {
+        PageLoadTracker.trackPhase('Save Operation Error', false, error.message);
+        toast({
+          title: "Error",
+          description: "An error occurred while saving the recording.",
+          variant: "destructive",
+        });
+      }
+    };
 
-  return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar activePage="recorder" />
-        <div className="flex-1">
-          <main className="container mx-auto px-4 py-8">
-            <div className="max-w-3xl mx-auto">
-              {error && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Error initializing recording: {error}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {isPageReady && !processedContent ? (
-                <>
-                  <RecordingSection
-                    isRecording={isRecording}
-                    isPaused={isPaused}
-                    audioUrl={audioUrl}
-                    mediaStream={mediaStream}
-                    isSystemAudio={isSystemAudio}
-                    handleStartRecording={handleStartRecording}
-                    handleStopRecording={async () => {
-                      try {
-                        console.log('[SimpleRecord] Stopping recording from RecordingSection');
-                        const result = await handleStopRecording();
-                        console.log('[SimpleRecord] Recording stopped successfully:', result);
-                        return result || { blob: null, duration: 0 };
-                      } catch (error) {
-                        console.error('[SimpleRecord] Error stopping recording from RecordingSection:', error);
-                        return { blob: null, duration: 0 };
-                      }
-                    }}
-                    handlePauseRecording={handlePauseRecording}
-                    handleResumeRecording={handleResumeRecording}
-                    handleDelete={handleDelete}
-                    onSystemAudioChange={setIsSystemAudio}
-                    audioDevices={audioDevices || []}
-                    selectedDeviceId={selectedDeviceId}
-                    onDeviceSelect={setSelectedDeviceId}
-                    deviceSelectionReady={deviceSelectionReady}
-                    showPlayButton={false}
-                    showDeleteButton={true}
-                    lastAction={lastAction}
-                  />
+    const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
+    const hasRecording = !!audioUrl;
 
-                  <RecordingActions
-                    onSave={handleSave}
-                    isSaving={isLoading}
-                    isLoading={isLoading}
-                    isRecording={isRecording}
-                    hasRecording={hasRecording}
-                  />
-                </>
-              ) : processedContent ? (
-                <ProcessedContentSection
-                  processedContent={processedContent}
-                  transcript={transcript}
-                  processMutation={{
-                    isPending: false,
-                    mutate: () => {},
-                  }}
-                />
-              ) : (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                </div>
-              )}
-            </div>
-          </main>
+    PageLoadTracker.trackPhase('Render Preparation', true);
+
+    if (!isPageReady) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+          <div className="w-full max-w-md space-y-4">
+            <h2 className="text-2xl font-bold text-center">Loading Audio Recorder</h2>
+            <Progress value={loadingProgress} className="w-full" />
+            <p className="text-center text-muted-foreground">
+              Initializing audio components...
+            </p>
+          </div>
         </div>
+      );
+    }
+
+    return (
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
+          <AppSidebar activePage="recorder" />
+          <div className="flex-1">
+            <main className="container mx-auto px-4 py-8">
+              <div className="max-w-3xl mx-auto">
+                {error && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Error initializing recording: {error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {!processedContent ? (
+                  <>
+                    <RecordingSection
+                      isRecording={isRecording}
+                      isPaused={isPaused}
+                      audioUrl={audioUrl}
+                      mediaStream={mediaStream}
+                      isSystemAudio={isSystemAudio}
+                      handleStartRecording={handleStartRecording}
+                      handleStopRecording={handleStopRecording}
+                      handlePauseRecording={handlePauseRecording}
+                      handleResumeRecording={handleResumeRecording}
+                      handleDelete={handleDelete}
+                      onSystemAudioChange={setIsSystemAudio}
+                      audioDevices={audioDevices || []}
+                      selectedDeviceId={selectedDeviceId}
+                      onDeviceSelect={setSelectedDeviceId}
+                      deviceSelectionReady={deviceSelectionReady}
+                      showPlayButton={false}
+                      showDeleteButton={true}
+                      lastAction={lastAction}
+                    />
+
+                    <RecordingActions
+                      onSave={handleSave}
+                      isSaving={isLoading}
+                      isLoading={isLoading}
+                      isRecording={isRecording}
+                      hasRecording={hasRecording}
+                    />
+                  </>
+                ) : (
+                  <ProcessedContentSection
+                    processedContent={processedContent}
+                    transcript={transcript}
+                    processMutation={{
+                      isPending: false,
+                      mutate: () => {},
+                    }}
+                  />
+                )}
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    );
+  } catch (error) {
+    PageLoadTracker.trackPhase('Fatal Error in Component', false, error.message);
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <Alert variant="destructive" className="w-full max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            A critical error occurred while loading the recorder: {error.message}
+          </AlertDescription>
+        </Alert>
       </div>
-    </SidebarProvider>
-  );
+    );
+  }
 };
 
 export default SimpleRecord;
