@@ -1,21 +1,29 @@
+
 import { DurationTracker } from "./helpers/durationTracker";
 import { StreamManager } from "./helpers/streamManager";
 import { RecordingResult, RecordingStats, RecordingEvent, RecordingObserver } from "./types/audioRecorderTypes";
 import { getSupportedMimeType, createMediaRecorderOptions, logAudioTracks, validateAudioTracks } from "./helpers/mediaRecorderUtils";
+import { ObserverManager } from "./observers/ObserverManager";
+import { MediaRecorderEvents } from "./media/MediaRecorderEvents";
+import { AudioChunksManager } from "./media/AudioChunksManager";
+import { IAudioRecorder } from "./interfaces/IAudioRecorder";
 
-export class AudioRecorderImpl {
+export class AudioRecorderImpl implements IAudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
-  private audioChunks: Blob[] = [];
   private durationTracker: DurationTracker;
   private streamManager: StreamManager;
+  private observerManager: ObserverManager;
+  private mediaRecorderEvents: MediaRecorderEvents;
+  private audioChunksManager: AudioChunksManager;
   private isRecording = false;
   private isPaused = false;
-  private mimeType = '';
-  private observers: Set<RecordingObserver> = new Set();
 
   constructor() {
     this.durationTracker = new DurationTracker();
     this.streamManager = new StreamManager();
+    this.observerManager = new ObserverManager();
+    this.mediaRecorderEvents = new MediaRecorderEvents(this.observerManager);
+    this.audioChunksManager = new AudioChunksManager();
     console.log('[AudioRecorder] Initialized');
   }
 
@@ -23,29 +31,14 @@ export class AudioRecorderImpl {
    * Add an observer to receive recording events
    */
   addObserver(observer: RecordingObserver): void {
-    this.observers.add(observer);
-    console.log('[AudioRecorder] Observer added, total observers:', this.observers.size);
+    this.observerManager.addObserver(observer);
   }
 
   /**
    * Remove an observer
    */
   removeObserver(observer: RecordingObserver): void {
-    this.observers.delete(observer);
-    console.log('[AudioRecorder] Observer removed, total observers:', this.observers.size);
-  }
-
-  /**
-   * Notify all observers about an event
-   */
-  private notifyObservers(event: RecordingEvent): void {
-    this.observers.forEach(observer => {
-      try {
-        observer.update(event);
-      } catch (error) {
-        console.error('[AudioRecorder] Error in observer notification:', error);
-      }
-    });
+    this.observerManager.removeObserver(observer);
   }
 
   /**
@@ -64,7 +57,7 @@ export class AudioRecorderImpl {
       validateAudioTracks(stream);
 
       // Reset state
-      this.audioChunks = [];
+      this.audioChunksManager.clearChunks();
       this.streamManager.initialize(stream, () => {
         if (this.isRecording) {
           console.log('[AudioRecorder] Stream ended unexpectedly, stopping recording');
@@ -75,13 +68,17 @@ export class AudioRecorderImpl {
       });
       
       // Get supported mime type
-      this.mimeType = getSupportedMimeType();
-      const options = createMediaRecorderOptions(this.mimeType);
+      const mimeType = getSupportedMimeType();
+      this.audioChunksManager.setMimeType(mimeType);
+      const options = createMediaRecorderOptions(mimeType);
       
       console.log('[AudioRecorder] Creating MediaRecorder with options:', options);
       this.mediaRecorder = new MediaRecorder(stream, options);
       
-      this.configureMediaRecorderEvents();
+      this.mediaRecorderEvents.setupEvents(
+        this.mediaRecorder,
+        (event: BlobEvent) => this.audioChunksManager.addChunk(event.data)
+      );
       
       // Start tracking duration
       this.durationTracker.start();
@@ -92,7 +89,7 @@ export class AudioRecorderImpl {
       this.isPaused = false;
       
       // Notify observers
-      this.notifyObservers({ type: 'start' });
+      this.observerManager.notifyObservers({ type: 'start' });
       
       console.log('[AudioRecorder] Recording started successfully');
     } catch (error) {
@@ -100,58 +97,6 @@ export class AudioRecorderImpl {
       this.cleanup();
       throw error;
     }
-  }
-
-  /**
-   * Configures event handlers for the MediaRecorder
-   */
-  private configureMediaRecorderEvents(): void {
-    if (!this.mediaRecorder) return;
-    
-    this.mediaRecorder.onstart = () => {
-      console.log('[AudioRecorder] MediaRecorder started');
-    };
-
-    this.mediaRecorder.ondataavailable = (event) => {
-      console.log('[AudioRecorder] Data available event:', {
-        dataSize: event.data?.size,
-        dataType: event.data?.type,
-        timeStamp: event.timeStamp
-      });
-
-      if (event.data && event.data.size > 0) {
-        this.audioChunks.push(event.data);
-        console.log('[AudioRecorder] Total chunks:', this.audioChunks.length);
-        this.notifyObservers({ 
-          type: 'dataAvailable', 
-          data: { chunk: event.data } 
-        });
-      }
-    };
-
-    this.mediaRecorder.onerror = (event) => {
-      console.error('[AudioRecorder] MediaRecorder error:', event);
-      this.notifyObservers({ 
-        type: 'error', 
-        data: { error: new Error('MediaRecorder error') } 
-      });
-      this.cleanup();
-    };
-
-    this.mediaRecorder.onpause = () => {
-      console.log('[AudioRecorder] MediaRecorder paused');
-      this.notifyObservers({ type: 'pause' });
-    };
-
-    this.mediaRecorder.onresume = () => {
-      console.log('[AudioRecorder] MediaRecorder resumed');
-      this.notifyObservers({ type: 'resume' });
-    };
-
-    this.mediaRecorder.onstop = () => {
-      console.log('[AudioRecorder] MediaRecorder stopped');
-      this.notifyObservers({ type: 'stop' });
-    };
   }
 
   /**
@@ -169,23 +114,19 @@ export class AudioRecorderImpl {
       
       this.mediaRecorder.onstop = () => {
         try {
-          if (this.audioChunks.length === 0) {
+          if (this.audioChunksManager.getChunkCount() === 0) {
             throw new Error('No audio data recorded');
           }
 
-          const finalBlob = new Blob(this.audioChunks, { 
-            type: this.mimeType || 'audio/webm'
-          });
+          const finalBlob = this.audioChunksManager.getFinalBlob();
+          if (!finalBlob) {
+            throw new Error('Failed to create final audio blob');
+          }
 
-          const stats: RecordingStats = {
-            blobSize: finalBlob.size,
-            duration: finalDuration,
-            chunks: this.audioChunks.length,
-            mimeType: finalBlob.type
-          };
+          const stats: RecordingStats = this.audioChunksManager.getRecordingStats(finalDuration);
 
           console.log('[AudioRecorder] Recording stopped:', stats);
-          this.notifyObservers({ 
+          this.observerManager.notifyObservers({ 
             type: 'stop', 
             data: { stats } 
           });
@@ -222,7 +163,7 @@ export class AudioRecorderImpl {
         this.durationTracker.pause();
         this.isPaused = true;
         console.log('[AudioRecorder] Recording paused at:', this.durationTracker.getCurrentDuration());
-        this.notifyObservers({ type: 'pause' });
+        this.observerManager.notifyObservers({ type: 'pause' });
       } catch (error) {
         console.error('[AudioRecorder] Error pausing recording:', error);
       }
@@ -239,8 +180,9 @@ export class AudioRecorderImpl {
         this.durationTracker.resume();
         this.isPaused = false;
         console.log('[AudioRecorder] Recording resumed at:', this.durationTracker.getCurrentDuration());
-        this.notifyObservers({ type: 'resume' });
-      } catch (error) {
+        this.observerManager.notifyObservers({ type: 'resume' });
+      }
+      catch (error) {
         console.error('[AudioRecorder] Error resuming recording:', error);
       }
     }
@@ -254,7 +196,6 @@ export class AudioRecorderImpl {
     this.streamManager.cleanup();
     this.durationTracker.cleanup();
     this.mediaRecorder = null;
-    this.audioChunks = [];
     this.isRecording = false;
     this.isPaused = false;
     console.log('[AudioRecorder] Cleanup complete');
@@ -265,11 +206,7 @@ export class AudioRecorderImpl {
    * @returns The final audio blob or null if no recording
    */
   getFinalBlob(): Blob | null {
-    if (this.audioChunks.length === 0) return null;
-    
-    return new Blob(this.audioChunks, { 
-      type: this.mimeType || 'audio/webm' 
-    });
+    return this.audioChunksManager.getFinalBlob();
   }
 
   /**

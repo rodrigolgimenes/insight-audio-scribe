@@ -1,56 +1,54 @@
 
-import { RecordingStats } from '../types';
+import { RecordingStats } from '../types/audioRecorderTypes';
 
-/**
- * Manages recorded audio chunks and creates the final blob
- */
 export class AudioChunksManager {
   private audioChunks: Blob[] = [];
-  private mimeType: string = 'audio/webm;codecs=opus';
+  private mimeType: string = '';
 
-  /**
-   * Adds a new audio chunk
-   */
   addChunk(chunk: Blob): void {
     this.audioChunks.push(chunk);
     console.log('[AudioChunksManager] Total chunks:', this.audioChunks.length);
   }
 
-  /**
-   * Clears all stored chunks
-   */
   clearChunks(): void {
     this.audioChunks = [];
   }
 
-  /**
-   * Gets the current chunk count
-   */
+  getChunks(): Blob[] {
+    return this.audioChunks;
+  }
+
   getChunkCount(): number {
     return this.audioChunks.length;
   }
 
-  /**
-   * Sets the MIME type for the final blob
-   */
   setMimeType(mimeType: string): void {
-    this.mimeType = mimeType || 'audio/webm;codecs=opus';
+    this.mimeType = mimeType || 'audio/webm';
   }
 
-  /**
-   * Creates a blob from all collected chunks
-   */
-  getFinalBlob(): Blob {
+  getMimeType(): string {
+    return this.mimeType;
+  }
+
+  getFinalBlob(): Blob | null {
+    if (this.audioChunks.length === 0) return null;
+    
     return new Blob(this.audioChunks, { 
-      type: this.mimeType
+      type: this.mimeType || 'audio/webm' 
     });
   }
 
-  /**
-   * Gets recording stats with the provided duration
-   */
   getRecordingStats(duration: number): RecordingStats {
     const finalBlob = this.getFinalBlob();
+    if (!finalBlob) {
+      return {
+        blobSize: 0,
+        duration,
+        chunks: 0,
+        mimeType: this.mimeType
+      };
+    }
+    
     return {
       blobSize: finalBlob.size,
       duration,

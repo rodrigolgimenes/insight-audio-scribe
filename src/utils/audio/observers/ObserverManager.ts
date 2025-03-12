@@ -1,36 +1,29 @@
 
-import { RecordingEvent, RecordingObserver } from '../types';
+import { RecordingEvent, RecordingObserver } from '../types/audioRecorderTypes';
 
-/**
- * Implements the observer pattern for recording events
- */
 export class ObserverManager {
   private observers: Set<RecordingObserver> = new Set();
 
-  /**
-   * Adds an observer to the notification list
-   */
   addObserver(observer: RecordingObserver): void {
     this.observers.add(observer);
+    console.log('[ObserverManager] Observer added, total observers:', this.observers.size);
   }
 
-  /**
-   * Removes an observer from the notification list
-   */
   removeObserver(observer: RecordingObserver): void {
     this.observers.delete(observer);
+    console.log('[ObserverManager] Observer removed, total observers:', this.observers.size);
   }
 
-  /**
-   * Notifies all registered observers about an event
-   */
   notifyObservers(event: RecordingEvent): void {
-    this.observers.forEach(observer => observer.update(event));
+    this.observers.forEach(observer => {
+      try {
+        observer.update(event);
+      } catch (error) {
+        console.error('[ObserverManager] Error in observer notification:', error);
+      }
+    });
   }
 
-  /**
-   * Clears all observers
-   */
   clearObservers(): void {
     this.observers.clear();
   }

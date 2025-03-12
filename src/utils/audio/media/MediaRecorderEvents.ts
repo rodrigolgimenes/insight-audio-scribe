@@ -1,18 +1,17 @@
 
-import { RecordingEvent } from '../types';
+import { RecordingEvent } from '../types/audioRecorderTypes';
 import { ObserverManager } from '../observers/ObserverManager';
 
-/**
- * Handles MediaRecorder events and notifies observers
- */
 export class MediaRecorderEvents {
   constructor(private observerManager: ObserverManager) {}
 
-  /**
-   * Sets up event handlers for a MediaRecorder instance
-   */
   setupEvents(mediaRecorder: MediaRecorder, onDataAvailable: (event: BlobEvent) => void): void {
     if (!mediaRecorder) return;
+    
+    mediaRecorder.onstart = () => {
+      console.log('[MediaRecorderEvents] MediaRecorder started');
+      this.observerManager.notifyObservers({ type: 'start' });
+    };
 
     mediaRecorder.ondataavailable = (event) => {
       console.log('[MediaRecorderEvents] Data available event:', {
@@ -36,11 +35,6 @@ export class MediaRecorderEvents {
         type: 'error', 
         data: { error: new Error('MediaRecorder error') } 
       });
-    };
-
-    mediaRecorder.onstart = () => {
-      console.log('[MediaRecorderEvents] MediaRecorder started');
-      this.observerManager.notifyObservers({ type: 'start' });
     };
 
     mediaRecorder.onpause = () => {

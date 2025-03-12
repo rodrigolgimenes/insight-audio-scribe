@@ -12,3 +12,6 @@ export type {
   RecordingObserver, 
   RecordingEvent 
 } from './types/audioRecorderTypes';
+
+// Export the interface
+export type { IAudioRecorder } from './interfaces/IAudioRecorder';
