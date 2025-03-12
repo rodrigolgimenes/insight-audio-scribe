@@ -1,3 +1,4 @@
+
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -61,7 +62,8 @@ export function useSaveDeleteRecording(
         console.log('[useSaveDeleteRecording] Recorder is still active, stopping');
         const result = await recorder.current.stopRecording();
         blob = result.blob;
-        duration = result.duration;
+        // Now access duration from either stats or the direct property
+        duration = result.duration || result.stats.duration;
       } else {
         console.log('[useSaveDeleteRecording] Getting current recording state for saving');
         blob = recorder.current?.getFinalBlob?.() || null;

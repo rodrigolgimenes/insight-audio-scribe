@@ -2,6 +2,7 @@
 export interface RecordingResult {
   blob: Blob | null;
   stats: RecordingStats;
+  duration?: number; // Added duration property
 }
 
 export interface AudioTrackInfo {

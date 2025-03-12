@@ -107,17 +107,32 @@ export class RecorderLifecycle {
     
     if (!state.isCurrentlyRecording()) {
       console.log('[RecorderLifecycle] Not currently recording, returning cached result');
-      const duration = this.durationTracker.getCurrentDuration();
+      const finalDuration = this.durationTracker.getCurrentDuration();
       const latestBlob = state.getFinalBlob();
       
       if (latestBlob) {
-        return { blob: latestBlob, duration };
+        return { 
+          blob: latestBlob, 
+          stats: {
+            blobSize: latestBlob.size,
+            duration: finalDuration,
+            chunks: 0,
+            mimeType: latestBlob.type || 'audio/webm'
+          },
+          duration: finalDuration
+        };
       }
       
       // Create an empty blob as fallback
       return { 
         blob: new Blob([], { type: 'audio/webm' }), 
-        duration: 0 
+        stats: {
+          blobSize: 0,
+          duration: 0,
+          chunks: 0,
+          mimeType: 'audio/webm'
+        },
+        duration: 0
       };
     }
     
@@ -140,7 +155,14 @@ export class RecorderLifecycle {
             );
             
             this.cleanup();
-            resolve({ blob: finalBlob, duration: finalDuration });
+            
+            const result = {
+              blob: finalBlob,
+              stats: this.mediaRecorderManager.getRecordingStats(finalDuration),
+              duration: finalDuration
+            };
+            
+            resolve(result);
           } catch (error) {
             console.error('[RecorderLifecycle] Error finalizing recording:', error);
             this.cleanup();
