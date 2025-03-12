@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Pause, PlayCircle, Save, Loader2 } from "lucide-react";
@@ -24,13 +24,12 @@ export function RecordMeetingContent({
   onUploadComplete,
   onError
 }: RecordMeetingContentProps) {
-  // Use the recording hook
   const recordingHook = useRecording();
   const [savingProgress, setSavingProgress] = useState(0);
   
   const handleSaveRecording = async () => {
     if (!recordingHook.audioUrl) {
-      toast.error("Nenhuma gravação para salvar");
+      toast.error("No recording to save");
       return;
     }
     
@@ -51,42 +50,57 @@ export function RecordMeetingContent({
       
       setSavingProgress(30);
       
-      // Create form data for the request
-      const formData = new FormData();
-      formData.append('file', blob, 'meeting-recording.webm');
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            // Remove data URL prefix
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          } else {
+            reject(new Error('Failed to convert file to base64'));
+          }
+        };
+        reader.onerror = reject;
+      });
+      
+      reader.readAsDataURL(blob);
+      const base64Data = await base64Promise;
       
       setSavingProgress(40);
       
       // Upload to Supabase Edge Function for processing
-      toast.info("Enviando para transcrição...");
-      const result = await supabase.functions.invoke('transcribe-meeting', {
+      toast.info("Sending for transcription...");
+      const { data, error } = await supabase.functions.invoke('transcribe-meeting', {
         body: { 
+          audioData: base64Data,
           recordingData: {
             isSystemAudio: recordingHook.isSystemAudio,
-            duration: recordingHook.getCurrentDuration() || 0
+            duration: recordingHook.getCurrentDuration() || 0,
+            mimeType: blob.type
           }
-        },
-        file: blob
+        }
       });
       
       setSavingProgress(100);
       
-      if (result.error) {
-        throw new Error(result.error.message || "Erro ao transcrever áudio");
+      if (error) {
+        throw new Error(error.message || "Error transcribing audio");
       }
       
       // Handle successful transcription
-      if (result.data && result.data.transcription) {
-        onUploadComplete(result.data.transcription);
+      if (data && data.transcription) {
+        onUploadComplete(data.transcription);
       } else {
-        throw new Error("Não foi possível obter a transcrição");
+        throw new Error("Could not get transcription");
       }
       
     } catch (error) {
       console.error("[RecordMeetingContent] Error saving recording:", error);
-      onError(error instanceof Error ? error.message : "Erro desconhecido ao salvar gravação");
-      toast.error("Erro ao processar gravação", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+      onError(error instanceof Error ? error.message : "Unknown error saving recording");
+      toast.error("Error processing recording", {
+        description: error instanceof Error ? error.message : "Unknown error"
       });
     } finally {
       setSavingProgress(0);
