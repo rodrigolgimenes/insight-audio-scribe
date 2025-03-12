@@ -22,6 +22,7 @@ export const SaveRecordingButton = ({ onSave, isSaving, isDisabled }: SaveRecord
   const handleClick = () => {
     if (!isClickable || isDisabled || isSaving) return;
     
+    console.log('[SaveRecordingButton] Save button clicked');
     setIsClickable(false); // Prevent double clicks
     onSave();
   };

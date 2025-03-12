@@ -172,42 +172,24 @@ export class AudioRecorder {
       this.mediaRecorderManager.resume();
       this.durationTracker.resumeTracking();
       this.isPaused = false;
-      console.log('[AudioRecorder] Recording resumed from:', this.durationTracker.getCurrentDuration());
+      console.log('[AudioRecorder] Recording resumed at:', this.durationTracker.getCurrentDuration());
     } else {
       console.warn('[AudioRecorder] Cannot resume: not recording or not paused');
     }
   }
 
-  resetState(): void {
-    console.log('[AudioRecorder] Resetting state');
-    this.isRecording = false;
-    this.isPaused = false;
-    this.hasInitError = false;
-    this.recordingStartTime = null;
-    this.cleanup();
-  }
-
-  private cleanup(): void {
-    console.log('[AudioRecorder] Cleaning up resources');
-    this.mediaRecorderManager.cleanup();
-    this.durationTracker.cleanup();
-    this.streamManager.cleanup();
-    console.log('[AudioRecorder] Cleanup complete');
-  }
-
-  isCurrentlyRecording(): boolean {
-    return this.isRecording;
-  }
-
-  isCurrentlyPaused(): boolean {
-    return this.isPaused;
-  }
-
   getCurrentDuration(): number {
     return this.durationTracker.getCurrentDuration();
   }
-  
-  getFinalBlob(): Blob | null {
-    return this.latestBlob || (this.mediaRecorderManager ? this.mediaRecorderManager.getFinalBlob() : null);
+
+  cleanup(): void {
+    console.log('[AudioRecorder] Cleanup called');
+    this.streamManager.cleanup();
+    this.durationTracker.cleanup();
+    this.mediaRecorderManager.cleanup();
+    this.isRecording = false;
+    this.isPaused = false;
+    this.isInitialized = false;
+    this.recordingStartTime = null;
   }
 }

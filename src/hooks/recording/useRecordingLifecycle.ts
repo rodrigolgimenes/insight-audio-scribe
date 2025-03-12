@@ -47,6 +47,7 @@ export const useRecordingLifecycle = () => {
     isProcessing.current = true;
     
     try {
+      console.log('[useRecordingLifecycle] Starting recording with device ID:', selectedDeviceId);
       const stream = await handleStartRecording(selectedDeviceId);
       
       if (!stream) {
@@ -55,15 +56,18 @@ export const useRecordingLifecycle = () => {
         return;
       }
       
-      console.log('[useRecordingLifecycle] Starting audio recorder with stream');
+      console.log('[useRecordingLifecycle] Starting audio recorder with stream:', stream.id);
       await audioRecorder.current.startRecording(stream);
       recordingState.setIsRecording(true);
       recordingState.setIsPaused(false);
       
+      // Add inactive event listener to handle unexpected stream end
       stream.addEventListener('inactive', () => {
         console.log('[useRecordingLifecycle] Stream became inactive');
-        if (!isProcessing.current) {
-          handleStopRecording();
+        if (recordingState.isRecording && !isProcessing.current) {
+          handleStopRecording().catch(err => {
+            console.error('[useRecordingLifecycle] Error stopping recording on inactive stream:', err);
+          });
         }
       });
     } catch (error) {
