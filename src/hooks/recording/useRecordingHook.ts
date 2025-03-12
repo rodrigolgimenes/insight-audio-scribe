@@ -8,12 +8,15 @@ import { useRecordingError } from "./useRecordingError";
 import { useSimpleRecorder } from "./useSimpleRecorder";
 import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
 import { useSystemAudio } from "./useSystemAudio";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 /**
  * Main hook that combines all recording functionality
  */
 export const useRecording = () => {
+  console.log('[useRecordingHook] Initializing hook');
+  const initialized = useRef(false);
+  
   // Main state
   const recordingState = useRecordingState();
   const {
@@ -93,21 +96,27 @@ export const useRecording = () => {
     setLastAction
   );
 
-  // Initialize recorder
+  // Initialize recorder once
   useEffect(() => {
-    console.log('[useRecording] Initializing recorder...');
+    if (initialized.current) {
+      console.log('[useRecordingHook] Already initialized, skipping');
+      return;
+    }
+    
+    console.log('[useRecordingHook] Initializing recorder...');
     let cleanup = () => {};
     
     try {
       cleanup = initializeRecorder();
-      console.log('[useRecording] Recorder initialized successfully');
+      console.log('[useRecordingHook] Recorder initialized successfully');
+      initialized.current = true;
     } catch (error) {
-      console.error('[useRecording] Error initializing recorder:', error);
+      console.error('[useRecordingHook] Error initializing recorder:', error);
       setInitError(error instanceof Error ? error : new Error('Unknown error initializing recorder'));
     }
     
     return () => {
-      console.log('[useRecording] Cleaning up recorder');
+      console.log('[useRecordingHook] Cleaning up recorder');
       cleanup();
     };
   }, [initializeRecorder, setInitError]);
@@ -116,13 +125,13 @@ export const useRecording = () => {
   useEffect(() => {
     if (selectedDeviceId) {
       setInitError(null);
-      console.log('[useRecording] Device selected, cleared init error');
+      console.log('[useRecordingHook] Device selected, cleared init error');
     }
   }, [selectedDeviceId, setInitError]);
 
   // Log state changes
   useEffect(() => {
-    console.log('[useRecording] State updated:', { 
+    console.log('[useRecordingHook] State updated:', { 
       isRecording, 
       isPaused, 
       audioUrl: audioUrl ? 'exists' : 'null',
@@ -136,11 +145,11 @@ export const useRecording = () => {
 
     // Log info about MediaRecorder support
     const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
-    console.log('[useRecording] MediaRecorder supported:', hasMediaRecorder);
+    console.log('[useRecordingHook] MediaRecorder supported:', hasMediaRecorder);
     
     if (hasMediaRecorder) {
       console.log(
-        '[useRecording] MediaRecorder.isTypeSupported:',
+        '[useRecordingHook] MediaRecorder.isTypeSupported:',
         'audio/webm;codecs=opus', MediaRecorder.isTypeSupported('audio/webm;codecs=opus'),
         'audio/webm', MediaRecorder.isTypeSupported('audio/webm'),
         'audio/mp4', MediaRecorder.isTypeSupported('audio/mp4')
@@ -162,10 +171,12 @@ export const useRecording = () => {
   useEffect(() => {
     if (isRecording) {
       setRecordingAttemptsCount(prev => prev + 1);
-      console.log('[useRecording] Incrementing recording attempts count');
+      console.log('[useRecordingHook] Incrementing recording attempts count');
     }
   }, [isRecording, setRecordingAttemptsCount]);
 
+  console.log('[useRecordingHook] Hook initialized, returning methods');
+  
   return {
     isRecording,
     isPaused,

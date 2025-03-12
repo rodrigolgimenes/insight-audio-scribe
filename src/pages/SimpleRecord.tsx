@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 
 const SimpleRecord = () => {
+  console.log("[SimpleRecord] Component rendering");
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const [processedContent, setProcessedContent] = useState<{ title: string; content: string } | null>(null);
@@ -24,7 +25,8 @@ const SimpleRecord = () => {
   const [isPageReady, setIsPageReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize recording functionality
+  // Initialize recording functionality - simplify initialization to prevent errors
+  console.log("[SimpleRecord] About to initialize recording hook");
   const recordingHook = useRecording();
   
   const {
@@ -44,12 +46,13 @@ const SimpleRecord = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId,
-    handleSaveRecording,
-    getCurrentDuration,
     deviceSelectionReady,
+    getCurrentDuration,
     lastAction,
     initError
   } = recordingHook;
+
+  console.log("[SimpleRecord] Recording hook initialized successfully");
 
   useEffect(() => {
     console.log("[SimpleRecord] Component mounted");
@@ -66,6 +69,7 @@ const SimpleRecord = () => {
     };
   }, []);
 
+  // Handle initialization errors
   useEffect(() => {
     if (initError) {
       console.error("[SimpleRecord] Recording initialization error:", initError);
@@ -75,6 +79,7 @@ const SimpleRecord = () => {
     }
   }, [initError]);
 
+  // Handle success messages from URL parameters
   useEffect(() => {
     const success = searchParams.get('success');
     const sessionId = searchParams.get('session_id');
@@ -88,22 +93,31 @@ const SimpleRecord = () => {
     }
   }, [searchParams, toast]);
 
+  // Create a robust save handler
   const handleSave = async () => {
     console.log("[SimpleRecord] Save requested");
     try {
       if (isRecording) {
+        console.log("[SimpleRecord] Stopping recording before saving");
         await handleStopRecording();
       }
       
+      console.log("[SimpleRecord] Calling saveRecording");
       await saveRecording(
         isRecording, 
         async () => {
-          const result = await handleStopRecording();
-          return result || { blob: null, duration: 0 }; // Ensure we return a consistent object
+          try {
+            const result = await handleStopRecording();
+            console.log("[SimpleRecord] Stop recording result:", result);
+            return result || { blob: null, duration: 0 };
+          } catch (error) {
+            console.error("[SimpleRecord] Error stopping recording in save handler:", error);
+            return { blob: null, duration: 0 };
+          }
         }, 
         mediaStream, 
         audioUrl, 
-        getCurrentDuration()
+        getCurrentDuration ? getCurrentDuration() : 0
       );
     } catch (error) {
       console.error('[SimpleRecord] Error in handleSave:', error);
@@ -123,7 +137,10 @@ const SimpleRecord = () => {
     hasContent: !!processedContent, 
     isLoading,
     hasRecording, 
-    deviceSelectionReady 
+    deviceSelectionReady,
+    audioDevicesCount: audioDevices?.length || 0,
+    isRecording,
+    isPaused
   });
 
   return (
@@ -153,10 +170,12 @@ const SimpleRecord = () => {
                     handleStartRecording={handleStartRecording}
                     handleStopRecording={async () => {
                       try {
+                        console.log('[SimpleRecord] Stopping recording from RecordingSection');
                         const result = await handleStopRecording();
+                        console.log('[SimpleRecord] Recording stopped successfully:', result);
                         return result || { blob: null, duration: 0 };
                       } catch (error) {
-                        console.error('[RecordingSection] Error stopping recording:', error);
+                        console.error('[SimpleRecord] Error stopping recording from RecordingSection:', error);
                         return { blob: null, duration: 0 };
                       }
                     }}
@@ -164,7 +183,7 @@ const SimpleRecord = () => {
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
                     onSystemAudioChange={setIsSystemAudio}
-                    audioDevices={audioDevices}
+                    audioDevices={audioDevices || []}
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
                     deviceSelectionReady={deviceSelectionReady}

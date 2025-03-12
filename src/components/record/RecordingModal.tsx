@@ -23,7 +23,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   const [modalReady, setModalReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Use the recording hook
+  // Use the recording hook - simplified initialization
   const recordingHook = useRecording();
   
   const {
@@ -48,17 +48,18 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     initError
   } = recordingHook;
 
+  // Initialize the modal when it opens
   useEffect(() => {
     console.log('[RecordingModal] Modal open state changed:', isOpen);
     if (isOpen) {
-      // Short delay to ensure modal is rendered before initializing
+      // Short delay to ensure modal is fully rendered before initializing
       const timer = setTimeout(() => {
         setModalReady(true);
         console.log('[RecordingModal] Modal ready state set to true');
       }, 300);
       return () => clearTimeout(timer);
     } else {
-      // Reset on close
+      // Handle cleanup when modal closes
       if (isRecording) {
         console.log('[RecordingModal] Modal closed while recording, stopping recording');
         handleStopRecording().catch(err => {
@@ -70,6 +71,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     }
   }, [isOpen, isRecording, handleStopRecording]);
 
+  // Handle initialization errors
   useEffect(() => {
     if (initError) {
       console.error('[RecordingModal] Initialization error:', initError);
@@ -117,6 +119,9 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
                 handleStartRecording={handleStartRecording}
                 handleStopRecording={() => handleStopRecording().then(() => {
                   console.log('[RecordingModal] Recording stopped manually');
+                }).catch(err => {
+                  console.error('[RecordingModal] Error stopping recording:', err);
+                  return { blob: null, duration: 0 };
                 })}
                 handlePauseRecording={handlePauseRecording}
                 handleResumeRecording={handleResumeRecording}

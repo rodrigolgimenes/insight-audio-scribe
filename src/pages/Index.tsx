@@ -1,49 +1,32 @@
 
-import React from "react";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
-import { RecordingModal } from "@/components/record/RecordingModal";
-import { Header } from "@/components/Header";
-import { PricingSection } from "@/components/payments/PricingSection";
-import { UploadSection } from "@/components/landing/UploadSection";
+import { Link } from "react-router-dom";
 
 export default function Index() {
-  const [isRecordingModalOpen, setIsRecordingModalOpen] = React.useState(false);
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <main className="flex flex-col">
-        <section className="container mx-auto px-4 py-16 flex flex-col items-center justify-center min-h-[70vh]">
-          <div className="text-center space-y-6">
-            <h1 className="text-4xl font-bold text-primary mb-4">
-              Transform Your Voice Into Text
-            </h1>
-            <p className="text-gray-600 max-w-md mx-auto mb-8">
-              Record audio and instantly get transcribed notes with our advanced voice recognition technology.
-            </p>
-            <Button
-              onClick={() => setIsRecordingModalOpen(true)}
-              className="bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white"
-              size="lg"
-            >
-              <Mic className="w-5 h-5 mr-2" />
-              Record Audio
-            </Button>
-          </div>
-
-          <RecordingModal
-            isOpen={isRecordingModalOpen}
-            onOpenChange={setIsRecordingModalOpen}
-          />
-        </section>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="max-w-3xl text-center px-4">
+        <h1 className="text-4xl font-bold text-blue-600 mb-6">
+          Audio Recording App
+        </h1>
+        <p className="text-lg text-gray-700 mb-8">
+          A powerful tool for recording, transcribing, and managing your audio notes
+        </p>
         
-        {/* Add upload section between hero and pricing */}
-        <UploadSection />
-        
-        {/* Pricing section */}
-        <PricingSection />
-      </main>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
+            <Link to="/simple-record">
+              Go to Recording Page
+            </Link>
+          </Button>
+          
+          <Button asChild variant="outline" size="lg">
+            <Link to="/app">
+              Dashboard
+            </Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
