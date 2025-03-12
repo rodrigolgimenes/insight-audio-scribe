@@ -44,6 +44,7 @@ export const useRecording = () => {
   }, []);
 
   const handleStartRecording = async () => {
+    console.log("[useRecording] Starting recording with system audio:", isSystemAudio);
     await startRecording(selectedDeviceId);
   };
 

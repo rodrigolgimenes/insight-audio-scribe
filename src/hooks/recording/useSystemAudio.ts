@@ -10,135 +10,87 @@ import {
 export const useSystemAudio = () => {
   const { toast } = useToast();
 
-  const captureSystemAudio = async (micStream: MediaStream): Promise<MediaStream> => {
+  const captureSystemAudio = async (micStream: MediaStream): Promise<MediaStream | null> => {
     if (!navigator.mediaDevices.getDisplayMedia) {
-      throw new Error('Seu navegador não suporta captura de áudio do sistema');
+      throw new Error('Your browser does not support system audio capture');
     }
 
     let systemStream: MediaStream;
     
-    // Primeira tentativa: configuração completa
     try {
       console.log('[useSystemAudio] Attempting to capture system audio with full config');
+      // Request with audio: true to ensure browser prompts for system audio
       systemStream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        }
+        video: true
       });
 
+      // Check if we got audio tracks
       if (!systemStream.getAudioTracks().length) {
-        throw new Error('No audio tracks available');
+        console.warn('[useSystemAudio] No audio tracks in display media, the user may not have selected system audio');
+      } else {
+        console.log('[useSystemAudio] Successfully captured system audio');
       }
 
-    } catch (firstError) {
-      console.warn('[useSystemAudio] First attempt failed:', firstError);
-      
-      // Segunda tentativa: apenas áudio
-      try {
-        console.log('[useSystemAudio] Attempting audio-only capture');
-        systemStream = await navigator.mediaDevices.getDisplayMedia(SYSTEM_AUDIO_CONSTRAINTS);
-        
-        if (!systemStream.getAudioTracks().length) {
-          throw new Error('No audio tracks available');
-        }
-
-      } catch (secondError) {
-        console.warn('[useSystemAudio] Second attempt failed:', secondError);
-        
-        // Terceira tentativa: configuração mínima
-        try {
-          console.log('[useSystemAudio] Attempting with minimal config');
-          systemStream = await navigator.mediaDevices.getDisplayMedia(MINIMAL_VIDEO_CONSTRAINTS);
-          
-          // Verifica se temos áudio antes de continuar
-          if (!systemStream.getAudioTracks().length) {
-            throw new Error('No audio tracks available');
-          }
-
-          // Remove trilhas de vídeo se existirem
-          const videoTracks = systemStream.getVideoTracks();
-          videoTracks.forEach(track => {
-            track.enabled = false;
-            track.stop();
-            systemStream.removeTrack(track);
-          });
-
-        } catch (thirdError) {
-          console.error('[useSystemAudio] All attempts failed:', { firstError, secondError, thirdError });
-          throw new Error('Não foi possível capturar o áudio do sistema. Por favor, certifique-se de selecionar uma fonte de áudio ao compartilhar.');
-        }
-      }
+    } catch (error) {
+      console.error('[useSystemAudio] Failed to capture system audio:', error);
+      throw error;
     }
 
-    // Verifica novamente se temos trilhas de áudio válidas
-    const systemAudioTracks = systemStream.getAudioTracks();
-    if (systemAudioTracks.length === 0) {
-      throw new Error('Selecione uma fonte com áudio ao compartilhar a tela');
-    }
-
+    // Always mix whatever we got with the mic stream
     try {
-      return await mixAudioStreams(micStream, systemStream, toast);
+      const mixedStream = await mixAudioStreams(micStream, systemStream);
+      return mixedStream;
     } catch (mixError) {
       console.error('[useSystemAudio] Error mixing streams:', mixError);
-      throw new Error('Erro ao processar o áudio. Por favor, tente novamente.');
+      throw mixError;
     }
   };
 
   return { captureSystemAudio };
 };
 
-const mixAudioStreams = async (micStream: MediaStream, systemStream: MediaStream, toast: any): Promise<MediaStream> => {
+const mixAudioStreams = async (micStream: MediaStream, systemStream: MediaStream): Promise<MediaStream> => {
   const audioContext = new AudioContext(AUDIO_CONTEXT_OPTIONS);
 
-  // Aguarda o contexto de áudio estar pronto
+  // Ensure the context is running
   if (audioContext.state !== 'running') {
     await audioContext.resume();
   }
 
   const micSource = audioContext.createMediaStreamSource(micStream);
-  const systemSource = audioContext.createMediaStreamSource(systemStream);
   
-  const micGain = audioContext.createGain();
-  const systemGain = audioContext.createGain();
-  
-  // Aplica um fade-in suave para evitar picos de áudio
-  micGain.gain.setValueAtTime(0, audioContext.currentTime);
-  systemGain.gain.setValueAtTime(0, audioContext.currentTime);
-  
-  micGain.gain.linearRampToValueAtTime(GAIN_VALUES.microphone, audioContext.currentTime + 0.5);
-  systemGain.gain.linearRampToValueAtTime(GAIN_VALUES.system, audioContext.currentTime + 0.5);
-  
-  micSource.connect(micGain);
-  systemSource.connect(systemGain);
-  
-  const merger = audioContext.createChannelMerger(2);
-  const compressor = audioContext.createDynamicsCompressor();
-  
-  // Configura o compressor para melhor qualidade
-  compressor.threshold.value = -50;
-  compressor.knee.value = 40;
-  compressor.ratio.value = 12;
-  compressor.attack.value = 0;
-  compressor.release.value = 0.25;
-  
+  // Create destination for the final mixed stream
   const destination = audioContext.createMediaStreamDestination();
-
-  micGain.connect(merger, 0, 0);
-  systemGain.connect(merger, 0, 1);
-  merger.connect(compressor);
-  compressor.connect(destination);
-
-  systemStream.getAudioTracks()[0].onended = () => {
-    console.log('[useSystemAudio] System audio sharing stopped');
-    audioContext.close().catch(console.error);
-    toast({
-      title: "Aviso",
-      description: "O compartilhamento de áudio do sistema foi interrompido.",
-      variant: "default",
-    });
-  };
+  
+  // If we have audio tracks in the system stream, mix them
+  if (systemStream.getAudioTracks().length > 0) {
+    const systemSource = audioContext.createMediaStreamSource(systemStream);
+    
+    const micGain = audioContext.createGain();
+    const systemGain = audioContext.createGain();
+    
+    // Set gain values
+    micGain.gain.value = GAIN_VALUES.microphone;
+    systemGain.gain.value = GAIN_VALUES.system;
+    
+    // Connect sources to gains
+    micSource.connect(micGain);
+    systemSource.connect(systemGain);
+    
+    // Connect gains to destination
+    micGain.connect(destination);
+    systemGain.connect(destination);
+    
+    // Handle system stream ended event
+    systemStream.getAudioTracks()[0].onended = () => {
+      console.log('[useSystemAudio] System audio sharing stopped');
+      systemGain.disconnect();
+    };
+  } else {
+    // If no system audio, just use the mic
+    micSource.connect(destination);
+  }
 
   return destination.stream;
 };

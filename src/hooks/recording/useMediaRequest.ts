@@ -46,13 +46,19 @@ export const useMediaRequest = () => {
         });
       }
 
+      // First capture the microphone stream
+      if (!micStream) {
+        throw new Error('Failed to get microphone stream');
+      }
+
+      // Then, if system audio is enabled, capture system audio and mix with microphone
       if (isSystemAudio) {
         try {
           console.log('[useMediaRequest] Attempting to capture system audio...');
           const systemStream = await captureSystemAudio(micStream);
           if (systemStream) {
             console.log('[useMediaRequest] System audio captured successfully');
-            micStream = systemStream;
+            return systemStream;
           }
         } catch (systemError) {
           console.error('[useMediaRequest] Failed to capture system audio:', systemError);
@@ -64,6 +70,7 @@ export const useMediaRequest = () => {
         }
       }
 
+      // If system audio wasn't requested or failed, return the microphone stream
       const audioTracks = micStream.getAudioTracks();
       if (audioTracks.length === 0) {
         throw new Error('No audio source available');
