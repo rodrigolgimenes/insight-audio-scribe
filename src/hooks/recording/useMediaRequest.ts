@@ -67,6 +67,8 @@ export const useMediaRequest = () => {
             description: "Could not capture system audio. Using microphone only.",
             variant: "default",
           });
+          // If system audio capture fails, still return the microphone stream
+          return micStream;
         }
       }
 

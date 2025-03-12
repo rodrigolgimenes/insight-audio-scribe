@@ -55,7 +55,14 @@ export const useRecordingLifecycle = () => {
 
     try {
       const stream = await requestMicrophoneAccess(selectedDeviceId, isSystemAudio);
-      if (!stream) return;
+      if (!stream) {
+        toast({
+          title: "Recording Error",
+          description: "Failed to access microphone. Please check your permissions.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       setMediaStream(stream);
       await audioRecorder.current.startRecording(stream);
@@ -149,7 +156,23 @@ export const useRecordingLifecycle = () => {
 
     setIsSaving(true);
     try {
-      const { blob, duration } = await audioRecorder.current.stopRecording();
+      // Only attempt to stop if we're recording
+      let blob, duration;
+      if (isRecording) {
+        const result = await audioRecorder.current.stopRecording();
+        blob = result.blob;
+        duration = result.duration;
+        setIsRecording(false);
+        setIsPaused(false);
+      } else if (audioUrl) {
+        // If we already have an audioUrl, we need to fetch it and convert to blob
+        const response = await fetch(audioUrl);
+        blob = await response.blob();
+        duration = audioRecorder.current.getCurrentDuration();
+      } else {
+        throw new Error("No recording to save");
+      }
+      
       console.log('[useRecordingLifecycle] Saving recording with duration (seconds):', duration);
       const success = await saveRecording(session.user.id, blob, duration);
       

@@ -40,11 +40,16 @@ export const useRecording = () => {
   } = useRecordingLifecycle();
 
   useEffect(() => {
-    return initializeRecorder();
+    const cleanup = initializeRecorder();
+    return cleanup;
   }, []);
 
   const handleStartRecording = async () => {
     console.log("[useRecording] Starting recording with system audio:", isSystemAudio);
+    if (!selectedDeviceId) {
+      console.error("[useRecording] No microphone selected");
+      return;
+    }
     await startRecording(selectedDeviceId);
   };
 

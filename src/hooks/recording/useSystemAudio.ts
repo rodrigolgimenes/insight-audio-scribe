@@ -22,12 +22,19 @@ export const useSystemAudio = () => {
       // Request with audio: true to ensure browser prompts for system audio
       systemStream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
-        video: true
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        }
       });
 
       // Check if we got audio tracks
       if (!systemStream.getAudioTracks().length) {
         console.warn('[useSystemAudio] No audio tracks in display media, the user may not have selected system audio');
+        
+        // If we didn't get audio tracks, still return a mixed stream
+        // This ensures the video-only stream is handled
+        return await mixAudioStreams(micStream, systemStream);
       } else {
         console.log('[useSystemAudio] Successfully captured system audio');
       }
@@ -92,5 +99,18 @@ const mixAudioStreams = async (micStream: MediaStream, systemStream: MediaStream
     micSource.connect(destination);
   }
 
-  return destination.stream;
+  // Create a new MediaStream that includes both audio and video tracks
+  const combinedStream = new MediaStream();
+  
+  // Add the mixed audio
+  destination.stream.getAudioTracks().forEach(track => {
+    combinedStream.addTrack(track);
+  });
+  
+  // Add any video tracks from the system stream
+  systemStream.getVideoTracks().forEach(track => {
+    combinedStream.addTrack(track);
+  });
+
+  return combinedStream;
 };

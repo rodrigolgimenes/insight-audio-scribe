@@ -83,13 +83,13 @@ const SimpleRecord = () => {
     }, mediaStream, audioUrl, getCurrentDuration());
   };
 
-  const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
-  const hasRecording = !!audioUrl;
-
   const handleSystemAudioChange = (enabled: boolean) => {
     console.log("Setting system audio to:", enabled);
     setIsSystemAudio(enabled);
   };
+
+  const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
+  const hasRecording = !!audioUrl;
 
   return (
     <SidebarProvider>
