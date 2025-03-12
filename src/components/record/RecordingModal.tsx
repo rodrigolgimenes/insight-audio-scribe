@@ -39,6 +39,7 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
   };
 
   const isLoading = isSaving;
+  const hasRecording = !!audioUrl;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -72,6 +73,8 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
             onSave={handleSaveRecording}
             isSaving={isSaving}
             isLoading={isLoading}
+            isRecording={isRecording}
+            hasRecording={hasRecording}
           />
         </div>
       </DialogContent>

@@ -1,11 +1,10 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, Loader2, FileText, AlertCircle } from "lucide-react";
-import { useFileUpload } from "@/hooks"; // Updated import
+import { useFileUpload } from "@/hooks";
 import { validateFile } from "@/utils/upload/fileValidation";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -18,9 +17,10 @@ interface FileUploadProps {
   accept?: string;
   buttonText?: string;
   className?: string;
-  maxSize?: number; // in MB
+  buttonClassName?: string;
+  maxSize?: number;
   disabled?: boolean;
-  initiateTranscription?: boolean; // New prop to control whether transcription should be initiated
+  initiateTranscription?: boolean;
 }
 
 export function FileUpload({
@@ -30,9 +30,10 @@ export function FileUpload({
   accept = "audio/*,video/mp4",
   buttonText = "Upload File",
   className = "",
-  maxSize = 100, // default 100MB
+  buttonClassName = "",
+  maxSize = 100,
   disabled = false,
-  initiateTranscription = true, // Default to true to maintain backward compatibility
+  initiateTranscription = true,
 }: FileUploadProps) {
   const { isUploading, handleFileUpload } = useFileUpload();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -60,12 +61,10 @@ export function FileUpload({
         if (noteId) {
           console.log("Upload complete, noteId:", noteId);
           
-          // If no callback is provided, navigate to the dashboard instead of note page
           if (!onUploadComplete) {
             console.log(`Navigating to dashboard after upload`);
             navigate(`/app`);
             
-            // Automatically retry transcription after a brief delay if needed
             setTimeout(async () => {
               const { data: note } = await supabase
                 .from('notes')
@@ -97,7 +96,6 @@ export function FileUpload({
             description: "File was uploaded but something went wrong with the process. Please check your Dashboard.",
             variant: "destructive",
           });
-          // If we couldn't get a note ID, navigate to the dashboard
           navigate("/app");
         }
       } catch (err) {
@@ -132,7 +130,7 @@ export function FileUpload({
           <Button 
             onClick={() => document.getElementById('file-upload')?.click()}
             disabled={isUploading || disabled}
-            className="bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white gap-2 w-full sm:w-auto"
+            className={`bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white gap-2 w-full sm:w-auto ${buttonClassName}`}
           >
             {isUploading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
