@@ -69,22 +69,31 @@ const SimpleRecord = () => {
   }, [searchParams, toast]);
 
   const handleSave = async () => {
-    if (isRecording) {
-      const { blob, duration } = await handleStopRecording();
-      if (!blob) {
-        toast({
-          title: "Error",
-          description: "Failed to get recording data.",
-          variant: "destructive",
-        });
-        return;
+    try {
+      if (isRecording) {
+        const result = await handleStopRecording();
+        if (!result || !result.blob) {
+          toast({
+            title: "Error",
+            description: "Failed to get recording data.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
+      
+      await saveRecording(isRecording, async () => {
+        const result = await handleStopRecording();
+        return result; // Return the result which contains blob and duration
+      }, mediaStream, audioUrl, getCurrentDuration());
+    } catch (error) {
+      console.error('[SimpleRecord] Error in handleSave:', error);
+      toast({
+        title: "Error",
+        description: "An error occurred while saving the recording.",
+        variant: "destructive",
+      });
     }
-    
-    await saveRecording(isRecording, async () => {
-      const result = await handleStopRecording();
-      return;
-    }, mediaStream, audioUrl, getCurrentDuration());
   };
 
   const isLoading = isTranscribing || isSaving || isUploading || isSaveProcessing;
@@ -115,7 +124,10 @@ const SimpleRecord = () => {
                     mediaStream={mediaStream}
                     isSystemAudio={isSystemAudio}
                     handleStartRecording={handleStartRecording}
-                    handleStopRecording={() => handleStopRecording().then(() => {})}
+                    handleStopRecording={async () => {
+                      const result = await handleStopRecording();
+                      return;
+                    }}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}

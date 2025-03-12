@@ -1,6 +1,7 @@
 
 import { BaseRecorder } from './core/BaseRecorder';
 import type { IAudioRecorder } from './interfaces/IAudioRecorder';
+import { RecordingResult } from './types';
 
 // Extend the BaseRecorder to implement our interface
 export class AudioRecorder extends BaseRecorder implements IAudioRecorder {
@@ -13,7 +14,7 @@ export class AudioRecorder extends BaseRecorder implements IAudioRecorder {
     return super.startRecording(stream);
   }
   
-  stopRecording(): Promise<any> {
+  stopRecording(): Promise<RecordingResult> {
     return super.stopRecording();
   }
   

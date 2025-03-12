@@ -43,10 +43,7 @@ export const useSimpleRecorder = () => {
   
   return {
     recorder: recorderRef,
-    isRecording: false,
-    isPaused: false,
     getCurrentDuration,
-    initializeRecorder,
-    lastAction: null
+    initializeRecorder
   };
 };

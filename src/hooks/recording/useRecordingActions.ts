@@ -8,7 +8,7 @@ import { RecordingStateType } from "./useRecordingState";
 export const useRecordingActions = (
   recordingState: RecordingStateType,
   startRecording: (deviceId: string | null, isSystemAudio: boolean) => Promise<boolean>,
-  stopRecording: () => Promise<void>,
+  stopRecording: () => Promise<{ blob: Blob | null; duration: number }>,
   pauseRecording: () => void,
   resumeRecording: () => void
 ) => {
@@ -77,7 +77,7 @@ export const useRecordingActions = (
     });
     
     try {
-      await stopRecording();
+      const result = await stopRecording();
       setIsRecording(false);
       setIsPaused(false);
       
@@ -88,6 +88,7 @@ export const useRecordingActions = (
       });
       
       console.log('[useRecordingActions] Recording stopped successfully');
+      return result;
     } catch (error) {
       console.error('[useRecordingActions] Error stopping recording:', error);
       setLastAction({
@@ -96,6 +97,7 @@ export const useRecordingActions = (
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+      throw error;
     }
   }, [stopRecording, setIsRecording, setIsPaused, setLastAction]);
 

@@ -6,11 +6,15 @@ import { useDeviceSelection } from "./useDeviceSelection";
 import { useRecordingActions } from "./useRecordingActions";
 import { useMediaStream } from "./useMediaStream";
 import { useRecordingError } from "./useRecordingError";
+import { useSimpleRecorder } from "./useSimpleRecorder";
+import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
+import { useSystemAudio } from "./useSystemAudio";
 
 /**
  * Main hook that combines all recording functionality
  */
 export const useRecording = () => {
+  // Main state
   const recordingState = useRecordingState();
   const {
     isRecording,
@@ -21,8 +25,11 @@ export const useRecording = () => {
     isTranscribing,
     isSystemAudio,
     setIsSystemAudio,
+    selectedDeviceId, 
+    setSelectedDeviceId
   } = recordingState;
 
+  // Error handling
   const {
     initError,
     setInitError,
@@ -32,34 +39,59 @@ export const useRecording = () => {
     setLastAction,
   } = useRecordingError();
 
+  // Merge the setLastAction into recordingState for easier access
+  const enhancedRecordingState = {
+    ...recordingState,
+    setLastAction,
+    recordingAttemptsCount,
+    setRecordingAttemptsCount
+  };
+
+  // Device selection
   const {
     audioDevices,
-    selectedDeviceId,
-    setSelectedDeviceId,
     deviceSelectionReady
   } = useDeviceSelection();
 
+  // Media stream handling
   const { streamManager } = useMediaStream(setLastAction);
 
-  const {
+  // Recording operations
+  const { 
     recorder,
     getCurrentDuration,
-    initializeRecorder,
-  } = useRecordingLifecycle();
+    initializeRecorder
+  } = useSimpleRecorder();
 
+  // Set up lifecycle methods
+  const {
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording
+  } = useRecordingLifecycle(recorder, enhancedRecordingState);
+
+  // Set up action handlers
   const {
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
-    handleResumeRecording,
-    handleDelete,
-    handleSaveRecording,
-    handleSystemAudioChange,
+    handleResumeRecording
   } = useRecordingActions(
-    recordingState,
-    selectedDeviceId,
-    streamManager,
-    recorder,
+    enhancedRecordingState,
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording
+  );
+
+  // System audio handler
+  const { handleSystemAudioChange } = useSystemAudio(setIsSystemAudio);
+
+  // Save and delete functionality
+  const { handleSaveRecording, handleDelete } = useSaveDeleteRecording(
+    recordingState, 
+    stopRecording, 
     setLastAction
   );
 

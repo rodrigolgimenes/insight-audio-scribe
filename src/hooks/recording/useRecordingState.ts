@@ -16,6 +16,12 @@ export type RecordingStateType = {
   setIsTranscribing: (isTranscribing: boolean) => void;
   isSystemAudio: boolean;
   setIsSystemAudio: (isSystemAudio: boolean) => void;
+  selectedDeviceId: string | null;
+  setSelectedDeviceId: (deviceId: string | null) => void;
+  lastAction: { action: string; timestamp: number; success: boolean; error?: string } | null;
+  setLastAction: (action: { action: string; timestamp: number; success: boolean; error?: string } | null) => void;
+  recordingAttemptsCount: number;
+  setRecordingAttemptsCount: (count: number | ((prev: number) => number)) => void;
 };
 
 export const useRecordingState = (): RecordingStateType => {
@@ -26,6 +32,14 @@ export const useRecordingState = (): RecordingStateType => {
   const [isSaving, setIsSaving] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isSystemAudio, setIsSystemAudio] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [lastAction, setLastAction] = useState<{
+    action: string;
+    timestamp: number;
+    success: boolean;
+    error?: string;
+  } | null>(null);
+  const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
 
   return {
     isRecording,
@@ -42,5 +56,11 @@ export const useRecordingState = (): RecordingStateType => {
     setIsTranscribing,
     isSystemAudio,
     setIsSystemAudio,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    lastAction,
+    setLastAction,
+    recordingAttemptsCount,
+    setRecordingAttemptsCount
   };
 };

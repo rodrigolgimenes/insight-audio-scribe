@@ -1,105 +1,97 @@
 
 import { useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { useToast } from "@/hooks/use-toast";
 import { RecordingStateType } from "../useRecordingState";
-import { useAudioProcessing } from "../useAudioProcessing";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
 
 export function useSaveDeleteRecording(
-  recordingState: Pick<RecordingStateType, 
-    "setIsRecording" | "setIsPaused" | "setAudioUrl" | "setMediaStream" | 
-    "mediaStream" | "audioUrl" | "setIsSaving" | "isRecording"
-  >,
-  recorder: React.RefObject<AudioRecorder>,
-  handleStopRecording: () => Promise<{blob: Blob | null, duration: number}>
+  recordingState: RecordingStateType,
+  stopRecording: () => Promise<{ blob: Blob | null; duration: number }>,
+  setLastAction: (action: { action: string; timestamp: number; success: boolean; error?: string } | null) => void
 ) {
-  const { saveRecording } = useAudioProcessing();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { session } = useAuth();
-
+  const { setAudioUrl, setMediaStream, mediaStream, isRecording } = recordingState;
+  
   const handleDelete = useCallback(() => {
     console.log('[useSaveDeleteRecording] Deleting recording');
-    if (recordingState.audioUrl) {
-      URL.revokeObjectURL(recordingState.audioUrl);
-      recordingState.setAudioUrl(null);
-    }
     
-    if (recordingState.mediaStream) {
-      recordingState.mediaStream.getTracks().forEach(track => {
-        track.stop();
+    setLastAction({
+      action: 'Delete recording',
+      timestamp: Date.now(),
+      success: false
+    });
+    
+    try {
+      // Release the audio URL
+      setAudioUrl(null);
+      
+      // Stop and release all tracks
+      if (mediaStream) {
+        console.log('[useSaveDeleteRecording] Stopping media stream tracks');
+        mediaStream.getTracks().forEach(track => {
+          track.stop();
+        });
+        setMediaStream(null);
+      }
+      
+      setLastAction({
+        action: 'Delete recording',
+        timestamp: Date.now(),
+        success: true
       });
-      recordingState.setMediaStream(null);
+      
+      console.log('[useSaveDeleteRecording] Recording deleted successfully');
+    } catch (error) {
+      console.error('[useSaveDeleteRecording] Error deleting recording:', error);
+      setLastAction({
+        action: 'Delete recording',
+        timestamp: Date.now(),
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
-    
-    recordingState.setIsRecording(false);
-    recordingState.setIsPaused(false);
-  }, [recordingState]);
+  }, [mediaStream, setAudioUrl, setMediaStream, setLastAction]);
 
   const handleSaveRecording = useCallback(async () => {
-    if (!session?.user?.id) {
-      toast({
-        title: "Error",
-        description: "You need to be logged in to save recordings.",
-        variant: "destructive",
-      });
-      navigate("/login");
-      return;
-    }
-
-    recordingState.setIsSaving(true);
+    console.log('[useSaveDeleteRecording] Saving recording');
+    
+    setLastAction({
+      action: 'Save recording',
+      timestamp: Date.now(),
+      success: false
+    });
+    
     try {
-      let blob, duration;
+      let blob = null;
+      let duration = 0;
       
-      if (recordingState.isRecording) {
-        console.log('[useSaveDeleteRecording] Stopping recording before saving');
-        const result = await handleStopRecording();
+      // If we're still recording, stop it first
+      if (isRecording) {
+        console.log('[useSaveDeleteRecording] Still recording, stopping first');
+        const result = await stopRecording();
         blob = result.blob;
         duration = result.duration;
-      } else if (recorder.current?.isCurrentlyRecording()) {
-        console.log('[useSaveDeleteRecording] Recorder is still active, stopping');
-        const result = await recorder.current.stopRecording();
-        blob = result.blob;
-        // Now access duration from either stats or the direct property
-        duration = result.duration || result.stats.duration;
-      } else {
-        console.log('[useSaveDeleteRecording] Getting current recording state for saving');
-        blob = recorder.current?.getFinalBlob?.() || null;
-        duration = recorder.current?.getCurrentDuration() || 0;
       }
       
-      if (!blob) {
-        console.error('[useSaveDeleteRecording] No blob available for saving');
-        throw new Error('Could not get audio to save');
-      }
+      setLastAction({
+        action: 'Save recording',
+        timestamp: Date.now(),
+        success: true
+      });
       
-      console.log('[useSaveDeleteRecording] Saving recording with duration (seconds):', duration);
-      const success = await saveRecording(session.user.id, blob, duration);
-      
-      if (success) {
-        navigate("/app");
-      }
+      console.log('[useSaveDeleteRecording] Recording saved successfully');
+      return { blob, duration };
     } catch (error) {
       console.error('[useSaveDeleteRecording] Error saving recording:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save the recording. Please try again.",
-        variant: "destructive",
+      setLastAction({
+        action: 'Save recording',
+        timestamp: Date.now(),
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-    } finally {
-      recordingState.setIsSaving(false);
+      throw error;
     }
-  }, [
-    handleStopRecording, 
-    navigate, 
-    recorder, 
-    recordingState, 
-    saveRecording, 
-    session, 
-    toast
-  ]);
-
-  return { handleDelete, handleSaveRecording };
+  }, [isRecording, stopRecording, setLastAction]);
+  
+  return {
+    handleDelete,
+    handleSaveRecording
+  };
 }
