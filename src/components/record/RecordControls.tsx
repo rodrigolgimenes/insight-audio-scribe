@@ -61,6 +61,11 @@ export function RecordControls({
     };
   }, [buttonPressed]);
 
+  // Log when device selection state changes
+  useEffect(() => {
+    console.log('[RecordControls] Device selection ready:', deviceSelectionReady);
+  }, [deviceSelectionReady]);
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="flex items-center gap-4">
@@ -126,7 +131,7 @@ export function RecordControls({
       <div className="text-xs text-gray-500 mt-2">
         <div>Status: {isRecording ? (isPaused ? "Paused" : "Recording") : "Ready"}</div>
         {!deviceSelectionReady && (
-          <div className="text-amber-500">Waiting for microphone permission...</div>
+          <div className="text-amber-500">Waiting for microphone permission or device selection...</div>
         )}
         {showLastAction && lastAction && (
           <div className={cn(

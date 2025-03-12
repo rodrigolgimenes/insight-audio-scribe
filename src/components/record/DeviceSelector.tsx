@@ -73,7 +73,8 @@ export function DeviceSelector({
         const deviceId = firstDevice.deviceId || '';
         if (deviceId) {
           onDeviceSelect(deviceId);
-          console.log('[DeviceSelector] Auto-selecting first device:', deviceId, firstDevice.label || firstDevice.displayName || 'No label');
+          console.log('[DeviceSelector] Auto-selecting first device:', deviceId, 
+            'label', firstDevice.label || ('displayName' in firstDevice ? firstDevice.displayName : 'No label'));
         }
       }
     }
@@ -85,7 +86,9 @@ export function DeviceSelector({
       console.log('[DeviceSelector] Device list updated:', deviceList.length, 'devices');
       deviceList.forEach((device, i) => {
         if (device) {
-          const label = 'displayName' in device ? device.displayName : (device.label || `Microphone ${i+1}`);
+          const label = 'displayName' in device 
+            ? device.displayName 
+            : (device.label || `Microphone ${i+1}`);
           console.log(`[DeviceSelector] Device ${i}:`, device.deviceId, label);
         }
       });

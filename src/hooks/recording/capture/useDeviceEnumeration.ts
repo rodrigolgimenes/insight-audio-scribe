@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { AudioDevice, toAudioDevice } from "../capture/types";
+import { toast } from "sonner";
 
 /**
  * Hook to handle device enumeration with permission checking
@@ -21,6 +22,9 @@ export const useDeviceEnumeration = (
       
       if (!hasPermission) {
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
+        toast.error("Microphone permission required", {
+          description: "Please allow microphone access to view available devices"
+        });
         setAudioDevices([]);
         setDefaultDeviceId(null);
         return { devices: [], defaultId: null };
@@ -43,6 +47,9 @@ export const useDeviceEnumeration = (
       
       if (audioInputs.length === 0) {
         console.warn('[useDeviceEnumeration] No audio input devices found');
+        toast.warning("No microphones detected", { 
+          description: "Please connect a microphone and try again"
+        });
         
         // Close temporary stream if it was created
         if (tempStream) {
@@ -94,9 +101,17 @@ export const useDeviceEnumeration = (
         tempStream.getTracks().forEach(track => track.stop());
       }
       
+      // Notify the user
+      toast.success(`Found ${convertedDevices.length} microphone(s)`, {
+        description: "You can select a microphone from the dropdown"
+      });
+      
       return { devices: convertedDevices, defaultId };
     } catch (error) {
       console.error('[useDeviceEnumeration] Error enumerating devices:', error);
+      toast.error("Failed to detect microphones", {
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
       setAudioDevices([]);
       setDefaultDeviceId(null);
       return { devices: [], defaultId: null };
