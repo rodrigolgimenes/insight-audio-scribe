@@ -28,7 +28,6 @@ export function RecordingOptions({
   return (
     <div className="space-y-6 mb-8">
       <DeviceSelector
-        devices={[]} // Pass empty array for compatibility
         audioDevices={audioDevices}
         selectedDeviceId={selectedDeviceId}
         onDeviceSelect={onDeviceSelect}

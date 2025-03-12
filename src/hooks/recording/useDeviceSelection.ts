@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 export const useDeviceSelection = () => {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
-  const { getAudioDevices, audioDevices, defaultDeviceId, requestMicrophoneAccess } = useAudioCapture();
+  const { getAudioDevices, audioDevices, defaultDeviceId, requestMicrophoneAccess, checkPermissions } = useAudioCapture();
   const { toast } = useToast();
   const deviceInitializationAttempted = useRef(false);
 
@@ -19,8 +19,9 @@ export const useDeviceSelection = () => {
       console.log('[useDeviceSelection] Device selected successfully:', deviceId);
     } else {
       console.warn('[useDeviceSelection] Attempted to select invalid device ID:', deviceId);
-      setSelectedDeviceId(null);
-      setDeviceSelectionReady(false);
+      // Don't clear the selection if the ID is invalid - might be just a temporary issue
+      // setSelectedDeviceId(null);
+      // setDeviceSelectionReady(false);
     }
   }, [audioDevices]);
 
@@ -35,6 +36,9 @@ export const useDeviceSelection = () => {
       deviceInitializationAttempted.current = true;
       console.log('[useDeviceSelection] Initializing audio devices');
       
+      // Request permissions first
+      await checkPermissions();
+      
       try {
         const devices = await getAudioDevices();
         console.log('[useDeviceSelection] Got audio devices:', devices.length);
@@ -47,6 +51,9 @@ export const useDeviceSelection = () => {
             variant: "destructive",
           });
           setDeviceSelectionReady(false);
+        } else if (defaultDeviceId) {
+          // Auto-select the default device if available
+          handleDeviceSelect(defaultDeviceId);
         }
       } catch (error) {
         console.error('[useDeviceSelection] Error initializing devices:', error);
@@ -60,7 +67,7 @@ export const useDeviceSelection = () => {
     };
     
     initDevices();
-  }, [getAudioDevices, toast]);
+  }, [getAudioDevices, toast, handleDeviceSelect, defaultDeviceId, checkPermissions]);
 
   // Reset selection if selected device is no longer available
   useEffect(() => {
@@ -69,8 +76,9 @@ export const useDeviceSelection = () => {
       
       if (!deviceExists) {
         console.warn('[useDeviceSelection] Selected device no longer available, resetting selection');
-        setSelectedDeviceId(null);
-        setDeviceSelectionReady(false);
+        // Don't clear selection if the device is temporarily unavailable
+        // setSelectedDeviceId(null);
+        // setDeviceSelectionReady(false);
       }
     }
   }, [selectedDeviceId, audioDevices]);
@@ -79,6 +87,7 @@ export const useDeviceSelection = () => {
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId: handleDeviceSelect,
-    deviceSelectionReady
+    deviceSelectionReady,
+    refreshDevices: getAudioDevices
   };
 };

@@ -6,23 +6,23 @@ import { cn } from "@/lib/utils";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface DeviceSelectorProps {
-  devices: MediaDeviceInfo[] | AudioDevice[];
+  devices?: MediaDeviceInfo[] | AudioDevice[];
+  audioDevices?: AudioDevice[]; // For compatibility
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
-  isReady: boolean;
+  isReady?: boolean;
   disabled?: boolean;
   hasDevices?: boolean;
-  audioDevices?: AudioDevice[]; // Added for compatibility with RecordingOptions
 }
 
 export function DeviceSelector({
-  devices,
+  devices = [],
+  audioDevices,
   selectedDeviceId,
   onDeviceSelect,
-  isReady,
+  isReady = true,
   disabled = false,
   hasDevices = true,
-  audioDevices,
 }: DeviceSelectorProps) {
   // Use audioDevices if provided, otherwise use devices
   const deviceList = audioDevices || devices;
@@ -39,6 +39,9 @@ export function DeviceSelector({
     selectedDevice: null,
     permissionRequested: false
   });
+
+  // Should select dropdown be disabled?
+  const isSelectDisabled = disabled || deviceList.length === 0;
 
   useEffect(() => {
     // Update debug info whenever relevant props change
@@ -77,6 +80,14 @@ export function DeviceSelector({
     checkPermissions();
   }, []);
 
+  // Auto-select first device if none selected and devices are available
+  useEffect(() => {
+    if (deviceList.length > 0 && !selectedDeviceId && !disabled) {
+      console.log('[DeviceSelector] Auto-selecting first device');
+      onDeviceSelect(deviceList[0].deviceId);
+    }
+  }, [deviceList, selectedDeviceId, onDeviceSelect, disabled]);
+
   const handleDeviceChange = (value: string) => {
     console.log('[DeviceSelector] Device changed to:', value);
     onDeviceSelect(value);
@@ -113,12 +124,12 @@ export function DeviceSelector({
       <Select
         value={selectedDeviceId || ""}
         onValueChange={handleDeviceChange}
-        disabled={!isReady || deviceList.length === 0 || disabled}
+        disabled={isSelectDisabled}
       >
         <SelectTrigger 
           className={cn(
             "w-full",
-            !isReady && "opacity-50 cursor-not-allowed"
+            isSelectDisabled && "opacity-50 cursor-not-allowed"
           )}
         >
           <SelectValue placeholder="Select a microphone" />
@@ -146,11 +157,11 @@ export function DeviceSelector({
             Selected ID: {debugInfo.selectedDevice.substring(0, 10)}...
           </div>
         )}
-        {!isReady && (
-          <div className="text-amber-500">
-            {deviceList.length === 0 ? "No devices available" : "Waiting for selection..."}
-          </div>
-        )}
+        {deviceList.length === 0 ? (
+          <div className="text-amber-500">No devices available</div>
+        ) : !selectedDeviceId ? (
+          <div className="text-amber-500">Waiting for selection...</div>
+        ) : null}
       </div>
     </div>
   );

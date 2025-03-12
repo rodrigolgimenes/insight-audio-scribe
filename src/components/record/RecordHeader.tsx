@@ -4,8 +4,8 @@ import { ArrowLeft } from "lucide-react";
 
 interface RecordHeaderProps {
   onBack?: () => void;
-  isRecording?: boolean;  // Added for compatibility
-  isPaused?: boolean;     // Added for compatibility
+  isRecording?: boolean;
+  isPaused?: boolean;
 }
 
 export const RecordHeader = ({ onBack, isRecording, isPaused }: RecordHeaderProps) => {
