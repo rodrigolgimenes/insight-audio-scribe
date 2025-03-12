@@ -19,11 +19,14 @@ export const RecordingActions = ({
 }: RecordingActionsProps) => {
   return (
     <div className="flex flex-col items-center mt-8 gap-8">
-      <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-2xl">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full max-w-2xl">
         <div className="flex flex-col items-center w-full md:w-1/2">
           <p className="text-center text-sm text-gray-600 mb-2">
-            Convert your recording into text
+            Record and create a transcription
           </p>
+          <h3 className="text-center font-semibold text-[#9b87f5] mb-3">
+            Transcribe Now
+          </h3>
           <SaveRecordingButton 
             onSave={onSave}
             isSaving={isSaving}
@@ -33,8 +36,11 @@ export const RecordingActions = ({
         
         <div className="flex flex-col items-center w-full md:w-1/2">
           <p className="text-center text-sm text-gray-600 mb-2">
-            Or upload an existing file
+            Already have a recording?
           </p>
+          <h3 className="text-center font-semibold text-[#9b87f5] mb-3">
+            Upload Existing File
+          </h3>
           <FileUploadSection isDisabled={isLoading || isRecording} />
         </div>
       </div>

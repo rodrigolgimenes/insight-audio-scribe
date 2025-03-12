@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,7 +131,7 @@ export function FileUpload({
           <Button 
             onClick={() => document.getElementById('file-upload')?.click()}
             disabled={isUploading || disabled}
-            className={`bg-[#4285F4] hover:bg-[#3367D6] active:bg-[#2A56C6] text-white gap-2 w-full sm:w-auto ${buttonClassName}`}
+            className={`bg-[#9b87f5] hover:bg-[#7E69AB] active:bg-[#7E69AB] text-white gap-2 w-full sm:w-auto ${buttonClassName}`}
           >
             {isUploading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

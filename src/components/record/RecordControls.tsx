@@ -41,7 +41,7 @@ export const RecordControls = ({
           disabled={!hasRecording || isRecording || disabled}
           onClick={onPlay}
         >
-          <Play className="w-6 h-6 text-primary" />
+          <Play className="w-6 h-6 text-[#9b87f5]" />
         </Button>
       )}
       
@@ -60,7 +60,7 @@ export const RecordControls = ({
           <Button
             size="icon"
             variant="default"
-            className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
+            className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
             onClick={isPaused ? onResumeRecording : onPauseRecording}
             disabled={disabled}
           >
@@ -71,7 +71,7 @@ export const RecordControls = ({
         <Button
           size="icon"
           variant="default"
-          className="w-20 h-20 rounded-full bg-[#E91E63] hover:bg-[#D81B60]"
+          className="w-20 h-20 rounded-full bg-[#9b87f5] hover:bg-[#7E69AB]"
           onClick={onStartRecording}
           disabled={disabled}
         >

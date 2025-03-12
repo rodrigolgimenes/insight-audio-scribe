@@ -14,7 +14,7 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
         accept="audio/*,video/mp4"
         disabled={isDisabled}
         initiateTranscription={true}
-        buttonClassName="w-full"
+        buttonClassName="w-full rounded-md"
       />
     </div>
   );

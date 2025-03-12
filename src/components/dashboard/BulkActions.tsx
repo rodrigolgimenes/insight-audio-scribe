@@ -25,7 +25,7 @@ export function BulkActions({
           <Button
             variant="outline"
             onClick={onExport}
-            className="gap-2"
+            className="gap-2 border-[#9b87f5] text-[#9b87f5]"
           >
             <FileDown className="h-4 w-4" />
             Export
@@ -33,7 +33,7 @@ export function BulkActions({
           <Button
             variant="outline"
             onClick={onMove}
-            className="gap-2"
+            className="gap-2 border-[#9b87f5] text-[#9b87f5]"
           >
             <FolderOpen className="h-4 w-4" />
             Move
