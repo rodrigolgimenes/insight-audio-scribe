@@ -24,3 +24,6 @@ verify_jwt = true
 
 [functions.transcribe-meeting]
 verify_jwt = true
+
+[functions.transcribe-whisper-local]
+verify_jwt = true

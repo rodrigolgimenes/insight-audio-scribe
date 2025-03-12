@@ -8,6 +8,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Ensure execution permissions on the whisper binary
+async function ensureExecutionPermissions() {
+  try {
+    await Deno.chmod("./whisper", 0o755);
+    console.log("Set execution permissions for whisper binary");
+    
+    // Check if temp directory exists, create if not
+    try {
+      const tempDirInfo = await Deno.stat("./temp");
+      if (!tempDirInfo.isDirectory) {
+        await Deno.mkdir("./temp");
+      }
+    } catch (e) {
+      // Directory doesn't exist, create it
+      await Deno.mkdir("./temp");
+    }
+    console.log("Temp directory ready for output files");
+    
+    return true;
+  } catch (error) {
+    console.error("Error setting execution permissions:", error);
+    return false;
+  }
+}
+
+// Initialize the environment on first request
+let isInitialized = false;
+async function initialize() {
+  if (!isInitialized) {
+    isInitialized = await ensureExecutionPermissions();
+  }
+  return isInitialized;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -15,6 +49,12 @@ serve(async (req) => {
   }
 
   try {
+    // Initialize environment
+    const initialized = await initialize();
+    if (!initialized) {
+      throw new Error("Failed to initialize the environment for whisper execution");
+    }
+    
     const { audioData } = await req.json();
     
     if (!audioData) {
@@ -46,21 +86,30 @@ serve(async (req) => {
       console.log('Executing whisper command...');
       
       const output = await whisperProcess.output();
+      console.log('Whisper command executed, checking for output...');
       
       // Read the transcription from the output file
       const transcriptionPath = `${tempAudioPath}.txt`;
-      const transcriptionText = await Deno.readTextFile(transcriptionPath);
+      try {
+        const transcriptionText = await Deno.readTextFile(transcriptionPath);
+        console.log('Transcription completed successfully');
 
-      console.log('Transcription completed successfully');
+        // Clean up temporary files
+        try {
+          await Deno.remove(tempAudioPath);
+          await Deno.remove(transcriptionPath);
+        } catch (cleanupError) {
+          console.warn('Warning: Could not clean up temp files:', cleanupError);
+        }
 
-      // Clean up temporary files
-      await Deno.remove(tempAudioPath);
-      await Deno.remove(transcriptionPath);
-
-      return new Response(
-        JSON.stringify({ success: true, transcription: transcriptionText }), 
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        return new Response(
+          JSON.stringify({ success: true, transcription: transcriptionText }), 
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (readError) {
+        console.error('Error reading transcription file:', readError);
+        throw new Error('Failed to read transcription output');
+      }
     } catch (execError) {
       console.error('Error executing whisper:', execError);
       
