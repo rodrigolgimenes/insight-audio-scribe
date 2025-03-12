@@ -13,14 +13,18 @@ export function SimpleMicrophoneSelector() {
     detectDevices, 
     requestMicrophoneAccess 
   } = useRobustMicrophoneDetection();
+  const [isOpen, setIsOpen] = useState(false);
   
-  // Log details on render
-  console.log('[SimpleMicrophoneSelector RENDER]', {
-    deviceCount: devices.length,
-    selectedDeviceId,
-    permissionState,
-    isLoading
-  });
+  // Log details on render and when state changes
+  useEffect(() => {
+    console.log('[SimpleMicrophoneSelector] State updated:', {
+      deviceCount: devices.length,
+      devices: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
+      selectedDeviceId,
+      permissionState,
+      isLoading
+    });
+  }, [devices, selectedDeviceId, permissionState, isLoading]);
   
   // Auto-select first device when devices load
   useEffect(() => {
@@ -34,6 +38,7 @@ export function SimpleMicrophoneSelector() {
   const handleDeviceSelect = (deviceId: string) => {
     console.log('[SimpleMicrophoneSelector] Selected device:', deviceId);
     setSelectedDeviceId(deviceId);
+    setIsOpen(false);
     
     const device = devices.find(d => d.deviceId === deviceId);
     toast.success(`Selected: ${device?.label || 'Microphone'}`);
@@ -93,7 +98,7 @@ export function SimpleMicrophoneSelector() {
         <div className="relative">
           <button
             type="button"
-            onClick={handleRefresh}
+            onClick={() => setIsOpen(!isOpen)}
             disabled={isLoading}
             className="flex items-center justify-between w-full p-3 bg-white border border-gray-300 rounded-md text-left text-gray-700 shadow-sm hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           >
@@ -110,45 +115,47 @@ export function SimpleMicrophoneSelector() {
                 No microphones found
               </span>
             )}
-            <ChevronDown className="h-5 w-5" />
+            <ChevronDown className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </button>
           
           {/* Device List */}
-          <div className="mt-1 w-full">
-            <div className="flex flex-col border border-gray-200 rounded-md shadow-sm max-h-60 overflow-auto bg-white">
-              {devices.map((device) => (
+          {isOpen && (
+            <div className="absolute z-10 mt-1 w-full">
+              <div className="flex flex-col border border-gray-200 rounded-md shadow-sm max-h-60 overflow-auto bg-white">
+                {devices.map((device) => (
+                  <button
+                    key={device.deviceId}
+                    type="button"
+                    className={`w-full text-left p-3 hover:bg-gray-100 ${
+                      device.deviceId === selectedDeviceId ? 'bg-blue-50 text-blue-600 font-medium' : ''
+                    } flex items-center`}
+                    onClick={() => handleDeviceSelect(device.deviceId)}
+                  >
+                    <Mic className={`h-4 w-4 mr-2 ${device.deviceId === selectedDeviceId ? 'text-blue-500' : 'text-gray-500'}`} />
+                    {device.label || `Microphone ${device.index + 1}`}
+                  </button>
+                ))}
+                
+                {devices.length === 0 && (
+                  <div className="p-3 text-amber-500 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    No microphones found
+                  </div>
+                )}
+                
+                {/* Refresh button */}
                 <button
-                  key={device.deviceId}
                   type="button"
-                  className={`w-full text-left p-3 hover:bg-gray-100 ${
-                    device.deviceId === selectedDeviceId ? 'bg-blue-50 text-blue-600 font-medium' : ''
-                  } flex items-center`}
-                  onClick={() => handleDeviceSelect(device.deviceId)}
+                  className="w-full text-left p-3 hover:bg-gray-100 text-blue-600 flex items-center justify-center border-t border-gray-200"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
                 >
-                  <Mic className={`h-4 w-4 mr-2 ${device.deviceId === selectedDeviceId ? 'text-blue-500' : 'text-gray-500'}`} />
-                  {device.label}
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh Microphone List
                 </button>
-              ))}
-              
-              {devices.length === 0 && (
-                <div className="p-3 text-amber-500 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  No microphones found
-                </div>
-              )}
-              
-              {/* Refresh button */}
-              <button
-                type="button"
-                className="w-full text-left p-3 hover:bg-gray-100 text-blue-600 flex items-center justify-center border-t border-gray-200"
-                onClick={handleRefresh}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh Microphone List
-              </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
       

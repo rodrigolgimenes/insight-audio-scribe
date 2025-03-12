@@ -10,6 +10,7 @@ interface SimpleMicrophoneSelectorProps {
   onDeviceSelect: (deviceId: string) => void;
   disabled?: boolean;
   onRefreshDevices?: () => void;
+  devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
 
@@ -19,19 +20,22 @@ export function SimpleMicrophoneSelector({
   onDeviceSelect,
   disabled = false,
   onRefreshDevices,
+  devicesLoading = false,
   permissionState = 'unknown'
 }: SimpleMicrophoneSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [devicesLoading, setDevicesLoading] = useState(false);
   
   // Log device information on every render for debugging
-  console.log('[SimpleMicrophoneSelector RENDER]', {
-    deviceCount: devices.length,
-    deviceDetails: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
-    selectedDeviceId,
-    permissionState,
-    timestamp: new Date().toISOString()
-  });
+  useEffect(() => {
+    console.log('[SimpleMicrophoneSelector RENDER]', {
+      deviceCount: devices.length,
+      deviceDetails: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
+      selectedDeviceId,
+      permissionState,
+      devicesLoading,
+      timestamp: new Date().toISOString()
+    });
+  }, [devices, selectedDeviceId, permissionState, devicesLoading]);
   
   useEffect(() => {
     // If permission is granted but no devices, try refreshing
@@ -69,7 +73,6 @@ export function SimpleMicrophoneSelector({
     if (!onRefreshDevices) return;
     
     console.log('[SimpleMicrophoneSelector] Refreshing devices');
-    setDevicesLoading(true);
     
     try {
       await onRefreshDevices();
@@ -77,8 +80,6 @@ export function SimpleMicrophoneSelector({
     } catch (error) {
       console.error('[SimpleMicrophoneSelector] Error refreshing devices:', error);
       toast.error("Failed to refresh microphones");
-    } finally {
-      setDevicesLoading(false);
     }
   };
 

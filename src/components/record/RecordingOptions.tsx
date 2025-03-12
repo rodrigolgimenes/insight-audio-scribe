@@ -36,6 +36,7 @@ export function RecordingOptions({
   useEffect(() => {
     console.log('[RecordingOptions] State updated:', {
       audioDevicesCount: audioDevices.length,
+      audioDevices: audioDevices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
       selectedDeviceId,
       deviceSelectionReady,
       permissionState,
