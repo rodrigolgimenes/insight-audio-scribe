@@ -10,6 +10,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const FASTWHISPER_API_URL = Deno.env.get('FASTWHISPER_API_URL') || 'http://localhost:8000/transcribe';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -62,46 +63,79 @@ serve(async (req) => {
       .from('audio-recordings')
       .getPublicUrl(fileName);
     
-    // Normalmente, aqui chamariamos o serviço fast-whisper para processar o áudio
-    // Como isso requer uma integração com um serviço Python, vamos simular por enquanto
-    // Em um ambiente real, você enviaria o publicUrl para um serviço fast-whisper
-    
-    console.log("Em um ambiente de produção, enviaríamos o áudio para um serviço fast-whisper");
-    
-    // Simular o tempo de processamento
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Para fins de demonstração, retornamos um texto simulado mais realista
-    // Em produção, este texto viria do processamento real do fast-whisper
-    const transcriptionText = "Esta é uma transcrição de exemplo usando fast-whisper. " +
-      "Em um ambiente de produção, o texto seria transcrito a partir do áudio enviado. " +
-      "O fast-whisper é otimizado para transcrições rápidas e precisas, especialmente para áudios curtos.";
-    
-    // Armazenar a transcrição no banco de dados (opcional)
+    // Criar entrada na tabela de transcrições
     const { data: transcriptionData, error: transcriptionError } = await supabase
       .from('transcriptions')
       .insert({
         audio_url: publicUrl,
-        content: transcriptionText,
+        content: 'Processing...', // Será atualizado pelo serviço fast-whisper
         duration_ms: recordingData?.duration || 0,
-        status: 'completed',
-        processed_at: new Date().toISOString()
+        status: 'pending',
+        created_at: new Date().toISOString()
       })
       .select()
       .single();
     
     if (transcriptionError) {
-      console.error('Error storing transcription:', transcriptionError);
-      // Não falhar o processo se apenas o armazenamento falhar
-    } else {
-      console.log('Transcription stored successfully:', transcriptionData);
+      throw new Error(`Error creating transcription record: ${transcriptionError.message}`);
+    }
+    
+    console.log('Transcription record created:', transcriptionData.id);
+    
+    // Enviar requisição para o serviço fast-whisper externo
+    // Na implementação real, esse serviço precisa estar disponível online
+    try {
+      // Esta é uma simulação da requisição para o serviço fast-whisper
+      // Em produção, você enviaria para um serviço real
+      console.log(`Would send request to fast-whisper service at ${FASTWHISPER_API_URL}`);
+      console.log(`With transcription ID: ${transcriptionData.id}`);
+      console.log(`And audio URL: ${publicUrl}`);
+      
+      // Simular o processamento do fast-whisper
+      // Em produção, isso seria feito de forma assíncrona pelo serviço Python
+      setTimeout(async () => {
+        try {
+          const mockTranscription = "Esta é uma transcrição simulada do serviço fast-whisper. " +
+            "Em um ambiente de produção, o texto seria resultado do processamento real do áudio com a biblioteca fast-whisper.";
+          
+          const { error: updateError } = await supabase
+            .from('transcriptions')
+            .update({
+              content: mockTranscription,
+              status: 'completed',
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', transcriptionData.id);
+          
+          if (updateError) {
+            console.error('Error updating transcription:', updateError);
+          } else {
+            console.log('Transcription updated successfully');
+          }
+        } catch (error) {
+          console.error('Error in async fast-whisper simulation:', error);
+        }
+      }, 5000);
+      
+    } catch (fastWhisperError) {
+      console.error('Error calling fast-whisper service:', fastWhisperError);
+      // Não falhar a resposta, apenas registrar o erro e atualizar o status da transcrição
+      await supabase
+        .from('transcriptions')
+        .update({
+          status: 'error',
+          error_message: fastWhisperError.message
+        })
+        .eq('id', transcriptionData.id);
     }
 
+    // Informar cliente que a transcrição foi iniciada com sucesso
     return new Response(
       JSON.stringify({
         success: true,
-        transcription: transcriptionText,
-        message: "This is a simulated response. In production, this would use fast-whisper."
+        transcriptionId: transcriptionData.id,
+        message: "Transcription process initiated. Check status using the transcription ID.",
+        transcription: "Processing your audio with fast-whisper. Please wait..."
       }),
       {
         headers: {

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, StopCircle, Loader2 } from "lucide-react";
+import { Mic, StopCircle, Loader2, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SimpleMicrophoneSelector } from "./SimpleMicrophoneSelector";
 import { toast } from "sonner";
@@ -29,12 +30,15 @@ export function SimpleAudioRecorder({
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
+  const [transcriptionId, setTranscriptionId] = useState<string | null>(null);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<string | null>(null);
   
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
   
   // Load audio devices on mount
   useEffect(() => {
@@ -45,6 +49,9 @@ export function SimpleAudioRecorder({
       stopRecording();
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
       }
     };
   }, []);
@@ -108,6 +115,8 @@ export function SimpleAudioRecorder({
       // Reset recording state
       chunksRef.current = [];
       setRecordingTime(0);
+      setTranscriptionId(null);
+      setTranscriptionStatus(null);
       
       // Create and configure MediaRecorder
       const recorder = new MediaRecorder(stream);
@@ -163,6 +172,48 @@ export function SimpleAudioRecorder({
     toast.info('Recording stopped');
   };
   
+  // Check transcription status
+  const checkTranscriptionStatus = async () => {
+    if (!transcriptionId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('transcriptions')
+        .select('*')
+        .eq('id', transcriptionId)
+        .single();
+      
+      if (error) {
+        console.error('Error checking transcription status:', error);
+        return;
+      }
+      
+      setTranscriptionStatus(data.status);
+      
+      if (data.status === 'completed') {
+        clearInterval(pollingRef.current!);
+        pollingRef.current = null;
+        setIsProcessing(false);
+        setProcessingProgress(100);
+        onTranscriptionComplete(data.content);
+        toast.success('Transcription completed');
+      } else if (data.status === 'error') {
+        clearInterval(pollingRef.current!);
+        pollingRef.current = null;
+        setIsProcessing(false);
+        setProcessingProgress(0);
+        onError(data.error_message || 'An error occurred during transcription');
+        toast.error('Transcription failed', { 
+          description: data.error_message || 'Unknown error' 
+        });
+      } else if (data.status === 'processing') {
+        setProcessingProgress(70);
+      }
+    } catch (error) {
+      console.error('Error polling transcription status:', error);
+    }
+  };
+  
   // Process the recording and get transcription using fast-whisper
   const transcribeAudio = async () => {
     if (!audioUrl) {
@@ -212,24 +263,111 @@ export function SimpleAudioRecorder({
           }
         });
       
-      setProcessingProgress(100);
-      
       if (error) {
         throw new Error(error.message || 'Error transcribing audio');
       }
       
-      if (data && data.transcription) {
-        onTranscriptionComplete(data.transcription);
-        toast.success('Transcription complete');
+      if (data && data.transcriptionId) {
+        setTranscriptionId(data.transcriptionId);
+        setTranscriptionStatus('pending');
+        
+        // Start polling for status updates
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+        }
+        
+        pollingRef.current = setInterval(checkTranscriptionStatus, 2000);
+        
+        // Provide initial feedback to user
+        if (data.transcription) {
+          onTranscriptionComplete(data.transcription);
+        }
+        
+        toast.success('Transcription initiated', {
+          description: 'Your audio is being processed. This may take a moment.'
+        });
       } else {
-        throw new Error('No transcription received from server');
+        throw new Error('No transcription ID received from server');
       }
     } catch (error) {
       console.error('Error transcribing audio:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       onError(errorMessage);
       toast.error('Transcription failed', { description: errorMessage });
-    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(0);
+    }
+  };
+  
+  // Function to retry failed transcription
+  const retryTranscription = async () => {
+    if (!transcriptionId || !audioUrl) {
+      toast.error('Cannot retry transcription without original audio');
+      return;
+    }
+    
+    setIsProcessing(true);
+    setProcessingProgress(10);
+    
+    try {
+      // Fetch the audio blob
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      
+      // Convert blob to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          if (typeof reader.result === 'string') {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          } else {
+            reject(new Error('Failed to convert file to base64'));
+          }
+        };
+        reader.onerror = reject;
+      });
+      
+      reader.readAsDataURL(blob);
+      const base64Data = await base64Promise;
+      
+      // Send to fast-whisper service via Edge Function
+      const { data, error } = await supabase.functions
+        .invoke('transcribe-whisper', { 
+          body: { 
+            audioData: base64Data,
+            recordingData: {
+              duration: recordingTime,
+              mimeType: blob.type
+            },
+            retryTranscriptionId: transcriptionId
+          }
+        });
+      
+      if (error) {
+        throw new Error(error.message || 'Error retrying transcription');
+      }
+      
+      if (data && data.transcriptionId) {
+        setTranscriptionId(data.transcriptionId);
+        setTranscriptionStatus('pending');
+        
+        // Start polling for status updates
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+        }
+        
+        pollingRef.current = setInterval(checkTranscriptionStatus, 2000);
+        
+        toast.success('Transcription retry initiated');
+      } else {
+        throw new Error('No transcription ID received from server');
+      }
+    } catch (error) {
+      console.error('Error retrying transcription:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      onError(errorMessage);
+      toast.error('Transcription retry failed', { description: errorMessage });
       setIsProcessing(false);
       setProcessingProgress(0);
     }
@@ -286,20 +424,63 @@ export function SimpleAudioRecorder({
             <div className="space-y-4">
               <audio src={audioUrl} controls className="w-full" />
               
-              <Button
-                onClick={transcribeAudio}
-                disabled={isProcessing}
-                className="w-full bg-green-500 hover:bg-green-600 text-white"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Processing ({processingProgress}%)
-                  </>
-                ) : (
-                  "Transcribe with Fast-Whisper"
-                )}
-              </Button>
+              {transcriptionStatus === 'error' ? (
+                <Button
+                  onClick={retryTranscription}
+                  disabled={isProcessing}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                >
+                  <RefreshCcw className="h-5 w-5 mr-2" />
+                  Retry Transcription
+                </Button>
+              ) : (
+                <Button
+                  onClick={transcribeAudio}
+                  disabled={isProcessing}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      {transcriptionStatus === 'pending' && 'Initializing...'}
+                      {transcriptionStatus === 'processing' && 'Transcribing...'}
+                      {!transcriptionStatus && `Processing (${processingProgress}%)`}
+                    </>
+                  ) : (
+                    "Transcribe with Fast-Whisper"
+                  )}
+                </Button>
+              )}
+              
+              {isProcessing && transcriptionStatus && (
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-500" 
+                    style={{ 
+                      width: `${
+                        transcriptionStatus === 'pending' ? 30 : 
+                        transcriptionStatus === 'processing' ? 70 : 
+                        transcriptionStatus === 'completed' ? 100 : 
+                        processingProgress
+                      }%` 
+                    }}
+                  ></div>
+                </div>
+              )}
+              
+              {transcriptionStatus && (
+                <div className="text-sm text-gray-600 flex items-center justify-center">
+                  Status: 
+                  <span className={`ml-1 font-medium ${
+                    transcriptionStatus === 'pending' ? 'text-yellow-600' : 
+                    transcriptionStatus === 'processing' ? 'text-blue-600' : 
+                    transcriptionStatus === 'completed' ? 'text-green-600' : 
+                    'text-red-600'
+                  }`}>
+                    {transcriptionStatus.charAt(0).toUpperCase() + transcriptionStatus.slice(1)}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

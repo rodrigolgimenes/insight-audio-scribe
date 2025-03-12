@@ -694,6 +694,39 @@ export type Database = {
         }
         Relationships: []
       }
+      transcriptions: {
+        Row: {
+          audio_url: string
+          content: string
+          created_at: string
+          duration_ms: number | null
+          id: string
+          is_system_audio: boolean | null
+          processed_at: string | null
+          status: string
+        }
+        Insert: {
+          audio_url: string
+          content: string
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          is_system_audio?: boolean | null
+          processed_at?: string | null
+          status?: string
+        }
+        Update: {
+          audio_url?: string
+          content?: string
+          created_at?: string
+          duration_ms?: number | null
+          id?: string
+          is_system_audio?: boolean | null
+          processed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       workspace_users: {
         Row: {
           created_at: string
@@ -775,6 +808,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pending_transcriptions: {
+        Row: {
+          audio_url: string | null
+          content: string | null
+          created_at: string | null
+          duration_ms: number | null
+          id: string | null
+          is_system_audio: boolean | null
+          processed_at: string | null
+          status: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          content?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          id?: string | null
+          is_system_audio?: boolean | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          content?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          id?: string | null
+          is_system_audio?: boolean | null
+          processed_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
       }
     }
     Functions: {
