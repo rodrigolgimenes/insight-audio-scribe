@@ -22,7 +22,11 @@ export const useMediaStream = (
       const stream = await requestMicrophoneAccess(deviceId, isSystemAudio);
       
       if (stream) {
-        setLastAction(prev => prev ? {...prev, success: true} : null);
+        setLastAction({
+          action: `Request microphone access${isSystemAudio ? ' with system audio' : ''}`,
+          timestamp: Date.now(),
+          success: true
+        });
       } else {
         throw new Error('Failed to get microphone stream');
       }

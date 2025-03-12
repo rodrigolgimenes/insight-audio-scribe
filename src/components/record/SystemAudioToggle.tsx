@@ -2,15 +2,16 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { InfoCircled } from "@radix-ui/react-icons";
+import { Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface SystemAudioToggleProps {
   isSystemAudio: boolean;
   onSystemAudioChange: (isSystemAudio: boolean) => void;
+  disabled?: boolean;
 }
 
-export function SystemAudioToggle({ isSystemAudio, onSystemAudioChange }: SystemAudioToggleProps) {
+export function SystemAudioToggle({ isSystemAudio, onSystemAudioChange, disabled = false }: SystemAudioToggleProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   const handleToggle = (checked: boolean) => {
@@ -25,7 +26,7 @@ export function SystemAudioToggle({ isSystemAudio, onSystemAudioChange }: System
           <TooltipProvider>
             <Tooltip open={showTooltip} onOpenChange={setShowTooltip}>
               <TooltipTrigger asChild>
-                <InfoCircled className="h-4 w-4 ml-1.5 text-gray-500 cursor-help" />
+                <Info className="h-4 w-4 ml-1.5 text-gray-500 cursor-help" />
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-xs">
                 <p>Record audio from your browser tabs, applications, or entire system along with your microphone.</p>
@@ -39,6 +40,7 @@ export function SystemAudioToggle({ isSystemAudio, onSystemAudioChange }: System
         id="system-audio"
         checked={isSystemAudio}
         onCheckedChange={handleToggle}
+        disabled={disabled}
       />
     </div>
   );

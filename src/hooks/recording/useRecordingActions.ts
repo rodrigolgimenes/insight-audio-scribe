@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { useToast } from "../use-toast";
 import { RecordingStateType } from "./useRecordingState";
@@ -84,7 +83,11 @@ export const useRecordingActions = (
       // Update the action record if we get this far without errors
       setTimeout(() => {
         if (isRecording) {
-          setLastAction(prev => prev ? {...prev, success: true} : null);
+          setLastAction({
+            action: 'Start recording',
+            timestamp: Date.now(),
+            success: true
+          });
         }
       }, 500);
     } catch (error) {
@@ -117,7 +120,11 @@ export const useRecordingActions = (
       }
       
       const result = await recorder.current.stopRecording();
-      setLastAction(prev => prev ? {...prev, success: true} : null);
+      setLastAction({
+        action: 'Stop recording',
+        timestamp: Date.now(),
+        success: true
+      });
       
       // Stop and remove the media stream
       if (mediaStream) {

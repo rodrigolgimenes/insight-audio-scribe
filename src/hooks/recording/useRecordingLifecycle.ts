@@ -38,7 +38,11 @@ export const useRecordingLifecycle = () => {
       
       await recorder.current.startRecording(stream);
       
-      setLastAction(prev => prev ? {...prev, success: true} : null);
+      setLastAction({
+        action: 'Starting recorder',
+        timestamp: Date.now(),
+        success: true
+      });
       return true;
     } catch (error) {
       console.error('[useRecordingLifecycle] Error starting recording:', error);
@@ -69,7 +73,11 @@ export const useRecordingLifecycle = () => {
       
       const result = await recorder.current.stopRecording();
       
-      setLastAction(prev => prev ? {...prev, success: true} : null);
+      setLastAction({
+        action: 'Stopping recorder',
+        timestamp: Date.now(),
+        success: true
+      });
       return result;
     } catch (error) {
       console.error('[useRecordingLifecycle] Error stopping recording:', error);
@@ -81,6 +89,11 @@ export const useRecordingLifecycle = () => {
       });
       return { blob: null, duration: 0 };
     }
+  }, [recorder]);
+  
+  // Check if the recorder is paused using a public method
+  const isPaused = useCallback(() => {
+    return recorder.current ? recorder.current.isPausedState() : false;
   }, [recorder]);
   
   // Handle recording pause
@@ -140,7 +153,7 @@ export const useRecordingLifecycle = () => {
   return {
     recorder,
     isRecording: !!recorder.current?.isCurrentlyRecording(),
-    isPaused: !!recorder.current?.isPaused(),
+    isPaused: isPaused(),
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,

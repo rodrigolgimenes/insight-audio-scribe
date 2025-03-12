@@ -31,7 +31,12 @@ export const useSimpleRecorder = () => {
     return () => {
       console.log('[useSimpleRecorder] Cleaning up recorder');
       if (recorderRef.current) {
-        recorderRef.current.cleanup();
+        // Check if recorder is recording and stop it
+        if (recorderRef.current.isCurrentlyRecording()) {
+          recorderRef.current.stopRecording().catch(error => {
+            console.error('[useSimpleRecorder] Error stopping recording during cleanup', error);
+          });
+        }
       }
     };
   }, []);
