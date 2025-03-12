@@ -1,7 +1,7 @@
 
 import { MediaRecorderManager } from '../mediaRecorderManager';
-import { DurationTracker } from '../durationTracker';
-import { StreamManager } from '../streamManager';
+import { DurationTracker } from '../helpers/durationTracker';
+import { StreamManager } from '../helpers/streamManager';
 import { RecorderState } from './RecorderState';
 import { logAudioTracks, validateAudioTracks } from '../recordingHelpers';
 import { RecordingResult } from '../types';

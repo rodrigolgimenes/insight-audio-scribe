@@ -1,48 +1,59 @@
 
+/**
+ * Manages MediaStream resources and lifecycle
+ */
 export class StreamManager {
-  private stream: MediaStream | null = null;
+  private activeStream: MediaStream | null = null;
+  private onStreamInactive: (() => void) | null = null;
 
   /**
-   * Initializes the stream manager with a MediaStream
-   * @param stream The MediaStream to manage
-   * @param onInactive Optional callback when stream becomes inactive
+   * Initializes the manager with a stream and callback
    */
-  initialize(stream: MediaStream, onInactive?: () => void): void {
-    this.stream = stream;
+  initialize(stream: MediaStream, onStreamInactive?: () => void): void {
+    this.cleanup(); // Clean up any existing stream
     
-    if (onInactive) {
-      // Monitor stream for unexpected stops
-      stream.addEventListener('inactive', () => {
-        console.log('[StreamManager] Stream became inactive');
-        if (onInactive) onInactive();
+    this.activeStream = stream;
+    this.onStreamInactive = onStreamInactive || null;
+    
+    // Set up listeners for track ended events
+    if (stream && typeof onStreamInactive === 'function') {
+      stream.getAudioTracks().forEach(track => {
+        track.addEventListener('ended', () => {
+          console.log('[StreamManager] Audio track ended');
+          if (this.onStreamInactive) {
+            this.onStreamInactive();
+          }
+        });
       });
     }
     
-    console.log('[StreamManager] Stream initialized with', stream.getTracks().length, 'tracks');
+    console.log('[StreamManager] Initialized with stream:', { 
+      id: stream.id,
+      trackCount: stream.getTracks().length,
+      active: stream.active
+    });
   }
 
   /**
-   * Stops all tracks in the managed stream and cleans up
-   */
-  cleanup(): void {
-    if (this.stream) {
-      console.log('[StreamManager] Stopping all tracks');
-      this.stream.getTracks().forEach(track => {
-        try {
-          track.stop();
-        } catch (error) {
-          console.error('[StreamManager] Error stopping track:', error);
-        }
-      });
-      this.stream = null;
-    }
-  }
-
-  /**
-   * Gets the current stream
-   * @returns The current MediaStream or null
+   * Gets the active stream
    */
   getStream(): MediaStream | null {
-    return this.stream;
+    return this.activeStream;
+  }
+
+  /**
+   * Stops all tracks and releases resources
+   */
+  cleanup(): void {
+    if (this.activeStream) {
+      console.log('[StreamManager] Stopping all tracks');
+      
+      this.activeStream.getTracks().forEach(track => {
+        track.stop();
+      });
+      
+      this.activeStream = null;
+      this.onStreamInactive = null;
+    }
   }
 }

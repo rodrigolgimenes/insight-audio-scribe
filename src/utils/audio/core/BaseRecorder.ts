@@ -1,7 +1,8 @@
+
 import { RecordingObserver, RecordingResult } from '../types';
 import { MediaRecorderManager } from '../mediaRecorderManager';
-import { DurationTracker } from '../durationTracker';
-import { StreamManager } from '../streamManager';
+import { DurationTracker } from '../helpers/durationTracker';
+import { StreamManager } from '../helpers/streamManager';
 import { RecorderState } from './RecorderState';
 import { RecorderLifecycle } from './RecorderLifecycle';
 
@@ -62,6 +63,10 @@ export class BaseRecorder {
   // Helper methods for external components that need state information
   isCurrentlyRecording(): boolean {
     return this.recorderState.isCurrentlyRecording();
+  }
+
+  isPausedState(): boolean {
+    return this.recorderState.isPausedState();
   }
 
   getFinalBlob(): Blob | null {

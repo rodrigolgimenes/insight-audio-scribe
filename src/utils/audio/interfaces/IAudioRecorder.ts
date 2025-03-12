@@ -9,6 +9,7 @@ export interface IAudioRecorder {
   pauseRecording(): void;
   resumeRecording(): void;
   isCurrentlyRecording(): boolean;
+  isPausedState?(): boolean;
   getCurrentDuration(): number;
   getFinalBlob(): Blob | null;
 }
