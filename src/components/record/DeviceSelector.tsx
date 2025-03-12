@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface DeviceSelectorProps {
-  devices?: MediaDeviceInfo[] | AudioDevice[];
-  audioDevices?: AudioDevice[]; // For compatibility
+  devices?: MediaDeviceInfo[];
+  audioDevices?: AudioDevice[]; // Allow AudioDevice array
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   isReady?: boolean;

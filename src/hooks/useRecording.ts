@@ -36,12 +36,17 @@ export const useRecording = () => {
   } = useDeviceSelection();
 
   const {
-    initializeRecorder,
+    recorder,
+    isRecording: isRecorderRecording,
+    isPaused: isRecorderPaused,
     handleStartRecording: startRecordingWithStream,
     handleStopRecording: stopRecording,
     handlePauseRecording,
     handleResumeRecording,
-    getCurrentDuration
+    initializeRecorder,
+    getCurrentDuration,
+    recordingAttemptsCount: recorderAttemptsCount,
+    lastAction: recorderLastAction
   } = useRecordingLifecycle();
 
   // Function to handle delete operation

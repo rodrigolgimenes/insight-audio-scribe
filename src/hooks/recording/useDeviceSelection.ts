@@ -20,8 +20,6 @@ export const useDeviceSelection = () => {
     } else {
       console.warn('[useDeviceSelection] Attempted to select invalid device ID:', deviceId);
       // Don't clear the selection if the ID is invalid - might be just a temporary issue
-      // setSelectedDeviceId(null);
-      // setDeviceSelectionReady(false);
     }
   }, [audioDevices]);
 
@@ -76,12 +74,13 @@ export const useDeviceSelection = () => {
       
       if (!deviceExists) {
         console.warn('[useDeviceSelection] Selected device no longer available, resetting selection');
-        // Don't clear selection if the device is temporarily unavailable
-        // setSelectedDeviceId(null);
-        // setDeviceSelectionReady(false);
+        // Instead of resetting, try to select the default device
+        if (defaultDeviceId) {
+          handleDeviceSelect(defaultDeviceId);
+        }
       }
     }
-  }, [selectedDeviceId, audioDevices]);
+  }, [selectedDeviceId, audioDevices, defaultDeviceId, handleDeviceSelect]);
 
   return {
     audioDevices,
