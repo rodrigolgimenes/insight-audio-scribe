@@ -39,6 +39,59 @@ export async function updateNoteProgress(
 }
 
 /**
+ * Updates the recording and note with transcription data
+ * @param supabase Supabase client
+ * @param recordingId Recording ID
+ * @param noteId Note ID
+ * @param transcriptionText Transcription text
+ */
+export async function updateRecordingAndNote(
+  supabase: any,
+  recordingId: string,
+  noteId: string,
+  transcriptionText: string
+) {
+  console.log(`[transcribe-audio] Updating recording ${recordingId} and note ${noteId} with transcription`);
+  
+  try {
+    // Update the recording status to transcribed
+    const { error: recordingError } = await supabase
+      .from('recordings')
+      .update({ 
+        status: 'transcribed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', recordingId);
+      
+    if (recordingError) {
+      console.error(`[transcribe-audio] Error updating recording: ${recordingError.message}`);
+      throw new Error(`Failed to update recording: ${recordingError.message}`);
+    }
+    
+    // Update the note with the transcription text
+    const { error: noteError } = await supabase
+      .from('notes')
+      .update({
+        status: 'transcribed',
+        processing_progress: 80,
+        original_transcript: transcriptionText,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', noteId);
+
+    if (noteError) {
+      console.error(`[transcribe-audio] Error updating note: ${noteError.message}`);
+      throw new Error(`Failed to update note: ${noteError.message}`);
+    }
+    
+    console.log('[transcribe-audio] Successfully updated recording and note with transcription');
+  } catch (error) {
+    console.error('[transcribe-audio] Exception in updateRecordingAndNote:', error);
+    throw error;
+  }
+}
+
+/**
  * Starts the meeting minutes generation process
  * @param supabase Supabase client
  * @param noteId Note ID
