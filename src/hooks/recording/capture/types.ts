@@ -1,8 +1,5 @@
 
-export interface AudioDevice {
-  deviceId: string;
-  label: string;
-  kind: MediaDeviceInfo['kind'];
+export interface AudioDevice extends MediaDeviceInfo {
   isDefault?: boolean;
   displayName?: string; // Added for better UX display options
 }

@@ -77,24 +77,24 @@ export function DeviceSelector({
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium flex items-center gap-1">
           <Mic className="h-4 w-4" />
-          Dispositivo de áudio
+          Audio device
         </label>
         
         <div className="flex items-center">
           {permissionStatus === 'granted' ? (
             <div className="text-xs text-green-500 flex items-center">
               <Check className="h-3 w-3 mr-1" />
-              Permitido
+              Allowed
             </div>
           ) : permissionStatus === 'denied' ? (
             <div className="text-xs text-red-500 flex items-center">
               <AlertCircle className="h-3 w-3 mr-1" />
-              Bloqueado
+              Blocked
             </div>
           ) : permissionStatus === 'prompt' ? (
             <div className="text-xs text-amber-500 flex items-center">
               <AlertCircle className="h-3 w-3 mr-1" />
-              Aguardando permissão
+              Waiting for permission
             </div>
           ) : null}
         </div>
@@ -111,17 +111,17 @@ export function DeviceSelector({
             !isReady && "opacity-50 cursor-not-allowed"
           )}
         >
-          <SelectValue placeholder="Selecione um microfone" />
+          <SelectValue placeholder="Select a microphone" />
         </SelectTrigger>
         <SelectContent>
           {devices.length === 0 ? (
             <SelectItem value="no-devices" disabled>
-              Nenhum microfone encontrado
+              No microphones found
             </SelectItem>
           ) : (
             devices.map((device) => (
               <SelectItem key={device.deviceId} value={device.deviceId}>
-                {device.label || `Microfone ${device.deviceId.slice(0, 5)}...`}
+                {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
               </SelectItem>
             ))
           )}
@@ -130,15 +130,15 @@ export function DeviceSelector({
       
       {/* Debug information */}
       <div className="text-xs text-gray-500 mt-1">
-        <div>Dispositivos: {debugInfo.deviceCount} encontrados</div>
+        <div>Devices: {debugInfo.deviceCount} found</div>
         {debugInfo.selectedDevice && (
           <div className="truncate max-w-full">
-            ID selecionado: {debugInfo.selectedDevice.substring(0, 10)}...
+            Selected ID: {debugInfo.selectedDevice.substring(0, 10)}...
           </div>
         )}
         {!isReady && (
           <div className="text-amber-500">
-            {devices.length === 0 ? "Nenhum dispositivo disponível" : "Aguardando seleção..."}
+            {devices.length === 0 ? "No devices available" : "Waiting for selection..."}
           </div>
         )}
       </div>

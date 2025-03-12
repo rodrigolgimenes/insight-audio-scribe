@@ -1,34 +1,48 @@
+
 import { useCallback } from "react";
-import { RecordingStateType } from "../useRecordingState";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
 
 export function usePauseResumeRecording(
-  recordingState: Pick<RecordingStateType, "setIsPaused">,
-  recorder: React.RefObject<AudioRecorder>
+  recorder: React.RefObject<any>,
+  state: { 
+    setIsPaused: (value: boolean) => void;
+  }
 ) {
   const handlePauseRecording = useCallback(() => {
     console.log('[usePauseResumeRecording] Pausing recording');
+    
+    if (!recorder.current) {
+      throw new Error('Recorder not initialized');
+    }
+
     try {
-      if (recorder.current) {
-        recorder.current.pauseRecording();
-        recordingState.setIsPaused(true);
-      }
+      recorder.current.pauseRecording();
+      state.setIsPaused(true);
+      console.log('[usePauseResumeRecording] Recording paused successfully');
     } catch (error) {
       console.error('[usePauseResumeRecording] Error pausing recording:', error);
+      throw error;
     }
-  }, [recorder, recordingState]);
+  }, [recorder, state]);
 
   const handleResumeRecording = useCallback(() => {
     console.log('[usePauseResumeRecording] Resuming recording');
+    
+    if (!recorder.current) {
+      throw new Error('Recorder not initialized');
+    }
+
     try {
-      if (recorder.current) {
-        recorder.current.resumeRecording();
-        recordingState.setIsPaused(false);
-      }
+      recorder.current.resumeRecording();
+      state.setIsPaused(false);
+      console.log('[usePauseResumeRecording] Recording resumed successfully');
     } catch (error) {
       console.error('[usePauseResumeRecording] Error resuming recording:', error);
+      throw error;
     }
-  }, [recorder, recordingState]);
+  }, [recorder, state]);
 
-  return { handlePauseRecording, handleResumeRecording };
+  return {
+    handlePauseRecording,
+    handleResumeRecording
+  };
 }

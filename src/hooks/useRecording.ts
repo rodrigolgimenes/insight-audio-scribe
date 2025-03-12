@@ -37,14 +37,67 @@ export const useRecording = () => {
 
   const {
     initializeRecorder,
-    handleStartRecording: startRecording,
+    handleStartRecording: startRecordingWithStream,
     handleStopRecording: stopRecording,
     handlePauseRecording,
     handleResumeRecording,
-    handleDelete,
-    handleSaveRecording,
     getCurrentDuration
   } = useRecordingLifecycle();
+
+  // Function to handle delete operation
+  const handleDelete = useCallback(() => {
+    console.log('[useRecording] Deleting recording');
+    
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      setMediaStream(null);
+    }
+    
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    
+    setIsRecording(false);
+    setIsPaused(false);
+    
+    setLastAction({
+      action: 'delete',
+      timestamp: Date.now(),
+      success: true
+    });
+  }, [audioUrl, mediaStream, setAudioUrl, setIsRecording, setIsPaused, setMediaStream]);
+
+  // Function to handle save operation
+  const handleSaveRecording = useCallback(async () => {
+    // This would typically involve additional logic to save the recording
+    console.log('[useRecording] Saving recording');
+    setIsSaving(true);
+    
+    try {
+      // Simulating a save operation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setLastAction({
+        action: 'save',
+        timestamp: Date.now(),
+        success: true
+      });
+      
+      setIsSaving(false);
+      return true;
+    } catch (error) {
+      console.error('[useRecording] Error saving recording:', error);
+      setLastAction({
+        action: 'save',
+        timestamp: Date.now(),
+        success: false
+      });
+      
+      setIsSaving(false);
+      return false;
+    }
+  }, [setIsSaving]);
 
   // Clear any initialization errors when device selection changes
   useEffect(() => {
@@ -73,13 +126,14 @@ export const useRecording = () => {
     console.log('[useRecording] System audio setting changed to:', enabled);
     setIsSystemAudio(enabled);
     setLastAction({
-      action: `Sistema de áudio ${enabled ? 'ativado' : 'desativado'}`,
+      action: `System audio ${enabled ? 'enabled' : 'disabled'}`,
       timestamp: Date.now(),
       success: true
     });
   }, [setIsSystemAudio]);
 
-  const handleStartRecording = useCallback(() => {
+  // Request audio capture and start recording
+  const handleStartRecording = useCallback(async () => {
     console.log('[useRecording] Starting recording with device ID:', selectedDeviceId);
     
     // Increment attempts counter for debugging
@@ -87,7 +141,7 @@ export const useRecording = () => {
     
     // Set start action record
     setLastAction({
-      action: 'Iniciar gravação',
+      action: 'Start recording',
       timestamp: Date.now(),
       success: false // Will be updated if successful
     });
@@ -103,7 +157,21 @@ export const useRecording = () => {
     }
     
     try {
-      startRecording(selectedDeviceId);
+      // First obtain the media stream
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: selectedDeviceId } },
+        video: false
+      });
+      
+      // Set the media stream to state
+      setMediaStream(stream);
+      
+      // Then start recording with the stream
+      await startRecordingWithStream(stream);
+      
+      // Update state
+      setIsRecording(true);
+      setIsPaused(false);
       
       // Update the action record if we get this far without errors
       setTimeout(() => {
@@ -119,12 +187,12 @@ export const useRecording = () => {
         variant: "destructive",
       });
     }
-  }, [selectedDeviceId, startRecording, toast, isRecording]);
+  }, [selectedDeviceId, startRecordingWithStream, toast, isRecording, setIsRecording, setIsPaused, setMediaStream]);
 
   const handleStopRecording = useCallback(async () => {
     console.log('[useRecording] Stopping recording');
     setLastAction({
-      action: 'Parar gravação',
+      action: 'Stop recording',
       timestamp: Date.now(),
       success: false
     });
@@ -132,7 +200,23 @@ export const useRecording = () => {
     try {
       const result = await stopRecording();
       setLastAction(prev => prev ? {...prev, success: true} : null);
-      return result;
+      
+      // Stop and remove the media stream
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        setMediaStream(null);
+      }
+      
+      if (result.blob) {
+        // Create URL for the blob
+        const url = URL.createObjectURL(result.blob);
+        setAudioUrl(url);
+      }
+      
+      setIsRecording(false);
+      setIsPaused(false);
+      
+      return { blob: result.blob, duration: result.duration };
     } catch (error) {
       console.error('[useRecording] Error stopping recording:', error);
       toast({
@@ -142,7 +226,7 @@ export const useRecording = () => {
       });
       return { blob: null, duration: 0 };
     }
-  }, [stopRecording, toast]);
+  }, [stopRecording, toast, mediaStream, setAudioUrl, setIsRecording, setIsPaused, setMediaStream]);
 
   // Log state changes for debugging
   useEffect(() => {

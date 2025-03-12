@@ -1,32 +1,15 @@
 
-import { RecordingObserver, RecordingResult } from '../types';
 import { MediaRecorderManager } from '../mediaRecorderManager';
-import { DurationTracker } from '../helpers/durationTracker';
-import { StreamManager } from '../helpers/streamManager';
-import { RecorderState } from './RecorderState';
-import { RecorderLifecycle } from './RecorderLifecycle';
-
-export type { RecordingObserver, RecordingEvent } from '../types/audioRecorderTypes';
+import { RecordingObserver, RecordingResult, RecordingStats } from '../types/audioRecorderTypes';
 
 export class BaseRecorder {
-  protected mediaRecorderManager: MediaRecorderManager;
-  protected durationTracker: DurationTracker;
-  protected streamManager: StreamManager;
-  protected recorderState: RecorderState;
-  protected recorderLifecycle: RecorderLifecycle;
-
-  constructor() {
-    this.mediaRecorderManager = new MediaRecorderManager();
-    this.durationTracker = new DurationTracker();
-    this.streamManager = new StreamManager();
-    this.recorderState = new RecorderState();
-    this.recorderLifecycle = new RecorderLifecycle(
-      this.mediaRecorderManager,
-      this.durationTracker,
-      this.streamManager,
-      this.recorderState
-    );
-  }
+  private recordingInProgress = false;
+  private isPaused = false;
+  private startTime = 0;
+  private pausedDuration = 0;
+  private pauseStartTime = 0;
+  private finalBlob: Blob | null = null;
+  private mediaRecorderManager = new MediaRecorderManager();
 
   addObserver(observer: RecordingObserver): void {
     this.mediaRecorderManager.addObserver(observer);
@@ -37,39 +20,128 @@ export class BaseRecorder {
   }
 
   async startRecording(stream: MediaStream): Promise<void> {
-    return this.recorderLifecycle.startRecording(stream);
+    if (this.recordingInProgress) {
+      console.warn('[BaseRecorder] Recording already in progress');
+      return;
+    }
+
+    try {
+      console.log('[BaseRecorder] Initializing MediaRecorder');
+      this.mediaRecorderManager.initialize(stream);
+      
+      this.startTime = Date.now();
+      this.pausedDuration = 0;
+      this.finalBlob = null;
+      
+      console.log('[BaseRecorder] Starting MediaRecorder');
+      this.mediaRecorderManager.start();
+      
+      this.recordingInProgress = true;
+      this.isPaused = false;
+      console.log('[BaseRecorder] Recording started successfully');
+    } catch (error) {
+      console.error('[BaseRecorder] Error starting recording:', error);
+      throw error;
+    }
   }
 
   async stopRecording(): Promise<RecordingResult> {
-    return this.recorderLifecycle.stopRecording();
+    if (!this.recordingInProgress) {
+      console.warn('[BaseRecorder] No recording in progress to stop');
+      return { blob: null, stats: this.getEmptyStats() };
+    }
+
+    try {
+      console.log('[BaseRecorder] Stopping recording');
+      this.mediaRecorderManager.stop();
+      
+      // Calculate the final duration
+      const duration = this.getCurrentDuration();
+      
+      // Get the final blob
+      this.finalBlob = this.mediaRecorderManager.getFinalBlob();
+      
+      // Get recording stats
+      const stats = this.mediaRecorderManager.getRecordingStats(duration);
+      
+      this.recordingInProgress = false;
+      this.isPaused = false;
+      
+      console.log('[BaseRecorder] Recording stopped, duration:', duration, 'blob size:', this.finalBlob?.size || 0);
+      return { blob: this.finalBlob, stats };
+    } catch (error) {
+      console.error('[BaseRecorder] Error stopping recording:', error);
+      this.recordingInProgress = false;
+      this.isPaused = false;
+      throw error;
+    }
   }
 
   pauseRecording(): void {
-    this.recorderLifecycle.pauseRecording();
+    if (!this.recordingInProgress || this.isPaused) {
+      return;
+    }
+
+    try {
+      console.log('[BaseRecorder] Pausing recording');
+      this.mediaRecorderManager.pause();
+      
+      this.pauseStartTime = Date.now();
+      this.isPaused = true;
+    } catch (error) {
+      console.error('[BaseRecorder] Error pausing recording:', error);
+      throw error;
+    }
   }
 
   resumeRecording(): void {
-    this.recorderLifecycle.resumeRecording();
+    if (!this.recordingInProgress || !this.isPaused) {
+      return;
+    }
+
+    try {
+      console.log('[BaseRecorder] Resuming recording');
+      this.mediaRecorderManager.resume();
+      
+      // Calculate time spent in paused state
+      this.pausedDuration += (Date.now() - this.pauseStartTime);
+      this.isPaused = false;
+    } catch (error) {
+      console.error('[BaseRecorder] Error resuming recording:', error);
+      throw error;
+    }
   }
 
-  getCurrentDuration(): number {
-    return this.recorderLifecycle.getCurrentDuration();
-  }
-
-  cleanup(): void {
-    this.recorderLifecycle.cleanup();
-  }
-
-  // Helper methods for external components that need state information
   isCurrentlyRecording(): boolean {
-    return this.recorderState.isCurrentlyRecording();
+    return this.recordingInProgress;
   }
 
   isPausedState(): boolean {
-    return this.recorderState.isPausedState();
+    return this.isPaused;
+  }
+
+  getCurrentDuration(): number {
+    if (!this.recordingInProgress) {
+      return 0;
+    }
+
+    const currentTime = this.isPaused ? this.pauseStartTime : Date.now();
+    const rawDuration = (currentTime - this.startTime) / 1000; // in seconds
+    const adjustedDuration = rawDuration - (this.pausedDuration / 1000);
+    
+    return Math.max(0, adjustedDuration);
   }
 
   getFinalBlob(): Blob | null {
-    return this.recorderState.getFinalBlob();
+    return this.finalBlob;
+  }
+
+  private getEmptyStats(): RecordingStats {
+    return {
+      blobSize: 0,
+      duration: 0,
+      chunks: 0,
+      mimeType: ''
+    };
   }
 }

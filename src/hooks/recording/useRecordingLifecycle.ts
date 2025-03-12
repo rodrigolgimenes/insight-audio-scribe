@@ -1,14 +1,14 @@
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import { AudioRecorder } from "@/utils/audio/audioRecorder";
-import { RecordingObserver } from "@/utils/audio/types";
+import { RecordingObserver } from "@/utils/audio/types/audioRecorderTypes";
 import { logAudioTracks, validateAudioTracks } from "@/utils/audio/recordingHelpers";
 import { useRecorderInit } from "./lifecycle/useRecorderInit";
 import { useStartRecording } from "./lifecycle/useStartRecording";
 import { useStopRecording } from "./lifecycle/useStopRecording";
 import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
 
-interface RecordingLifecycleResult {
+export interface RecordingLifecycleResult {
   recorder: React.RefObject<AudioRecorder>;
   isRecording: boolean;
   isPaused: boolean;
@@ -16,6 +16,8 @@ interface RecordingLifecycleResult {
   handleStopRecording: () => Promise<{ blob: Blob | null; duration: number }>;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
+  initializeRecorder: () => () => void;
+  getCurrentDuration: () => number;
   recordingAttemptsCount: number;
   lastAction: { 
     action: string; 
@@ -41,11 +43,11 @@ export function useRecordingLifecycle(
   const recorderRef = useRef<AudioRecorder>(new AudioRecorder());
 
   // Initialize recorder and handle cleanup
-  const { recorder } = useRecorderInit(recorderRef, onRecordingEvent);
+  const { initializeRecorder, getCurrentDuration } = useRecorderInit(recorderRef, onRecordingEvent);
 
   // Start recording
-  const { handleStartRecording: startRecording } = useStartRecording(
-    recorder,
+  const { handleStartRecording: startRecordingFn } = useStartRecording(
+    recorderRef,
     { 
       setIsRecording, 
       setIsPaused 
@@ -53,8 +55,8 @@ export function useRecordingLifecycle(
   );
 
   // Stop recording
-  const { handleStopRecording: stopRecording } = useStopRecording(
-    recorder,
+  const { handleStopRecording: stopRecordingFn } = useStopRecording(
+    recorderRef,
     { 
       setIsRecording, 
       setIsPaused 
@@ -62,8 +64,11 @@ export function useRecordingLifecycle(
   );
 
   // Pause/resume recording
-  const { handlePauseRecording, handleResumeRecording } = usePauseResumeRecording(
-    recorder,
+  const { 
+    handlePauseRecording: pauseRecordingFn, 
+    handleResumeRecording: resumeRecordingFn 
+  } = usePauseResumeRecording(
+    recorderRef,
     { 
       setIsPaused 
     }
@@ -93,13 +98,13 @@ export function useRecordingLifecycle(
             action: 'start',
             timestamp: Date.now(),
             success: false,
-            error: `Validação de stream falhou: ${error.message}`
+            error: `Stream validation failed: ${error.message}`
           });
           throw error;
         }
         
         // Attempt to start recording
-        await startRecording(stream);
+        await startRecordingFn(stream);
         
         console.log('[useRecordingLifecycle] Recording started successfully');
         setLastAction({
@@ -113,12 +118,12 @@ export function useRecordingLifecycle(
           action: 'start',
           timestamp: Date.now(),
           success: false,
-          error: error.message || 'Erro desconhecido ao iniciar gravação'
+          error: error.message || 'Unknown error starting recording'
         });
         throw error;
       }
     },
-    [startRecording]
+    [startRecordingFn]
   );
 
   // Enhanced stop recording with diagnostic info
@@ -126,7 +131,7 @@ export function useRecordingLifecycle(
     console.log('[useRecordingLifecycle] Stopping recording');
     
     try {
-      const result = await stopRecording();
+      const result = await stopRecordingFn();
       
       console.log('[useRecordingLifecycle] Recording stopped successfully', {
         blobSize: result.blob ? `${(result.blob.size / 1024 / 1024).toFixed(2)} MB` : 'No blob',
@@ -147,19 +152,19 @@ export function useRecordingLifecycle(
         action: 'stop',
         timestamp: Date.now(),
         success: false,
-        error: error.message || 'Erro desconhecido ao parar gravação'
+        error: error.message || 'Unknown error stopping recording'
       });
       
       throw error;
     }
-  }, [stopRecording]);
+  }, [stopRecordingFn]);
 
   // Enhanced pause recording with diagnostic info
   const handlePauseRecording = useCallback(() => {
     console.log('[useRecordingLifecycle] Pausing recording');
     
     try {
-      handlePauseRecording();
+      pauseRecordingFn();
       
       console.log('[useRecordingLifecycle] Recording paused successfully');
       setLastAction({
@@ -174,19 +179,19 @@ export function useRecordingLifecycle(
         action: 'pause',
         timestamp: Date.now(),
         success: false,
-        error: error.message || 'Erro desconhecido ao pausar gravação'
+        error: error.message || 'Unknown error pausing recording'
       });
       
       throw error;
     }
-  }, [handlePauseRecording]);
+  }, [pauseRecordingFn]);
 
   // Enhanced resume recording with diagnostic info
   const handleResumeRecording = useCallback(() => {
     console.log('[useRecordingLifecycle] Resuming recording');
     
     try {
-      handleResumeRecording();
+      resumeRecordingFn();
       
       console.log('[useRecordingLifecycle] Recording resumed successfully');
       setLastAction({
@@ -201,21 +206,23 @@ export function useRecordingLifecycle(
         action: 'resume',
         timestamp: Date.now(),
         success: false,
-        error: error.message || 'Erro desconhecido ao retomar gravação'
+        error: error.message || 'Unknown error resuming recording'
       });
       
       throw error;
     }
-  }, [handleResumeRecording]);
+  }, [resumeRecordingFn]);
 
   return {
-    recorder,
+    recorder: recorderRef,
     isRecording,
     isPaused,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
+    initializeRecorder,
+    getCurrentDuration,
     recordingAttemptsCount,
     lastAction
   };

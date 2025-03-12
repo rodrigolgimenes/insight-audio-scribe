@@ -7,14 +7,14 @@ import { useEffect } from "react";
 
 interface SystemAudioToggleProps {
   isSystemAudio: boolean;
-  onSystemAudioChange: (enabled: boolean) => void;
-  disabled: boolean;
+  onChange: (enabled: boolean) => void;
+  disabled?: boolean;
 }
 
 export function SystemAudioToggle({
   isSystemAudio,
-  onSystemAudioChange,
-  disabled
+  onChange,
+  disabled = false
 }: SystemAudioToggleProps) {
   // Log when component props change for debugging
   useEffect(() => {
@@ -23,7 +23,7 @@ export function SystemAudioToggle({
 
   const handleChange = (checked: boolean) => {
     console.log('[SystemAudioToggle] Toggled to:', checked);
-    onSystemAudioChange(checked);
+    onChange(checked);
   };
 
   return (
