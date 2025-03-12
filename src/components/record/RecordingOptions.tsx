@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { DeviceSelector } from "../DeviceSelector";
-import { LanguageSelector } from "../LanguageSelector";
-import { SystemAudioToggle } from "../SystemAudioToggle";
+import { DeviceSelector } from "./DeviceSelector";
+import { LanguageSelector } from "./LanguageSelector";
+import { SystemAudioToggle } from "./SystemAudioToggle";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingOptionsProps {
@@ -32,22 +32,19 @@ export function RecordingOptions({
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
   
-  // Add logging to track device and permission states
+  // Debug logs to track device and permission states
   useEffect(() => {
     console.log('[RecordingOptions] State updated:', {
-      compName: 'RecordingOptions',
       audioDevicesCount: audioDevices.length,
       selectedDeviceId,
       deviceSelectionReady,
       permissionState,
-      hasDevices: audioDevices.length > 0,
       devicesLoading
     });
-  }, [audioDevices.length, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading]);
+  }, [audioDevices, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading]);
 
   // Log on every render for consistency
   console.log('[RecordingOptions RENDER]', {
-    compName: 'RecordingOptions',
     audioDevicesCount: audioDevices.length,
     permissionState,
     deviceSelectionReady
