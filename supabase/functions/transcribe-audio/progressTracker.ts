@@ -1,6 +1,6 @@
 
 import { updateNoteProgress } from './utils/dataOperations.ts';
-import { PROGRESS_STAGES } from './constants.ts';
+import { PROGRESS_STAGES, VALID_NOTE_STATUSES } from './constants.ts';
 
 /**
  * A class to handle tracking transcription progress
@@ -12,6 +12,15 @@ export class ProgressTracker {
   constructor(supabase: any, noteId: string) {
     this.supabase = supabase;
     this.noteId = noteId;
+  }
+
+  /**
+   * Validates that a status is among the allowed values
+   * @param status Status to validate
+   * @returns Whether the status is valid
+   */
+  private validateStatus(status: string): boolean {
+    return VALID_NOTE_STATUSES.includes(status);
   }
 
   /**
@@ -53,7 +62,7 @@ export class ProgressTracker {
    * Update progress to transcribed stage
    */
   async markTranscribed() {
-    await updateNoteProgress(this.supabase, this.noteId, 'transcribing', PROGRESS_STAGES.TRANSCRIBED);
+    await updateNoteProgress(this.supabase, this.noteId, 'transcribed', PROGRESS_STAGES.TRANSCRIBED);
   }
 
   /**

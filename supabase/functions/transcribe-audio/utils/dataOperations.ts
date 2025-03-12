@@ -16,6 +16,14 @@ export async function updateNoteProgress(
 ) {
   console.log(`[transcribe-audio] Updating note ${noteId} progress: status=${status}, progress=${progress}%`);
   
+  // Validate status against allowed values to prevent constraint violations
+  const validStatuses = ['pending', 'processing', 'transcribing', 'generating_minutes', 'transcribed', 'completed', 'error'];
+  
+  if (!validStatuses.includes(status)) {
+    console.error(`[transcribe-audio] Invalid status: ${status}. Using 'processing' instead.`);
+    status = 'processing'; // Fallback to a safe default value
+  }
+  
   try {
     const { error } = await supabase
       .from('notes')
@@ -69,11 +77,12 @@ export async function updateRecordingAndNote(
       throw new Error(`Failed to update recording: ${recordingError.message}`);
     }
     
-    // Update the note with the transcription text
+    // Make sure we're using a valid status for the notes table
+    // 'transcribed' is the correct status for this stage in the note lifecycle
     const { error: noteError } = await supabase
       .from('notes')
       .update({
-        status: 'transcribed',
+        status: 'transcribed', // Ensure this matches one of the allowed values in the check constraint
         processing_progress: 80,
         original_transcript: transcriptionText,
         updated_at: new Date().toISOString()

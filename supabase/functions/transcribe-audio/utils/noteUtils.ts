@@ -58,6 +58,14 @@ export async function updateNoteStatus(
   console.log(`[transcribe-audio] Updating note ${noteId} status to ${status} with progress ${progress}%`);
   
   try {
+    // Validate status against allowed values to prevent constraint violations
+    const validStatuses = ['pending', 'processing', 'transcribing', 'generating_minutes', 'transcribed', 'completed', 'error'];
+    
+    if (!validStatuses.includes(status)) {
+      console.error(`[transcribe-audio] Invalid status: ${status}. Using 'processing' instead.`);
+      status = 'processing'; // Fallback to a safe default value
+    }
+    
     const { error } = await supabase
       .from('notes')
       .update({ 
@@ -115,7 +123,7 @@ export async function updateNote(
     const { error } = await supabase
       .from('notes')
       .update({
-        status: 'generating_minutes',
+        status: 'generating_minutes', // Using a valid status value
         processing_progress: 75,
         original_transcript: transcriptionText,
         updated_at: new Date().toISOString()
@@ -151,7 +159,7 @@ export async function handleTranscriptionError(
     const { error } = await supabase
       .from('notes')
       .update({ 
-        status: 'error',
+        status: 'error', // This is a valid status
         processing_progress: 0,
         error_message: errorMessage || 'An error occurred during transcription',
         updated_at: new Date().toISOString()

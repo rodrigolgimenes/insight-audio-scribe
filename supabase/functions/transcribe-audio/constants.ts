@@ -20,3 +20,23 @@ export const PROGRESS_STAGES = {
   GENERATING_MINUTES: 90,
   COMPLETED: 100
 };
+
+// Valid status values for the notes table
+export const VALID_NOTE_STATUSES = [
+  'pending',
+  'processing',
+  'transcribing',
+  'generating_minutes',
+  'transcribed',
+  'completed',
+  'error'
+];
+
+// Valid status values for the recordings table
+export const VALID_RECORDING_STATUSES = [
+  'pending',
+  'uploaded',
+  'processing',
+  'completed',
+  'error'
+];
