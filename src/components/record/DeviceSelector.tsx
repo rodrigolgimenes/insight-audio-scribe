@@ -47,7 +47,7 @@ export function DeviceSelector({
     <div className="flex items-center justify-between space-x-2">
       <div className="flex items-center space-x-2">
         <Label htmlFor="audio-device" className="text-sm text-gray-700">
-          Select Microphone *
+          Selecione um Microfone *
         </Label>
         <TooltipProvider>
           <Tooltip>
@@ -56,7 +56,7 @@ export function DeviceSelector({
             </TooltipTrigger>
             <TooltipContent>
               <p className="max-w-xs">
-                Please select a microphone before starting the recording.
+                Por favor, selecione um microfone antes de iniciar a gravação.
               </p>
             </TooltipContent>
           </Tooltip>
@@ -68,17 +68,17 @@ export function DeviceSelector({
         disabled={disabled || !hasDevices}
       >
         <SelectTrigger className="w-[280px] bg-white border-gray-300">
-          <SelectValue placeholder="Select a microphone" />
+          <SelectValue placeholder="Selecione um microfone" />
         </SelectTrigger>
         <SelectContent className="bg-white">
           {audioDevices.length === 0 ? (
             <SelectItem value="no-devices" disabled>
-              No microphones found
+              Nenhum microfone encontrado
             </SelectItem>
           ) : (
             audioDevices.map((device, index) => (
               <SelectItem key={device.deviceId || `device-${index}`} value={device.deviceId || ''}>
-                {device.label || `Microphone ${index + 1}`}
+                {device.label || `Microfone ${index + 1}`}
               </SelectItem>
             ))
           )}

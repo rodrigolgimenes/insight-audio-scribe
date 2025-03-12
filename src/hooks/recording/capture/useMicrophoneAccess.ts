@@ -15,7 +15,7 @@ export const useMicrophoneAccess = (
       console.log('[useMicrophoneAccess] Starting with params:', { deviceId, isSystemAudio });
       
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Your browser does not support audio capture');
+        throw new Error('Seu navegador não suporta captura de áudio');
       }
 
       // Check permissions first
@@ -23,8 +23,8 @@ export const useMicrophoneAccess = (
       if (!hasPermission) {
         console.error('[useMicrophoneAccess] Permission denied');
         toast({
-          title: "Error",
-          description: "Microphone access denied. Please enable microphone permissions in your browser settings.",
+          title: "Erro",
+          description: "Acesso ao microfone negado. Por favor, habilite as permissões de microfone no seu navegador.",
           variant: "destructive",
         });
         return null;
@@ -33,8 +33,8 @@ export const useMicrophoneAccess = (
       if (!deviceId) {
         console.error('[useMicrophoneAccess] No device ID provided');
         toast({
-          title: "Error",
-          description: "Please select a microphone device first.",
+          title: "Erro",
+          description: "Por favor, selecione um microfone primeiro.",
           variant: "destructive",
         });
         return null;
@@ -70,9 +70,10 @@ export const useMicrophoneAccess = (
       
       // Check if we got audio tracks
       const audioTracks = micStream.getAudioTracks();
-      if (audioTracks.length === 0) {
+      if (audioTracks.length ===
+0) {
         console.error('[useMicrophoneAccess] No audio tracks in stream');
-        throw new Error('Failed to access microphone - no audio tracks');
+        throw new Error('Falha ao acessar o microfone - nenhuma trilha de áudio');
       }
       
       console.log('[useMicrophoneAccess] Microphone stream obtained with tracks:', audioTracks.length);
@@ -104,8 +105,8 @@ export const useMicrophoneAccess = (
         } catch (systemError) {
           console.error('[useMicrophoneAccess] System audio capture failed:', systemError);
           toast({
-            title: "Notice",
-            description: "Could not capture system audio. Using microphone only.",
+            title: "Aviso",
+            description: "Não foi possível capturar o áudio do sistema. Usando apenas o microfone.",
             variant: "default",
           });
           
@@ -120,7 +121,7 @@ export const useMicrophoneAccess = (
       console.error('[useMicrophoneAccess] Error accessing audio:', error);
       
       toast({
-        title: "Error",
+        title: "Erro",
         description: handleAudioError(error, isSystemAudio),
         variant: "destructive",
       });

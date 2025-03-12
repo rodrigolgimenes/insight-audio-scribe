@@ -68,11 +68,11 @@ export function RecordControls({
             size="icon"
             variant="outline"
             className={`h-16 w-16 rounded-full ${
-              disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#4285F4] text-white hover:bg-[#3367D6]'
+              disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#4285F4] text-white hover:bg-[#3367D6] focus:ring-2 focus:ring-[#3367D6] focus:ring-offset-2'
             }`}
             onClick={handleStartClick}
             disabled={disabled}
-            aria-label="Start Recording"
+            aria-label="Iniciar Gravação"
           >
             <Mic className="h-8 w-8" />
           </Button>
@@ -84,9 +84,9 @@ export function RecordControls({
               type="button"
               size="icon"
               variant="outline"
-              className="h-16 w-16 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800"
+              className="h-16 w-16 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
               onClick={onPauseRecording}
-              aria-label="Pause Recording"
+              aria-label="Pausar Gravação"
             >
               <Pause className="h-8 w-8" />
             </Button>
@@ -95,9 +95,9 @@ export function RecordControls({
               type="button"
               size="icon"
               variant="outline"
-              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
               onClick={onStopRecording}
-              aria-label="Stop Recording"
+              aria-label="Parar Gravação"
             >
               <Square className="h-8 w-8" />
             </Button>
@@ -110,9 +110,9 @@ export function RecordControls({
               type="button"
               size="icon"
               variant="outline"
-              className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600"
+              className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
               onClick={onResumeRecording}
-              aria-label="Resume Recording"
+              aria-label="Continuar Gravação"
             >
               <Play className="h-8 w-8" />
             </Button>
@@ -121,9 +121,9 @@ export function RecordControls({
               type="button"
               size="icon"
               variant="outline"
-              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
               onClick={onStopRecording}
-              aria-label="Stop Recording"
+              aria-label="Parar Gravação"
             >
               <Square className="h-8 w-8" />
             </Button>
@@ -137,9 +137,9 @@ export function RecordControls({
                 type="button"
                 size="icon"
                 variant="outline"
-                className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600"
+                className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
                 onClick={onPlay}
-                aria-label="Play Recording"
+                aria-label="Reproduzir Gravação"
               >
                 <Play className="h-8 w-8" />
               </Button>
@@ -150,9 +150,9 @@ export function RecordControls({
                 type="button"
                 size="icon"
                 variant="outline"
-                className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600"
+                className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
                 onClick={onDelete}
-                aria-label="Delete Recording"
+                aria-label="Apagar Gravação"
               >
                 <Trash2 className="h-8 w-8" />
               </Button>
