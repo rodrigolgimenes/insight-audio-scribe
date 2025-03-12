@@ -90,7 +90,11 @@ export const useRecording = () => {
   );
 
   // Initialize recorder
-  useRecorderInitialization(initializeRecorder, setInitError, selectedDeviceId);
+  useRecorderInitialization(
+    initializeRecorder,
+    setInitError,
+    selectedDeviceId
+  );
 
   // Log state changes
   useRecordingLogger(
@@ -106,7 +110,10 @@ export const useRecording = () => {
   );
 
   // Track recording attempts
-  useRecordingAttemptTracker(isRecording, setRecordingAttemptsCount);
+  useRecordingAttemptTracker(
+    isRecording,
+    setRecordingAttemptsCount
+  );
 
   return {
     isRecording,
