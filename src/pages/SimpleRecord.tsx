@@ -55,15 +55,6 @@ const SimpleRecord = () => {
     }
   }, [searchParams, toast]);
 
-  const handleTimeLimit = () => {
-    handleStopRecording().then(() => {
-      toast({
-        title: "Time Limit Reached",
-        description: "Recording was stopped after reaching the 60-minute limit.",
-      });
-    });
-  };
-
   const handleSave = async () => {
     if (isRecording) {
       const { blob, duration } = await handleStopRecording();
@@ -111,7 +102,6 @@ const SimpleRecord = () => {
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}
                     handleDelete={handleDelete}
-                    handleTimeLimit={handleTimeLimit}
                     onSystemAudioChange={handleSystemAudioChange}
                     audioDevices={audioDevices}
                     selectedDeviceId={selectedDeviceId}

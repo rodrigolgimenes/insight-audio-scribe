@@ -4,32 +4,25 @@ import { useEffect, useState } from 'react';
 interface RecordTimerProps {
   isRecording: boolean;
   isPaused: boolean;
-  onTimeLimit: () => void;
 }
 
-export const RecordTimer = ({ isRecording, isPaused, onTimeLimit }: RecordTimerProps) => {
+export const RecordTimer = ({ isRecording, isPaused }: RecordTimerProps) => {
   const [seconds, setSeconds] = useState(0);
-  const MAX_DURATION = 60 * 60; // 60 minutes in seconds
+  const MAX_DURATION = 60 * 60; // 60 minutes in seconds (just for progress calculation)
   
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     if (isRecording && !isPaused) {
       interval = setInterval(() => {
-        setSeconds(prev => {
-          if (prev + 1 >= MAX_DURATION) {
-            onTimeLimit();
-            return prev;
-          }
-          return prev + 1;
-        });
+        setSeconds(prev => prev + 1);
       }, 1000);
     }
 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRecording, isPaused, onTimeLimit]);
+  }, [isRecording, isPaused]);
 
   const formatTime = (totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);

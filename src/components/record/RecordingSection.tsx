@@ -18,7 +18,6 @@ interface RecordingSectionProps {
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
-  handleTimeLimit: () => void;
   onSystemAudioChange: (enabled: boolean) => void;
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
@@ -39,7 +38,6 @@ export const RecordingSection = ({
   handlePauseRecording,
   handleResumeRecording,
   handleDelete,
-  handleTimeLimit,
   onSystemAudioChange,
   audioDevices,
   selectedDeviceId,
@@ -83,7 +81,6 @@ export const RecordingSection = ({
         <RecordTimer 
           isRecording={isRecording} 
           isPaused={isPaused}
-          onTimeLimit={handleTimeLimit}
         />
       </div>
 

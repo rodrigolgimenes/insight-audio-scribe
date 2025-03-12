@@ -55,16 +55,6 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     }
   }, [isOpen, isRecording, handleStopRecording]);
 
-  const handleTimeLimit = () => {
-    handleStopRecording().then(() => {
-      console.log('[RecordingModal] Recording stopped due to time limit');
-      toast({
-        title: "Time limit reached",
-        description: "Recording has stopped due to time limit",
-      });
-    });
-  };
-
   const isLoading = isSaving;
   const hasRecording = !!audioUrl;
 
@@ -91,7 +81,6 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
                 handlePauseRecording={handlePauseRecording}
                 handleResumeRecording={handleResumeRecording}
                 handleDelete={handleDelete}
-                handleTimeLimit={handleTimeLimit}
                 onSystemAudioChange={setIsSystemAudio}
                 audioDevices={audioDevices}
                 selectedDeviceId={selectedDeviceId}

@@ -42,16 +42,6 @@ export function RecordingSheet() {
     });
   }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length]);
 
-  const handleTimeLimit = () => {
-    handleStopRecording().then(() => {
-      console.log('[RecordingSheet] Recording stopped due to time limit');
-      toast({
-        title: "Time limit reached",
-        description: "Recording has stopped due to time limit",
-      });
-    });
-  };
-
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
       <div className="space-y-8">
@@ -76,7 +66,6 @@ export function RecordingSheet() {
           handlePauseRecording={handlePauseRecording}
           handleResumeRecording={handleResumeRecording}
           handleDelete={handleDelete}
-          handleTimeLimit={handleTimeLimit}
           onSystemAudioChange={(value) => {
             console.log('[RecordingSheet] System audio changed:', value);
             setIsSystemAudio(value);
