@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
@@ -14,6 +14,7 @@ import { DevicePermissionError } from "./device/DevicePermissionError";
 import { useDeviceSelection } from "./device/useDeviceSelection";
 import { DeviceAutoSelection } from "./device/DeviceAutoSelection";
 import { useDeviceAutoRefresh } from "./device/useDeviceAutoRefresh";
+import { toast } from "sonner";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
@@ -40,7 +41,11 @@ export function DeviceSelector({
   devicesLoading = false,
   permissionState = 'unknown',
 }: DeviceSelectorProps) {
-  // Use nosso hook extraído para lógica de seleção de dispositivo
+  // Track selection changes for debugging
+  const [lastManualSelection, setLastManualSelection] = useState<string | null>(null);
+  const [selectionTime, setSelectionTime] = useState(0);
+  
+  // Use our hook for device selection logic
   const {
     hasAttemptedSelection,
     setHasAttemptedSelection,
@@ -49,80 +54,105 @@ export function DeviceSelector({
     handleRequestPermission
   } = useDeviceSelection(onRefreshDevices, permissionState);
   
-  // Use audioDevices se fornecido, caso contrário, use devices
+  // Use audioDevices if provided, otherwise use devices
   const deviceList = audioDevices || devices || [];
   
-  const handleDeviceChange = (value: string) => {
-    if (value && value !== selectedDeviceId) {
-      console.log('[DeviceSelector] Manual device selection:', {
-        newDevice: value,
-        previousDevice: selectedDeviceId,
-        hasAttemptedSelection
-      });
-      
-      // Marcar que uma seleção manual foi feita para evitar que a auto-seleção
-      // substitua a escolha do usuário
-      setHasAttemptedSelection(true);
-      
-      // Debug forcing of prop update
-      console.log('[DeviceSelector] Before calling onDeviceSelect');
-      
-      // Chamar o callback para atualizar o componente pai
-      onDeviceSelect(value);
-      
-      // Log final e verificação posterior da alteração
-      console.log('[DeviceSelector] Device selection dispatched');
-      
-      // Verificar em um timeout se a seleção foi aplicada
-      setTimeout(() => {
-        console.log('[DeviceSelector] Check if selection was applied:', {
-          expected: value,
-          actual: selectedDeviceId
-        });
-      }, 300);
-    } else {
-      console.log('[DeviceSelector] Device selection ignored - same value or empty:', {
-        selectedValue: value,
-        currentValue: selectedDeviceId
-      });
-    }
-  };
-
-  // Logar alterações de estado
+  // Log detailed device list on mount and when it changes
   useEffect(() => {
-    console.log('[DeviceSelector] Component state updated:', {
-      selectedDeviceId,
+    console.log('[DeviceSelector] Device list updated:', {
       deviceCount: deviceList.length,
-      isReady,
-      permissionState,
-      hasAttemptedSelection
+      devices: deviceList.map(d => ({
+        id: d.deviceId,
+        label: d.label || 'No label'
+      }))
+    });
+  }, [deviceList]);
+  
+  // Improved device change handler with validation and debugging
+  const handleDeviceChange = (value: string) => {
+    if (!value) {
+      console.warn('[DeviceSelector] Empty device ID received, ignoring selection');
+      return;
+    }
+    
+    console.log('[DeviceSelector] Manual device selection:', {
+      newDevice: value,
+      previousSelection: selectedDeviceId,
+      lastManualSelection,
+      time: new Date().toISOString()
     });
     
-    // Validar seleção de dispositivo para garantir que existe na lista de dispositivos
-    if (selectedDeviceId && deviceList.length > 0) {
-      const deviceExists = deviceList.some(d => d && d.deviceId === selectedDeviceId);
-      console.log('[DeviceSelector] Selected device validation:', {
-        deviceExists,
-        selectedDeviceId
+    // Validate device exists in list
+    const deviceExists = deviceList.some(d => d && d.deviceId === value);
+    if (!deviceExists) {
+      console.error('[DeviceSelector] Selected device not in device list!', {
+        selectedValue: value,
+        availableDevices: deviceList.map(d => d.deviceId)
       });
       
-      // Se o dispositivo selecionado não existe mais na lista e temos dispositivos,
-      // devemos selecionar o primeiro disponível
-      if (!deviceExists && deviceList.length > 0) {
-        console.log('[DeviceSelector] Selected device no longer exists, selecting first available');
-        const firstDevice = deviceList[0];
-        if (firstDevice && firstDevice.deviceId) {
-          onDeviceSelect(firstDevice.deviceId);
+      toast.error("Device selection error", {
+        description: "The selected device was not found in the available devices list",
+        id: "device-selection-error"
+      });
+      return;
+    }
+    
+    // Track manual selection
+    setLastManualSelection(value);
+    setSelectionTime(Date.now());
+    
+    // Mark that a selection was made to prevent auto-selection override
+    setHasAttemptedSelection(true);
+    
+    // Call the provided callback to update parent component
+    onDeviceSelect(value);
+    
+    // Log that the selection was dispatched
+    console.log('[DeviceSelector] Device selection dispatched');
+    
+    // Check after a timeout if the selection was applied
+    setTimeout(() => {
+      console.log('[DeviceSelector] Selection verification check:', {
+        expected: value,
+        actual: selectedDeviceId,
+        selectionApplied: value === selectedDeviceId
+      });
+      
+      if (value !== selectedDeviceId) {
+        console.warn('[DeviceSelector] Selection not applied!');
+      }
+    }, 300);
+  };
+
+  // If selected device is not in the list but we have devices, select the first one
+  useEffect(() => {
+    if (deviceList.length > 0 && selectedDeviceId) {
+      const deviceExists = deviceList.some(d => d && d.deviceId === selectedDeviceId);
+      
+      if (!deviceExists) {
+        console.warn('[DeviceSelector] Selected device no longer exists in list:', {
+          selectedDeviceId,
+          availableDevices: deviceList.map(d => d.deviceId)
+        });
+        
+        // Only auto-select if no manual selection was made recently
+        const now = Date.now();
+        const elapsed = now - selectionTime;
+        
+        if (elapsed > 3000) { // Only override if last manual selection was more than 3 seconds ago
+          const firstDeviceId = deviceList[0].deviceId;
+          console.log('[DeviceSelector] Auto-selecting first available device:', firstDeviceId);
+          onDeviceSelect(firstDeviceId);
         }
       }
     }
-  }, [selectedDeviceId, deviceList, isReady, permissionState, hasAttemptedSelection, onDeviceSelect]);
+  }, [deviceList, selectedDeviceId, selectionTime, onDeviceSelect]);
 
-  // Use nosso hook extraído para lógica de auto-refresh
+  // Use our hook for auto-refresh
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
   useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
   
-  // Informações de debug
+  // Debug info
   const debugInfo = {
     hasDevices: Array.isArray(deviceList) && deviceList.length > 0,
     deviceCount,
@@ -130,14 +160,14 @@ export function DeviceSelector({
     permissionRequested: !!permissionStatus
   };
 
-  // Calcular se select deve ser desativado - agora mais granular
+  // Calculate if select should be disabled
   const isSelectDisabled = 
     disabled || 
     permissionState === 'denied' || 
-    (deviceList.length === 0 && !devicesLoading); // Permitir interação durante o carregamento
+    (deviceList.length === 0 && !devicesLoading); // Allow interaction during loading
 
-  // Encontrar o nome do dispositivo selecionado para exibição
-  let selectedDeviceName = "Selecionar um microfone";
+  // Find selected device name for display
+  let selectedDeviceName = "Select a microphone";
   
   if (selectedDeviceId && deviceList.length > 0) {
     const selectedDevice = deviceList.find(d => d && d.deviceId === selectedDeviceId);
@@ -146,19 +176,27 @@ export function DeviceSelector({
     } else {
       console.warn('[DeviceSelector] Selected device not found in device list:', {
         selectedDeviceId,
-        availableDevices: deviceList.map(d => d.deviceId)
+        availableDevices: deviceList.map(d => d && d.deviceId)
       });
     }
   }
   
-  // Determinar se devemos mostrar um aviso sobre nenhum dispositivo
+  // Determine if we should show warnings or info
   const showNoDevicesWarning = deviceCount === 0 && isReady && !devicesLoading && permissionState !== 'denied';
-
-  // Mostrar botão de solicitação de permissão quando necessário
   const showPermissionRequest = permissionState === 'prompt' || (permissionState === 'denied' && deviceCount === 0);
-
-  // Só mostrar auto-seleção quando permissão for concedida e tivermos dispositivos
   const showAutoSelection = permissionState === 'granted' && deviceCount > 0;
+
+  // Handle force refresh
+  const handleForceRefresh = () => {
+    if (onRefreshDevices) {
+      console.log('[DeviceSelector] Force refreshing devices');
+      toast.info("Refreshing device list...", {
+        id: "force-refresh",
+        duration: 2000
+      });
+      onRefreshDevices();
+    }
+  };
 
   return (
     <div className="space-y-2">
@@ -167,12 +205,12 @@ export function DeviceSelector({
           permissionStatus={permissionState === 'unknown' ? permissionStatus : permissionState} 
         />
         <RefreshDevicesButton 
-          onRefreshDevices={onRefreshDevices} 
+          onRefreshDevices={handleForceRefresh} 
           isLoading={devicesLoading || isRequesting}
         />
       </div>
 
-      {/* Este componente lida com lógica de auto-seleção - só mostrar quando permissão concedida */}
+      {/* Auto-selection logic - only show when permission granted */}
       {showAutoSelection && (
         <DeviceAutoSelection
           deviceList={deviceList}

@@ -25,6 +25,7 @@ export class RecordingValidator {
       selectedDeviceId,
       deviceSelectionReady,
       audioDevicesCount: audioDevices.length,
+      audioDeviceIds: audioDevices.map(d => d.deviceId),
       permissionsGranted,
       permissionState
     });
