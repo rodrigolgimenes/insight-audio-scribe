@@ -182,6 +182,15 @@ export class AudioRecorder {
     return this.durationTracker.getCurrentDuration();
   }
 
+  // Add methods required by useSaveDeleteRecording.ts
+  isCurrentlyRecording(): boolean {
+    return this.isRecording;
+  }
+
+  getFinalBlob(): Blob | null {
+    return this.latestBlob || (this.mediaRecorderManager ? this.mediaRecorderManager.getFinalBlob() : null);
+  }
+
   cleanup(): void {
     console.log('[AudioRecorder] Cleanup called');
     this.streamManager.cleanup();
