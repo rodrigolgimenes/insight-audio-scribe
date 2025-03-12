@@ -3,8 +3,10 @@ import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
+import { useToast } from "@/hooks/use-toast";
 
 export function RecordingSheet() {
+  const { toast } = useToast();
   const {
     isRecording,
     isPaused,
@@ -25,7 +27,13 @@ export function RecordingSheet() {
   } = useRecording();
 
   const handleTimeLimit = () => {
-    handleStopRecording().then(() => {});
+    handleStopRecording().then(() => {
+      toast({
+        title: "Time Limit Reached",
+        description: "Recording was stopped after reaching the 60-minute limit. Starting automatic transcription...",
+      });
+      handleSaveRecording();
+    });
   };
 
   return (
