@@ -69,6 +69,7 @@ export const useDeviceSelection = () => {
       // Perform the device detection
       const result = await detectDevices(true);
       const devices = result.devices;
+      const defaultId = result.defaultId;
       
       // Logic to select a device if needed
       if (devices.length > 0) {
@@ -85,10 +86,10 @@ export const useDeviceSelection = () => {
         setDeviceSelectionReady(false);
       }
       
-      return result;
+      return { devices, defaultId };
     }
     
-    return { devices: [], defaultId: null };
+    return { devices: [] as AudioDevice[], defaultId: null };
   };
   
   // Use device initialization hook with our modified refreshDevices function

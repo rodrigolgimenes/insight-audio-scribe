@@ -263,6 +263,7 @@ export const useRobustDeviceDetection = (
     
     return () => {
       mountedRef.current = false;
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };
   }, [detectDevices]);
 

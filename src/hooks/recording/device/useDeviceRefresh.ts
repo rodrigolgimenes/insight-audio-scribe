@@ -7,7 +7,7 @@ import { AudioDevice } from "@/hooks/recording/capture/types";
  */
 export const useDeviceRefresh = (
   checkPermissions: () => Promise<boolean>,
-  getAudioDevices: () => Promise<AudioDevice[]>,
+  getAudioDevices: () => Promise<{devices: AudioDevice[], defaultId: string | null}>,
   setPermissionGranted: (value: boolean) => void,
   setDeviceSelectionReady: (value: boolean) => void,
   setSelectedDeviceId: (deviceId: string) => void,
@@ -34,10 +34,13 @@ export const useDeviceRefresh = (
       if (!hasPermission) {
         console.warn('[useDeviceRefresh] No microphone permission during refresh');
         setDeviceSelectionReady(false);
-        return { devices: [], defaultId: null };
+        return { devices: [] as AudioDevice[], defaultId: null };
       }
       
-      const devices = await getAudioDevices();
+      const result = await getAudioDevices();
+      const devices = result.devices; 
+      const defaultId = result.defaultId;
+      
       console.log('[useDeviceRefresh] Device refresh resulted in:', devices.length, 'devices');
       
       // If we have devices but no selection, select one
@@ -57,11 +60,11 @@ export const useDeviceRefresh = (
         setDeviceSelectionReady(false);
       }
       
-      return { devices, defaultId: null };
+      return { devices, defaultId };
     } catch (error) {
       console.error('[useDeviceRefresh] Error refreshing devices:', error);
       setDeviceSelectionReady(false);
-      return { devices: [], defaultId: null };
+      return { devices: [] as AudioDevice[], defaultId: null };
     }
   }, [
     checkPermissions, 
