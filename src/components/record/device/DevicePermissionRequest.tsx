@@ -26,8 +26,19 @@ export function DevicePermissionRequest({
         onClick={onRequestPermission}
         disabled={isRequesting}
         className="bg-blue-500 hover:bg-blue-600 text-white"
+        size="lg"
       >
-        {isRequesting ? "Requesting Access..." : "Allow Microphone Access"}
+        {isRequesting ? (
+          <>
+            <div className="h-4 w-4 rounded-full border-2 border-t-transparent border-white animate-spin mr-2"></div>
+            Requesting Access...
+          </>
+        ) : (
+          <>
+            <Mic className="h-4 w-4 mr-2" />
+            Allow Microphone Access
+          </>
+        )}
       </Button>
       
       <p className="text-xs text-blue-600 text-center">

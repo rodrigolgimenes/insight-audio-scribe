@@ -24,7 +24,6 @@ export function NoDevicesMessage({
           <li>No microphone is connected</li>
           <li>Your microphone isn't recognized by the browser</li>
           <li>Your browser needs to be refreshed</li>
-          <li>The device list is still loading</li>
         </ul>
       </p>
       
@@ -35,6 +34,7 @@ export function NoDevicesMessage({
           onClick={onRefresh}
           className="bg-white border-amber-300 text-amber-700 hover:bg-amber-100"
         >
+          <Mic className="w-4 h-4 mr-2" />
           Scan for Microphones
         </Button>
       )}

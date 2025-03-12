@@ -25,10 +25,15 @@ export function RefreshDevicesButton({
       size="icon" 
       onClick={onRefreshDevices}
       disabled={isLoading}
-      className={`h-7 w-7 ${hasDevices ? 'border-green-500 bg-green-50 hover:bg-green-100' : ''}`}
+      className={`h-7 w-7 ${hasDevices ? 'border-green-500 bg-green-100 hover:bg-green-200' : ''}`}
       title={hasDevices ? `${deviceCount} microphone(s) found` : "Refresh microphone list"}
     >
       <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} ${hasDevices ? 'text-green-600' : ''}`} />
+      {hasDevices && (
+        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+          {deviceCount}
+        </span>
+      )}
     </Button>
   );
 }
