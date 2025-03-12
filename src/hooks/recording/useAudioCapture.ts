@@ -14,9 +14,10 @@ export const useAudioCapture = () => {
   const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const refreshInProgressRef = useRef(false);
-  const maxRetryAttemptsRef = useRef(3);
+  const maxRetryAttemptsRef = useRef(5); // Increased from 3
   const currentRetryAttemptRef = useRef(0);
   const autoRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fallbackAttemptedRef = useRef(false);
   
   // Initialize permissions hook
   const { checkPermissions } = usePermissions();
@@ -49,7 +50,7 @@ export const useAudioCapture = () => {
     };
   }, []);
   
-  // Get audio devices
+  // Get audio devices with improved fallback strategy
   const getAudioDevicesWrapper = useCallback(async (): Promise<{ devices: AudioDevice[], defaultId: string | null }> => {
     try {
       // Prevent multiple simultaneous refreshes
@@ -67,9 +68,9 @@ export const useAudioCapture = () => {
       refreshInProgressRef.current = true;
       console.log('[useAudioCapture] Enumerating audio devices (attempt #' + (currentRetryAttemptRef.current + 1) + ')');
       
-      // Check if it's been less than 5 seconds since the last refresh
+      // Check if it's been less than 3 seconds since the last refresh (reduced from 5)
       const now = Date.now();
-      if (now - lastRefreshTime < 5000 && audioDevices.length > 0) {
+      if (now - lastRefreshTime < 3000 && audioDevices.length > 0) {
         console.log('[useAudioCapture] Using cached devices from recent refresh');
         refreshInProgressRef.current = false;
         return { devices: audioDevices, defaultId: defaultDeviceId };
@@ -77,7 +78,7 @@ export const useAudioCapture = () => {
       
       setLastRefreshTime(now);
       
-      // Get devices from our device enumeration hook
+      // Attempt direct device enumeration first
       const result = await getAudioDevices();
       const devices = result.devices; 
       const defaultId = result.defaultId;
@@ -86,18 +87,60 @@ export const useAudioCapture = () => {
       
       // Check if we got any devices
       if (devices.length === 0) {
+        // Try a fallback approach if not already attempted
+        if (!fallbackAttemptedRef.current) {
+          fallbackAttemptedRef.current = true;
+          console.log('[useAudioCapture] No devices found, trying fallback approach');
+          
+          try {
+            // Try to force device discovery with alternative constraints
+            const tempStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                // Different constraints than normal to force device discovery
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+              }
+            });
+            
+            // Wait longer for browser to update
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Try again with the temp stream active
+            const fallbackResult = await getAudioDevices();
+            
+            // Stop the temporary stream
+            tempStream.getTracks().forEach(track => track.stop());
+            
+            if (fallbackResult.devices.length > 0) {
+              console.log('[useAudioCapture] Fallback approach succeeded!', fallbackResult.devices.length, 'devices found');
+              setAudioDevices(fallbackResult.devices);
+              setDefaultDeviceId(fallbackResult.defaultId);
+              refreshInProgressRef.current = false;
+              currentRetryAttemptRef.current = 0; // Reset counter on success
+              fallbackAttemptedRef.current = false; // Reset for next time
+              return fallbackResult;
+            }
+          } catch (fallbackErr) {
+            console.error('[useAudioCapture] Fallback approach failed:', fallbackErr);
+          }
+        }
+        
         // Increment retry attempt
         currentRetryAttemptRef.current++;
         
         if (currentRetryAttemptRef.current <= maxRetryAttemptsRef.current) {
           console.log(`[useAudioCapture] No devices found. Scheduling auto-retry (${currentRetryAttemptRef.current}/${maxRetryAttemptsRef.current})`);
           
-          // Schedule an auto-retry
+          // Schedule an auto-retry with progressive delay
+          const delay = Math.min(500 * Math.pow(1.5, currentRetryAttemptRef.current), 5000);
+          
           autoRetryTimeoutRef.current = setTimeout(() => {
             console.log('[useAudioCapture] Auto-retrying device enumeration');
             refreshInProgressRef.current = false;
+            fallbackAttemptedRef.current = currentRetryAttemptRef.current % 2 === 0; // Alternate approaches
             getAudioDevicesWrapper();
-          }, 2000);
+          }, delay);
           
           // Don't show notification on first retry
           if (currentRetryAttemptRef.current > 1) {
@@ -115,10 +158,12 @@ export const useAudioCapture = () => {
           
           // Reset retry counter for next manual attempt
           currentRetryAttemptRef.current = 0;
+          fallbackAttemptedRef.current = false;
         }
       } else {
         // We found devices, reset retry counter
         currentRetryAttemptRef.current = 0;
+        fallbackAttemptedRef.current = false;
         
         // Remove success message - we don't want to show it anymore
         // Previously had toast.success here
@@ -139,12 +184,15 @@ export const useAudioCapture = () => {
       if (currentRetryAttemptRef.current <= maxRetryAttemptsRef.current) {
         console.log(`[useAudioCapture] Error occurred. Scheduling auto-retry (${currentRetryAttemptRef.current}/${maxRetryAttemptsRef.current})`);
         
-        // Schedule an auto-retry
+        // Schedule an auto-retry with progressive delay
+        const delay = Math.min(500 * Math.pow(1.5, currentRetryAttemptRef.current), 5000);
+        
         autoRetryTimeoutRef.current = setTimeout(() => {
           console.log('[useAudioCapture] Auto-retrying after error');
           refreshInProgressRef.current = false;
+          fallbackAttemptedRef.current = currentRetryAttemptRef.current % 2 === 0; // Alternate approaches
           getAudioDevicesWrapper();
-        }, 2000);
+        }, delay);
       } else {
         // We've reached max retries, show error
         toast.error("Failed to detect microphones", {
@@ -154,6 +202,7 @@ export const useAudioCapture = () => {
         
         // Reset retry counter for next manual attempt
         currentRetryAttemptRef.current = 0;
+        fallbackAttemptedRef.current = false;
       }
       
       refreshInProgressRef.current = false;
@@ -168,6 +217,10 @@ export const useAudioCapture = () => {
     // Listen for device changes
     const handleDeviceChange = () => {
       console.log('[useAudioCapture] Device change detected by browser');
+      // Reset flags to force a thorough refresh
+      fallbackAttemptedRef.current = false;
+      refreshInProgressRef.current = false;
+      currentRetryAttemptRef.current = 0;
       getAudioDevicesWrapper();
     };
     

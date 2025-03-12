@@ -14,6 +14,7 @@ export const useDeviceDetection = (
   const autoRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
   const maxRetries = 8;
+  const fallbackAttemptedRef = useRef(false);
 
   // Clean up on unmount
   const cleanup = () => {
@@ -56,6 +57,9 @@ export const useDeviceDetection = (
         return { devices: [], defaultId: null };
       }
       
+      // Extra delay to ensure browser is ready
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Get devices with our existing function
       console.log('[useDeviceDetection] Fetching devices...');
       const result = await getAudioDevices();
@@ -72,12 +76,58 @@ export const useDeviceDetection = (
       // Update devices
       setDevices(newDevices);
       
-      // If no devices found, schedule an auto-retry
+      // If no devices found, try a fallback approach
       if (newDevices.length === 0) {
+        if (!fallbackAttemptedRef.current) {
+          console.log('[useDeviceDetection] No devices found, trying fallback approach');
+          fallbackAttemptedRef.current = true;
+          
+          // Try with a different set of constraints
+          try {
+            // Wait briefly
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Force browser to show all devices with a different getUserMedia call
+            const tempStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                // Use different constraints to force device discovery
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+              }
+            });
+            
+            // Wait for browser to update
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Try fetching devices again
+            console.log('[useDeviceDetection] Retrying device fetch after fallback...');
+            const fallbackResult = await getAudioDevices();
+            
+            // Stop the temporary stream
+            if (tempStream) {
+              tempStream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (fallbackResult.devices.length > 0) {
+              console.log(`[useDeviceDetection] Fallback succeeded! Found ${fallbackResult.devices.length} devices`);
+              setDevices(fallbackResult.devices);
+              setIsLoading(false);
+              detectionInProgressRef.current = false;
+              fallbackAttemptedRef.current = false; // Reset for next time
+              return fallbackResult;
+            }
+          } catch (fallbackErr) {
+            console.error('[useDeviceDetection] Fallback approach failed:', fallbackErr);
+          }
+        }
+        
+        // Handle no devices found scenario
         handleNoDevicesFound();
       } else {
         // Reset attempts counter on success
         setRefreshAttempts(0);
+        fallbackAttemptedRef.current = false; // Reset for next time
         
         // Remove success toast - we don't want to show it anymore
         // Previously had a toast.success here
@@ -106,6 +156,7 @@ export const useDeviceDetection = (
         if (mountedRef.current) {
           console.log('[useDeviceDetection] Auto-retrying device detection');
           detectionInProgressRef.current = false;
+          fallbackAttemptedRef.current = newAttemptCount % 2 === 0; // Alternate between approaches
           detectDevices(true);
         }
       }, delay);
@@ -131,7 +182,7 @@ export const useDeviceDetection = (
         }
       });
     }
-  }, [refreshAttempts, maxRetries]);
+  }, [refreshAttempts, maxRetries, detectDevices]);
 
   // Helper function to handle detection errors
   const handleDetectionError = useCallback((err: unknown) => {
@@ -157,6 +208,7 @@ export const useDeviceDetection = (
         if (mountedRef.current) {
           console.log('[useDeviceDetection] Auto-retrying after error');
           detectionInProgressRef.current = false;
+          fallbackAttemptedRef.current = newAttemptCount % 2 === 0; // Alternate between approaches
           detectDevices(true);
         }
       }, delay);
@@ -171,7 +223,7 @@ export const useDeviceDetection = (
     }
     
     detectionInProgressRef.current = false;
-  }, [refreshAttempts, maxRetries]);
+  }, [refreshAttempts, maxRetries, detectDevices]);
 
   return {
     devices,

@@ -18,6 +18,7 @@ export const useDeviceEnumeration = (
   const attemptCountRef = useRef(0);
   const maxAttempts = 5;
   const lastDeviceListRef = useRef<MediaDeviceInfo[]>([]);
+  const fallbackAttemptedRef = useRef(false);
 
   // Function to enumerate audio devices with improved error handling
   const getAudioDevices = useCallback(async () => {
@@ -93,9 +94,66 @@ export const useDeviceEnumeration = (
       lastDeviceListRef.current = [...audioInputs];
       
       if (audioInputs.length === 0) {
-        console.warn('[useDeviceEnumeration] No audio input devices found in enumeration results');
+        console.warn('[useDeviceEnumeration] No audio input devices found, trying fallback approach');
         
-        // Show toast only once
+        // Try a fallback approach with different constraints if not tried yet
+        if (!fallbackAttemptedRef.current && tempStream) {
+          // Clean up the first stream
+          tempStream.getTracks().forEach(track => track.stop());
+          tempStream = null;
+          fallbackAttemptedRef.current = true;
+          
+          // Try with more specific constraints
+          try {
+            console.log('[useDeviceEnumeration] Trying fallback with specific constraints');
+            tempStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+              }
+            });
+            
+            // Wait a bit more for the browser
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Try enumerating again
+            const fallbackDevices = await navigator.mediaDevices.enumerateDevices();
+            const fallbackAudioInputs = fallbackDevices.filter(device => device.kind === 'audioinput');
+            
+            console.log('[useDeviceEnumeration] Fallback devices found:', fallbackAudioInputs.length);
+            
+            if (fallbackAudioInputs.length > 0) {
+              // Process these devices instead
+              lastDeviceListRef.current = [...fallbackAudioInputs];
+              
+              // Convert to our internal AudioDevice type with proper labels
+              const convertedDevices = fallbackAudioInputs.map((device, index) => {
+                const isDefault = device.deviceId === 'default' || device.deviceId === '' || (index === 0);
+                return toAudioDevice(device, isDefault, index);
+              });
+              
+              setAudioDevices(convertedDevices);
+              const defaultId = convertedDevices.length > 0 ? convertedDevices[0].deviceId : null;
+              setDefaultDeviceId(defaultId);
+              
+              // Clean up temp stream
+              if (tempStream) {
+                tempStream.getTracks().forEach(track => track.stop());
+              }
+              
+              // Reset attempt counter on success
+              attemptCountRef.current = 0;
+              devicesFetchedRef.current = true;
+              enumerationInProgressRef.current = false;
+              return { devices: convertedDevices, defaultId };
+            }
+          } catch (fallbackErr) {
+            console.error('[useDeviceEnumeration] Fallback approach failed:', fallbackErr);
+          }
+        }
+        
+        // Show no devices toast warning if all attempts failed
         if (!hasShownToastRef.current) {
           toast.warning("No microphones detected", { 
             description: "Please check if your microphone is connected properly",
@@ -114,6 +172,7 @@ export const useDeviceEnumeration = (
           console.log('[useDeviceEnumeration] Scheduling retry attempt');
           setTimeout(() => {
             enumerationInProgressRef.current = false;
+            fallbackAttemptedRef.current = false; // Reset fallback flag to try again
             getAudioDevices();
           }, 1000); // Faster retry
         }
@@ -169,6 +228,7 @@ export const useDeviceEnumeration = (
       
       // Reset attempt counter on success
       attemptCountRef.current = 0;
+      fallbackAttemptedRef.current = false; // Reset fallback flag for next time
       
       devicesFetchedRef.current = true;
       enumerationInProgressRef.current = false;
@@ -190,6 +250,7 @@ export const useDeviceEnumeration = (
         console.log('[useDeviceEnumeration] Scheduling retry with alternative approach');
         setTimeout(() => {
           enumerationInProgressRef.current = false;
+          fallbackAttemptedRef.current = false; // Reset fallback flag to try differently
           getAudioDevices();
         }, 1000);
       }
@@ -215,6 +276,7 @@ export const useDeviceEnumeration = (
         console.log('[useDeviceEnumeration] Media devices changed, refreshing list');
         // Reset toast flag to allow new toast on device change
         hasShownToastRef.current = false;
+        fallbackAttemptedRef.current = false; // Reset fallback flag
         enumerationInProgressRef.current = false;
         getAudioDevices();
       }, 500);
