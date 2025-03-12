@@ -26,12 +26,12 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#9b87f5",
-          dark: "#7E69AB",
-          light: "#E5DEFF",
+          DEFAULT: "#4D34E4",
+          dark: "#3A26AD",
+          light: "#ECE9FF",
         },
         secondary: {
-          DEFAULT: "#221F26",
+          DEFAULT: "#303034",
           foreground: "#FFFFFF",
         },
         destructive: {
@@ -54,6 +54,12 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // New color palette
+        'palatinate-blue': '#4D34E4',
+        'white': '#FFFFFF',
+        'jet': '#303034',
+        'ghost-white': '#F9F8FF',
+        'lavender-web': '#ECE9FF',
       },
       borderRadius: {
         lg: "var(--radius)",

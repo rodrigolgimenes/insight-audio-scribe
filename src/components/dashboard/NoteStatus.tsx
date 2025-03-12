@@ -32,14 +32,14 @@ export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
       );
     case "transcribing":
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-lavender-web text-palatinate-blue">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
           Transcribing {displayProgress}%
         </span>
       );
     case "generating_minutes":
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-lavender-web text-primary-dark">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
           Generating Minutes {displayProgress}%
         </span>
@@ -54,7 +54,7 @@ export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
     case "processing":
     default:
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-lavender-web text-palatinate-blue">
           <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
           Processing {displayProgress}%
         </span>

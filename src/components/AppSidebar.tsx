@@ -40,9 +40,9 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
       <SidebarHeader>
         <div className="p-4">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl font-semibold text-primary">InsightScribe</span>
+            <span className="text-xl font-semibold text-palatinate-blue">InsightScribe</span>
           </div>
-          <Button className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white">
+          <Button className="w-full bg-palatinate-blue hover:bg-primary-dark text-white">
             Upgrade Now
           </Button>
         </div>
@@ -65,8 +65,8 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
                       onClick={() => navigate(item.href)}
                     >
                       <button>
-                        <item.icon className={isActive ? "text-[#9b87f5]" : ""} />
-                        <span className={isActive ? "text-[#9b87f5]" : ""}>{item.label}</span>
+                        <item.icon className={isActive ? "text-palatinate-blue" : ""} />
+                        <span className={isActive ? "text-palatinate-blue" : ""}>{item.label}</span>
                       </button>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

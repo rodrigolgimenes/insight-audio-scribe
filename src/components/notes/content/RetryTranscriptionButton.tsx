@@ -11,7 +11,7 @@ export const RetryTranscriptionButton: React.FC<RetryTranscriptionButtonProps> =
   return (
     <Button 
       variant="outline" 
-      className="w-full flex items-center justify-center gap-2 text-[#9b87f5] border-[#9b87f5] hover:border-[#7E69AB] hover:bg-[#E5DEFF]"
+      className="w-full flex items-center justify-center gap-2 text-palatinate-blue border-palatinate-blue hover:border-primary-dark hover:bg-lavender-web"
       onClick={onRetry}
     >
       <RefreshCcw className="h-4 w-4" />

@@ -13,19 +13,19 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 249 77% 55%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 4% 20%;
+    --secondary-foreground: 0 0% 100%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 248 100% 96%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 249 77% 55%;
     --radius: 0.75rem;
   }
 
@@ -34,39 +34,39 @@
   }
 
   body {
-    @apply bg-background text-foreground font-['Inter'];
+    @apply bg-ghost-white text-foreground font-['Inter'];
   }
 
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-palatinate-blue to-primary-dark;
   }
 
   /* Button styles */
   .btn-primary {
-    @apply bg-primary hover:bg-primary-dark text-white transition-colors duration-200;
+    @apply bg-palatinate-blue hover:bg-primary-dark text-white transition-colors duration-200;
   }
 
   .btn-secondary {
-    @apply bg-transparent border-2 border-primary text-primary hover:bg-primary/10 transition-colors duration-200;
+    @apply bg-transparent border-2 border-palatinate-blue text-palatinate-blue hover:bg-lavender-web transition-colors duration-200;
   }
 
   /* Card styles */
   .card-gradient {
-    @apply bg-primary-light rounded-lg p-6 shadow-lg;
+    @apply bg-lavender-web rounded-lg p-6 shadow-lg;
   }
 
   /* Input styles */
   .input-primary {
-    @apply border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg;
+    @apply border-2 border-palatinate-blue/20 focus:border-palatinate-blue focus:ring-2 focus:ring-palatinate-blue/20 rounded-lg;
   }
 }
 
 @layer components {
   .sidebar-item {
-    @apply flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-primary hover:bg-primary-light/50 transition-colors duration-200;
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:text-palatinate-blue hover:bg-lavender-web transition-colors duration-200;
   }
 
   .sidebar-item[data-active="true"] {
-    @apply text-primary bg-primary-light;
+    @apply text-palatinate-blue bg-lavender-web;
   }
 }
