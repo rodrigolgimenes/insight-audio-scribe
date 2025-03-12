@@ -1,5 +1,4 @@
-
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Pause, PlayCircle, Save, Loader2 } from "lucide-react";
@@ -8,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRecording } from "@/hooks/useRecording";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
+import { TestDeviceSelector } from "./TestDeviceSelector";
 
 interface RecordMeetingContentProps {
   isLoading: boolean;
@@ -203,51 +203,25 @@ export function RecordMeetingContent({
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Controles e Configurações</h2>
             
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium mb-2">Dispositivo de Áudio</h3>
-                <select 
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
-                  value={recordingHook.selectedDeviceId || ''}
-                  onChange={(e) => recordingHook.setSelectedDeviceId(e.target.value)}
-                  disabled={recordingHook.isRecording || !recordingHook.deviceSelectionReady}
-                >
-                  {recordingHook.audioDevices.length === 0 ? (
-                    <option value="">Nenhum dispositivo encontrado</option>
-                  ) : (
-                    recordingHook.audioDevices.map((device) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.displayName || device.label || `Microfone ${device.index + 1}`}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </div>
-              
-              <div className="flex items-center mt-4">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 mr-2 rounded border-gray-300"
-                    checked={recordingHook.isSystemAudio}
-                    onChange={(e) => recordingHook.setIsSystemAudio(e.target.checked)}
-                    disabled={recordingHook.isRecording}
-                  />
-                  <span className="text-sm">Capturar áudio do sistema (compartilhamento de tela)</span>
-                </label>
-              </div>
-              
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefreshDevices}
+            <TestDeviceSelector 
+              audioDevices={recordingHook.audioDevices}
+              selectedDeviceId={recordingHook.selectedDeviceId}
+              onDeviceSelect={recordingHook.setSelectedDeviceId}
+              onRefreshDevices={recordingHook.refreshDevices}
+              isLoading={recordingHook.devicesLoading}
+            />
+            
+            <div className="flex items-center mt-4">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 mr-2 rounded border-gray-300"
+                  checked={recordingHook.isSystemAudio}
+                  onChange={(e) => recordingHook.setIsSystemAudio(e.target.checked)}
                   disabled={recordingHook.isRecording}
-                  className="w-full"
-                >
-                  Atualizar dispositivos
-                </Button>
-              </div>
+                />
+                <span className="text-sm">Capturar áudio do sistema (compartilhamento de tela)</span>
+              </label>
             </div>
             
             {recordingHook.audioUrl && (
