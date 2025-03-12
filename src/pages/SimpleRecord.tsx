@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -54,7 +53,6 @@ const SimpleRecord = () => {
   }, [searchParams, toast]);
 
   const handleTimeLimit = () => {
-    // Wrap the handleStopRecording in another function that ignores the return value
     handleStopRecording().then(() => {
       toast({
         title: "Time Limit Reached",
@@ -63,9 +61,7 @@ const SimpleRecord = () => {
     });
   };
 
-  // Use the same function as in RecordingModal
   const handleSave = async () => {
-    // First check if we need to stop recording
     if (isRecording) {
       const { blob, duration } = await handleStopRecording();
       if (!blob) {
@@ -78,8 +74,6 @@ const SimpleRecord = () => {
       }
     }
     
-    // Then use the same saveRecording logic as the one used in the modal
-    // Use a void return type for the callback to match the expected type
     await saveRecording(isRecording, async () => {
       const result = await handleStopRecording();
       return;
@@ -115,6 +109,7 @@ const SimpleRecord = () => {
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
                     showPlayButton={false}
+                    showDeleteButton={true}
                   />
 
                   <RecordingActions

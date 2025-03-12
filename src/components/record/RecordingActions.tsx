@@ -24,9 +24,6 @@ export const RecordingActions = ({
           <p className="text-center text-sm text-gray-600 mb-2">
             Record and create a transcription
           </p>
-          <h3 className="text-center font-semibold text-[#9b87f5] mb-3">
-            Transcribe Now
-          </h3>
           <SaveRecordingButton 
             onSave={onSave}
             isSaving={isSaving}
