@@ -71,6 +71,7 @@ const TestRecordMeeting = () => {
                   <SimpleAudioRecorder
                     onTranscriptionComplete={handleTranscriptionComplete}
                     onError={handleError}
+                    onStatusChange={setStatus}
                   />
                 </div>
                 

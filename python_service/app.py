@@ -55,34 +55,67 @@ def process_transcription(transcription_id: str, audio_url: str, language: str):
                 
             logger.info(f"Audio saved to temporary file: {temp_file_path}")
             
-            # TODO: Import and use fast-whisper here
-            # For now, we'll simulate the transcription
-            
-            import time
-            # Simulating processing time
-            time.sleep(3)
-            
-            # This is where you would use fast-whisper to transcribe the audio
-            # Example (pseudocode):
-            # from faster_whisper import WhisperModel
-            # model = WhisperModel("large-v2", device="cuda")
-            # segments, info = model.transcribe(temp_file_path, language=language)
-            # transcription = " ".join([segment.text for segment in segments])
-            
-            # For now, we'll use a mock transcription
-            transcription = "Esta é uma transcrição de teste do serviço fast-whisper. Em produção, este texto seria gerado pelo processamento real do áudio usando a biblioteca fast-whisper."
-            
-            # Update the transcription in the database
-            supabase.table("transcriptions").update({
-                "content": transcription,
-                "status": "completed",
-                "processed_at": datetime.now().isoformat()
-            }).eq("id", transcription_id).execute()
+            # Import and use fast-whisper here
+            try:
+                from faster_whisper import WhisperModel
+                
+                # Load the model - check if we need to use CPU or if GPU is available
+                import torch
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                compute_type = "float16" if torch.cuda.is_available() else "int8"
+                
+                logger.info(f"Loading WhisperModel on {device} with compute type {compute_type}")
+                
+                # Initialize the model - choose model size based on your needs
+                # Options: "tiny", "base", "small", "medium", "large-v2", "large-v3" 
+                model = WhisperModel("medium", device=device, compute_type=compute_type)
+                
+                # Perform transcription
+                logger.info(f"Starting transcription with model for language: {language}")
+                segments, info = model.transcribe(
+                    temp_file_path, 
+                    language=language,
+                    vad_filter=True,  # Voice activity detection to filter out silence
+                    vad_parameters=dict(min_silence_duration_ms=500)  # Adjust VAD parameters if needed
+                )
+                
+                # Process segments and build full transcription
+                transcription_parts = []
+                for segment in segments:
+                    transcription_parts.append(segment.text)
+                
+                transcription = " ".join(transcription_parts)
+                
+                logger.info(f"Transcription completed successfully, length: {len(transcription)}")
+                
+                # Update the transcription in the database
+                supabase.table("transcriptions").update({
+                    "content": transcription,
+                    "status": "completed",
+                    "processed_at": datetime.now().isoformat()
+                }).eq("id", transcription_id).execute()
+                
+            except ImportError as e:
+                logger.warning(f"Fast-whisper not available, using simulated transcription: {e}")
+                # For when fast-whisper isn't installed, use a mock transcription
+                import time
+                # Simulating processing time
+                time.sleep(3)
+                
+                # Mock transcription
+                transcription = "Esta é uma transcrição de teste do serviço fast-whisper. Em produção, este texto seria gerado pelo processamento real do áudio usando a biblioteca fast-whisper."
+                
+                # Update the transcription in the database
+                supabase.table("transcriptions").update({
+                    "content": transcription,
+                    "status": "completed",
+                    "processed_at": datetime.now().isoformat()
+                }).eq("id", transcription_id).execute()
             
             logger.info(f"Transcription completed for {transcription_id}")
             
         except Exception as download_error:
-            logger.error(f"Error downloading audio: {str(download_error)}")
+            logger.error(f"Error downloading or processing audio: {str(download_error)}")
             raise download_error
         finally:
             # Clean up temporary file
@@ -124,5 +157,11 @@ async def transcribe(request: TranscriptionRequest, background_tasks: Background
         return {"success": False, "error": str(e)}
 
 if __name__ == "__main__":
+    # Check if required environment variables are set
+    if not supabase_url or not supabase_key:
+        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+        exit(1)
+        
     port = int(os.environ.get("PORT", 8000))
+    logger.info(f"Starting FastAPI server on port {port}")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)

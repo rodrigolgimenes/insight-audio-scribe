@@ -700,6 +700,7 @@ export type Database = {
           content: string
           created_at: string
           duration_ms: number | null
+          error_message: string | null
           id: string
           is_system_audio: boolean | null
           processed_at: string | null
@@ -710,6 +711,7 @@ export type Database = {
           content: string
           created_at?: string
           duration_ms?: number | null
+          error_message?: string | null
           id?: string
           is_system_audio?: boolean | null
           processed_at?: string | null
@@ -720,6 +722,7 @@ export type Database = {
           content?: string
           created_at?: string
           duration_ms?: number | null
+          error_message?: string | null
           id?: string
           is_system_audio?: boolean | null
           processed_at?: string | null

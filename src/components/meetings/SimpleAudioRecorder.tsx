@@ -11,11 +11,13 @@ import { supabase } from "@/integrations/supabase/client";
 interface SimpleAudioRecorderProps {
   onTranscriptionComplete: (text: string) => void;
   onError: (error: string) => void;
+  onStatusChange?: (status: string) => void;
 }
 
 export function SimpleAudioRecorder({ 
   onTranscriptionComplete, 
-  onError 
+  onError,
+  onStatusChange
 }: SimpleAudioRecorderProps) {
   // Audio devices state
   const [devices, setDevices] = useState<AudioDevice[]>([]);
@@ -55,6 +57,17 @@ export function SimpleAudioRecorder({
       }
     };
   }, []);
+  
+  // Notify parent component of status changes
+  useEffect(() => {
+    if (onStatusChange) {
+      if (isRecording) {
+        onStatusChange('recording');
+      } else if (isProcessing) {
+        onStatusChange('processing');
+      }
+    }
+  }, [isRecording, isProcessing, onStatusChange]);
   
   // Load available audio devices
   const loadAudioDevices = async () => {
