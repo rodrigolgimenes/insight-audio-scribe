@@ -4,6 +4,8 @@ import { Mic, StopCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SimpleMicrophoneSelector } from "./SimpleMicrophoneSelector";
 import { toast } from "sonner";
+import { AudioDevice } from "@/hooks/recording/capture/types";
+import { toAudioDevice } from "@/hooks/capture/types";
 
 interface SimpleAudioRecorderProps {
   onTranscriptionComplete: (text: string) => void;
@@ -15,7 +17,7 @@ export function SimpleAudioRecorder({
   onError 
 }: SimpleAudioRecorderProps) {
   // Audio devices state
-  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [isLoadingDevices, setIsLoadingDevices] = useState(false);
   
@@ -59,11 +61,17 @@ export function SimpleAudioRecorder({
       const audioInputDevices = allDevices.filter(device => device.kind === 'audioinput');
       
       console.log('Found audio devices:', audioInputDevices);
-      setDevices(audioInputDevices);
+      
+      // Convert MediaDeviceInfo[] to AudioDevice[]
+      const formattedDevices: AudioDevice[] = audioInputDevices.map((device, index) => 
+        toAudioDevice(device, index === 0, index)
+      );
+      
+      setDevices(formattedDevices);
       
       // Auto-select first device if available
-      if (audioInputDevices.length > 0 && !selectedDeviceId) {
-        setSelectedDeviceId(audioInputDevices[0].deviceId);
+      if (formattedDevices.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(formattedDevices[0].deviceId);
       }
     } catch (error) {
       console.error('Error loading audio devices:', error);
