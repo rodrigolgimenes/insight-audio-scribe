@@ -26,7 +26,8 @@ export const useRecording = () => {
     isSystemAudio,
     setIsSystemAudio,
     selectedDeviceId, 
-    setSelectedDeviceId
+    setSelectedDeviceId,
+    setLastAction
   } = recordingState;
 
   // Error handling
@@ -35,8 +36,7 @@ export const useRecording = () => {
     setInitError,
     recordingAttemptsCount,
     setRecordingAttemptsCount,
-    lastAction,
-    setLastAction,
+    lastAction
   } = useRecordingError();
 
   // Merge the setLastAction into recordingState for easier access

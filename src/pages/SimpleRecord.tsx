@@ -84,7 +84,7 @@ const SimpleRecord = () => {
       
       await saveRecording(isRecording, async () => {
         const result = await handleStopRecording();
-        return result; // Return the result which contains blob and duration
+        return result;
       }, mediaStream, audioUrl, getCurrentDuration());
     } catch (error) {
       console.error('[SimpleRecord] Error in handleSave:', error);
@@ -126,7 +126,7 @@ const SimpleRecord = () => {
                     handleStartRecording={handleStartRecording}
                     handleStopRecording={async () => {
                       const result = await handleStopRecording();
-                      return;
+                      return result;
                     }}
                     handlePauseRecording={handlePauseRecording}
                     handleResumeRecording={handleResumeRecording}

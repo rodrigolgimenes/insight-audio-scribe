@@ -1,54 +1,64 @@
 
-import { useEffect } from "react";
-import { useSystemAudio } from "./useSystemAudio";
+import { useState, useCallback } from "react";
+import { useMicrophoneAccess } from "./capture/useMicrophoneAccess";
 import { usePermissions } from "./capture/usePermissions";
 import { useDeviceEnumeration } from "./capture/useDeviceEnumeration";
-import { useMicrophoneAccess } from "./capture/useMicrophoneAccess";
 import { AudioDevice } from "./capture/types";
 
-export type { AudioDevice } from "./capture/types";
-
+/**
+ * Hook for accessing and managing audio devices
+ */
 export const useAudioCapture = () => {
-  const { captureSystemAudio } = useSystemAudio();
-  const { permissionGranted, setPermissionGranted, checkPermissions } = usePermissions();
-  const { audioDevices, defaultDeviceId, getAudioDevices } = useDeviceEnumeration(checkPermissions);
-  const { requestMicrophoneAccess } = useMicrophoneAccess(checkPermissions, captureSystemAudio);
-
-  // Listen for device changes with improved error handling
-  useEffect(() => {
-    const handleDeviceChange = async () => {
-      console.log('[useAudioCapture] Media devices changed, updating device list');
+  const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
+  const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
+  
+  // Initialize permissions hook
+  const { checkPermissions } = usePermissions();
+  
+  // Initialize device enumeration hook
+  const { enumerateAudioDevices } = useDeviceEnumeration();
+  
+  // Initialize microphone access hook
+  const { requestMicrophoneAccess } = useMicrophoneAccess(
+    checkPermissions,
+    async (micStream) => {
       try {
-        await getAudioDevices();
-        console.log('[useAudioCapture] Devices updated successfully after change');
+        // This is a placeholder that will be replaced by the actual implementation
+        // from useSystemAudio.ts when the hook is used
+        console.log("[useAudioCapture] No system audio capture method provided");
+        return null;
       } catch (error) {
-        console.error('[useAudioCapture] Error updating devices on change:', error);
+        console.error("[useAudioCapture] Error in placeholder captureSystemAudio:", error);
+        return null;
       }
-    };
-
-    // Only set listener if we have permission
-    if (permissionGranted) {
-      console.log('[useAudioCapture] Setting up device change listener');
-      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-      
-      return () => {
-        console.log('[useAudioCapture] Removing device change listener');
-        navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
-      };
-    } else {
-      console.log('[useAudioCapture] Permission not granted, skipping device listener setup');
     }
-    
-    return undefined;
-  }, [permissionGranted, getAudioDevices]);
-
+  );
+  
+  // Get audio devices
+  const getAudioDevices = useCallback(async () => {
+    try {
+      console.log('[useAudioCapture] Enumerating audio devices');
+      
+      const { devices, defaultId } = await enumerateAudioDevices();
+      
+      console.log('[useAudioCapture] Found audio devices:', devices.length);
+      console.log('[useAudioCapture] Default device ID:', defaultId);
+      
+      setAudioDevices(devices);
+      setDefaultDeviceId(defaultId);
+      
+      return devices;
+    } catch (error) {
+      console.error('[useAudioCapture] Error getting audio devices:', error);
+      return [];
+    }
+  }, [enumerateAudioDevices]);
+  
   return {
-    requestMicrophoneAccess,
-    getAudioDevices,
     audioDevices,
     defaultDeviceId,
-    permissionGranted,
-    checkPermissions,
-    hasPermission: permissionGranted // Added alias for better readability
+    getAudioDevices,
+    requestMicrophoneAccess,
+    checkPermissions
   };
 };

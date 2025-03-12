@@ -1,6 +1,7 @@
 
 import { useCallback } from "react";
 import { useAudioCapture } from "./useAudioCapture";
+import { useSystemAudio } from "./useSystemAudio";
 
 /**
  * Hook for managing media stream access
@@ -9,6 +10,7 @@ export const useMediaStream = (
   setLastAction: (action: {action: string, timestamp: number, success: boolean, error?: string} | null) => void
 ) => {
   const { requestMicrophoneAccess } = useAudioCapture();
+  const { captureSystemAudio } = useSystemAudio(() => {});
 
   // Wrapper function to request access with action tracking
   const requestMicAccess = useCallback(async (deviceId: string | null, isSystemAudio: boolean) => {
@@ -19,7 +21,7 @@ export const useMediaStream = (
         success: false
       });
       
-      const stream = await requestMicrophoneAccess(deviceId, isSystemAudio);
+      const stream = await requestMicrophoneAccess(deviceId, isSystemAudio, captureSystemAudio);
       
       if (stream) {
         setLastAction({
@@ -42,7 +44,7 @@ export const useMediaStream = (
       });
       return null;
     }
-  }, [requestMicrophoneAccess, setLastAction]);
+  }, [requestMicrophoneAccess, setLastAction, captureSystemAudio]);
 
   return {
     streamManager: {
