@@ -1,8 +1,7 @@
-
 import { useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { RecordingStateType } from "../useRecordingState";
-import { AudioRecorder } from "@/utils/audio/AudioRecorder";
+import { AudioRecorder } from "@/utils/audio/audioRecorder";
 
 export function useStopRecording(
   recordingState: Pick<RecordingStateType, "setIsRecording" | "setIsPaused" | "setAudioUrl" | "setMediaStream" | "mediaStream">,

@@ -1,7 +1,6 @@
-
 import { useCallback } from "react";
 import { RecordingLogger } from "@/utils/audio/recordingLogger";
-import { AudioRecorder } from "@/utils/audio/AudioRecorder";
+import { AudioRecorder } from "@/utils/audio/audioRecorder";
 
 export function useRecorderInit(
   recorder: React.RefObject<AudioRecorder>,

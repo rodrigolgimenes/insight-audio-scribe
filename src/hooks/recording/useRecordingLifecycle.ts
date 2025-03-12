@@ -1,6 +1,5 @@
-
 import { useRef, useCallback } from "react";
-import { AudioRecorder } from "@/utils/audio/AudioRecorder";
+import { AudioRecorder } from "@/utils/audio/audioRecorder";
 import { RecordingLogger } from "@/utils/audio/recordingLogger";
 import { useRecordingState } from "./useRecordingState";
 import { useRecorderInit } from "./lifecycle/useRecorderInit";
@@ -8,7 +7,7 @@ import { useStartRecording } from "./lifecycle/useStartRecording";
 import { useStopRecording } from "./lifecycle/useStopRecording";
 import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
 import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
-import { StreamManager } from "@/utils/audio/streamManager";
+import { StreamManager } from "@/utils/audio/helpers/streamManager";
 
 export const useRecordingLifecycle = () => {
   const recordingState = useRecordingState();

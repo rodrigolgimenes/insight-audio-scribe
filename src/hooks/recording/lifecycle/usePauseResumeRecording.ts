@@ -1,7 +1,6 @@
-
 import { useCallback } from "react";
 import { RecordingStateType } from "../useRecordingState";
-import { AudioRecorder } from "@/utils/audio/AudioRecorder";
+import { AudioRecorder } from "@/utils/audio/audioRecorder";
 
 export function usePauseResumeRecording(
   recordingState: Pick<RecordingStateType, "setIsPaused">,
