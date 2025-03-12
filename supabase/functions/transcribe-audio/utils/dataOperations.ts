@@ -1,5 +1,4 @@
 
-import { updateNoteStatus } from '../supabaseClient.ts';
 import { VALID_NOTE_STATUSES, VALID_RECORDING_STATUSES } from '../constants.ts';
 
 /**
@@ -82,8 +81,8 @@ export async function updateRecordingAndNote(
       throw new Error(`Failed to update recording: ${recordingError.message}`);
     }
     
-    // Validate note status
-    let noteStatus = 'transcribed';
+    // Validate note status - using "completed" which is definitely in our allowed list
+    let noteStatus = 'completed';
     if (!VALID_NOTE_STATUSES.includes(noteStatus)) {
       console.error(`[transcribe-audio] Invalid note status: ${noteStatus}. Using 'processing' instead.`);
       noteStatus = 'processing';

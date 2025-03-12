@@ -17,9 +17,10 @@ export class ProgressTracker {
   /**
    * Validates that a status is among the allowed values
    * @param status Status to validate
-   * @returns Whether the status is valid
+   * @returns Valid status that is safe to use
    */
   private validateStatus(status: string): string {
+    // Always check against the list of valid statuses
     if (!VALID_NOTE_STATUSES.includes(status)) {
       console.error(`[transcribe-audio] Invalid status requested: ${status}. Using 'processing' instead.`);
       return 'processing'; // Fallback to a safe default value
@@ -69,9 +70,12 @@ export class ProgressTracker {
 
   /**
    * Update progress to transcribed stage
+   * Note: This must match a valid database status!
    */
   async markTranscribed() {
-    const status = this.validateStatus('transcribed');
+    // Removed 'transcribed' which isn't in VALID_NOTE_STATUSES
+    // Using 'completed' which is a valid status
+    const status = this.validateStatus('completed');
     await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBED);
   }
 

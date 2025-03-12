@@ -21,13 +21,12 @@ export const PROGRESS_STAGES = {
   COMPLETED: 100
 };
 
-// Valid status values for the notes table - these MUST match the database constraint
+// Valid status values for the notes table - MUST match exactly with the database enum constraint
 export const VALID_NOTE_STATUSES = [
   'pending',
   'processing',
   'transcribing',
   'generating_minutes',
-  'transcribed',
   'completed',
   'error'
 ];

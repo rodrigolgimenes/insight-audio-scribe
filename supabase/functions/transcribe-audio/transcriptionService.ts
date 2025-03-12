@@ -4,7 +4,7 @@ import { downloadAudioFile } from './storageClient.ts';
 import { updateRecordingAndNote } from './utils/dataOperations.ts';
 import { startMeetingMinutesGeneration } from './utils/dataOperations.ts';
 import { ProgressTracker } from './progressTracker.ts';
-import { MAX_FILE_SIZE_MB } from './constants.ts';
+import { MAX_FILE_SIZE_MB, VALID_NOTE_STATUSES } from './constants.ts';
 
 /**
  * Download and validate the audio file
@@ -82,7 +82,7 @@ export async function processTranscription(
     
     transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
     
-    // Update progress after successful transcription
+    // Update progress after successful transcription - using a definitely valid status
     await progressTracker.markTranscribed();
     
     console.log('[transcribe-audio] Transcription completed successfully, text length:', 

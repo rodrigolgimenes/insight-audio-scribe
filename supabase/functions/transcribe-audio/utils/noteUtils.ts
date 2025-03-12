@@ -119,7 +119,7 @@ export async function updateNote(
       }
     }
     
-    // Validate status before update
+    // Validate status before update - using generating_minutes which is valid
     let status = 'generating_minutes';
     if (!VALID_NOTE_STATUSES.includes(status)) {
       console.error(`[transcribe-audio] Invalid note status: ${status}. Using 'processing' instead.`);
