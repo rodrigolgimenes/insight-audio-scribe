@@ -39,7 +39,7 @@ export function SimpleMicrophoneSelector({
         type="button"
         onClick={toggleDropdown}
         disabled={disabled}
-        className="flex items-center justify-between w-full p-3 bg-white border border-gray-300 rounded-md text-left text-gray-700 shadow-sm"
+        className="flex items-center justify-between w-full p-3 bg-white border border-gray-300 rounded-md text-left text-gray-700 shadow-sm hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
       >
         <span className="truncate">
           {selectedDevice 

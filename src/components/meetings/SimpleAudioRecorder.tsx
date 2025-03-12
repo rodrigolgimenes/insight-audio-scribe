@@ -6,6 +6,7 @@ import { SimpleMicrophoneSelector } from "./SimpleMicrophoneSelector";
 import { toast } from "sonner";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { toAudioDevice } from "@/hooks/capture/types";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SimpleAudioRecorderProps {
   onTranscriptionComplete: (text: string) => void;

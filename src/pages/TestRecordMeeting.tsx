@@ -5,7 +5,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SimpleAudioRecorder } from "@/components/meetings/SimpleAudioRecorder";
-import { supabase } from "@/integrations/supabase/client";
 
 const TestRecordMeeting = () => {
   const [error, setError] = useState<string | null>(null);
