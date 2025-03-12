@@ -5,7 +5,8 @@ import { RecordControls } from "@/components/record/RecordControls";
 import { RecordStatus } from "@/components/record/RecordStatus";
 import { RecordingOptions } from "@/components/record/RecordingOptions";
 import { AudioDevice } from "@/hooks/recording/useAudioCapture";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { DiagnosticsPanel } from "@/components/record/DiagnosticsPanel";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -49,6 +50,13 @@ export const RecordingSection = ({
   // A selected microphone is required to start recording
   const canStartRecording = !!selectedDeviceId && audioDevices.length > 0;
   const hasDevices = audioDevices.length > 0;
+  const [diagnosticsVisible, setDiagnosticsVisible] = useState(true);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  // Add a log to the debug logs
+  const addLog = (message: string) => {
+    setDebugLogs(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]}: ${message}`]);
+  };
 
   // Log state changes for debugging
   useEffect(() => {
@@ -63,6 +71,15 @@ export const RecordingSection = ({
       hasDevices,
       isSystemAudio
     });
+
+    addLog(`Estado: recording=${isRecording}, paused=${isPaused}, deviceId=${selectedDeviceId?.substring(0, 8)}..., canStart=${canStartRecording}`);
+    
+    if (mediaStream) {
+      const tracks = mediaStream.getAudioTracks();
+      tracks.forEach((track, i) => {
+        addLog(`Track ${i}: ${track.label.substring(0, 20)}... (enabled=${track.enabled}, muted=${track.muted}, state=${track.readyState})`);
+      });
+    }
   }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, audioDevices.length, canStartRecording, hasDevices, isSystemAudio]);
 
   return (
@@ -98,12 +115,28 @@ export const RecordingSection = ({
           isRecording={isRecording}
           isPaused={isPaused}
           hasRecording={!!audioUrl}
-          onStartRecording={handleStartRecording}
-          onStopRecording={handleStopRecording}
-          onPauseRecording={handlePauseRecording}
-          onResumeRecording={handleResumeRecording}
-          onDelete={handleDelete}
+          onStartRecording={() => {
+            addLog("Botão de iniciar gravação clicado");
+            handleStartRecording();
+          }}
+          onStopRecording={() => {
+            addLog("Botão de parar gravação clicado");
+            handleStopRecording();
+          }}
+          onPauseRecording={() => {
+            addLog("Botão de pausar gravação clicado");
+            handlePauseRecording();
+          }}
+          onResumeRecording={() => {
+            addLog("Botão de continuar gravação clicado");
+            handleResumeRecording();
+          }}
+          onDelete={() => {
+            addLog("Botão de deletar gravação clicado");
+            handleDelete();
+          }}
           onPlay={() => {
+            addLog("Botão de reproduzir gravação clicado");
             const audio = document.querySelector('audio');
             if (audio) audio.play();
           }}
@@ -112,6 +145,28 @@ export const RecordingSection = ({
           showDeleteButton={showDeleteButton}
         />
       </div>
+
+      <DiagnosticsPanel 
+        isVisible={diagnosticsVisible}
+        onToggle={() => setDiagnosticsVisible(!diagnosticsVisible)}
+        logs={debugLogs}
+        recordingState={{
+          isRecording,
+          isPaused,
+          hasAudioUrl: !!audioUrl,
+          selectedDeviceId,
+          deviceCount: audioDevices.length,
+          deviceSelectionReady,
+          canStartRecording,
+          isSystemAudio,
+          mediaStreamInfo: mediaStream ? {
+            id: mediaStream.id,
+            active: mediaStream.active,
+            trackCount: mediaStream.getTracks().length,
+            audioTrackCount: mediaStream.getAudioTracks().length
+          } : null
+        }}
+      />
     </>
   );
 };

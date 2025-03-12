@@ -26,6 +26,7 @@ export const useRecording = () => {
   const { toast } = useToast();
   const [initError, setInitError] = useState<Error | null>(null);
   const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
+  const [lastAction, setLastAction] = useState<{action: string, timestamp: number, success: boolean} | null>(null);
 
   const {
     audioDevices,
@@ -49,6 +50,7 @@ export const useRecording = () => {
   useEffect(() => {
     if (selectedDeviceId) {
       setInitError(null);
+      console.log('[useRecording] Device selected, cleared init error');
     }
   }, [selectedDeviceId]);
 
@@ -70,6 +72,11 @@ export const useRecording = () => {
   const handleSystemAudioChange = useCallback((enabled: boolean) => {
     console.log('[useRecording] System audio setting changed to:', enabled);
     setIsSystemAudio(enabled);
+    setLastAction({
+      action: `Sistema de áudio ${enabled ? 'ativado' : 'desativado'}`,
+      timestamp: Date.now(),
+      success: true
+    });
   }, [setIsSystemAudio]);
 
   const handleStartRecording = useCallback(() => {
@@ -77,6 +84,13 @@ export const useRecording = () => {
     
     // Increment attempts counter for debugging
     setRecordingAttemptsCount(prev => prev + 1);
+    
+    // Set start action record
+    setLastAction({
+      action: 'Iniciar gravação',
+      timestamp: Date.now(),
+      success: false // Will be updated if successful
+    });
     
     if (!selectedDeviceId) {
       console.error('[useRecording] No device selected');
@@ -90,6 +104,13 @@ export const useRecording = () => {
     
     try {
       startRecording(selectedDeviceId);
+      
+      // Update the action record if we get this far without errors
+      setTimeout(() => {
+        if (isRecording) {
+          setLastAction(prev => prev ? {...prev, success: true} : null);
+        }
+      }, 500);
     } catch (error) {
       console.error('[useRecording] Error starting recording:', error);
       toast({
@@ -98,12 +119,20 @@ export const useRecording = () => {
         variant: "destructive",
       });
     }
-  }, [selectedDeviceId, startRecording, toast]);
+  }, [selectedDeviceId, startRecording, toast, isRecording]);
 
   const handleStopRecording = useCallback(async () => {
     console.log('[useRecording] Stopping recording');
+    setLastAction({
+      action: 'Parar gravação',
+      timestamp: Date.now(),
+      success: false
+    });
+    
     try {
-      return await stopRecording();
+      const result = await stopRecording();
+      setLastAction(prev => prev ? {...prev, success: true} : null);
+      return result;
     } catch (error) {
       console.error('[useRecording] Error stopping recording:', error);
       toast({
@@ -125,9 +154,22 @@ export const useRecording = () => {
       selectedDeviceId,
       deviceSelectionReady,
       recordingAttemptsCount,
-      isSystemAudio
+      isSystemAudio,
+      lastAction
     });
-  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady, recordingAttemptsCount, isSystemAudio]);
+    
+    // Add console logs to see browser support for MediaRecorder
+    if (typeof window !== 'undefined') {
+      console.log('[useRecording] MediaRecorder supported:', 'MediaRecorder' in window);
+      if ('MediaRecorder' in window) {
+        console.log('[useRecording] MediaRecorder.isTypeSupported:', 
+          'audio/webm;codecs=opus', MediaRecorder.isTypeSupported('audio/webm;codecs=opus'),
+          'audio/webm', MediaRecorder.isTypeSupported('audio/webm'),
+          'audio/mp4', MediaRecorder.isTypeSupported('audio/mp4')
+        );
+      }
+    }
+  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, deviceSelectionReady, recordingAttemptsCount, isSystemAudio, lastAction]);
 
   return {
     isRecording,
@@ -150,6 +192,7 @@ export const useRecording = () => {
     deviceSelectionReady,
     getCurrentDuration,
     initError,
-    recordingAttemptsCount
+    recordingAttemptsCount,
+    lastAction
   };
 };

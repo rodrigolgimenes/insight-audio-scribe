@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Pause, Play, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface RecordControlsProps {
   isRecording: boolean;
@@ -33,6 +34,8 @@ export function RecordControls({
   showDeleteButton = true,
 }: RecordControlsProps) {
   const [buttonState, setButtonState] = useState<'idle' | 'recording' | 'paused'>('idle');
+  const [buttonClickCount, setButtonClickCount] = useState(0);
+  const [showDebugInfo, setShowDebugInfo] = useState(true);
 
   // Update button state based on props
   useEffect(() => {
@@ -54,6 +57,7 @@ export function RecordControls({
   // Start recording handler
   const handleStartClick = () => {
     console.log('[RecordControls] Start button clicked, disabled:', disabled);
+    setButtonClickCount(prev => prev + 1);
     if (!disabled) {
       onStartRecording();
     }
@@ -61,13 +65,42 @@ export function RecordControls({
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {showDebugInfo && (
+        <div className="w-full mb-4 p-3 bg-gray-50 rounded-md border border-gray-200 text-xs">
+          <div className="flex justify-between mb-2">
+            <h4 className="font-semibold">Status do Botão:</h4>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-5 text-xs px-2 py-0"
+              onClick={() => setShowDebugInfo(false)}
+            >
+              Ocultar
+            </Button>
+          </div>
+          <div className="space-y-1">
+            <p><span className="font-medium">Estado:</span> {buttonState} ({isRecording ? 'gravando' : 'não gravando'})</p>
+            <p><span className="font-medium">Desabilitado:</span> {disabled ? 'Sim' : 'Não'}</p>
+            <p><span className="font-medium">Cliques botão:</span> {buttonClickCount}</p>
+            <div className="flex gap-2 mt-2">
+              <Badge variant={disabled ? "destructive" : "outline"}>
+                {disabled ? 'Botão Desabilitado' : 'Botão Habilitado'}
+              </Badge>
+              <Badge variant={buttonState === 'idle' ? "default" : "secondary"}>
+                {buttonState === 'idle' ? 'Pronto para Gravar' : 'Gravando'}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-center space-x-4">
         {buttonState === 'idle' && (
           <Button
             type="button"
             size="icon"
             variant="outline"
-            className={`h-16 w-16 rounded-full ${
+            className={`h-16 w-16 rounded-full relative ${
               disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#4285F4] text-white hover:bg-[#3367D6] focus:ring-2 focus:ring-[#3367D6] focus:ring-offset-2'
             }`}
             onClick={handleStartClick}
@@ -75,6 +108,11 @@ export function RecordControls({
             aria-label="Iniciar Gravação"
           >
             <Mic className="h-8 w-8" />
+            {disabled && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-full">
+                <span className="text-xs text-white font-medium px-1">Desabilitado</span>
+              </div>
+            )}
           </Button>
         )}
 

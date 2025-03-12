@@ -5,6 +5,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 export function RecordingSheet() {
   const { toast } = useToast();
@@ -27,7 +29,10 @@ export function RecordingSheet() {
     setSelectedDeviceId,
     handleSaveRecording,
     handleDelete,
-    deviceSelectionReady
+    deviceSelectionReady,
+    recordingAttemptsCount,
+    initError,
+    lastAction
   } = useRecording();
 
   // Log component state for debugging
@@ -38,9 +43,11 @@ export function RecordingSheet() {
       audioUrl: audioUrl ? 'exists' : 'null',
       deviceSelectionReady,
       selectedDeviceId,
-      audioDevices: audioDevices.length
+      audioDevices: audioDevices.length,
+      recordingAttemptsCount,
+      hasInitError: !!initError
     });
-  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length]);
+  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, audioDevices.length, recordingAttemptsCount, initError]);
 
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
@@ -49,6 +56,32 @@ export function RecordingSheet() {
           <h2 className="text-lg font-semibold mb-2">Record Audio</h2>
           <p className="text-sm text-gray-500">Record audio from your microphone or system audio.</p>
         </div>
+
+        {initError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Error initializing recording: {initError.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {recordingAttemptsCount > 0 && !isRecording && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Tentativas de iniciar gravação: {recordingAttemptsCount}
+              {lastAction && (
+                <div className="text-xs mt-1">
+                  Última ação: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
+                  {lastAction.success ? 
+                    <span className="text-green-600"> Sucesso</span> : 
+                    <span className="text-red-600"> Falha</span>}
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <RecordingSection
           isRecording={isRecording}
