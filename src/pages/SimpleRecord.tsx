@@ -8,7 +8,6 @@ import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
 import { RecordingActions } from "@/components/record/RecordingActions";
-import { RecordActions } from "@/components/record/RecordActions";
 import { useFileUpload } from "@/hooks"; 
 import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 
@@ -114,16 +113,6 @@ const SimpleRecord = () => {
                     showPlayButton={false}
                     showDeleteButton={true}
                   />
-
-                  <div className="mt-8 flex justify-center">
-                    <RecordActions
-                      onSave={handleSave}
-                      isSaving={isLoading}
-                      isRecording={isRecording}
-                      keepAudio={keepAudio}
-                      onKeepAudioChange={setKeepAudio}
-                    />
-                  </div>
 
                   <RecordingActions
                     onSave={handleSave}
