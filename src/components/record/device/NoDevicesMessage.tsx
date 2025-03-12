@@ -1,28 +1,32 @@
 
 import React from "react";
-import { Mic } from "lucide-react";
+import { Mic, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NoDevicesMessageProps {
   showWarning: boolean;
   onRefresh?: () => void;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
+  audioDevices?: Array<any>; // For debugging purposes
 }
 
 export function NoDevicesMessage({ 
   showWarning,
   onRefresh,
-  permissionState = 'unknown'
+  permissionState = 'unknown',
+  audioDevices = []
 }: NoDevicesMessageProps) {
-  // Log when this component shows a warning
+  // Log when this component shows a warning with extended info
   React.useEffect(() => {
     if (showWarning) {
-      console.log('[NoDevicesMessage] Showing no devices warning with permission state:', {
+      console.log('[NoDevicesMessage] Showing no devices warning with detailed state:', {
         permissionState,
+        showWarning,
+        audioDevicesCount: audioDevices.length,
         timestamp: new Date().toISOString()
       });
     }
-  }, [showWarning, permissionState]);
+  }, [showWarning, permissionState, audioDevices]);
   
   if (!showWarning) return null;
   
@@ -48,12 +52,15 @@ export function NoDevicesMessage({
           variant="outline" 
           size="sm" 
           onClick={() => {
-            console.log('[NoDevicesMessage] Scan button clicked with permission state:', permissionState);
+            console.log('[NoDevicesMessage] Manual refresh button clicked with state:', {
+              permissionState,
+              audioDevicesCount: audioDevices.length
+            });
             onRefresh();
           }}
           className="bg-white border-amber-300 text-amber-700 hover:bg-amber-100"
         >
-          <Mic className="w-4 h-4 mr-2" />
+          <RefreshCw className="w-4 h-4 mr-2" />
           Scan for Microphones
         </Button>
       )}

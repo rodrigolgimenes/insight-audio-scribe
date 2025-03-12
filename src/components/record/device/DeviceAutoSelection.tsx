@@ -1,6 +1,7 @@
 
 import React, { useEffect } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { toast } from "sonner";
 
 interface DeviceAutoSelectionProps {
   deviceList: AudioDevice[] | MediaDeviceInfo[];
@@ -17,6 +18,14 @@ export function DeviceAutoSelection({
   hasAttemptedSelection,
   setHasAttemptedSelection
 }: DeviceAutoSelectionProps) {
+  // Log component state on every render
+  console.log('[DeviceAutoSelection RENDER]', {
+    deviceCount: deviceList.length, 
+    selectedDeviceId,
+    hasAttemptedSelection,
+    deviceList: deviceList.map(d => ({id: d.deviceId, label: 'deviceId' in d && d.label ? d.label : 'No label'}))
+  });
+  
   // Auto-selection logic
   useEffect(() => {
     // If we have devices but no selection has been made
@@ -28,11 +37,19 @@ export function DeviceAutoSelection({
       
       if (firstDeviceId) {
         console.log('[DeviceAutoSelection] Auto-selecting device:', firstDeviceId);
+        
+        // Show notification for better user feedback
+        toast.success("Automatically selected microphone", {
+          id: "auto-device-selection"
+        });
+        
+        // Select device and mark selection as attempted
         onDeviceSelect(firstDeviceId);
         setHasAttemptedSelection(true);
       }
     } 
-    // If the selected device doesn't exist in the list anymore
+    // Only check for missing device if we have already selected a device
+    // This prevents clearing the selection when it's null
     else if (deviceList.length > 0 && selectedDeviceId) {
       const deviceExists = deviceList.some(device => device.deviceId === selectedDeviceId);
       
@@ -41,6 +58,11 @@ export function DeviceAutoSelection({
         const firstDeviceId = deviceList[0].deviceId;
         
         if (firstDeviceId) {
+          // Show notification
+          toast.info("Selected device no longer available, switching microphone", {
+            id: "device-replacement"
+          });
+          
           onDeviceSelect(firstDeviceId);
         }
       }

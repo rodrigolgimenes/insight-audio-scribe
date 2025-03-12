@@ -51,19 +51,22 @@ export function DeviceSelector({
     handleRequestPermission
   } = useDeviceSelection(onRefreshDevices, permissionState);
   
+  // Calculate device count safely
+  const deviceCount = Array.isArray(audioDevices) ? audioDevices.length : 0;
+  
   // CRITICALLY IMPORTANT: Log detailed device information on EVERY render
   console.log('[DeviceSelector RENDER]', {
     compName: 'DeviceSelector',
-    deviceCount: audioDevices.length,
+    deviceCount: deviceCount,
     permissionState,
     permissionStatus,
     isReady,
     devicesLoading,
     selectedDeviceId,
-    devices: audioDevices.map(d => ({
+    devices: Array.isArray(audioDevices) ? audioDevices.map(d => ({
       id: d.deviceId,
       label: d.label || 'No label'
-    })),
+    })) : 'Invalid device list',
     timestamp: new Date().toISOString()
   });
   
@@ -71,13 +74,13 @@ export function DeviceSelector({
   useEffect(() => {
     console.log('[DeviceSelector] Device list updated:', {
       compName: 'DeviceSelector',
-      deviceCount: audioDevices.length,
+      deviceCount: deviceCount,
       permissionState,
       localPermissionStatus: permissionStatus,
-      devices: audioDevices.map(d => ({
+      devices: Array.isArray(audioDevices) ? audioDevices.map(d => ({
         id: d.deviceId,
         label: d.label || 'No label'
-      })),
+      })) : 'Invalid device list',
       timestamp: new Date().toISOString()
     });
     
@@ -85,13 +88,13 @@ export function DeviceSelector({
     setForceRenderKey(prev => prev + 1);
     
     // Show toast when devices change
-    if (audioDevices.length > 0) {
-      toast.success(`Found ${audioDevices.length} microphone(s)`, {
+    if (deviceCount > 0) {
+      toast.success(`Found ${deviceCount} microphone(s)`, {
         id: "device-list-updated",
         duration: 3000
       });
     }
-  }, [audioDevices, permissionState, permissionStatus]);
+  }, [audioDevices, permissionState, permissionStatus, deviceCount]);
   
   // Improved device change handler with validation and debugging
   const handleDeviceChange = (value: string) => {
@@ -108,11 +111,11 @@ export function DeviceSelector({
     });
     
     // Validate device exists in list
-    const deviceExists = audioDevices.some(d => d && d.deviceId === value);
+    const deviceExists = Array.isArray(audioDevices) && audioDevices.some(d => d && d.deviceId === value);
     if (!deviceExists) {
       console.error('[DeviceSelector] Selected device not in device list!', {
         selectedValue: value,
-        availableDevices: audioDevices.map(d => d.deviceId)
+        availableDevices: Array.isArray(audioDevices) ? audioDevices.map(d => d.deviceId) : 'No devices'
       });
       
       toast.error("Device selection error", {
@@ -151,7 +154,7 @@ export function DeviceSelector({
 
   // If selected device is not in the list but we have devices, select the first one
   useEffect(() => {
-    if (audioDevices.length > 0 && selectedDeviceId) {
+    if (deviceCount > 0 && selectedDeviceId) {
       const deviceExists = audioDevices.some(d => d && d.deviceId === selectedDeviceId);
       
       if (!deviceExists) {
@@ -171,15 +174,14 @@ export function DeviceSelector({
         }
       }
     }
-  }, [audioDevices, selectedDeviceId, selectionTime, onDeviceSelect]);
+  }, [audioDevices, selectedDeviceId, selectionTime, onDeviceSelect, deviceCount]);
 
   // Use our hook for auto-refresh
-  const deviceCount = audioDevices.length;
   useDeviceAutoRefresh(deviceCount, devicesLoading, onRefreshDevices);
   
   // Debug info
   const debugInfo = {
-    hasDevices: audioDevices.length > 0,
+    hasDevices: deviceCount > 0,
     deviceCount,
     selectedDevice: selectedDeviceId,
     permissionRequested: !!permissionStatus
@@ -189,12 +191,12 @@ export function DeviceSelector({
   const isSelectDisabled = 
     disabled || 
     permissionState === 'denied' || 
-    (audioDevices.length === 0 && !devicesLoading); // Allow interaction during loading
+    (deviceCount === 0 && !devicesLoading); // Allow interaction during loading
 
   // Find selected device name for display
   let selectedDeviceName = "Select a microphone";
   
-  if (selectedDeviceId && audioDevices.length > 0) {
+  if (selectedDeviceId && deviceCount > 0) {
     const selectedDevice = audioDevices.find(d => d && d.deviceId === selectedDeviceId);
     if (selectedDevice) {
       selectedDeviceName = formatDeviceLabel(selectedDevice, 0);
@@ -232,9 +234,10 @@ export function DeviceSelector({
         />
       </div>
       
-      {/* Source debugging info - IMPORTANT */}
+      {/* Source debugging info - CRITICAL */}
       <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
         <div><strong>Devices:</strong> {deviceCount} found | <strong>Permission:</strong> {permissionState} | <strong>Local Permission:</strong> {permissionStatus}</div>
+        <div><strong>Device Selection Ready:</strong> {isReady ? 'Yes' : 'No'} | <strong>Loading:</strong> {devicesLoading ? 'Yes' : 'No'}</div>
       </div>
 
       {/* Auto-selection logic - only show when permission granted */}
@@ -274,6 +277,7 @@ export function DeviceSelector({
         showWarning={showNoDevicesWarning} 
         onRefresh={onRefreshDevices}
         permissionState={permissionState}
+        audioDevices={audioDevices}
       />
       
       <DeviceDebugInfo 
@@ -281,6 +285,7 @@ export function DeviceSelector({
         selectedDeviceId={selectedDeviceId} 
         isLoading={devicesLoading}
         permissionState={permissionState}
+        showDetails={true}
       />
     </div>
   );

@@ -31,32 +31,31 @@ export function RecordingOptions({
   permissionState = 'unknown'
 }: RecordingOptionsProps) {
   const [language, setLanguage] = useState("en");
-  const hasDevices = audioDevices.length > 0;
-
+  
   // Add logging to track device and permission states
   useEffect(() => {
     console.log('[RecordingOptions] State updated:', {
-      compName: 'RecordingOptions',
+      compName: 'RecordingOptions-sections',
       audioDevicesCount: audioDevices.length,
       selectedDeviceId,
       deviceSelectionReady,
       permissionState,
-      hasDevices,
+      hasDevices: audioDevices.length > 0,
       devicesLoading,
       timestamp: new Date().toISOString(),
       deviceDetails: audioDevices.map(d => ({ id: d.deviceId, label: d.label || 'No label' }))
     });
     
     // If permission is granted but we have no devices, try refreshing
-    if (permissionState === 'granted' && !hasDevices && onRefreshDevices && !devicesLoading) {
+    if (permissionState === 'granted' && audioDevices.length === 0 && onRefreshDevices && !devicesLoading) {
       console.log('[RecordingOptions] Permission granted but no devices, triggering refresh');
       onRefreshDevices();
     }
-  }, [audioDevices, selectedDeviceId, deviceSelectionReady, permissionState, hasDevices, devicesLoading, onRefreshDevices]);
+  }, [audioDevices, selectedDeviceId, deviceSelectionReady, permissionState, devicesLoading, onRefreshDevices]);
 
   // Log on every render for consistency
   console.log('[RecordingOptions RENDER]', {
-    compName: 'RecordingOptions',
+    compName: 'RecordingOptions-sections',
     audioDevicesCount: audioDevices.length,
     permissionState,
     deviceSelectionReady,
