@@ -1,7 +1,7 @@
 
 import { MicrophoneSelector as UnifiedMicrophoneSelector } from "@/components/device/MicrophoneSelector";
 
-// This is a compatibility wrapper to maintain existing imports
+// Este é um wrapper de compatibilidade para manter imports existentes
 export function MicrophoneSelector(props: { disabled?: boolean; className?: string }) {
   return <UnifiedMicrophoneSelector {...props} />;
 }

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,8 +7,18 @@ import { toast } from "sonner";
 import { Mic, MicOff, RefreshCw, AlertCircle } from "lucide-react";
 
 export function UnifiedRecordingSection() {
-  const { selectedDeviceId, permissionState, refreshDevices } = useDeviceManager();
+  const { selectedDeviceId, permissionState, refreshDevices, devices } = useDeviceManager();
   const [isRecording, setIsRecording] = React.useState(false);
+
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log("[UnifiedRecordingSection] Device state update:", {
+      selectedDeviceId,
+      permissionState,
+      devicesCount: devices.length,
+      devicesList: devices.map(d => ({ id: d.deviceId, label: d.label }))
+    });
+  }, [selectedDeviceId, permissionState, devices]);
 
   const handleStartRecording = async () => {
     if (!selectedDeviceId) {
@@ -24,7 +34,7 @@ export function UnifiedRecordingSection() {
         description: "Using selected microphone"
       });
       
-      // In a real implementation, you would start recording with the selected device
+      // Em uma implementação real, você iniciaria a gravação com o dispositivo selecionado
       console.log(`[UnifiedRecordingSection] Started recording with device ID: ${selectedDeviceId}`);
     } catch (error) {
       console.error('[UnifiedRecordingSection] Error starting recording:', error);
@@ -39,11 +49,11 @@ export function UnifiedRecordingSection() {
     setIsRecording(false);
     toast.info("Recording stopped");
     
-    // In a real implementation, you would stop the recording here
+    // Em uma implementação real, você pararia a gravação aqui
     console.log('[UnifiedRecordingSection] Stopped recording');
   };
 
-  const canRecord = permissionState === 'granted' && selectedDeviceId;
+  const canRecord = permissionState === 'granted' && !!selectedDeviceId;
 
   return (
     <Card className="mb-8">

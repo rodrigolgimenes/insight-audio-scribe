@@ -1,11 +1,21 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function DebugMicrophonePanel() {
   const { permissionState, devices, selectedDeviceId } = useDeviceManager();
+
+  // Log state changes para depuração
+  useEffect(() => {
+    console.log("[DebugMicrophonePanel] State update:", {
+      permissionState,
+      selectedDeviceId,
+      devicesCount: devices.length,
+      devicesList: devices.map(d => ({ id: d.deviceId, label: d.label }))
+    });
+  }, [permissionState, selectedDeviceId, devices]);
 
   return (
     <Card>
