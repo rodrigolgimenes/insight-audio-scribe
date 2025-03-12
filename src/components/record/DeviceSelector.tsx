@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
@@ -77,7 +77,7 @@ export function DeviceSelector({
   };
 
   // Log state changes
-  React.useEffect(() => {
+  useEffect(() => {
     console.log('[DeviceSelector] Component state updated:', {
       selectedDeviceId,
       deviceCount: deviceList.length,
@@ -85,6 +85,15 @@ export function DeviceSelector({
       permissionState,
       hasAttemptedSelection
     });
+    
+    // Validate device selection to ensure it exists in device list
+    if (selectedDeviceId && deviceList.length > 0) {
+      const deviceExists = deviceList.some(d => d && d.deviceId === selectedDeviceId);
+      console.log('[DeviceSelector] Selected device validation:', {
+        deviceExists,
+        selectedDeviceId
+      });
+    }
   }, [selectedDeviceId, deviceList.length, isReady, permissionState, hasAttemptedSelection]);
 
   // Use our extracted hook for auto-refresh logic
@@ -139,13 +148,15 @@ export function DeviceSelector({
       </div>
 
       {/* This component handles auto-selection logic */}
-      <DeviceAutoSelection
-        deviceList={deviceList}
-        selectedDeviceId={selectedDeviceId}
-        onDeviceSelect={onDeviceSelect}
-        hasAttemptedSelection={hasAttemptedSelection}
-        setHasAttemptedSelection={setHasAttemptedSelection}
-      />
+      {permissionState === 'granted' && (
+        <DeviceAutoSelection
+          deviceList={deviceList}
+          selectedDeviceId={selectedDeviceId}
+          onDeviceSelect={onDeviceSelect}
+          hasAttemptedSelection={hasAttemptedSelection}
+          setHasAttemptedSelection={setHasAttemptedSelection}
+        />
+      )}
 
       {showPermissionRequest ? (
         <DevicePermissionRequest 
