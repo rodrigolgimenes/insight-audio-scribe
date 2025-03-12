@@ -1,14 +1,11 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAudioCapture } from "./useAudioCapture";
-import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 
 export const useDeviceSelection = () => {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
   const { getAudioDevices, audioDevices, defaultDeviceId, requestMicrophoneAccess, checkPermissions } = useAudioCapture();
-  const { toast: legacyToast } = useToast();
   const deviceInitializationAttempted = useRef(false);
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
@@ -51,10 +48,7 @@ export const useDeviceSelection = () => {
         
         if (devices.length === 0) {
           console.warn('[useDeviceSelection] No audio devices found');
-          toast({
-            title: "Warning",
-            description: "No microphones found. Please connect a microphone and try again."
-          });
+          toast("No microphones found. Please connect a microphone and try again.");
           setDeviceSelectionReady(false);
         } else if (defaultDeviceId) {
           // Auto-select the default device if available
@@ -71,16 +65,13 @@ export const useDeviceSelection = () => {
         }
       } catch (error) {
         console.error('[useDeviceSelection] Error initializing devices:', error);
-        toast({
-          title: "Error",
-          description: "Failed to access audio devices. Check browser permissions."
-        });
+        toast("Failed to access audio devices. Check browser permissions.");
         setDeviceSelectionReady(false);
       }
     };
     
     initDevices();
-  }, [getAudioDevices, toast, handleDeviceSelect, defaultDeviceId, checkPermissions]);
+  }, [getAudioDevices, handleDeviceSelect, defaultDeviceId, checkPermissions]);
 
   // Reset selection if selected device is no longer available
   useEffect(() => {
