@@ -1,9 +1,9 @@
 
 import { useState, useCallback, useEffect } from "react";
-import { useMicrophoneAccess } from "./capture/useMicrophoneAccess";
-import { usePermissions } from "./capture/usePermissions";
-import { useDeviceEnumeration } from "./capture/useDeviceEnumeration";
-import { AudioDevice } from "./capture/types";
+import { useMicrophoneAccess } from "./recording/capture/useMicrophoneAccess";
+import { usePermissions } from "./recording/capture/usePermissions";
+import { useDeviceEnumeration } from "./recording/capture/useDeviceEnumeration";
+import { AudioDevice } from "./recording/capture/types";
 import { toast } from "sonner";
 
 /**
