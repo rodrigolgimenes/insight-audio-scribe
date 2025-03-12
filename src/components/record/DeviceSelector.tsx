@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { toast } from "sonner";
 import { DeviceSelectorLabel } from "./DeviceSelectorLabel";
 import { DeviceDebugInfo } from "./DeviceDebugInfo";
 import { formatDeviceLabel } from "./utils/deviceFormatters";
-import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { DeviceSelectTrigger } from "./device/DeviceSelectTrigger";
+import { DeviceSelectContent } from "./device/DeviceSelectContent";
+import { RefreshDevicesButton } from "./device/RefreshDevicesButton";
+import { NoDevicesMessage } from "./device/NoDevicesMessage";
 
 interface DeviceSelectorProps {
   devices?: MediaDeviceInfo[];
@@ -132,14 +132,6 @@ export function DeviceSelector({
     }
   };
 
-  // Handle refresh click
-  const handleRefresh = () => {
-    if (onRefreshDevices) {
-      console.log('[DeviceSelector] Refreshing devices...');
-      onRefreshDevices();
-    }
-  };
-
   // Safely get device count
   const deviceCount = Array.isArray(deviceList) ? deviceList.length : 0;
 
@@ -160,18 +152,7 @@ export function DeviceSelector({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <DeviceSelectorLabel permissionStatus={permissionStatus} />
-        
-        {onRefreshDevices && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleRefresh} 
-            className="h-7 px-2"
-          >
-            <RefreshCw className="h-3.5 w-3.5 mr-1" />
-            <span className="text-xs">Refresh</span>
-          </Button>
-        )}
+        <RefreshDevicesButton onRefreshDevices={onRefreshDevices} />
       </div>
 
       <Select
@@ -179,52 +160,14 @@ export function DeviceSelector({
         onValueChange={handleDeviceChange}
         disabled={isSelectDisabled}
       >
-        <SelectTrigger 
-          className={cn(
-            "w-full",
-            isSelectDisabled && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          <SelectValue placeholder="Select a microphone">
-            {selectedDeviceName}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent className="max-h-[200px] overflow-y-auto bg-white">
-          {!Array.isArray(deviceList) || deviceList.length === 0 ? (
-            <SelectItem value="no-devices" disabled>
-              No microphones found
-            </SelectItem>
-          ) : (
-            deviceList.map((device, index) => {
-              // Comprehensive safety check for the device object
-              if (!device || typeof device !== 'object') {
-                return null;
-              }
-              
-              // Safely extract deviceId with fallbacks
-              const deviceId = device.deviceId || `unknown-${index}`;
-              
-              // Format the label properly
-              const label = formatDeviceLabel(device, index);
-              
-              return (
-                <SelectItem 
-                  key={deviceId} 
-                  value={deviceId}
-                >
-                  {label}
-                </SelectItem>
-              );
-            })
-          )}
-        </SelectContent>
+        <DeviceSelectTrigger 
+          selectedDeviceName={selectedDeviceName}
+          isDisabled={isSelectDisabled}
+        />
+        <DeviceSelectContent deviceList={deviceList} />
       </Select>
       
-      {showNoDevicesWarning && (
-        <div className="text-amber-500 text-xs mt-1">
-          No microphones detected. Please connect a microphone and refresh.
-        </div>
-      )}
+      <NoDevicesMessage showWarning={showNoDevicesWarning} />
       
       <DeviceDebugInfo 
         deviceCount={deviceCount} 
