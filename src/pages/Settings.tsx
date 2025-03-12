@@ -7,9 +7,9 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 const Settings = () => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-ghost-white">
         <AppSidebar activePage="settings" />
-        <div className="flex-1">
+        <div className="flex-1 bg-ghost-white">
           <div className="p-6">
             <SettingsContent />
           </div>

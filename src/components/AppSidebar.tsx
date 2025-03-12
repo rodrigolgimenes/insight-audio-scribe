@@ -64,7 +64,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
                       data-active={isActive}
                       onClick={() => navigate(item.href)}
                     >
-                      <button>
+                      <button className="bg-white">
                         <item.icon className={isActive ? "text-palatinate-blue" : ""} />
                         <span className={isActive ? "text-palatinate-blue" : ""}>{item.label}</span>
                       </button>

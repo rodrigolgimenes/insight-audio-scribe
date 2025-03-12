@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -60,9 +59,9 @@ const Dashboard = () => {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-gray-50 overflow-hidden">
+      <div className="flex h-screen w-full bg-ghost-white overflow-hidden">
         <AppSidebar activePage="notes" />
-        <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        <main className="flex-1 flex flex-col min-h-screen overflow-hidden bg-ghost-white">
           <DashboardHeader 
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
@@ -83,7 +82,7 @@ const Dashboard = () => {
           </div>
 
           {selectedNotes.length > 0 && (
-            <div className="fixed bottom-0 left-[280px] right-0">
+            <div className="fixed bottom-0 left-[280px] right-0 bg-ghost-white">
               <BulkActions
                 selectedCount={selectedNotes.length}
                 onExport={() => setIsFolderDialogOpen(true)}

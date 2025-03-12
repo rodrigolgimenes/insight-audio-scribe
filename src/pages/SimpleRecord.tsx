@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -101,7 +100,7 @@ const SimpleRecord = () => {
       <SidebarProvider>
         <div className="min-h-screen flex w-full bg-ghost-white">
           <AppSidebar activePage="recorder" />
-          <div className="flex-1">
+          <div className="flex-1 bg-ghost-white">
             <main className="container mx-auto px-4 py-8">
               <SimpleRecordContent
                 recordingHook={recordingHook}
