@@ -1,17 +1,10 @@
 
-// Main entry point for audio recording functionality
-import { AudioRecorderImpl } from './AudioRecorderImpl';
+import { BaseRecorder } from './core/BaseRecorder';
+import type { IAudioRecorder } from './interfaces/IAudioRecorder';
 
-// Export the implementation class as AudioRecorder
-export class AudioRecorder extends AudioRecorderImpl {}
-
-// Export related types for use in other files
-export type { 
-  RecordingResult, 
-  RecordingStats, 
-  RecordingObserver, 
-  RecordingEvent 
-} from './types/audioRecorderTypes';
-
-// Export the interface
-export type { IAudioRecorder } from './interfaces/IAudioRecorder';
+// Extend the BaseRecorder to implement our interface
+export class AudioRecorder extends BaseRecorder implements IAudioRecorder {
+  constructor() {
+    super();
+  }
+}

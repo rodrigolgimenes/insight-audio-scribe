@@ -1,39 +1,49 @@
 
-import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { RecordTimer } from "@/components/record/RecordTimer";
-import { RecordControls } from "@/components/record/RecordControls";
-import { RecordStatus } from "@/components/record/RecordStatus";
-import { RecordingOptions } from "@/components/record/RecordingOptions";
-import { AudioDevice } from "@/hooks/recording/useAudioCapture";
-import { useEffect, useState } from "react";
-import { DiagnosticsPanel } from "@/components/record/DiagnosticsPanel";
+import React, { useState, useEffect } from "react";
+import { RecordHeader } from "./RecordHeader";
+import { RecordTimer } from "./RecordTimer";
+import { RecordControls } from "./RecordControls";
+import { AudioVisualizer } from "./AudioVisualizer";
+import { DeviceSelector } from "./DeviceSelector";
+import { SystemAudioToggle } from "./SystemAudioToggle";
+import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 
 interface RecordingSectionProps {
   isRecording: boolean;
   isPaused: boolean;
   audioUrl: string | null;
   mediaStream: MediaStream | null;
-  isSystemAudio: boolean;
+  isSystemAudio?: boolean;
   handleStartRecording: () => void;
-  handleStopRecording: () => void | Promise<void>;
+  handleStopRecording: () => void;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
-  handleDelete: () => void;
-  onSystemAudioChange: (enabled: boolean) => void;
-  audioDevices: AudioDevice[];
+  handleDelete?: () => void;
+  onSystemAudioChange?: (isSystemAudio: boolean) => void;
+  audioDevices: MediaDeviceInfo[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
-  deviceSelectionReady?: boolean;
+  deviceSelectionReady: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
+  showDiagnosticsPanel?: boolean;
+  lastAction?: { 
+    action: string; 
+    timestamp: number; 
+    success: boolean;
+    error?: string;
+  };
+  onRefreshDevices?: () => void;
 }
 
-export const RecordingSection = ({
+export function RecordingSection({
   isRecording,
   isPaused,
   audioUrl,
   mediaStream,
-  isSystemAudio,
+  isSystemAudio = false,
   handleStartRecording,
   handleStopRecording,
   handlePauseRecording,
@@ -43,130 +53,99 @@ export const RecordingSection = ({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
-  deviceSelectionReady = false,
+  deviceSelectionReady,
   showPlayButton = true,
-  showDeleteButton = true,
-}: RecordingSectionProps) => {
-  // A selected microphone is required to start recording
-  const canStartRecording = !!selectedDeviceId && audioDevices.length > 0;
-  const hasDevices = audioDevices.length > 0;
-  const [diagnosticsVisible, setDiagnosticsVisible] = useState(true);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  showDeleteButton = false,
+  showDiagnosticsPanel = true,
+  lastAction,
+  onRefreshDevices,
+}: RecordingSectionProps) {
+  const [showDetails, setShowDetails] = useState(false);
 
-  // Add a log to the debug logs
-  const addLog = (message: string) => {
-    setDebugLogs(prev => [...prev, `${new Date().toISOString().split('T')[1].split('.')[0]}: ${message}`]);
-  };
-
-  // Log state changes for debugging
   useEffect(() => {
-    console.log('[RecordingSection] State updated:', {
-      isRecording,
-      isPaused,
-      hasAudioUrl: !!audioUrl,
-      hasStream: !!mediaStream,
-      selectedDeviceId,
-      deviceCount: audioDevices.length,
-      canStartRecording,
-      hasDevices,
-      isSystemAudio
+    console.log('[RecordingSection] Props updated:', { 
+      isRecording, 
+      isPaused, 
+      hasAudioUrl: !!audioUrl, 
+      hasMediaStream: !!mediaStream,
+      deviceSelectionReady,
+      deviceCount: audioDevices.length 
     });
-
-    addLog(`Estado: recording=${isRecording}, paused=${isPaused}, deviceId=${selectedDeviceId?.substring(0, 8)}..., canStart=${canStartRecording}`);
-    
-    if (mediaStream) {
-      const tracks = mediaStream.getAudioTracks();
-      tracks.forEach((track, i) => {
-        addLog(`Track ${i}: ${track.label.substring(0, 20)}... (enabled=${track.enabled}, muted=${track.muted}, state=${track.readyState})`);
-      });
-    }
-  }, [isRecording, isPaused, audioUrl, mediaStream, selectedDeviceId, audioDevices.length, canStartRecording, hasDevices, isSystemAudio]);
+  }, [isRecording, isPaused, audioUrl, mediaStream, deviceSelectionReady, audioDevices]);
 
   return (
-    <>
-      <RecordStatus isRecording={isRecording} isPaused={isPaused} />
-
-      <div className="mb-8">
-        {audioUrl ? (
-          <audio controls src={audioUrl} className="w-full" />
-        ) : (
-          <AudioVisualizer isRecording={isRecording && !isPaused} stream={mediaStream ?? undefined} />
+    <div className="space-y-4">
+      <RecordHeader 
+        isRecording={isRecording} 
+        isPaused={isPaused} 
+      />
+      
+      <RecordTimer 
+        isRecording={isRecording} 
+        isPaused={isPaused} 
+      />
+      
+      <div className="flex flex-col items-center">
+        <AudioVisualizer 
+          mediaStream={mediaStream} 
+          isRecording={isRecording} 
+          isPaused={isPaused} 
+        />
+        
+        <RecordControls 
+          isRecording={isRecording} 
+          isPaused={isPaused} 
+          onStartRecording={handleStartRecording} 
+          onStopRecording={handleStopRecording} 
+          onPauseRecording={handlePauseRecording} 
+          onResumeRecording={handleResumeRecording} 
+          deviceSelectionReady={deviceSelectionReady}
+          showLastAction={true}
+          lastAction={lastAction}
+        />
+      </div>
+      
+      <div className="mt-6 space-y-4">
+        <DeviceSelector 
+          devices={audioDevices} 
+          selectedDeviceId={selectedDeviceId} 
+          onDeviceSelect={onDeviceSelect} 
+          isReady={deviceSelectionReady} 
+        />
+        
+        {onSystemAudioChange && (
+          <SystemAudioToggle 
+            isSystemAudio={isSystemAudio} 
+            onChange={onSystemAudioChange} 
+          />
         )}
       </div>
-
-      <RecordingOptions
-        isRecording={isRecording}
-        isSystemAudio={isSystemAudio}
-        onSystemAudioChange={onSystemAudioChange}
-        audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        onDeviceSelect={onDeviceSelect}
-      />
-
-      <div className="mb-12">
-        <RecordTimer 
-          isRecording={isRecording} 
-          isPaused={isPaused}
-        />
-      </div>
-
-      <div className="mb-12">
-        <RecordControls
+      
+      {showDeleteButton && handleDelete && audioUrl && (
+        <div className="flex justify-center mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDelete}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir gravação
+          </Button>
+        </div>
+      )}
+      
+      {showDiagnosticsPanel && (
+        <DiagnosticsPanel
           isRecording={isRecording}
           isPaused={isPaused}
-          hasRecording={!!audioUrl}
-          onStartRecording={() => {
-            addLog("Botão de iniciar gravação clicado");
-            handleStartRecording();
-          }}
-          onStopRecording={() => {
-            addLog("Botão de parar gravação clicado");
-            handleStopRecording();
-          }}
-          onPauseRecording={() => {
-            addLog("Botão de pausar gravação clicado");
-            handlePauseRecording();
-          }}
-          onResumeRecording={() => {
-            addLog("Botão de continuar gravação clicado");
-            handleResumeRecording();
-          }}
-          onDelete={() => {
-            addLog("Botão de deletar gravação clicado");
-            handleDelete();
-          }}
-          onPlay={() => {
-            addLog("Botão de reproduzir gravação clicado");
-            const audio = document.querySelector('audio');
-            if (audio) audio.play();
-          }}
-          disabled={!canStartRecording}
-          showPlayButton={showPlayButton}
-          showDeleteButton={showDeleteButton}
+          mediaStream={mediaStream}
+          deviceSelectionReady={deviceSelectionReady}
+          deviceId={selectedDeviceId}
+          lastAction={lastAction}
+          onRefreshDevices={onRefreshDevices}
         />
-      </div>
-
-      <DiagnosticsPanel 
-        isVisible={diagnosticsVisible}
-        onToggle={() => setDiagnosticsVisible(!diagnosticsVisible)}
-        logs={debugLogs}
-        recordingState={{
-          isRecording,
-          isPaused,
-          hasAudioUrl: !!audioUrl,
-          selectedDeviceId,
-          deviceCount: audioDevices.length,
-          deviceSelectionReady,
-          canStartRecording,
-          isSystemAudio,
-          mediaStreamInfo: mediaStream ? {
-            id: mediaStream.id,
-            active: mediaStream.active,
-            trackCount: mediaStream.getTracks().length,
-            audioTrackCount: mediaStream.getAudioTracks().length
-          } : null
-        }}
-      />
-    </>
+      )}
+    </div>
   );
-};
+}

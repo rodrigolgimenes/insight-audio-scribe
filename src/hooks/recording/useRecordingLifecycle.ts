@@ -1,182 +1,222 @@
 
-import { useRef, useCallback, useState, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { AudioRecorder } from "@/utils/audio/audioRecorder";
-import { RecordingLogger } from "@/utils/audio/recordingLogger";
-import { useRecordingState } from "./useRecordingState";
+import { RecordingObserver } from "@/utils/audio/types";
+import { logAudioTracks, validateAudioTracks } from "@/utils/audio/recordingHelpers";
 import { useRecorderInit } from "./lifecycle/useRecorderInit";
 import { useStartRecording } from "./lifecycle/useStartRecording";
 import { useStopRecording } from "./lifecycle/useStopRecording";
 import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
-import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
-import { StreamManager } from "@/utils/audio/helpers/streamManager";
-import { useToast } from "@/hooks/use-toast";
 
-export const useRecordingLifecycle = () => {
-  const recordingState = useRecordingState();
-  const { toast } = useToast();
-  const [lastError, setLastError] = useState<string | null>(null);
-  
-  const audioRecorder = useRef(new AudioRecorder());
-  const logger = useRef(new RecordingLogger());
-  const isProcessing = useRef(false);
-  const streamManager = useRef(new StreamManager());
+interface RecordingLifecycleResult {
+  recorder: React.RefObject<AudioRecorder>;
+  isRecording: boolean;
+  isPaused: boolean;
+  handleStartRecording: (stream: MediaStream) => Promise<void>;
+  handleStopRecording: () => Promise<{ blob: Blob | null; duration: number }>;
+  handlePauseRecording: () => void;
+  handleResumeRecording: () => void;
+  recordingAttemptsCount: number;
+  lastAction: { 
+    action: string; 
+    timestamp: number; 
+    success: boolean;
+    error?: string;
+  } | null;
+}
 
-  // Initialize recorder
-  const { initializeRecorder, getCurrentDuration } = useRecorderInit(
-    audioRecorder, 
-    logger
-  );
+export function useRecordingLifecycle(
+  onRecordingEvent?: RecordingObserver
+): RecordingLifecycleResult {
+  const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
+  const [lastAction, setLastAction] = useState<{
+    action: string;
+    timestamp: number;
+    success: boolean;
+    error?: string;
+  } | null>(null);
+
+  const recorderRef = useRef<AudioRecorder>(new AudioRecorder());
+
+  // Initialize recorder and handle cleanup
+  const { recorder } = useRecorderInit(recorderRef, onRecordingEvent);
 
   // Start recording
-  const handleStartRecording = useStartRecording(recordingState);
+  const { handleStartRecording: startRecording } = useStartRecording(
+    recorder,
+    { 
+      setIsRecording, 
+      setIsPaused 
+    }
+  );
 
   // Stop recording
-  const handleStopRecording = useStopRecording(recordingState, audioRecorder);
+  const { handleStopRecording: stopRecording } = useStopRecording(
+    recorder,
+    { 
+      setIsRecording, 
+      setIsPaused 
+    }
+  );
 
-  // Pause and resume recording
+  // Pause/resume recording
   const { handlePauseRecording, handleResumeRecording } = usePauseResumeRecording(
-    recordingState, 
-    audioRecorder
+    recorder,
+    { 
+      setIsPaused 
+    }
   );
 
-  // Save and delete recordings
-  const { handleDelete, handleSaveRecording } = useSaveDeleteRecording(
-    recordingState, 
-    audioRecorder, 
-    handleStopRecording
+  // Enhanced start recording with diagnostic info
+  const handleStartRecording = useCallback(
+    async (stream: MediaStream) => {
+      console.log('[useRecordingLifecycle] Starting recording with stream:', {
+        id: stream.id,
+        active: stream.active,
+        tracks: stream.getTracks().length
+      });
+      
+      setRecordingAttemptsCount(prev => prev + 1);
+      
+      try {
+        // Log audio tracks before starting
+        logAudioTracks(stream);
+        
+        // Validate the stream has audio tracks
+        try {
+          validateAudioTracks(stream);
+        } catch (error) {
+          console.error('[useRecordingLifecycle] Stream validation failed:', error);
+          setLastAction({
+            action: 'start',
+            timestamp: Date.now(),
+            success: false,
+            error: `Validação de stream falhou: ${error.message}`
+          });
+          throw error;
+        }
+        
+        // Attempt to start recording
+        await startRecording(stream);
+        
+        console.log('[useRecordingLifecycle] Recording started successfully');
+        setLastAction({
+          action: 'start',
+          timestamp: Date.now(),
+          success: true
+        });
+      } catch (error) {
+        console.error('[useRecordingLifecycle] Error starting recording:', error);
+        setLastAction({
+          action: 'start',
+          timestamp: Date.now(),
+          success: false,
+          error: error.message || 'Erro desconhecido ao iniciar gravação'
+        });
+        throw error;
+      }
+    },
+    [startRecording]
   );
 
-  // Log errors for debugging
-  useEffect(() => {
-    if (lastError) {
-      console.error('[useRecordingLifecycle] Last error:', lastError);
+  // Enhanced stop recording with diagnostic info
+  const handleStopRecording = useCallback(async () => {
+    console.log('[useRecordingLifecycle] Stopping recording');
+    
+    try {
+      const result = await stopRecording();
+      
+      console.log('[useRecordingLifecycle] Recording stopped successfully', {
+        blobSize: result.blob ? `${(result.blob.size / 1024 / 1024).toFixed(2)} MB` : 'No blob',
+        duration: `${result.duration.toFixed(2)} seconds`
+      });
+      
+      setLastAction({
+        action: 'stop',
+        timestamp: Date.now(),
+        success: true
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('[useRecordingLifecycle] Error stopping recording:', error);
+      
+      setLastAction({
+        action: 'stop',
+        timestamp: Date.now(),
+        success: false,
+        error: error.message || 'Erro desconhecido ao parar gravação'
+      });
+      
+      throw error;
     }
-  }, [lastError]);
+  }, [stopRecording]);
 
-  // Modified start recording function to properly handle stream initialization
-  const wrappedStartRecording = useCallback((selectedDeviceId: string | null) => {
-    console.log('[useRecordingLifecycle] Starting recording with device ID:', selectedDeviceId);
+  // Enhanced pause recording with diagnostic info
+  const handlePauseRecording = useCallback(() => {
+    console.log('[useRecordingLifecycle] Pausing recording');
     
-    if (isProcessing.current) {
-      console.log('[useRecordingLifecycle] Already processing a recording action, ignoring');
-      setLastError('Already processing a recording action');
-      toast({
-        title: "Processing",
-        description: "Already processing a recording action, please wait...",
-        variant: "default",
+    try {
+      handlePauseRecording();
+      
+      console.log('[useRecordingLifecycle] Recording paused successfully');
+      setLastAction({
+        action: 'pause',
+        timestamp: Date.now(),
+        success: true
       });
-      return;
+    } catch (error) {
+      console.error('[useRecordingLifecycle] Error pausing recording:', error);
+      
+      setLastAction({
+        action: 'pause',
+        timestamp: Date.now(),
+        success: false,
+        error: error.message || 'Erro desconhecido ao pausar gravação'
+      });
+      
+      throw error;
     }
+  }, [handlePauseRecording]);
+
+  // Enhanced resume recording with diagnostic info
+  const handleResumeRecording = useCallback(() => {
+    console.log('[useRecordingLifecycle] Resuming recording');
     
-    if (!selectedDeviceId) {
-      console.error('[useRecordingLifecycle] No device ID provided, cannot start recording');
-      setLastError('No device ID provided');
-      toast({
-        title: "Error",
-        description: "No microphone selected. Please select a microphone first.",
-        variant: "destructive",
+    try {
+      handleResumeRecording();
+      
+      console.log('[useRecordingLifecycle] Recording resumed successfully');
+      setLastAction({
+        action: 'resume',
+        timestamp: Date.now(),
+        success: true
       });
-      return;
+    } catch (error) {
+      console.error('[useRecordingLifecycle] Error resuming recording:', error);
+      
+      setLastAction({
+        action: 'resume',
+        timestamp: Date.now(),
+        success: false,
+        error: error.message || 'Erro desconhecido ao retomar gravação'
+      });
+      
+      throw error;
     }
-    
-    isProcessing.current = true;
-    
-    // Log that we're about to start the process
-    console.log('[useRecordingLifecycle] Attempting to get audio stream...');
-    
-    // First get the stream from the microphone (and system if needed)
-    handleStartRecording(selectedDeviceId)
-      .then(stream => {
-        if (!stream) {
-          console.error('[useRecordingLifecycle] Failed to get audio stream');
-          isProcessing.current = false;
-          setLastError('Failed to get audio stream');
-          return;
-        }
-        
-        // Verify we have audio tracks
-        const audioTracks = stream.getAudioTracks();
-        console.log('[useRecordingLifecycle] Got stream with audio tracks:', audioTracks.length);
-        
-        if (audioTracks.length === 0) {
-          console.error('[useRecordingLifecycle] No audio tracks in stream');
-          isProcessing.current = false;
-          setLastError('No audio tracks in stream');
-          toast({
-            title: "Error",
-            description: "No audio tracks detected in the stream. Please try a different microphone.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // Log track details
-        audioTracks.forEach((track, i) => {
-          console.log(`[useRecordingLifecycle] Audio track ${i}:`, {
-            label: track.label,
-            enabled: track.enabled,
-            muted: track.muted,
-            readyState: track.readyState,
-            settings: track.getSettings()
-          });
-        });
-        
-        // Initialize stream manager for cleanup
-        streamManager.current.initialize(stream, () => {
-          // Handle stream inactive event
-          console.log('[useRecordingLifecycle] Stream became inactive, stopping recording');
-          if (recordingState.isRecording && !isProcessing.current) {
-            handleStopRecording().catch(err => {
-              console.error('[useRecordingLifecycle] Error stopping recording on inactive stream:', err);
-              setLastError('Error stopping recording on inactive stream: ' + err.message);
-            });
-          }
-        });
-        
-        // Start the actual recording with the obtained stream
-        console.log('[useRecordingLifecycle] Starting recorder with stream...');
-        audioRecorder.current.startRecording(stream)
-          .then(() => {
-            recordingState.setIsRecording(true);
-            recordingState.setIsPaused(false);
-            console.log('[useRecordingLifecycle] Recording started successfully');
-            isProcessing.current = false;
-            setLastError(null);
-          })
-          .catch(err => {
-            console.error('[useRecordingLifecycle] Error starting recorder:', err);
-            streamManager.current.cleanup();
-            isProcessing.current = false;
-            setLastError('Error starting recorder: ' + err.message);
-            toast({
-              title: "Error",
-              description: "Failed to start recording: " + (err.message || "Unknown error"),
-              variant: "destructive",
-            });
-          });
-      })
-      .catch(error => {
-        console.error('[useRecordingLifecycle] Error getting audio stream:', error);
-        recordingState.setIsRecording(false);
-        isProcessing.current = false;
-        setLastError('Error getting audio stream: ' + error.message);
-        toast({
-          title: "Error",
-          description: "Failed to access microphone: " + (error.message || "Unknown error"),
-          variant: "destructive",
-        });
-      });
-  }, [handleStartRecording, handleStopRecording, recordingState, toast]);
+  }, [handleResumeRecording]);
 
   return {
-    initializeRecorder,
-    handleStartRecording: wrappedStartRecording,
+    recorder,
+    isRecording,
+    isPaused,
+    handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording,
-    handleDelete,
-    handleSaveRecording,
-    getCurrentDuration,
-    lastError
+    recordingAttemptsCount,
+    lastAction
   };
-};
+}

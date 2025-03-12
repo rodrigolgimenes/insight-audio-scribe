@@ -1,200 +1,146 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Pause, Play, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Mic, Square, Pause, Play } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface RecordControlsProps {
   isRecording: boolean;
   isPaused: boolean;
-  hasRecording: boolean;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onPauseRecording: () => void;
   onResumeRecording: () => void;
-  onDelete: () => void;
-  onPlay?: () => void;
-  disabled?: boolean;
-  showPlayButton?: boolean;
-  showDeleteButton?: boolean;
+  deviceSelectionReady: boolean;
+  showLastAction?: boolean;
+  lastAction?: { 
+    action: string; 
+    timestamp: number; 
+    success: boolean;
+    error?: string;
+  };
 }
 
 export function RecordControls({
   isRecording,
   isPaused,
-  hasRecording,
   onStartRecording,
   onStopRecording,
   onPauseRecording,
   onResumeRecording,
-  onDelete,
-  onPlay,
-  disabled = false,
-  showPlayButton = true,
-  showDeleteButton = true,
+  deviceSelectionReady,
+  showLastAction = false,
+  lastAction
 }: RecordControlsProps) {
-  const [buttonState, setButtonState] = useState<'idle' | 'recording' | 'paused'>('idle');
-  const [buttonClickCount, setButtonClickCount] = useState(0);
-  const [showDebugInfo, setShowDebugInfo] = useState(true);
+  const [buttonPressed, setButtonPressed] = useState<string | null>(null);
+  const [clickTime, setClickTime] = useState<number | null>(null);
 
-  // Update button state based on props
-  useEffect(() => {
-    if (isRecording) {
-      setButtonState(isPaused ? 'paused' : 'recording');
-    } else {
-      setButtonState('idle');
-    }
+  const handleButtonClick = (action: string, callback: () => void) => {
+    setButtonPressed(action);
+    setClickTime(Date.now());
     
-    console.log('[RecordControls] State updated:', { 
-      isRecording, 
-      isPaused, 
-      hasRecording, 
-      disabled,
-      buttonState: isRecording ? (isPaused ? 'paused' : 'recording') : 'idle'
-    });
-  }, [isRecording, isPaused, hasRecording]);
-
-  // Start recording handler
-  const handleStartClick = () => {
-    console.log('[RecordControls] Start button clicked, disabled:', disabled);
-    setButtonClickCount(prev => prev + 1);
-    if (!disabled) {
-      onStartRecording();
+    console.log(`[RecordControls] Button clicked: ${action} at ${new Date().toISOString()}`);
+    try {
+      callback();
+      console.log(`[RecordControls] Callback executed for: ${action}`);
+    } catch (error) {
+      console.error(`[RecordControls] Error in button action ${action}:`, error);
     }
   };
 
+  useEffect(() => {
+    let timeoutId: number;
+    if (buttonPressed) {
+      timeoutId = window.setTimeout(() => {
+        setButtonPressed(null);
+        setClickTime(null);
+      }, 1000);
+    }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [buttonPressed]);
+
   return (
     <div className="flex flex-col items-center gap-4">
-      {showDebugInfo && (
-        <div className="w-full mb-4 p-3 bg-gray-50 rounded-md border border-gray-200 text-xs">
-          <div className="flex justify-between mb-2">
-            <h4 className="font-semibold">Status do Botão:</h4>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-5 text-xs px-2 py-0"
-              onClick={() => setShowDebugInfo(false)}
-            >
-              Ocultar
-            </Button>
-          </div>
-          <div className="space-y-1">
-            <p><span className="font-medium">Estado:</span> {buttonState} ({isRecording ? 'gravando' : 'não gravando'})</p>
-            <p><span className="font-medium">Desabilitado:</span> {disabled ? 'Sim' : 'Não'}</p>
-            <p><span className="font-medium">Cliques botão:</span> {buttonClickCount}</p>
-            <div className="flex gap-2 mt-2">
-              <Badge variant={disabled ? "destructive" : "outline"}>
-                {disabled ? 'Botão Desabilitado' : 'Botão Habilitado'}
-              </Badge>
-              <Badge variant={buttonState === 'idle' ? "default" : "secondary"}>
-                {buttonState === 'idle' ? 'Pronto para Gravar' : 'Gravando'}
-              </Badge>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-center space-x-4">
-        {buttonState === 'idle' && (
+      <div className="flex items-center gap-4">
+        {!isRecording ? (
           <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className={`h-16 w-16 rounded-full relative ${
-              disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#4285F4] text-white hover:bg-[#3367D6] focus:ring-2 focus:ring-[#3367D6] focus:ring-offset-2'
-            }`}
-            onClick={handleStartClick}
-            disabled={disabled}
-            aria-label="Iniciar Gravação"
+            onClick={() => handleButtonClick('start', onStartRecording)}
+            disabled={!deviceSelectionReady || isRecording}
+            size="lg"
+            className={cn(
+              "rounded-full w-16 h-16 bg-red-500 hover:bg-red-600 text-white",
+              buttonPressed === 'start' && "animate-pulse",
+              !deviceSelectionReady && "opacity-50 cursor-not-allowed"
+            )}
+            aria-label="Start Recording"
+            data-test-id="start-recording-button"
           >
             <Mic className="h-8 w-8" />
-            {disabled && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-full">
-                <span className="text-xs text-white font-medium px-1">Desabilitado</span>
-              </div>
-            )}
           </Button>
-        )}
-
-        {buttonState === 'recording' && (
-          <>
+        ) : (
+          <div className="flex items-center gap-2">
             <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-16 w-16 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-              onClick={onPauseRecording}
-              aria-label="Pausar Gravação"
+              onClick={() => handleButtonClick('stop', onStopRecording)}
+              size="lg"
+              className={cn(
+                "rounded-full w-14 h-14 bg-red-500 hover:bg-red-600 text-white",
+                buttonPressed === 'stop' && "animate-pulse"
+              )}
+              aria-label="Stop Recording"
             >
-              <Pause className="h-8 w-8" />
+              <Square className="h-6 w-6" />
             </Button>
-
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
-              onClick={onStopRecording}
-              aria-label="Parar Gravação"
-            >
-              <Square className="h-8 w-8" />
-            </Button>
-          </>
-        )}
-
-        {buttonState === 'paused' && (
-          <>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
-              onClick={onResumeRecording}
-              aria-label="Continuar Gravação"
-            >
-              <Play className="h-8 w-8" />
-            </Button>
-
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
-              onClick={onStopRecording}
-              aria-label="Parar Gravação"
-            >
-              <Square className="h-8 w-8" />
-            </Button>
-          </>
-        )}
-
-        {hasRecording && !isRecording && (
-          <div className="flex space-x-4">
-            {showPlayButton && onPlay && (
+            
+            {!isPaused ? (
               <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-16 w-16 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:ring-2 focus:ring-green-400 focus:ring-offset-2"
-                onClick={onPlay}
-                aria-label="Reproduzir Gravação"
+                onClick={() => handleButtonClick('pause', onPauseRecording)}
+                size="lg"
+                className={cn(
+                  "rounded-full w-12 h-12 bg-amber-500 hover:bg-amber-600 text-white",
+                  buttonPressed === 'pause' && "animate-pulse"
+                )}
+                aria-label="Pause Recording"
               >
-                <Play className="h-8 w-8" />
+                <Pause className="h-5 w-5" />
+              </Button>
+            ) : (
+              <Button
+                onClick={() => handleButtonClick('resume', onResumeRecording)}
+                size="lg"
+                className={cn(
+                  "rounded-full w-12 h-12 bg-green-500 hover:bg-green-600 text-white",
+                  buttonPressed === 'resume' && "animate-pulse"
+                )}
+                aria-label="Resume Recording"
+              >
+                <Play className="h-5 w-5" />
               </Button>
             )}
-
-            {showDeleteButton && (
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                className="h-16 w-16 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
-                onClick={onDelete}
-                aria-label="Apagar Gravação"
-              >
-                <Trash2 className="h-8 w-8" />
-              </Button>
-            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Status and Diagnostic Information */}
+      <div className="text-xs text-gray-500 mt-2">
+        <div>Estado: {isRecording ? (isPaused ? "Pausado" : "Gravando") : "Pronto"}</div>
+        {!deviceSelectionReady && (
+          <div className="text-amber-500">Aguardando permissão de microfone...</div>
+        )}
+        {showLastAction && lastAction && (
+          <div className={cn(
+            "text-xs mt-1",
+            lastAction.success ? "text-green-600" : "text-red-600"
+          )}>
+            Última ação: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
+            {lastAction.success ? " Sucesso" : " Falha"}
+            {lastAction.error && <div className="text-red-500">{lastAction.error}</div>}
+          </div>
+        )}
+        {clickTime && (
+          <div className="text-xs text-gray-400">
+            Último clique: {new Date(clickTime).toLocaleTimeString()}
           </div>
         )}
       </div>
