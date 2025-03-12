@@ -23,16 +23,14 @@ export const useMicrophoneAccess = (
         return null;
       }
 
-      console.log('[useMicrophoneAccess] Requesting microphone access:', {
-        deviceId,
-        isSystemAudio
-      });
+      console.log('[useMicrophoneAccess] Requesting microphone access with deviceId:', deviceId);
 
+      // First try with exact device ID constraint
       let micStream: MediaStream;
       try {
-        // Use exact device ID constraint if available
+        // Create deep copy of constraints to avoid reference issues
         const audioConstraints: MediaTrackConstraints = {
-          ...MIC_CONSTRAINTS.audio as MediaTrackConstraints,
+          ...JSON.parse(JSON.stringify(MIC_CONSTRAINTS.audio)),
           deviceId: deviceId ? { exact: deviceId } : undefined
         };
 
@@ -42,19 +40,6 @@ export const useMicrophoneAccess = (
           audio: audioConstraints,
           video: false
         });
-        
-        // Check if we actually got any tracks
-        if (!micStream || micStream.getAudioTracks().length === 0) {
-          throw new Error('Failed to access the selected microphone');
-        }
-        
-        console.log('[useMicrophoneAccess] Microphone stream obtained:', {
-          tracks: micStream.getAudioTracks().map(track => ({
-            label: track.label,
-            enabled: track.enabled,
-            settings: track.getSettings()
-          }))
-        });
       } catch (micError) {
         console.warn('[useMicrophoneAccess] Failed with advanced constraints, trying basic config:', micError);
         // Fallback to basic constraints
@@ -62,19 +47,31 @@ export const useMicrophoneAccess = (
           audio: deviceId ? { deviceId: { exact: deviceId } } : true,
           video: false 
         });
-        
-        if (!micStream || micStream.getAudioTracks().length === 0) {
-          throw new Error('Failed to access microphone');
-        }
       }
+      
+      // Check if we got audio tracks
+      if (!micStream || micStream.getAudioTracks().length === 0) {
+        console.error('[useMicrophoneAccess] No audio tracks in stream');
+        throw new Error('Failed to access microphone');
+      }
+      
+      console.log('[useMicrophoneAccess] Microphone stream obtained:', {
+        id: micStream.id,
+        tracks: micStream.getAudioTracks().map(track => ({
+          label: track.label,
+          enabled: track.enabled,
+          settings: track.getSettings()
+        }))
+      });
 
+      // Try to capture system audio if needed
       if (isSystemAudio) {
         try {
           console.log('[useMicrophoneAccess] Attempting to capture system audio...');
           const systemStream = await captureSystemAudio(micStream);
           if (systemStream) {
             console.log('[useMicrophoneAccess] System audio captured successfully');
-            micStream = systemStream;
+            return systemStream;
           }
         } catch (systemError) {
           console.error('[useMicrophoneAccess] Failed to capture system audio:', systemError);
@@ -85,23 +82,6 @@ export const useMicrophoneAccess = (
           });
         }
       }
-
-      const audioTracks = micStream.getAudioTracks();
-      if (audioTracks.length === 0) {
-        throw new Error('Failed to capture audio from the selected device');
-      }
-
-      console.log('[useMicrophoneAccess] Final audio stream details:', {
-        id: micStream.id,
-        active: micStream.active,
-        trackCount: audioTracks.length,
-        tracks: audioTracks.map(track => ({
-          label: track.label,
-          enabled: track.enabled,
-          muted: track.muted,
-          settings: track.getSettings()
-        }))
-      });
 
       return micStream;
     } catch (error) {

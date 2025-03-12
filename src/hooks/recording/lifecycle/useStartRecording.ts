@@ -1,3 +1,4 @@
+
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -24,7 +25,7 @@ export function useStartRecording(
           description: "Please select a microphone first.",
           variant: "destructive",
         });
-        return;
+        return null;
       }
 
       if (!session?.user) {
@@ -34,21 +35,41 @@ export function useStartRecording(
           variant: "destructive",
         });
         navigate("/login");
-        return;
+        return null;
       }
 
       try {
-        console.log('[useStartRecording] Requesting microphone access');
+        console.log('[useStartRecording] Requesting microphone access with device ID:', selectedDeviceId);
         const stream = await requestMicrophoneAccess(selectedDeviceId, recordingState.isSystemAudio);
+        
         if (!stream) {
           console.error('[useStartRecording] Failed to get media stream');
-          return;
+          toast({
+            title: "Error",
+            description: "Could not access microphone. Please check your browser permissions.",
+            variant: "destructive",
+          });
+          return null;
         }
 
-        console.log('[useStartRecording] Got media stream:', stream.id);
-        recordingState.setMediaStream(stream);
+        // Verify we have audio tracks before proceeding
+        const audioTracks = stream.getAudioTracks();
+        console.log('[useStartRecording] Got media stream with audio tracks:', audioTracks.length);
         
-        // Return the stream for the recorder to use
+        if (audioTracks.length === 0) {
+          console.error('[useStartRecording] Stream has no audio tracks');
+          toast({
+            title: "Error",
+            description: "No audio detected from your microphone. Please try another device.",
+            variant: "destructive",
+          });
+          return null;
+        }
+
+        // Store the stream in state for UI updates
+        recordingState.setMediaStream(stream);
+        console.log('[useStartRecording] Media stream set in state');
+        
         return stream;
       } catch (error) {
         console.error('[useStartRecording] Error accessing microphone:', error);

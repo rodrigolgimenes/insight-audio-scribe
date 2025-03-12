@@ -43,11 +43,17 @@ export const useRecordingLifecycle = () => {
 
   // Modified start recording to initialize the recorder after getting the stream
   const wrappedStartRecording = async (selectedDeviceId: string | null) => {
-    if (isProcessing.current) return;
+    if (isProcessing.current) {
+      console.log('[useRecordingLifecycle] Already processing a recording action, ignoring');
+      return;
+    }
+    
     isProcessing.current = true;
     
     try {
       console.log('[useRecordingLifecycle] Starting recording with device ID:', selectedDeviceId);
+      
+      // First get the stream
       const stream = await handleStartRecording(selectedDeviceId);
       
       if (!stream) {
@@ -57,9 +63,13 @@ export const useRecordingLifecycle = () => {
       }
       
       console.log('[useRecordingLifecycle] Starting audio recorder with stream:', stream.id);
+      
+      // Then start recording with the obtained stream
       await audioRecorder.current.startRecording(stream);
       recordingState.setIsRecording(true);
       recordingState.setIsPaused(false);
+      
+      console.log('[useRecordingLifecycle] Recording started successfully');
       
       // Add inactive event listener to handle unexpected stream end
       stream.addEventListener('inactive', () => {
@@ -72,6 +82,7 @@ export const useRecordingLifecycle = () => {
       });
     } catch (error) {
       console.error('[useRecordingLifecycle] Error in wrappedStartRecording:', error);
+      recordingState.setIsRecording(false); // Make sure to reset state on error
     } finally {
       isProcessing.current = false;
     }
