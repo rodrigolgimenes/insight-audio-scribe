@@ -1,28 +1,44 @@
 
+import { useState } from "react";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Volume2 } from "lucide-react";
+import { InfoCircled } from "@radix-ui/react-icons";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-interface SystemAudioToggleProps {
+export interface SystemAudioToggleProps {
   isSystemAudio: boolean;
-  onSystemAudioChange: (enabled: boolean) => void;
-  disabled?: boolean;
+  onSystemAudioChange: (isSystemAudio: boolean) => void;
 }
 
-export function SystemAudioToggle({ 
-  isSystemAudio, 
-  onSystemAudioChange, 
-  disabled = false 
-}: SystemAudioToggleProps) {
+export function SystemAudioToggle({ isSystemAudio, onSystemAudioChange }: SystemAudioToggleProps) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  const handleToggle = (checked: boolean) => {
+    onSystemAudioChange(checked);
+  };
+
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between mb-2">
       <div className="flex items-center space-x-2">
-        <Volume2 className="h-4 w-4 text-gray-500" />
-        <span className="text-sm font-medium">Include system audio</span>
+        <Label htmlFor="system-audio" className="flex items-center cursor-pointer">
+          <span>Include system audio</span>
+          <TooltipProvider>
+            <Tooltip open={showTooltip} onOpenChange={setShowTooltip}>
+              <TooltipTrigger asChild>
+                <InfoCircled className="h-4 w-4 ml-1.5 text-gray-500 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p>Record audio from your browser tabs, applications, or entire system along with your microphone.</p>
+                <p className="text-xs mt-1 text-gray-500">You'll be prompted to choose what to share when recording starts.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </Label>
       </div>
-      <Switch 
+      <Switch
+        id="system-audio"
         checked={isSystemAudio}
-        onCheckedChange={onSystemAudioChange}
-        disabled={disabled}
+        onCheckedChange={handleToggle}
       />
     </div>
   );

@@ -1,37 +1,17 @@
 
-import { useRef, useState, useCallback } from "react";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
-import { RecordingObserver } from "@/utils/audio/types/audioRecorderTypes";
-import { logAudioTracks, validateAudioTracks } from "@/utils/audio/recordingHelpers";
-import { useRecorderInit } from "./lifecycle/useRecorderInit";
-import { useStartRecording } from "./lifecycle/useStartRecording";
-import { useStopRecording } from "./lifecycle/useStopRecording";
-import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
+import { useCallback, useState } from "react";
+import { useSimpleRecorder } from "./useSimpleRecorder";
 
-export interface RecordingLifecycleResult {
-  recorder: React.RefObject<AudioRecorder>;
-  isRecording: boolean;
-  isPaused: boolean;
-  handleStartRecording: (stream: MediaStream) => Promise<void>;
-  handleStopRecording: () => Promise<{ blob: Blob | null; duration: number }>;
-  handlePauseRecording: () => void;
-  handleResumeRecording: () => void;
-  initializeRecorder: () => () => void;
-  getCurrentDuration: () => number;
-  recordingAttemptsCount: number;
-  lastAction: { 
-    action: string; 
-    timestamp: number; 
-    success: boolean;
-    error?: string;
-  } | null;
-}
-
-export function useRecordingLifecycle(
-  onRecordingEvent?: RecordingObserver
-): RecordingLifecycleResult {
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+/**
+ * Hook to manage recording lifecycle including start, stop, pause and resume
+ */
+export const useRecordingLifecycle = () => {
+  const {
+    recorder,
+    getCurrentDuration,
+    initializeRecorder,
+  } = useSimpleRecorder();
+  
   const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
   const [lastAction, setLastAction] = useState<{
     action: string;
@@ -39,184 +19,128 @@ export function useRecordingLifecycle(
     success: boolean;
     error?: string;
   } | null>(null);
-
-  const recorderRef = useRef<AudioRecorder>(new AudioRecorder());
-
-  // Initialize recorder and handle cleanup
-  const { initializeRecorder, getCurrentDuration } = useRecorderInit(recorderRef, onRecordingEvent);
-
-  // Start recording
-  const { handleStartRecording: startRecordingFn } = useStartRecording(
-    recorderRef,
-    { 
-      setIsRecording, 
-      setIsPaused 
-    }
-  );
-
-  // Stop recording
-  const { handleStopRecording: stopRecordingFn } = useStopRecording(
-    recorderRef,
-    { 
-      setIsRecording, 
-      setIsPaused 
-    }
-  );
-
-  // Pause/resume recording
-  const { 
-    handlePauseRecording: pauseRecordingFn, 
-    handleResumeRecording: resumeRecordingFn 
-  } = usePauseResumeRecording(
-    recorderRef,
-    { 
-      setIsPaused 
-    }
-  );
-
-  // Enhanced start recording with diagnostic info
-  const handleStartRecording = useCallback(
-    async (stream: MediaStream) => {
-      console.log('[useRecordingLifecycle] Starting recording with stream:', {
-        id: stream.id,
-        active: stream.active,
-        tracks: stream.getTracks().length
-      });
-      
+  
+  // Handle recording start
+  const handleStartRecording = useCallback(async (stream: MediaStream) => {
+    try {
+      console.log('[useRecordingLifecycle] Starting recording with stream');
       setRecordingAttemptsCount(prev => prev + 1);
       
-      try {
-        // Log audio tracks before starting
-        logAudioTracks(stream);
-        
-        // Validate the stream has audio tracks
-        try {
-          validateAudioTracks(stream);
-        } catch (error) {
-          console.error('[useRecordingLifecycle] Stream validation failed:', error);
-          setLastAction({
-            action: 'start',
-            timestamp: Date.now(),
-            success: false,
-            error: `Stream validation failed: ${error.message}`
-          });
-          throw error;
-        }
-        
-        // Attempt to start recording
-        await startRecordingFn(stream);
-        
-        console.log('[useRecordingLifecycle] Recording started successfully');
-        setLastAction({
-          action: 'start',
-          timestamp: Date.now(),
-          success: true
-        });
-      } catch (error) {
-        console.error('[useRecordingLifecycle] Error starting recording:', error);
-        setLastAction({
-          action: 'start',
-          timestamp: Date.now(),
-          success: false,
-          error: error.message || 'Unknown error starting recording'
-        });
-        throw error;
-      }
-    },
-    [startRecordingFn]
-  );
-
-  // Enhanced stop recording with diagnostic info
-  const handleStopRecording = useCallback(async () => {
-    console.log('[useRecordingLifecycle] Stopping recording');
-    
-    try {
-      const result = await stopRecordingFn();
-      
-      console.log('[useRecordingLifecycle] Recording stopped successfully', {
-        blobSize: result.blob ? `${(result.blob.size / 1024 / 1024).toFixed(2)} MB` : 'No blob',
-        duration: `${result.duration.toFixed(2)} seconds`
+      setLastAction({
+        action: 'Starting recorder',
+        timestamp: Date.now(),
+        success: false
       });
+      
+      if (!recorder.current) {
+        throw new Error('Recorder not initialized');
+      }
+      
+      await recorder.current.startRecording(stream);
+      
+      setLastAction(prev => prev ? {...prev, success: true} : null);
+      return true;
+    } catch (error) {
+      console.error('[useRecordingLifecycle] Error starting recording:', error);
+      setLastAction({
+        action: 'Starting recorder',
+        timestamp: Date.now(),
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return false;
+    }
+  }, [recorder]);
+  
+  // Handle recording stop
+  const handleStopRecording = useCallback(async () => {
+    try {
+      console.log('[useRecordingLifecycle] Stopping recording');
       
       setLastAction({
-        action: 'stop',
+        action: 'Stopping recorder',
         timestamp: Date.now(),
-        success: true
+        success: false
       });
       
+      if (!recorder.current) {
+        throw new Error('Recorder not initialized');
+      }
+      
+      const result = await recorder.current.stopRecording();
+      
+      setLastAction(prev => prev ? {...prev, success: true} : null);
       return result;
     } catch (error) {
       console.error('[useRecordingLifecycle] Error stopping recording:', error);
-      
       setLastAction({
-        action: 'stop',
+        action: 'Stopping recorder',
         timestamp: Date.now(),
         success: false,
-        error: error.message || 'Unknown error stopping recording'
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
-      throw error;
+      return { blob: null, duration: 0 };
     }
-  }, [stopRecordingFn]);
-
-  // Enhanced pause recording with diagnostic info
+  }, [recorder]);
+  
+  // Handle recording pause
   const handlePauseRecording = useCallback(() => {
-    console.log('[useRecordingLifecycle] Pausing recording');
-    
     try {
-      pauseRecordingFn();
+      console.log('[useRecordingLifecycle] Pausing recording');
       
-      console.log('[useRecordingLifecycle] Recording paused successfully');
+      if (!recorder.current) {
+        throw new Error('Recorder not initialized');
+      }
+      
+      recorder.current.pauseRecording();
+      
       setLastAction({
-        action: 'pause',
+        action: 'Pausing recorder',
         timestamp: Date.now(),
         success: true
       });
     } catch (error) {
       console.error('[useRecordingLifecycle] Error pausing recording:', error);
-      
       setLastAction({
-        action: 'pause',
+        action: 'Pausing recorder',
         timestamp: Date.now(),
         success: false,
-        error: error.message || 'Unknown error pausing recording'
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
-      throw error;
     }
-  }, [pauseRecordingFn]);
-
-  // Enhanced resume recording with diagnostic info
+  }, [recorder]);
+  
+  // Handle recording resume
   const handleResumeRecording = useCallback(() => {
-    console.log('[useRecordingLifecycle] Resuming recording');
-    
     try {
-      resumeRecordingFn();
+      console.log('[useRecordingLifecycle] Resuming recording');
       
-      console.log('[useRecordingLifecycle] Recording resumed successfully');
+      if (!recorder.current) {
+        throw new Error('Recorder not initialized');
+      }
+      
+      recorder.current.resumeRecording();
+      
       setLastAction({
-        action: 'resume',
+        action: 'Resuming recorder',
         timestamp: Date.now(),
         success: true
       });
     } catch (error) {
       console.error('[useRecordingLifecycle] Error resuming recording:', error);
-      
       setLastAction({
-        action: 'resume',
+        action: 'Resuming recorder',
         timestamp: Date.now(),
         success: false,
-        error: error.message || 'Unknown error resuming recording'
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
-      
-      throw error;
     }
-  }, [resumeRecordingFn]);
-
+  }, [recorder]);
+  
   return {
-    recorder: recorderRef,
-    isRecording,
-    isPaused,
+    recorder,
+    isRecording: !!recorder.current?.isCurrentlyRecording(),
+    isPaused: !!recorder.current?.isPaused(),
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
@@ -226,4 +150,4 @@ export function useRecordingLifecycle(
     recordingAttemptsCount,
     lastAction
   };
-}
+};
