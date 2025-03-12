@@ -22,28 +22,6 @@ export const useRecording = () => {
   
   // Main state
   const recordingState = useRecordingState();
-  const {
-    isRecording,
-    setIsRecording,
-    isPaused,
-    setIsPaused,
-    audioUrl,
-    setAudioUrl,
-    mediaStream,
-    setMediaStream,
-    isSaving,
-    setIsSaving,
-    isTranscribing,
-    setIsTranscribing,
-    isSystemAudio,
-    setIsSystemAudio,
-    selectedDeviceId, 
-    setSelectedDeviceId,
-    lastAction,
-    setLastAction,
-    recordingAttemptsCount,
-    setRecordingAttemptsCount
-  } = recordingState;
 
   // Error handling
   const {
@@ -58,7 +36,7 @@ export const useRecording = () => {
   } = useDeviceSelection();
 
   // Media stream handling
-  const { streamManager } = useMediaStream(setLastAction);
+  const { streamManager } = useMediaStream(recordingState.setLastAction);
 
   // Recording operations
   const { 
@@ -90,44 +68,38 @@ export const useRecording = () => {
   );
 
   // System audio handler
-  const { handleSystemAudioChange } = useSystemAudio(setIsSystemAudio);
+  const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
 
   // Save and delete functionality
   const { handleSaveRecording, handleDelete } = useSaveDeleteRecording(
     recordingState, 
     stopRecording, 
-    setLastAction
+    recordingState.setLastAction
   );
 
   // Initialize recorder
-  useRecorderInitialization(initializeRecorder, setInitError, selectedDeviceId);
+  useRecorderInitialization(initializeRecorder, setInitError, recordingState.selectedDeviceId);
 
   // Track recording attempts
-  useRecordingAttemptTracker(isRecording, setRecordingAttemptsCount);
+  useRecordingAttemptTracker(recordingState.isRecording, recordingState.setRecordingAttemptsCount);
 
   // Log state changes
   useRecordingLogger(
-    isRecording, 
-    isPaused, 
-    audioUrl, 
-    mediaStream, 
-    selectedDeviceId, 
+    recordingState.isRecording, 
+    recordingState.isPaused, 
+    recordingState.audioUrl, 
+    recordingState.mediaStream, 
+    recordingState.selectedDeviceId, 
     deviceSelectionReady, 
-    recordingAttemptsCount, 
-    isSystemAudio, 
-    lastAction
+    recordingState.recordingAttemptsCount, 
+    recordingState.isSystemAudio, 
+    recordingState.lastAction
   );
 
   console.log('[useRecordingHook] Hook initialized, returning methods');
   
   return {
-    isRecording,
-    isPaused,
-    audioUrl,
-    mediaStream,
-    isSaving,
-    isTranscribing,
-    isSystemAudio,
+    ...recordingState,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
@@ -136,12 +108,8 @@ export const useRecording = () => {
     handleSaveRecording,
     setIsSystemAudio: handleSystemAudioChange,
     audioDevices,
-    selectedDeviceId,
-    setSelectedDeviceId,
     deviceSelectionReady,
     getCurrentDuration,
-    initError,
-    recordingAttemptsCount,
-    lastAction
+    initError
   };
 };
