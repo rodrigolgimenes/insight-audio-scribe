@@ -1,3 +1,4 @@
+
 import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -49,9 +50,10 @@ export const useRecording = () => {
     };
   }, []);
 
+  // This effect sets the selected device to the first device in the list when available
   useEffect(() => {
     if (defaultDeviceId && !selectedDeviceId) {
-      console.log('[useRecording] Setting default device:', defaultDeviceId);
+      console.log('[useRecording] Setting first device as default:', defaultDeviceId);
       setSelectedDeviceId(defaultDeviceId);
     }
   }, [defaultDeviceId, selectedDeviceId]);

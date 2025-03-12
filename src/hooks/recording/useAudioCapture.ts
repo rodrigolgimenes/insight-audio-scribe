@@ -22,8 +22,6 @@ export const useAudioCapture = () => {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       const devices = await navigator.mediaDevices.enumerateDevices();
       
-      let defaultDevice: AudioDevice | undefined;
-      
       const audioInputs = devices
         .filter(device => device.kind === 'audioinput')
         .map(device => {
@@ -31,33 +29,23 @@ export const useAudioCapture = () => {
                            device.label.toLowerCase().includes('default') || 
                            device.label.toLowerCase().includes('padrão');
           
-          const deviceInfo = {
+          return {
             deviceId: device.deviceId,
             label: device.label || `Microphone ${device.deviceId.slice(0, 5)}...`,
             kind: device.kind,
             isDefault
           };
-          
-          if (isDefault && !defaultDevice) {
-            defaultDevice = deviceInfo;
-          }
-          
-          return deviceInfo;
         });
 
+      if (audioInputs.length > 0) {
+        const firstDeviceId = audioInputs[0].deviceId;
+        setDefaultDeviceId(firstDeviceId);
+        console.log('[useAudioCapture] First device selected as default:', audioInputs[0].label);
+      }
+      
       setAudioDevices(audioInputs);
-      
-      if (!defaultDevice && audioInputs.length > 0) {
-        defaultDevice = audioInputs[0];
-        defaultDevice.isDefault = true;
-      }
-      
-      if (defaultDevice) {
-        setDefaultDeviceId(defaultDevice.deviceId);
-        console.log('[useAudioCapture] Default device selected:', defaultDevice.label);
-      }
-      
       console.log('[useAudioCapture] Available audio devices:', audioInputs);
+      
       return audioInputs;
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);

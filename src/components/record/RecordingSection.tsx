@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { RecordTimer } from "@/components/record/RecordTimer";
@@ -60,9 +59,6 @@ export const RecordingSection = ({
   const canStartRecording = !!selectedDeviceId;
   const hasDevices = audioDevices.length > 0;
 
-  // Find the default device for display in the dropdown
-  const defaultDevice = audioDevices.find(device => device.isDefault) || audioDevices[0];
-
   return (
     <>
       <RecordStatus isRecording={isRecording} isPaused={isPaused} />
@@ -103,9 +99,9 @@ export const RecordingSection = ({
               <SelectValue placeholder="Select a microphone" />
             </SelectTrigger>
             <SelectContent>
-              {audioDevices.map((device) => (
+              {audioDevices.map((device, index) => (
                 <SelectItem key={device.deviceId} value={device.deviceId}>
-                  {device.label} {device.isDefault ? "(Default)" : ""}
+                  {device.label} {index === 0 ? "(Default)" : ""}
                 </SelectItem>
               ))}
             </SelectContent>
