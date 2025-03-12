@@ -15,6 +15,7 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
         disabled={isDisabled}
         initiateTranscription={true}
         buttonClassName="w-full rounded-md"
+        hideDescription={true}
       />
     </div>
   );

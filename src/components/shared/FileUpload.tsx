@@ -22,6 +22,7 @@ interface FileUploadProps {
   maxSize?: number;
   disabled?: boolean;
   initiateTranscription?: boolean;
+  hideDescription?: boolean;
 }
 
 export function FileUpload({
@@ -35,6 +36,7 @@ export function FileUpload({
   maxSize = 100,
   disabled = false,
   initiateTranscription = true,
+  hideDescription = false,
 }: FileUploadProps) {
   const { isUploading, handleFileUpload } = useFileUpload();
   const [fileName, setFileName] = useState<string | null>(null);
@@ -114,8 +116,8 @@ export function FileUpload({
 
   return (
     <div className={`space-y-4 ${className}`}>
-      {label && <Label htmlFor="file-upload">{label}</Label>}
-      {description && <p className="text-sm text-gray-500 mb-4">{description}</p>}
+      {label && !hideDescription && <Label htmlFor="file-upload">{label}</Label>}
+      {description && !hideDescription && <p className="text-sm text-gray-500 mb-4">{description}</p>}
       
       <div className="flex flex-col gap-4">
         <Input

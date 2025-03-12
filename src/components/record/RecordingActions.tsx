@@ -38,9 +38,6 @@ export const RecordingActions = ({
           <p className="text-center text-sm text-gray-600 mb-2">
             Already have a recording?
           </p>
-          <h3 className="text-center font-semibold text-[#9b87f5] mb-3">
-            Upload Existing File
-          </h3>
           <FileUploadSection isDisabled={isLoading || isRecording} />
         </div>
       </div>
