@@ -3,11 +3,11 @@ import { useEffect } from "react";
 import { MicrophoneSelector as UnifiedMicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 
-// Este é um wrapper de compatibilidade para manter imports existentes
+// This is a compatibility wrapper to maintain existing imports
 export function MicrophoneSelector(props: { disabled?: boolean; className?: string }) {
   const { selectedDeviceId, permissionState, devices } = useDeviceManager();
   
-  // Log mais detalhado para depuração
+  // Detailed logging for debugging
   useEffect(() => {
     console.log("[MicrophoneSelector Wrapper] Current state:", {
       selectedDeviceId,

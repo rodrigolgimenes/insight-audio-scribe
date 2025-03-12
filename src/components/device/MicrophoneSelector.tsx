@@ -43,7 +43,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   const handleSelect = (deviceId: string) => {
     console.log('[MicrophoneSelector] Selecting device:', deviceId);
     
-    // Verificar se o ID do dispositivo é válido
+    // Verify device ID is valid
     if (!deviceId || deviceId === '') {
       console.warn('[MicrophoneSelector] Attempted to select invalid device ID');
       toast.error("Invalid device selection", {
@@ -52,7 +52,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       return;
     }
     
-    // Verificar se o dispositivo existe na lista
+    // Verify device exists in the list
     const deviceExists = devices.some(d => d.deviceId === deviceId);
     if (!deviceExists) {
       console.warn('[MicrophoneSelector] Selected device not found in current devices list');
@@ -65,23 +65,23 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       deviceExists
     });
     
-    // Definir o dispositivo selecionado
+    // Set the selected device
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Log para depuração
+    // Debug log
     console.log('[MicrophoneSelector] Device selected, updated state:', {
       selectedId: deviceId,
       foundInList: deviceExists
     });
     
-    // Mostrar toast de sucesso
+    // Show success toast
     const device = devices.find(d => d.deviceId === deviceId);
     toast.success(`Selected: ${device?.label || 'Microphone'}`, {
       duration: 2000
     });
     
-    // Verificar se o contexto foi atualizado corretamente (setTimeout for async check)
+    // Verify context was properly updated (setTimeout for async check)
     setTimeout(() => {
       console.log('[MicrophoneSelector] Selection verification (async):', {
         expected: deviceId,
