@@ -114,6 +114,7 @@ const SimpleRecord = () => {
                     audioDevices={audioDevices}
                     selectedDeviceId={selectedDeviceId}
                     onDeviceSelect={setSelectedDeviceId}
+                    showPlayButton={false}
                   />
 
                   <RecordingActions
