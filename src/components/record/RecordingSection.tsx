@@ -1,5 +1,4 @@
 
-import { useEffect } from "react";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { RecordControls } from "@/components/record/RecordControls";
@@ -48,13 +47,6 @@ export const RecordingSection = ({
 }: RecordingSectionProps) => {
   const canStartRecording = !!selectedDeviceId && deviceSelectionReady;
   const hasDevices = audioDevices.length > 0;
-
-  useEffect(() => {
-    if (hasDevices && !selectedDeviceId && deviceSelectionReady && audioDevices.length > 0) {
-      console.log('[RecordingSection] Auto-selecting first device');
-      onDeviceSelect(audioDevices[0].deviceId);
-    }
-  }, [hasDevices, selectedDeviceId, deviceSelectionReady, audioDevices, onDeviceSelect]);
 
   return (
     <>

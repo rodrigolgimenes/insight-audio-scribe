@@ -9,7 +9,6 @@ export const useDeviceSelection = () => {
   const { getAudioDevices, audioDevices, defaultDeviceId, requestMicrophoneAccess } = useAudioCapture();
   const { toast } = useToast();
   const deviceInitializationAttempted = useRef(false);
-  const autoSelectionAttempted = useRef(false);
 
   const handleDeviceSelect = useCallback((deviceId: string) => {
     console.log('[useDeviceSelection] Setting device ID:', deviceId);
@@ -20,16 +19,8 @@ export const useDeviceSelection = () => {
       console.log('[useDeviceSelection] Device selected successfully:', deviceId);
     } else {
       console.warn('[useDeviceSelection] Attempted to select invalid device ID:', deviceId);
-      
-      if (audioDevices.length > 0) {
-        const fallbackDevice = audioDevices[0].deviceId;
-        console.log('[useDeviceSelection] Falling back to first available device:', fallbackDevice);
-        setSelectedDeviceId(fallbackDevice);
-        setDeviceSelectionReady(true);
-      } else {
-        setSelectedDeviceId(null);
-        setDeviceSelectionReady(false);
-      }
+      setSelectedDeviceId(null);
+      setDeviceSelectionReady(false);
     }
   }, [audioDevices]);
 
@@ -56,14 +47,6 @@ export const useDeviceSelection = () => {
             variant: "destructive",
           });
           setDeviceSelectionReady(false);
-        } else {
-          // Auto-select first device if none is selected
-          if (!selectedDeviceId && !autoSelectionAttempted.current) {
-            autoSelectionAttempted.current = true;
-            const firstDevice = devices[0].deviceId;
-            console.log('[useDeviceSelection] Auto-selecting first device:', firstDevice);
-            handleDeviceSelect(firstDevice);
-          }
         }
       } catch (error) {
         console.error('[useDeviceSelection] Error initializing devices:', error);
@@ -77,23 +60,7 @@ export const useDeviceSelection = () => {
     };
     
     initDevices();
-  }, [getAudioDevices, toast, handleDeviceSelect, selectedDeviceId]);
-
-  // Select default device when available
-  useEffect(() => {
-    if (audioDevices.length > 0 && !selectedDeviceId && !autoSelectionAttempted.current) {
-      console.log('[useDeviceSelection] Trying to select a default device');
-      autoSelectionAttempted.current = true;
-      
-      if (defaultDeviceId) {
-        console.log('[useDeviceSelection] Setting default device:', defaultDeviceId);
-        handleDeviceSelect(defaultDeviceId);
-      } else {
-        console.log('[useDeviceSelection] No default device, selecting first available device');
-        handleDeviceSelect(audioDevices[0].deviceId);
-      }
-    }
-  }, [defaultDeviceId, selectedDeviceId, audioDevices, handleDeviceSelect]);
+  }, [getAudioDevices, toast]);
 
   // Reset selection if selected device is no longer available
   useEffect(() => {
@@ -102,20 +69,11 @@ export const useDeviceSelection = () => {
       
       if (!deviceExists) {
         console.warn('[useDeviceSelection] Selected device no longer available, resetting selection');
-        autoSelectionAttempted.current = false;
-        
-        if (audioDevices.length > 0) {
-          console.log('[useDeviceSelection] Selecting first available device as fallback');
-          handleDeviceSelect(audioDevices[0].deviceId);
-        } else {
-          setSelectedDeviceId(null);
-          setDeviceSelectionReady(false);
-        }
-      } else if (!deviceSelectionReady) {
-        setDeviceSelectionReady(true);
+        setSelectedDeviceId(null);
+        setDeviceSelectionReady(false);
       }
     }
-  }, [selectedDeviceId, audioDevices, deviceSelectionReady, handleDeviceSelect]);
+  }, [selectedDeviceId, audioDevices]);
 
   return {
     audioDevices,

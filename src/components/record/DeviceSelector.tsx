@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AudioDevice } from "@/hooks/recording/useAudioCapture";
-import { useEffect } from "react";
 
 interface DeviceSelectorProps {
   audioDevices: AudioDevice[];
@@ -27,14 +26,6 @@ export function DeviceSelector({
   disabled,
   hasDevices
 }: DeviceSelectorProps) {
-  // Auto-select first device when devices are loaded if none is selected
-  useEffect(() => {
-    if (hasDevices && !selectedDeviceId && audioDevices.length > 0) {
-      console.log('[DeviceSelector] Auto-selecting first device:', audioDevices[0].deviceId);
-      onDeviceSelect(audioDevices[0].deviceId);
-    }
-  }, [audioDevices, hasDevices, selectedDeviceId, onDeviceSelect]);
-
   return (
     <div className="flex items-center justify-between space-x-2">
       <div className="flex items-center space-x-2">
