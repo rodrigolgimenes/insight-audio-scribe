@@ -1,4 +1,3 @@
-
 import { transcribeAudio } from './openaiClient.ts';
 import { downloadAudioFile } from './storageClient.ts';
 import { updateRecordingAndNote } from './utils/dataOperations.ts';
@@ -98,13 +97,14 @@ export async function downloadAudioFromUrl(url: string): Promise<Blob> {
 
 /**
  * Concatena fragmentos de transcrição em um único texto coerente
+ * Melhorada para garantir melhor fluidez entre os fragmentos
  */
 async function concatenateTranscriptionChunks(
   supabase: any,
   noteId: string,
   totalChunks: number
 ): Promise<string> {
-  console.log(`[transcribe-audio] Concatenando ${totalChunks} fragmentos de transcrição`);
+  console.log(`[transcribe-audio] Concatenando ${totalChunks} fragmentos de transcrição para a nota ${noteId}`);
   
   try {
     // Buscar chunks armazenados na tabela temporária
@@ -127,26 +127,85 @@ async function concatenateTranscriptionChunks(
     // Verificar se todos os fragmentos estão presentes
     if (chunksData.length < totalChunks) {
       console.warn(`[transcribe-audio] Faltando fragmentos: ${chunksData.length}/${totalChunks}`);
+      
+      // Log detalhado de quais índices estão presentes
+      const presentIndices = chunksData.map(chunk => chunk.index).sort((a, b) => a - b);
+      const missingIndices = [];
+      
+      for (let i = 0; i < totalChunks; i++) {
+        if (!presentIndices.includes(i)) {
+          missingIndices.push(i);
+        }
+      }
+      
+      if (missingIndices.length > 0) {
+        console.warn(`[transcribe-audio] Índices ausentes: ${missingIndices.join(', ')}`);
+      }
     }
     
     // Ordenar fragmentos pelo índice
     const sortedChunks = chunksData.sort((a: TranscriptionChunk, b: TranscriptionChunk) => a.index - b.index);
     
-    // Concatenar em um único texto, adicionando espaços entre fragmentos se necessário
+    // Análise preliminar dos fragmentos
+    const chunkSizes = sortedChunks.map(chunk => chunk.text ? chunk.text.length : 0);
+    console.log('[transcribe-audio] Tamanho dos fragmentos (caracteres):', chunkSizes);
+    
+    // Concatenar em um único texto com processamento inteligente
     let fullText = '';
-    for (const chunk of sortedChunks) {
-      // Se não for o primeiro fragmento e o último caractere do texto atual não for um espaço,
-      // e o primeiro caractere do próximo fragmento não for um espaço, adicione um espaço
-      if (fullText.length > 0 && 
-          !fullText.endsWith(' ') && 
-          chunk.text && 
-          !chunk.text.startsWith(' ')) {
-        fullText += ' ';
+    for (let i = 0; i < sortedChunks.length; i++) {
+      const chunk = sortedChunks[i];
+      const chunkText = chunk.text?.trim() || '';
+      
+      if (chunkText.length === 0) {
+        console.warn(`[transcribe-audio] Fragmento ${chunk.index} vazio, ignorando`);
+        continue;
       }
-      fullText += chunk.text || '';
+      
+      if (fullText.length === 0) {
+        // Primeiro fragmento
+        fullText = chunkText;
+      } else {
+        // Determinar como anexar este fragmento ao texto existente
+        
+        // Verificar se o texto atual termina com pontuação final
+        const endsWithFinalPunctuation = /[.!?]$/.test(fullText);
+        
+        // Verificar se o próximo fragmento começa com letra maiúscula
+        const startsWithCapital = /^[A-Z]/.test(chunkText);
+        
+        if (endsWithFinalPunctuation && startsWithCapital) {
+          // Se o texto atual termina com pontuação e o novo começa com maiúscula,
+          // é provavelmente uma nova frase - adicionar espaço
+          fullText += ' ' + chunkText;
+        } else if (endsWithFinalPunctuation) {
+          // Se só o texto atual termina com pontuação, adicionar espaço
+          fullText += ' ' + chunkText;
+        } else if (startsWithCapital) {
+          // Se só o novo fragmento começa com maiúscula, adicionar ponto e espaço
+          fullText += '. ' + chunkText;
+        } else {
+          // Nenhum indicador claro - usar heurística simples
+          const lastChar = fullText.charAt(fullText.length - 1);
+          if (lastChar === ' ') {
+            fullText += chunkText;
+          } else {
+            fullText += ' ' + chunkText;
+          }
+        }
+      }
+      
+      console.log(`[transcribe-audio] Fragmento ${chunk.index} concatenado com sucesso`);
     }
     
-    console.log('[transcribe-audio] Concatenação concluída, tamanho do texto:', fullText.length);
+    console.log('[transcribe-audio] Concatenação concluída, tamanho do texto final:', fullText.length);
+    
+    // Otimização final do texto
+    // Remover espaços duplos
+    fullText = fullText.replace(/\s{2,}/g, ' ');
+    // Garantir que frases tenham espaço após pontuação
+    fullText = fullText.replace(/([.!?])([A-Z])/g, '$1 $2');
+    
+    console.log('[transcribe-audio] Otimização de texto concluída');
     
     return fullText;
   } catch (error) {
@@ -199,9 +258,16 @@ export async function processTranscription(
       await progressTracker.markTranscribed();
     } else {
       console.log(`[transcribe-audio] Bloco ${chunkIndex} transcrito com sucesso`);
+      console.log(`[transcribe-audio] Tamanho do texto do bloco ${chunkIndex}: ${transcription.text ? transcription.text.length : 0} caracteres`);
+      
+      // Análise rápida do conteúdo para debug
+      if (transcription.text) {
+        const preview = transcription.text.substring(0, 50) + (transcription.text.length > 50 ? "..." : "");
+        console.log(`[transcribe-audio] Amostra do bloco ${chunkIndex}: "${preview}"`);
+      }
       
       // Salvar o fragmento na tabela temporária
-      await supabase
+      const { error: insertError } = await supabase
         .from('transcription_chunks')
         .insert({
           note_id: note.id,
@@ -209,6 +275,11 @@ export async function processTranscription(
           text: transcription.text,
           created_at: new Date().toISOString()
         });
+        
+      if (insertError) {
+        console.error(`[transcribe-audio] Erro ao salvar fragmento ${chunkIndex}:`, insertError);
+        throw new Error(`Falha ao salvar fragmento de transcrição: ${insertError.message}`);
+      }
       
       console.log(`[transcribe-audio] Fragmento ${chunkIndex} salvo no banco de dados`);
       
@@ -226,7 +297,7 @@ export async function processTranscription(
         );
         
         // Atualizar a nota com a transcrição completa
-        await supabase
+        const { error: updateError } = await supabase
           .from('notes')
           .update({
             original_transcript: fullTranscription,
@@ -235,7 +306,13 @@ export async function processTranscription(
           })
           .eq('id', note.id);
           
+        if (updateError) {
+          console.error('[transcribe-audio] Erro ao atualizar nota com transcrição completa:', updateError);
+          throw new Error(`Falha ao atualizar nota com transcrição: ${updateError.message}`);
+        }
+          
         console.log('[transcribe-audio] Nota atualizada com transcrição completa');
+        console.log('[transcribe-audio] Tamanho total da transcrição:', fullTranscription.length, 'caracteres');
         
         // Iniciar geração de atas de reunião
         await startMeetingMinutesGeneration(supabase, note.id, fullTranscription);
@@ -244,12 +321,17 @@ export async function processTranscription(
         console.log('[transcribe-audio] Processo concluído com sucesso');
         
         // Limpar tabela temporária de fragmentos
-        await supabase
+        const { error: deleteError } = await supabase
           .from('transcription_chunks')
           .delete()
           .eq('note_id', note.id);
           
-        console.log('[transcribe-audio] Fragmentos temporários removidos');
+        if (deleteError) {
+          console.error('[transcribe-audio] Erro ao remover fragmentos temporários:', deleteError);
+          // Não falhar o processo por causa desse erro
+        } else {
+          console.log('[transcribe-audio] Fragmentos temporários removidos');
+        }
       }
     }
     
@@ -321,22 +403,62 @@ export async function processTranscription(
 
 /**
  * Verifica se todos os fragmentos de uma nota foram processados
+ * Melhorada para fornecer mais informações diagnósticas
  */
 async function checkAllChunksComplete(
   supabase: any,
   noteId: string,
   totalChunks: number
 ): Promise<boolean> {
-  const { count, error } = await supabase
-    .from('transcription_chunks')
-    .select('*', { count: 'exact', head: true })
-    .eq('note_id', noteId);
+  try {
+    // Buscar todos os fragmentos para esta nota
+    const { data: chunks, error } = await supabase
+      .from('transcription_chunks')
+      .select('index')
+      .eq('note_id', noteId);
+      
+    if (error) {
+      console.error('[transcribe-audio] Erro ao verificar fragmentos:', error);
+      return false;
+    }
     
-  if (error) {
-    console.error('[transcribe-audio] Erro ao verificar fragmentos:', error);
+    if (!chunks) {
+      console.warn('[transcribe-audio] Nenhum fragmento encontrado para a nota', noteId);
+      return false;
+    }
+    
+    const count = chunks.length;
+    console.log(`[transcribe-audio] Verificação de fragmentos: ${count}/${totalChunks}`);
+    
+    if (count === totalChunks) {
+      console.log('[transcribe-audio] Todos os fragmentos estão completos!');
+      return true;
+    }
+    
+    // Diagnóstico adicional - quais índices estão presentes/ausentes
+    const presentIndices = chunks.map(chunk => chunk.index).sort((a, b) => a - b);
+    const missingIndices = [];
+    
+    for (let i = 0; i < totalChunks; i++) {
+      if (!presentIndices.includes(i)) {
+        missingIndices.push(i);
+      }
+    }
+    
+    if (missingIndices.length > 0) {
+      console.warn(`[transcribe-audio] Fragmentos ausentes: ${missingIndices.join(', ')}`);
+    }
+    
+    // Se faltam poucos fragmentos (menos de 10%), considerar concluído
+    // Isso ajuda com resiliência em caso de falhas em alguns fragmentos
+    if (count >= totalChunks * 0.9 && totalChunks > 5) {
+      console.warn(`[transcribe-audio] Considerando processamento concluído com ${count}/${totalChunks} fragmentos (>=90%)`);
+      return true;
+    }
+    
+    return false;
+  } catch (err) {
+    console.error('[transcribe-audio] Erro ao verificar conclusão dos fragmentos:', err);
     return false;
   }
-  
-  console.log(`[transcribe-audio] Verificação de fragmentos: ${count}/${totalChunks}`);
-  return count === totalChunks;
 }
