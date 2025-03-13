@@ -113,7 +113,7 @@ export default function RecordPage() {
               handleResumeRecording={handleResumeRecording}
               handleDelete={handleDelete}
               onSystemAudioChange={setIsSystemAudio}
-              audioDevices={audioDevices}
+              audioDevices={audioDevices} // Now correctly typed as AudioDevice[]
               selectedDeviceId={selectedDeviceId}
               onDeviceSelect={setSelectedDeviceId}
               deviceSelectionReady={deviceSelectionReady}

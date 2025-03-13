@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -221,7 +222,7 @@ const SimpleRecord = () => {
                       handleResumeRecording={recordingHook.handleResumeRecording}
                       handleDelete={recordingHook.handleDelete}
                       onSystemAudioChange={recordingHook.setIsSystemAudio}
-                      audioDevices={recordingHook.audioDevices}
+                      audioDevices={recordingHook.audioDevices as AudioDevice[]}
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={recordingHook.deviceSelectionReady}

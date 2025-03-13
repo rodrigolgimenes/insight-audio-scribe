@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Pause, PlayCircle, Loader2 } from "lucide-react";
@@ -6,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useRecording } from "@/hooks/useRecording";
 import { TestDeviceSelector } from "./TestDeviceSelector";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordMeetingContentProps {
   isLoading: boolean;
@@ -26,7 +26,6 @@ export function RecordMeetingContent({
   const [savingProgress, setSavingProgress] = useState(0);
   const [recordingTimer, setRecordingTimer] = useState(0);
   
-  // Timer for recording duration
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     
@@ -41,14 +40,12 @@ export function RecordMeetingContent({
     };
   }, [recordingHook.isRecording, recordingHook.isPaused]);
   
-  // Reset timer when recording stops
   useEffect(() => {
     if (!recordingHook.isRecording) {
       setRecordingTimer(0);
     }
   }, [recordingHook.isRecording]);
   
-  // Format seconds to MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -65,25 +62,21 @@ export function RecordMeetingContent({
       onUploadStart();
       setSavingProgress(10);
       
-      // If still recording, stop it first
       if (recordingHook.isRecording) {
         await recordingHook.handleStopRecording();
       }
       
       setSavingProgress(30);
       
-      // Get the audio blob
       const response = await fetch(recordingHook.audioUrl);
       const blob = await response.blob();
       
       setSavingProgress(50);
       
-      // Convert blob to base64
       const reader = new FileReader();
       const base64Promise = new Promise<string>((resolve, reject) => {
         reader.onload = () => {
           if (typeof reader.result === 'string') {
-            // Remove data URL prefix
             const base64 = reader.result.split(',')[1];
             resolve(base64);
           } else {
@@ -98,7 +91,6 @@ export function RecordMeetingContent({
       
       setSavingProgress(70);
       
-      // Upload to Supabase Edge Function for processing
       toast.info("Sending for transcription...");
       const { data, error } = await supabase.functions.invoke('transcribe-meeting', {
         body: { 
@@ -116,7 +108,6 @@ export function RecordMeetingContent({
         throw new Error(error.message || "Error transcribing audio");
       }
       
-      // Handle successful transcription
       if (data && data.transcription) {
         onUploadComplete(data.transcription);
       } else {
@@ -151,7 +142,6 @@ export function RecordMeetingContent({
         </div>
         
         <div className="p-4">
-          {/* Audio visualizer or progress bar */}
           <div className="h-16 bg-gray-100 rounded-md mb-4 flex items-center justify-center">
             {recordingHook.isRecording ? (
               <div className="h-0.5 w-full max-w-[90%] bg-blue-500 relative">
@@ -162,7 +152,6 @@ export function RecordMeetingContent({
             )}
           </div>
           
-          {/* Recording status and timer */}
           {recordingHook.isRecording && (
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
@@ -173,10 +162,9 @@ export function RecordMeetingContent({
             </div>
           )}
           
-          {/* Device selector */}
           <div className="mb-4">
             <TestDeviceSelector 
-              audioDevices={recordingHook.audioDevices}
+              audioDevices={recordingHook.audioDevices as AudioDevice[]}
               selectedDeviceId={recordingHook.selectedDeviceId}
               onDeviceSelect={recordingHook.setSelectedDeviceId}
               isLoading={recordingHook.devicesLoading}
@@ -184,7 +172,6 @@ export function RecordMeetingContent({
             />
           </div>
           
-          {/* Recording controls */}
           <div className="space-y-3">
             {!recordingHook.isRecording ? (
               <Button 
@@ -248,7 +235,6 @@ export function RecordMeetingContent({
             )}
           </div>
           
-          {/* Audio preview */}
           {recordingHook.audioUrl && !recordingHook.isRecording && (
             <div className="mt-4">
               <audio 

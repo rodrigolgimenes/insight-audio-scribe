@@ -9,6 +9,7 @@ import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
 import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
 import { useRecordingActions } from "./actions/useRecordingActions";
 import { DeviceContext } from "@/components/providers/DeviceProvider";
+import { toAudioDevice } from "../recording/capture/types";
 
 export function useRecordingHook() {
   const recorder = useRef<AudioRecorder | null>(null);
@@ -23,16 +24,25 @@ export function useRecordingHook() {
     recorder.current = new AudioRecorder();
   }, []);
 
+  // Convert MediaDeviceInfo[] to AudioDevice[]
+  const audioDevices = deviceContext.audioDevices.map((device, index) => 
+    toAudioDevice(device, device.deviceId === 'default', index)
+  );
+
   // Initialize system audio capture
   const {
     startSystemAudioCapture,
-    stopSystemAudioCapture
+    stopSystemAudioCapture,
+    isSystemAudio: captureIsSystemAudio,
+    setIsSystemAudio
   } = useSystemAudioCapture(recorder, recordingState);
 
   // Initialize microphone capture
   const {
     startMicrophoneCapture,
-    stopMicrophoneCapture
+    stopMicrophoneCapture,
+    selectedDeviceId: captureSelectedDeviceId,
+    setSelectedDeviceId
   } = useMicrophoneCapture(recorder, recordingState);
 
   // Lifecycle actions
@@ -59,8 +69,8 @@ export function useRecordingHook() {
 
   // System audio change handler
   const handleSystemAudioChange = useCallback((value: boolean) => {
-    recordingState.setIsSystemAudio(value);
-  }, [recordingState]);
+    setIsSystemAudio(value);
+  }, [setIsSystemAudio]);
 
   // Get current duration
   const getCurrentDuration = useCallback(() => {
@@ -71,8 +81,8 @@ export function useRecordingHook() {
   // Wrapper for setSelectedDeviceId to include logging
   const wrappedSetSelectedDeviceId = useCallback((deviceId: string | null) => {
     console.log('[useRecordingHook] Setting selected device ID:', deviceId);
-    recordingState.setSelectedDeviceId(deviceId);
-  }, [recordingState]);
+    setSelectedDeviceId(deviceId);
+  }, [setSelectedDeviceId]);
 
   // Check for restricted routes on mount
   useEffect(() => {
@@ -127,7 +137,7 @@ export function useRecordingHook() {
     handleDelete,
     handleSaveRecording,
     setIsSystemAudio: handleSystemAudioChange,
-    audioDevices: deviceContext.audioDevices,
+    audioDevices, // Now correctly returns AudioDevice[] instead of MediaDeviceInfo[]
     getCurrentDuration,
     initError: deviceContext.initError,
     refreshDevices: deviceContext.refreshDevices,
