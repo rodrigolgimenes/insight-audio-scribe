@@ -50,8 +50,10 @@ export const DashboardTable = ({
           
           // Also immediately update the note's status if we have a more accurate one from the database
           const noteToUpdate = notes.find(n => n.id === note.id);
-          if (noteToUpdate && noteToUpdate.status !== note.status) {
-            noteToUpdate.status = note.status;
+          if (noteToUpdate) {
+            // Ensure we're assigning a valid status type
+            const validStatus = note.status as 'error' | 'pending' | 'processing' | 'completed' | 'transcribing' | 'generating_minutes';
+            noteToUpdate.status = validStatus;
           }
         });
         setNotesProgress(progressMap);
