@@ -65,35 +65,62 @@ export class AudioCompressor {
   
   /**
    * Compress audio to reduce file size (mono, lower bitrate)
+   * This method ensures proper conversion to MP3 format
    */
   async compressAudio(audioBlob: Blob): Promise<Blob> {
     try {
-      console.log(`[AudioCompressor] Compressing audio file: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB`);
+      console.log(`[AudioCompressor] Compressing audio file: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB, type: ${audioBlob.type}`);
       const ffmpeg = await this.loadFFmpeg();
       
       // Determine input format from blob type or default to webm
-      const inputFormat = audioBlob.type.split('/')[1] || 'webm';
+      const mimeType = audioBlob.type.toLowerCase();
+      const inputFormat = mimeType.includes('webm') ? 'webm' : 
+                         mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
+                         mimeType.includes('wav') ? 'wav' : 'webm';
+      
+      console.log(`[AudioCompressor] Detected input format: ${inputFormat}`);
       const inputFileName = `input.${inputFormat}`;
-      const outputFileName = 'compressed.mp3';
+      const outputFileName = 'output.mp3'; // Always output as MP3
       
       // Write the input file to FFmpeg's file system
       ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
       
-      // Compress audio to mono, 16kHz, 32kbps MP3
-      await ffmpeg.exec([
+      // Log the ffmpeg command for debugging
+      const ffmpegCommand = [
         '-i', inputFileName,
         '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
         '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
         '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
         '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
         outputFileName
-      ]);
+      ];
+      
+      console.log('[AudioCompressor] Running FFmpeg command:', ffmpegCommand.join(' '));
+      
+      // Compress audio to mono, 16kHz, 32kbps MP3
+      await ffmpeg.exec(ffmpegCommand);
+      
+      // Verify the output file exists
+      const files = await ffmpeg.listDir('./');
+      console.log('[AudioCompressor] Files after compression:', files.map(f => f.name).join(', '));
+      
+      if (!files.some(f => f.name === outputFileName)) {
+        throw new Error('Output file not created by FFmpeg');
+      }
       
       // Read the compressed file
       const data = await ffmpeg.readFile(outputFileName);
+      
+      // Ensure proper MIME type is set
       const compressedBlob = new Blob([data], { type: 'audio/mp3' });
       
-      console.log(`[AudioCompressor] Compression completed: ${(compressedBlob.size / 1024 / 1024).toFixed(2)}MB`);
+      console.log(`[AudioCompressor] Compression completed: ${(compressedBlob.size / 1024 / 1024).toFixed(2)}MB, type: ${compressedBlob.type}`);
+      
+      // Verify the blob has the right MIME type
+      if (!compressedBlob.type.includes('mp3') && !compressedBlob.type.includes('mpeg')) {
+        console.warn('[AudioCompressor] Warning: Compressed blob has incorrect MIME type:', compressedBlob.type);
+      }
+      
       return compressedBlob;
     } catch (error) {
       console.error('[AudioCompressor] Compression error:', error);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -17,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -132,9 +132,16 @@ const SimpleRecord = () => {
       if (!recordingBlob) {
         throw new Error("Failed to get recording data");
       }
+      
+      console.log('Original recording format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      // Convert to MP3 before upload
+      toast.info("Compressing audio...");
+      const compressedBlob = await audioCompressor.compressAudio(recordingBlob);
+      console.log('Compressed to MP3:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
 
-      // Generate a unique filename
-      const fileName = `${user.id}/${Date.now()}.webm`;
+      // Generate a unique filename WITH MP3 EXTENSION
+      const fileName = `${user.id}/${Date.now()}.mp3`;
       
       console.log('Creating recording with user ID:', user.id);
       console.log('Recording duration in seconds:', recordedDuration);
@@ -156,12 +163,12 @@ const SimpleRecord = () => {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
-      // Upload the audio file
+      // Upload the audio file - EXPLICITLY set contentType to MP3
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
-        .upload(fileName, recordingBlob, {
-          contentType: 'audio/webm',
-          upsert: false
+        .upload(fileName, compressedBlob, {
+          contentType: 'audio/mp3',
+          upsert: true
         });
 
       if (uploadError) {

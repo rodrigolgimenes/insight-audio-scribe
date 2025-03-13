@@ -68,6 +68,7 @@ export const useRecordingSave = () => {
       setProcessingProgress(5);
       setProcessingStage("Creating recording entry...");
 
+      // IMPORTANT: Use .mp3 extension to ensure correct content type detection
       const fileName = `${user.id}/${Date.now()}.mp3`;
 
       const { error: dbError, data: recordingData } = await supabase
@@ -98,10 +99,24 @@ export const useRecordingSave = () => {
       setProcessingStage("Compressing audio...");
       setProcessingProgress(15);
       
-      // Usar o AudioCompressor para converter o blob para MP3
+      // Debug log the original audio blob details
       console.log('Original audio format:', audioBlob.type, 'Size:', Math.round(audioBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      // Use the AudioCompressor to convert the blob to MP3
       const compressedBlob = await audioCompressor.compressAudio(audioBlob);
-      console.log('Compressed audio to MP3, new size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      // Debug log the compressed audio blob details
+      console.log('Compressed audio format:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      // Verify the blob has the correct type
+      if (!compressedBlob.type.includes('mp3') && !compressedBlob.type.includes('mpeg')) {
+        console.warn('Compressed blob is not in MP3 format. Forcing MIME type to audio/mp3');
+        // Force the correct MIME type if not set properly
+        const rawData = await compressedBlob.arrayBuffer();
+        const forcedMp3Blob = new Blob([rawData], { type: 'audio/mp3' });
+        console.log('Forced MP3 blob type:', forcedMp3Blob.type);
+        compressedBlob = forcedMp3Blob;
+      }
       
       setProcessingProgress(30);
       setProcessingStage("Uploading to server...");
@@ -113,19 +128,24 @@ export const useRecordingSave = () => {
 
       while (uploadAttempts < maxAttempts) {
         try {
+          console.log(`Upload attempt ${uploadAttempts + 1}/${maxAttempts} with content type: ${compressedBlob.type}`);
+          
           const { error } = await supabase.storage
             .from('audio_recordings')
             .upload(fileName, compressedBlob, {
-              contentType: 'audio/mp3',
-              upsert: false
+              contentType: 'audio/mp3', // Explicitly set content type to MP3
+              upsert: true // Use upsert to overwrite if needed
             });
 
           if (!error) {
             uploadError = null;
             break;
           }
+          
+          console.error(`Upload attempt ${uploadAttempts + 1} failed:`, error);
           uploadError = error;
         } catch (error) {
+          console.error(`Upload attempt ${uploadAttempts + 1} exception:`, error);
           uploadError = error;
         }
         uploadAttempts++;
@@ -135,7 +155,7 @@ export const useRecordingSave = () => {
       }
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
+        console.error('All upload attempts failed:', uploadError);
         throw new Error(`Failed to upload audio: ${uploadError.message || 'Unknown error'}`);
       }
       
