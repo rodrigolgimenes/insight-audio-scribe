@@ -6,6 +6,7 @@ import { RecordingTimer } from "./RecordingTimer";
 import { RecordingActions } from "./RecordingActions";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -19,7 +20,7 @@ interface RecordingSectionProps {
   handleResumeRecording: () => void;
   handleDelete: () => void;
   onSystemAudioChange: (value: boolean) => void;
-  audioDevices: Array<{ deviceId: string; label: string }>;
+  audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
