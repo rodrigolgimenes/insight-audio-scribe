@@ -100,20 +100,21 @@ export const useRecordingSave = () => {
               setProcessingStage(stage);
               
               if (transcriptionResult?.noteId && progress % 10 === 0) {
-                // Fix: Convert PromiseLike to Promise and use then/catch properly
-                void supabase
-                  .from('notes')
-                  .update({
-                    processing_progress: progress,
-                    status: progress < 10 ? 'pending' : 'processing'
-                  })
-                  .eq('id', transcriptionResult.noteId)
-                  .then(() => {
+                // Use async/await pattern for PromiseLike instead of then/catch
+                (async () => {
+                  try {
+                    await supabase
+                      .from('notes')
+                      .update({
+                        processing_progress: progress,
+                        status: progress < 10 ? 'pending' : 'processing'
+                      })
+                      .eq('id', transcriptionResult.noteId);
                     console.log(`Updated note progress: ${progress}%`);
-                  })
-                  .catch(err => {
+                  } catch (err) {
                     console.error('Error updating note progress:', err);
-                  });
+                  }
+                })();
               }
             }
           );
@@ -136,7 +137,7 @@ export const useRecordingSave = () => {
                 console.log('Immediate processing started successfully');
               }
               
-              // Fix: Convert PromiseLike to Promise with await
+              // Use await to properly handle the Promise
               await supabase
                 .from('notes')
                 .update({ 
