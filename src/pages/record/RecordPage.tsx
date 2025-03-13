@@ -30,8 +30,9 @@ export default function RecordPage() {
     refreshDevices,
     devicesLoading,
     permissionState,
-    processingProgress,
-    processingStage
+    processingProgress = 0,  // Provide default value
+    processingStage = "",    // Provide default value
+    isLoading = false        // Provide default value
   } = useRecording();
 
   // Create wrapper functions that return proper Promise types
@@ -85,11 +86,11 @@ export default function RecordPage() {
               deviceSelectionReady={deviceSelectionReady}
               onSave={handleSaveRecording}
               isSaving={isSaving}
-              isLoading={false}  // Fixed isLoading property
+              isLoading={isLoading}
               lastAction={lastAction}
               onRefreshDevices={handleWrappedRefreshDevices}
               devicesLoading={devicesLoading}
-              permissionState={permissionState as any}  // Use type assertion
+              permissionState={permissionState as any}
               processingProgress={processingProgress}
               processingStage={processingStage}
             />

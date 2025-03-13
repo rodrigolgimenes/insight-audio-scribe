@@ -1,22 +1,45 @@
-
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 /**
- * Format device label to be more readable
+ * Formats a device label to be user friendly
  */
-export function formatDeviceLabel(device: MediaDeviceInfo | AudioDevice, index: number): string {
-  if (!device) return `Microphone ${index + 1}`;
+export function formatDeviceLabel(device: AudioDevice | MediaDeviceInfo, index: number = 0): string {
+  // Default device name if no label provided
+  let defaultName = `Microphone ${index + 1}`;
   
-  // Check if label is available and not empty
-  if (device.label && device.label.trim() !== '') {
-    return device.label;
+  // Handle different device object types
+  if (!device) {
+    return defaultName;
   }
   
-  // If AudioDevice, check displayName
-  if ('displayName' in device && device.displayName && device.displayName.trim() !== '') {
-    return device.displayName;
+  // Extract label based on device type
+  const label = typeof device === 'object' && 'label' in device && typeof device.label === 'string' 
+    ? device.label.trim() 
+    : defaultName;
+  
+  // If there's no label or it's empty, return the default
+  if (!label || label === '') {
+    return defaultName;
   }
   
-  // Fall back to a numbered microphone if no label is available
-  return `Microphone ${index + 1}`;
+  // Format label - remove excess noise
+  const formatted = label
+    .replace(/\(.*?\)/g, '') // Remove parentheses and their contents
+    .replace(/- [^-]*$/, '') // Remove everything after last dash
+    .trim();
+  
+  return formatted || defaultName;
+}
+
+/**
+ * Formats a device ID for display purposes
+ */
+export function formatDeviceId(deviceId: string): string {
+  if (!deviceId) return 'No device ID';
+  
+  // If it's a default device marker, show that
+  if (deviceId === 'default') return 'Default Device';
+  
+  // Otherwise, truncate it to make it readable
+  return deviceId.substring(0, 8) + '...';
 }
