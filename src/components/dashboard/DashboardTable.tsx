@@ -40,13 +40,19 @@ export const DashboardTable = ({
     const fetchInitialProgress = async () => {
       const { data } = await supabase
         .from('notes')
-        .select('id, processing_progress')
+        .select('id, processing_progress, status')
         .in('id', notes.map(note => note.id));
         
       if (data) {
         const progressMap: Record<string, number> = {};
         data.forEach(note => {
           progressMap[note.id] = note.processing_progress || 0;
+          
+          // Also immediately update the note's status if we have a more accurate one from the database
+          const noteToUpdate = notes.find(n => n.id === note.id);
+          if (noteToUpdate && noteToUpdate.status !== note.status) {
+            noteToUpdate.status = note.status;
+          }
         });
         setNotesProgress(progressMap);
       }
@@ -62,7 +68,8 @@ export const DashboardTable = ({
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'notes'
+          table: 'notes',
+          filter: `id=in.(${notes.map(note => note.id).join(',')})` 
         },
         (payload) => {
           if (payload.new && 'id' in payload.new && 'processing_progress' in payload.new) {
@@ -70,6 +77,14 @@ export const DashboardTable = ({
               ...prev,
               [payload.new.id]: payload.new.processing_progress || 0
             }));
+            
+            // Also update the status if it changed
+            if ('status' in payload.new) {
+              const noteToUpdate = notes.find(note => note.id === payload.new.id);
+              if (noteToUpdate) {
+                noteToUpdate.status = payload.new.status;
+              }
+            }
           }
         }
       )
@@ -174,7 +189,11 @@ export const DashboardTable = ({
                 <RecordingModeIcon mode="mic" />
               </TableCell>
               <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
-                <NoteStatus status={note.status || 'processing'} progress={progress} />
+                <NoteStatus 
+                  status={note.status || 'processing'} 
+                  progress={progress} 
+                  noteId={note.id}
+                />
               </TableCell>
             </TableRow>
           );

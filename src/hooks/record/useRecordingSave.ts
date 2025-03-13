@@ -99,9 +99,9 @@ export const useRecordingSave = () => {
         duration: 5000, // Increased duration to give feedback longer
       });
       
-      // Process audio with our enhanced service that handles compression and chunking
-      // We'll add a small delay before processing to ensure database operations complete
-      setTimeout(async () => {
+      // Start processing immediately in the background
+      // We'll navigate away, but the processing will continue
+      const startProcessing = async () => {
         try {
           // Start transcription process immediately with high priority
           const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
@@ -109,17 +109,51 @@ export const useRecordingSave = () => {
             audioBlob,
             finalDuration,
             (progress, stage) => {
+              // These updates won't be visible to the user after navigation,
+              // but they're still useful for debugging
               setProcessingProgress(progress);
               setProcessingStage(stage);
+              
+              // Update the note progress in database to ensure it's visible on the dashboard
+              if (transcriptionResult?.noteId && progress % 10 === 0) {
+                supabase
+                  .from('notes')
+                  .update({
+                    processing_progress: progress,
+                    status: progress < 10 ? 'pending' : 'processing'
+                  })
+                  .eq('id', transcriptionResult.noteId)
+                  .then(() => {
+                    console.log(`Updated note progress: ${progress}%`);
+                  })
+                  .catch(err => {
+                    console.error('Error updating note progress:', err);
+                  });
+              }
             }
           );
           
           console.log('Transcription initiation result:', transcriptionResult);
           
-          // Force invalidation of any cached queries to ensure UI updates
-          // This happens in a background task to not block the user
+          // If we have a note ID, immediately boost its priority in the processing queue
           if (transcriptionResult.noteId) {
             try {
+              // Start the edge function processing immediately
+              const { error: processError } = await supabase.functions.invoke('process-recording', {
+                body: { 
+                  recordingId: recordingData.id,
+                  noteId: transcriptionResult.noteId,
+                  priority: 'high'
+                },
+              });
+              
+              if (processError) {
+                console.error('Failed to start immediate processing:', processError);
+              } else {
+                console.log('Immediate processing started successfully');
+              }
+              
+              // Also update the note status to ensure the UI shows processing
               await supabase
                 .from('notes')
                 .update({ 
@@ -130,13 +164,16 @@ export const useRecordingSave = () => {
               
               console.log('Updated note status to ensure processing starts');
             } catch (updateError) {
-              console.error('Error updating note status:', updateError);
+              console.error('Error initiating processing:', updateError);
             }
           }
         } catch (error) {
           console.error('Background transcription error:', error);
         }
-      }, 500); // Small delay to ensure database consistency
+      };
+      
+      // Start the background processing without awaiting
+      setTimeout(startProcessing, 100);
       
       // Navigate to dashboard immediately after saving
       toast({

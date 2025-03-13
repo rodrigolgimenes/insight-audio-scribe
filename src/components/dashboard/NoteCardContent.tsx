@@ -5,6 +5,7 @@ import { formatDuration } from "@/utils/formatDuration";
 import { Loader2, Clock, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 
 interface NoteCardContentProps {
   transcript: string | null;
@@ -13,6 +14,7 @@ interface NoteCardContentProps {
   folder?: { id: string; name: string } | null;
   status?: string;
   progress?: number;
+  noteId?: string;
 }
 
 export const NoteCardContent = ({ 
@@ -21,10 +23,53 @@ export const NoteCardContent = ({
   createdAt, 
   folder,
   status = 'pending',
-  progress = 0
+  progress = 0,
+  noteId
 }: NoteCardContentProps) => {
   // Ensure progress is a number and properly rounded
-  const displayProgress = Math.round(progress || 0);
+  const [realTimeProgress, setRealTimeProgress] = useState(progress);
+  const [realTimeStatus, setRealTimeStatus] = useState(status);
+  
+  // Set up a realtime listener for this specific note's progress
+  useEffect(() => {
+    if (!noteId) return;
+    
+    // Set initial values
+    setRealTimeProgress(progress);
+    setRealTimeStatus(status);
+    
+    // Create subscription for real-time updates
+    const channel = supabase
+      .channel(`note-progress-${noteId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes',
+          filter: `id=eq.${noteId}`
+        },
+        (payload) => {
+          if (payload.new) {
+            if ('processing_progress' in payload.new) {
+              setRealTimeProgress(payload.new.processing_progress || 0);
+            }
+            if ('status' in payload.new) {
+              setRealTimeStatus(payload.new.status || 'pending');
+            }
+          }
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [noteId, progress, status]);
+  
+  // Fallback to props if we don't have realtime data
+  const displayProgress = Math.round(realTimeProgress || progress || 0);
+  const effectiveStatus = realTimeStatus || status;
   
   // Debug for duration display
   console.log('NoteCardContent duration value:', {
@@ -46,22 +91,52 @@ export const NoteCardContent = ({
     initialData: !!transcript
   });
   
+  // If progress stalls for too long, periodically refresh
+  useEffect(() => {
+    if (!noteId || realTimeStatus === 'completed' || realTimeStatus === 'error') return;
+    
+    // Periodically refresh the status for this note
+    const refreshInterval = setInterval(async () => {
+      if (realTimeStatus === 'pending' && realTimeProgress < 10) {
+        try {
+          // Check the current status
+          const { data } = await supabase
+            .from('notes')
+            .select('status, processing_progress')
+            .eq('id', noteId)
+            .single();
+            
+          if (data) {
+            setRealTimeStatus(data.status || 'pending');
+            setRealTimeProgress(data.processing_progress || 0);
+          }
+        } catch (error) {
+          console.error('Error refreshing note status:', error);
+        }
+      }
+    }, 5000); // Check every 5 seconds
+    
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [noteId, realTimeStatus, realTimeProgress]);
+  
   // Determine effective status based on all information
-  let effectiveStatus = status;
+  let displayStatus = effectiveStatus;
   
   // If transcript exists but status is not completed, consider it completed
-  if (transcript && status !== 'completed' && status !== 'error') {
-    effectiveStatus = 'completed';
+  if (transcript && displayStatus !== 'completed' && displayStatus !== 'error') {
+    displayStatus = 'completed';
   }
   
   // If progress is 100% and status is still processing/generating, consider it completed
-  if (displayProgress >= 100 && (status === 'generating_minutes' || status === 'processing')) {
-    effectiveStatus = 'completed';
+  if (displayProgress >= 100 && (displayStatus === 'generating_minutes' || displayStatus === 'processing')) {
+    displayStatus = 'completed';
   }
   
   // Determine estimated time based on progress
   const getEstimatedTime = () => {
-    if (effectiveStatus === 'pending' || effectiveStatus === 'processing') {
+    if (displayStatus === 'pending' || displayStatus === 'processing') {
       if (displayProgress < 10) return 'Starting...';
       if (displayProgress < 30) return '~3-5 minutes';
       if (displayProgress < 50) return '~2-3 minutes';
@@ -74,7 +149,7 @@ export const NoteCardContent = ({
   
   const getStatusDisplay = () => {
     // Force completed status if we have meeting minutes
-    if (minutesExist && effectiveStatus !== 'error') {
+    if (minutesExist && displayStatus !== 'error') {
       return (
         <div className="flex items-center gap-2 text-green-600">
           <CheckCircle2 className="h-4 w-4" />
@@ -84,7 +159,7 @@ export const NoteCardContent = ({
     }
     
     // Check if we have a transcript but inconsistent status
-    if (transcript && effectiveStatus !== 'completed' && effectiveStatus !== 'error') {
+    if (transcript && displayStatus !== 'completed' && displayStatus !== 'error') {
       return (
         <div className="flex items-center gap-2 text-green-600">
           <CheckCircle2 className="h-4 w-4" />
@@ -93,7 +168,7 @@ export const NoteCardContent = ({
       );
     }
     
-    switch (effectiveStatus) {
+    switch (displayStatus) {
       case 'completed':
         return (
           <div className="flex items-center gap-2 text-green-600">
@@ -165,8 +240,8 @@ export const NoteCardContent = ({
       {/* Status and Progress */}
       <div className="space-y-2">
         {getStatusDisplay()}
-        {effectiveStatus !== 'completed' && effectiveStatus !== 'error' && (
-          <Progress value={progress} className="h-2 bg-gray-200" />
+        {displayStatus !== 'completed' && displayStatus !== 'error' && (
+          <Progress value={displayProgress} className="h-2 bg-gray-200" />
         )}
       </div>
 
@@ -174,7 +249,7 @@ export const NoteCardContent = ({
       {transcript && (
         <p className="text-sm text-gray-600 line-clamp-3">{transcript}</p>
       )}
-      {effectiveStatus === 'completed' && !transcript && (
+      {displayStatus === 'completed' && !transcript && (
         <p className="text-sm text-gray-500 italic">Transcript ready but not loaded. Click to view.</p>
       )}
 

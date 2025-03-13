@@ -1,66 +1,112 @@
 
-import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { 
+  CheckCircle2, 
+  Loader2, 
+  AlertCircle 
+} from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 
 interface NoteStatusProps {
   status: string;
   progress?: number;
+  noteId?: string;
 }
 
-export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
-  // Ensure progress is always a number between 0-100
-  const displayProgress = Math.max(0, Math.min(100, Math.round(progress)));
-  
-  // Force completed status for edge cases where minutes are generated
-  const forceCompleted = status === 'generating_minutes' && displayProgress >= 100;
-  const displayStatus = forceCompleted ? 'completed' : status;
-  
-  // Check for specific error types
-  const isEdgeFunctionError = displayStatus === 'error' && 
-    (progress === 0 || displayProgress === 0);
-  
-  switch (displayStatus) {
-    case "completed":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          <CheckCircle className="h-3.5 w-3.5 mr-1" />
-          Completed
-        </span>
-      );
-    case "error":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          <AlertCircle className="h-3.5 w-3.5 mr-1" />
-          {isEdgeFunctionError ? "Service unavailable" : "Error"}
-        </span>
-      );
-    case "transcribing":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-lavender-web text-palatinate-blue">
-          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Transcribing {displayProgress}%
-        </span>
-      );
-    case "generating_minutes":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-lavender-web text-primary-dark">
-          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Generating Minutes {displayProgress}%
-        </span>
-      );
-    case "pending":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Pending {displayProgress > 0 ? `${displayProgress}%` : ''}
-        </span>
-      );
-    case "processing":
-    default:
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-lavender-web text-palatinate-blue">
-          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          Processing {displayProgress}%
-        </span>
-      );
-  }
+export const NoteStatus = ({ status, progress = 0, noteId }: NoteStatusProps) => {
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
+      case 'pending':
+        return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
+      case 'processing':
+      case 'transcribing':
+      case 'generating_minutes':
+      default:
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-600" />;
+    }
+  };
+
+  const getStatusText = () => {
+    switch (status) {
+      case 'completed':
+        return 'Ready';
+      case 'error':
+        return 'Error';
+      case 'pending':
+        return 'Pending';
+      case 'transcribing':
+        return 'Transcribing';
+      case 'generating_minutes':
+        return 'Generating Minutes';
+      case 'processing':
+      default:
+        return 'Processing';
+    }
+  };
+
+  const getTooltipContent = () => {
+    return (
+      <div className="w-64">
+        <div className="text-sm font-semibold mb-2">{getStatusText()}</div>
+        
+        {(status === 'processing' || status === 'transcribing' || status === 'generating_minutes' || status === 'pending') && (
+          <>
+            <Progress value={progress} className="h-2 mb-2" />
+            <p className="text-xs">{Math.round(progress)}% complete</p>
+            
+            {progress < 5 && (
+              <p className="text-xs mt-1 text-gray-400">Starting up...</p>
+            )}
+            
+            {progress >= 5 && progress < 50 && (
+              <p className="text-xs mt-1 text-gray-400">This may take a few minutes for longer recordings</p>
+            )}
+            
+            {progress >= 50 && progress < 90 && (
+              <p className="text-xs mt-1 text-gray-400">Almost there...</p>
+            )}
+            
+            {progress >= 90 && (
+              <p className="text-xs mt-1 text-gray-400">Finishing up...</p>
+            )}
+          </>
+        )}
+        
+        {status === 'error' && (
+          <p className="text-xs text-red-500">
+            There was an error processing this recording. Click to view details.
+          </p>
+        )}
+        
+        {status === 'completed' && (
+          <p className="text-xs text-green-600">
+            This recording has been fully processed and is ready to view.
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-2">
+            {getStatusIcon()}
+            <span>{getStatusText()}</span>
+            {['processing', 'transcribing', 'generating_minutes', 'pending'].includes(status) && progress > 0 && (
+              <span className="text-xs text-gray-500">{Math.round(progress)}%</span>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          {getTooltipContent()}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };

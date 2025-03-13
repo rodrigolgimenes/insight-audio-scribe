@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
@@ -283,12 +284,12 @@ class ChunkedTranscriptionService {
             let chunkSuccess = false;
             let chunkAttempts = 0;
             const maxChunkAttempts = 3;
-            let chunkError = null;
+            let lastError = null;
             
             while (chunkAttempts < maxChunkAttempts && !chunkSuccess) {
               try {
                 // Send this chunk for transcription
-                const { error: chunkError } = await supabase.functions
+                const { error: chunkProcessingError } = await supabase.functions
                   .invoke('transcribe-audio', {
                     body: { 
                       noteId: noteData.id,
@@ -301,17 +302,17 @@ class ChunkedTranscriptionService {
                     },
                   });
                   
-                if (!chunkError) {
+                if (!chunkProcessingError) {
                   chunkSuccess = true;
                   console.log(`Chunk ${i} transcription started successfully on attempt ${chunkAttempts + 1}`);
                   break;
                 } else {
-                  console.error(`Chunk ${i} transcription error on attempt ${chunkAttempts + 1}:`, chunkError);
-                  chunkError = chunkError;
+                  console.error(`Chunk ${i} transcription error on attempt ${chunkAttempts + 1}:`, chunkProcessingError);
+                  lastError = chunkProcessingError;
                 }
               } catch (error) {
                 console.error(`Chunk ${i} transcription exception on attempt ${chunkAttempts + 1}:`, error);
-                chunkError = error;
+                lastError = error;
               }
               
               chunkAttempts++;
@@ -326,7 +327,7 @@ class ChunkedTranscriptionService {
               return {
                 index: i,
                 success: false,
-                error: `Transcription failed: ${chunkError?.message || 'Maximum retry attempts exceeded'}`
+                error: `Transcription failed: ${lastError?.message || 'Maximum retry attempts exceeded'}`
               };
             }
             
