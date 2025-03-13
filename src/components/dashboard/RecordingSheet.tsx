@@ -38,7 +38,8 @@ export function RecordingSheet() {
     refreshDevices,
     devicesLoading,
     permissionState,
-    isRestrictedRoute
+    isRestrictedRoute,
+    audioFileSize
   } = useRecording();
 
   // Enhanced check for restricted routes - dashboard/index/app paths
