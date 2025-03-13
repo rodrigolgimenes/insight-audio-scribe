@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   const [isOpen, setIsOpen] = useState(false);
   
   // Debug log for selector state on mount and updates
-  useEffect(() => {
+  React.useEffect(() => {
     console.log('[MicrophoneSelector] Component state:', {
       deviceCount: devices.length,
       selectedDeviceId,
