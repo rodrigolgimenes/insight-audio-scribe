@@ -40,8 +40,7 @@ export function SimpleMicrophoneSelector() {
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    const device = devices.find(d => d.deviceId === deviceId);
-    toast.success(`Selected: ${device?.label || 'Microphone'}`);
+    // Remove toast notification about device selection
   };
   
   // Handle refreshing devices
@@ -50,7 +49,7 @@ export function SimpleMicrophoneSelector() {
     
     try {
       await detectDevices(true);
-      toast.success("Refreshed microphone list");
+      // Remove toast notification about refreshing microphones
     } catch (error) {
       console.error('[SimpleMicrophoneSelector] Error refreshing devices:', error);
       toast.error("Failed to refresh microphones");

@@ -44,11 +44,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Show success toast
-    const device = devices.find(d => d.deviceId === deviceId);
-    toast.success(`Selected: ${device?.label || 'Microphone'}`, {
-      duration: 2000
-    });
+    // Remove success toast about device selection
   };
   
   // Handle refresh

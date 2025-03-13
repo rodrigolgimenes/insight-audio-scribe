@@ -223,7 +223,7 @@ export const useDeviceEnumeration = (
         tempStream.getTracks().forEach(track => track.stop());
       }
       
-      // Remove success message - we don't want to show it anymore
+      // Remove success message about finding microphones
       // Previously had a toast.success here
       
       // Reset attempt counter on success
