@@ -69,7 +69,7 @@ export const useNoteTranscription = () => {
           .from('notes')
           .update({ 
             status: 'error',
-            error_message: `Failed to retry: ${error.message}`
+            error_message: `Failed to start: ${error.message}`
           })
           .eq('id', noteId);
         
@@ -78,7 +78,7 @@ export const useNoteTranscription = () => {
             .from('recordings')
             .update({ 
               status: 'error',
-              error_message: `Failed to retry: ${error.message}`
+              error_message: `Failed to start: ${error.message}`
             })
             .eq('id', note.recording_id);
         }
@@ -87,18 +87,18 @@ export const useNoteTranscription = () => {
         
         toast({
           title: "Error",
-          description: "Failed to retry transcription. Please try again.",
+          description: "Failed to start processing. Please try again.",
           variant: "destructive",
         });
         return false;
       }
       
       toast({
-        title: "Success",
-        description: "Transcription process restarted. This may take a few minutes.",
+        title: "Processing started",
+        description: "Transcription process has been initiated. This may take a few minutes.",
       });
 
-      console.log('Transcription retry initiated successfully');
+      console.log('Transcription process initiated successfully');
       return true;
     } catch (error) {
       console.error('Exception in retryTranscription:', error);

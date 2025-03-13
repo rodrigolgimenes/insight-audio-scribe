@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
@@ -25,7 +24,7 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
           notes_folders!left(
             folders:folder_id(*)
           ),
-          recordings!inner (duration, status)
+          recordings!inner (id, duration, status, transcription)
         `)
         .eq("id", noteId)
         .maybeSingle();
@@ -47,12 +46,35 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
 
       console.log("Note data from database:", data);
 
-      // Determine the correct status based on both note and recording status
+      // Handle possible inconsistencies between note and recording data
+      const recordingData = data.recordings;
       let noteStatus = data.status;
-      const recordingStatus = data.recordings?.status;
-
-      // If recording is completed and we have original_transcript, the note should be completed
-      if (recordingStatus === 'completed' && data.original_transcript) {
+      let noteTranscript = data.original_transcript;
+      
+      // If recording has transcript but note doesn't, use it and update
+      if (recordingData?.transcription && !data.original_transcript) {
+        console.log("Fixing inconsistency: recording has transcript but note doesn't");
+        noteTranscript = recordingData.transcription;
+        
+        // Update the note in the background
+        supabase
+          .from('notes')
+          .update({ 
+            original_transcript: recordingData.transcription,
+            status: 'completed',
+            processing_progress: 100
+          })
+          .eq('id', data.id)
+          .then(() => {
+            console.log("Note updated with transcript from recording");
+          })
+          .catch(err => {
+            console.error("Error updating note with recording transcript:", err);
+          });
+      }
+      
+      // If we have a transcript, the status should be completed
+      if (noteTranscript) {
         noteStatus = 'completed';
       }
 
@@ -63,13 +85,13 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
           : 'processing';
 
       // Prioritize the note's own duration, but fall back to recording duration if needed
-      const duration = data.duration !== null ? data.duration : data.recordings?.duration || null;
+      const duration = data.duration !== null ? data.duration : recordingData?.duration || null;
 
       const transformedNote: Note = {
         id: data.id,
         title: data.title,
         processed_content: data.processed_content,
-        original_transcript: data.original_transcript,
+        original_transcript: noteTranscript,
         full_prompt: data.full_prompt,
         created_at: data.created_at,
         updated_at: data.updated_at,
@@ -91,13 +113,15 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
             processing_progress: 100 
           })
           .eq('id', data.id);
+          
+        console.log("Updated note status to completed");
       }
 
       return transformedNote;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 30,
     gcTime: 1000 * 60 * 30,
-    retry: false,
+    retry: 1,
     enabled: isValidNoteId && !!noteId,
   });
 

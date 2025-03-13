@@ -21,18 +21,18 @@ export const useTranscriptionActions = (noteId?: string) => {
       const success = await retryTranscription(noteId);
       if (success) {
         toast({
-          title: "Retry initiated",
-          description: "Transcription process has been restarted.",
+          title: "Processing started",
+          description: "Transcription process has been initiated. This may take a few minutes.",
           variant: "default",
         });
       } else {
-        throw new Error("Failed to restart transcription");
+        throw new Error("Failed to start transcription");
       }
     } catch (error) {
       console.error('Error retrying transcription:', error);
       toast({
-        title: "Failed to retry",
-        description: "Could not restart the transcription process. Please try again later.",
+        title: "Failed to process",
+        description: "Could not start the transcription process. Please try again later.",
         variant: "destructive",
       });
     } finally {

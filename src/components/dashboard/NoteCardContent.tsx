@@ -25,6 +25,16 @@ export const NoteCardContent = ({
   const displayProgress = Math.round(progress || 0);
   
   const getStatusDisplay = () => {
+    // Check if we have a transcript but inconsistent status
+    if (transcript && status !== 'completed') {
+      return (
+        <div className="flex items-center gap-2 text-green-600">
+          <CheckCircle2 className="h-4 w-4" />
+          <span>Ready</span>
+        </div>
+      );
+    }
+    
     switch (status) {
       case 'completed':
         return (
@@ -76,8 +86,11 @@ export const NoteCardContent = ({
       </div>
 
       {/* Content */}
-      {status === 'completed' && transcript && (
+      {transcript && (
         <p className="text-sm text-gray-600 line-clamp-3">{transcript}</p>
+      )}
+      {status === 'completed' && !transcript && (
+        <p className="text-sm text-gray-500 italic">Transcript ready but not loaded. Click to view.</p>
       )}
 
       {/* Metadata */}

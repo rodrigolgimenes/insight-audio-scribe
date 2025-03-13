@@ -3,6 +3,7 @@ import { useNoteTranscription } from "@/hooks/notes/useNoteTranscription";
 import { Note } from "@/types/notes";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { TranscriptionStatus } from "./transcription/TranscriptionStatus";
 import { MeetingMinutesSection } from "./content/MeetingMinutesSection";
 import { TranscriptSection } from "./content/TranscriptSection";
@@ -20,6 +21,14 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
   const { retryTranscription } = useNoteTranscription();
   const [isRetrying, setIsRetrying] = useState(false);
   const [fromUpload, setFromUpload] = useState(false);
+  const queryClient = useQueryClient();
+  
+  // Refresh data on mount to ensure we have the latest status
+  useEffect(() => {
+    if (note.id) {
+      queryClient.invalidateQueries({ queryKey: ['note', note.id] });
+    }
+  }, [note.id, queryClient]);
   
   // Check if we need to auto-retry based on URL params
   useEffect(() => {
@@ -49,6 +58,59 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
     }
   }, [note.id, note.status, note.original_transcript, retryTranscription]);
 
+  // Check for inconsistent state and fix it
+  useEffect(() => {
+    const fixInconsistentState = async () => {
+      // If status is 'completed' but transcript is missing or vice versa
+      if (note.id && 
+          ((note.status === 'completed' && !note.original_transcript) ||
+           (note.status !== 'completed' && note.original_transcript))) {
+        
+        console.log("Fixing inconsistent state for note:", note.id);
+        
+        try {
+          // Check recording for transcript
+          const { data: recording } = await supabase
+            .from('recordings')
+            .select('transcription')
+            .eq('id', note.recording_id)
+            .single();
+            
+          if (recording?.transcription && !note.original_transcript) {
+            // Update note with transcript from recording
+            await supabase
+              .from('notes')
+              .update({
+                original_transcript: recording.transcription,
+                status: 'completed',
+                processing_progress: 100
+              })
+              .eq('id', note.id);
+              
+            queryClient.invalidateQueries({ queryKey: ['note', note.id] });
+          } else if (note.original_transcript && note.status !== 'completed') {
+            // Update status to match transcript
+            await supabase
+              .from('notes')
+              .update({
+                status: 'completed',
+                processing_progress: 100
+              })
+              .eq('id', note.id);
+              
+            queryClient.invalidateQueries({ queryKey: ['note', note.id] });
+          }
+        } catch (error) {
+          console.error("Error fixing inconsistent state:", error);
+        }
+      }
+    };
+    
+    if (note.id) {
+      fixInconsistentState();
+    }
+  }, [note.id, note.status, note.original_transcript, note.recording_id, queryClient]);
+
   // Set up realtime channel for status updates
   useEffect(() => {
     if (!note.id) return;
@@ -66,6 +128,8 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
         },
         (payload) => {
           console.log('Received note update:', payload);
+          // Immediately invalidate queries to refresh the data
+          queryClient.invalidateQueries({ queryKey: ['note', note.id] });
         }
       )
       .subscribe();
@@ -74,7 +138,7 @@ export const NoteContent = ({ note, audioUrl, meetingMinutes, isLoadingMinutes }
       console.log('Cleaning up channel subscription');
       supabase.removeChannel(noteChannel);
     };
-  }, [note.id]);
+  }, [note.id, queryClient]);
 
   const handleRetryTranscription = async () => {
     if (note.id) {
