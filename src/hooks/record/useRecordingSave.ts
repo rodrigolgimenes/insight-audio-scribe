@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -99,7 +100,8 @@ export const useRecordingSave = () => {
               setProcessingStage(stage);
               
               if (transcriptionResult?.noteId && progress % 10 === 0) {
-                supabase
+                // Fix: Convert PromiseLike to Promise and use then/catch properly
+                void supabase
                   .from('notes')
                   .update({
                     processing_progress: progress,
@@ -134,6 +136,7 @@ export const useRecordingSave = () => {
                 console.log('Immediate processing started successfully');
               }
               
+              // Fix: Convert PromiseLike to Promise with await
               await supabase
                 .from('notes')
                 .update({ 
