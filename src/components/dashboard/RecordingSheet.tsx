@@ -140,7 +140,7 @@ export function RecordingSheet() {
       isComponentReady,
       devicesLoading,
       permissionState,
-      isRestrictedRoute: isRestrictedRoute()
+      isRestrictedRoute: isRestrictedRoute
     });
   }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, 
       audioDevices.length, recordingAttemptsCount, initError, isComponentReady,
@@ -210,7 +210,7 @@ export function RecordingSheet() {
               onRefreshDevices={handleRefreshDevices}
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
-              isRestrictedRoute={checkIsRestrictedRoute()}
+              isRestrictedRoute={isRestrictedRoute}
             />
 
             <div className="mt-6 flex justify-center">

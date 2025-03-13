@@ -1,4 +1,3 @@
-
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
@@ -35,6 +34,7 @@ interface RecordingSectionProps {
   permissionState?: PermissionState;
   processingProgress?: number;
   processingStage?: string;
+  isRestrictedRoute?: boolean;
 }
 
 export const RecordingSection = ({
@@ -63,7 +63,8 @@ export const RecordingSection = ({
   devicesLoading = false,
   permissionState,
   processingProgress = 0,
-  processingStage = ""
+  processingStage = "",
+  isRestrictedRoute = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,

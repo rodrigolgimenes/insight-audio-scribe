@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useContext,
@@ -20,6 +21,11 @@ interface DeviceManagerContextValue {
   isLoading: boolean;
   refreshDevices: () => Promise<void>;
   requestPermission: () => Promise<boolean>;
+}
+
+// Add missing interface
+interface DeviceManagerProviderProps {
+  children: React.ReactNode;
 }
 
 const DeviceManagerContext = createContext<DeviceManagerContextValue | null>(null);

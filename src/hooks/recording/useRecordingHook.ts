@@ -1,3 +1,4 @@
+
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -33,6 +34,16 @@ export const useRecording = () => {
   
   // Main state
   const recordingState = useRecordingState();
+  
+  // Set deviceSelectionReady if not already in the state
+  useEffect(() => {
+    // Set deviceSelectionReady based on available devices and selected device
+    if (audioDevices.length > 0 && recordingState.selectedDeviceId) {
+      recordingState.setDeviceSelectionReady(true);
+    } else {
+      recordingState.setDeviceSelectionReady(false);
+    }
+  }, [recordingState.selectedDeviceId]);
   
   // Create a wrapped version of setSelectedDeviceId that adds logging
   // and prevents toasts on restricted routes
@@ -80,6 +91,11 @@ export const useRecording = () => {
     devicesLoading,
     permissionState
   } = useDeviceSelection();
+
+  // Update the recording state deviceSelectionReady when device selection changes
+  useEffect(() => {
+    recordingState.setDeviceSelectionReady(deviceSelectionReady);
+  }, [deviceSelectionReady]);
 
   // Log device selection state changes
   useEffect(() => {
@@ -160,7 +176,7 @@ export const useRecording = () => {
     recordingState.audioUrl, 
     recordingState.mediaStream, 
     recordingState.selectedDeviceId, 
-    deviceSelectionReady, 
+    recordingState.deviceSelectionReady, 
     recordingState.recordingAttemptsCount, 
     recordingState.isSystemAudio, 
     recordingState.lastAction
@@ -217,7 +233,7 @@ export const useRecording = () => {
     handleSaveRecording,
     setIsSystemAudio: handleSystemAudioChange,
     audioDevices,
-    deviceSelectionReady,
+    deviceSelectionReady: recordingState.deviceSelectionReady,
     getCurrentDuration,
     initError,
     refreshDevices,
