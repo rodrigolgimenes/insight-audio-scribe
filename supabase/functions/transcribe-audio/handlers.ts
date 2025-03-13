@@ -35,32 +35,32 @@ export async function handleTranscription(requestBody: {
     totalChunks
   } = requestBody;
   
-  console.log('[transcribe-audio] Starting transcription process with params:', { 
+  console.log('[transcribe-audio] Iniciando processo de transcrição com parâmetros:', { 
     recordingId, 
     noteId, 
-    duration: duration ? `${Math.round(duration/1000/60)} minutes` : 'unknown',
+    duration: duration ? `${Math.round(duration/1000/60)} minutos` : 'desconhecido',
     isLargeFile, 
     isExtremelyLargeFile,
     isRetry,
-    audioUrl: audioUrl ? 'provided' : 'not provided',
+    audioUrl: audioUrl ? 'fornecido' : 'não fornecido',
     isChunkedTranscription,
     chunkIndex,
     totalChunks
   });
   
   if ((!recordingId && !noteId) && !audioUrl) {
-    throw new Error('Either Recording ID, Note ID, or Audio URL is required');
+    throw new Error('ID da Gravação, ID da Nota ou URL do Áudio é obrigatório');
   }
 
-  // Check for file size constraints - now only logging a warning since we support up to 120 minutes
+  // Verifica restrições de tamanho do arquivo - agora apenas registrando um aviso
   if (duration && duration > MAX_AUDIO_DURATION_MS) {
-    console.warn('[transcribe-audio] Audio file exceeds maximum recommended duration:', 
-      `${Math.round(duration/1000/60)} minutes. Max: ${MAX_AUDIO_DURATION_MS/1000/60} minutes`);
+    console.warn('[transcribe-audio] Arquivo de áudio excede a duração máxima recomendada:', 
+      `${Math.round(duration/1000/60)} minutos. Máximo: ${MAX_AUDIO_DURATION_MS/1000/60} minutos`);
   }
 
   const supabase = createSupabaseClient();
 
-  // Get recording and note data
+  // Obter dados da gravação e da nota
   let recording;
   let note;
   let progressTracker;
@@ -68,12 +68,12 @@ export async function handleTranscription(requestBody: {
   
   try {
     if (audioUrl && noteId && isChunkedTranscription) {
-      // Special handling for chunked transcription - download audio directly from URL
-      console.log(`[transcribe-audio] Processing chunk ${chunkIndex} of ${totalChunks}`);
+      // Tratamento especial para transcrição em blocos - baixar áudio diretamente da URL
+      console.log(`[transcribe-audio] Processando bloco ${chunkIndex || 0} de ${totalChunks || 1}`);
       
       note = await getNoteData(supabase, noteId, true);
       
-      // For chunked transcriptions, don't update the main note progress to avoid conflicts
+      // Para transcrições em blocos, não atualize o progresso da nota principal para evitar conflitos
       progressTracker = new ProgressTracker(
         supabase, 
         noteId, 
@@ -82,80 +82,80 @@ export async function handleTranscription(requestBody: {
         totalChunks
       );
       
-      // Download audio directly from the URL
-      console.log('[transcribe-audio] Downloading audio chunk from URL');
+      // Baixar áudio diretamente da URL
+      console.log('[transcribe-audio] Baixando bloco de áudio da URL');
       audioData = await downloadAudioFromUrl(audioUrl);
       
-      console.log('[transcribe-audio] Audio chunk downloaded successfully:', 
-        `Size: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
+      console.log('[transcribe-audio] Bloco de áudio baixado com sucesso:', 
+        `Tamanho: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
     } else if (noteId && isRetry) {
-      // For retry operations, get the note first, then the recording
+      // Para operações de repetição, obtenha primeiro a nota e depois a gravação
       note = await getNoteData(supabase, noteId, true);
       recording = await getRecordingData(supabase, note.recording_id);
       
-      // Initialize progress tracker
+      // Inicializar rastreador de progresso
       progressTracker = new ProgressTracker(supabase, note.id);
       
-      // Initial progress update - started
+      // Atualização inicial de progresso - iniciado
       await progressTracker.markStarted();
       
-      // Download and validate the audio file
+      // Baixar e validar o arquivo de áudio
       audioData = await downloadAndValidateAudio(
         supabase, 
         recording.file_path, 
         progressTracker
       );
     } else if (recordingId) {
-      // Normal flow - get recording first
+      // Fluxo normal - obter gravação primeiro
       recording = await getRecordingData(supabase, recordingId);
       note = noteId ? 
         await getNoteData(supabase, noteId, true) : 
         await getNoteData(supabase, recordingId);
       
-      // Initialize progress tracker
+      // Inicializar rastreador de progresso
       progressTracker = new ProgressTracker(supabase, note.id);
       
-      // Initial progress update - started
+      // Atualização inicial de progresso - iniciado
       await progressTracker.markStarted();
       
-      // Download and validate the audio file
+      // Baixar e validar o arquivo de áudio
       audioData = await downloadAndValidateAudio(
         supabase, 
         recording.file_path, 
         progressTracker
       );
     } else if (audioUrl && noteId) {
-      // Direct URL transcription (not chunked)
+      // Transcrição direta de URL (não dividida em blocos)
       note = await getNoteData(supabase, noteId, true);
       
-      // Initialize progress tracker
+      // Inicializar rastreador de progresso
       progressTracker = new ProgressTracker(supabase, note.id);
       
-      // Initial progress update - started
+      // Atualização inicial de progresso - iniciado
       await progressTracker.markStarted();
       
-      // Download audio directly from the URL
-      console.log('[transcribe-audio] Downloading audio from URL');
+      // Baixar áudio diretamente da URL
+      console.log('[transcribe-audio] Baixando áudio da URL');
       audioData = await downloadAudioFromUrl(audioUrl);
       progressTracker.markDownloaded();
     } else {
-      throw new Error('Invalid parameters for transcription');
+      throw new Error('Parâmetros inválidos para transcrição');
     }
     
-    console.log('[transcribe-audio] Retrieved data and audio:', {
+    console.log('[transcribe-audio] Dados e áudio recuperados:', {
       noteId: note.id,
       audioSize: audioData ? `${Math.round(audioData.size/1024/1024*100)/100}MB` : 'null'
     });
   } catch (error) {
-    console.error('[transcribe-audio] Error retrieving data or audio:', error);
+    console.error('[transcribe-audio] Erro ao recuperar dados ou áudio:', error);
     throw error;
   }
 
-  // Process the transcription
+  // Processar a transcrição
   return await processTranscription(
     supabase, 
     note, 
-    recording, // May be undefined for direct URL transcription
+    recording, // Pode ser indefinido para transcrição direta de URL
     audioData, 
     progressTracker,
     isExtremelyLargeFile,
