@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
@@ -56,21 +57,21 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
         console.log("Fixing inconsistency: recording has transcript but note doesn't");
         noteTranscript = recordingData.transcription;
         
-        // Update the note in the background
-        supabase
-          .from('notes')
-          .update({ 
-            original_transcript: recordingData.transcription,
-            status: 'completed',
-            processing_progress: 100
-          })
-          .eq('id', data.id)
-          .then(() => {
-            console.log("Note updated with transcript from recording");
-          })
-          .catch(err => {
-            console.error("Error updating note with recording transcript:", err);
-          });
+        // Update the note in the background - Fixed Promise handling here
+        try {
+          await supabase
+            .from('notes')
+            .update({ 
+              original_transcript: recordingData.transcription,
+              status: 'completed',
+              processing_progress: 100
+            })
+            .eq('id', data.id);
+            
+          console.log("Note updated with transcript from recording");
+        } catch (err) {
+          console.error("Error updating note with recording transcript:", err);
+        }
       }
       
       // If we have a transcript, the status should be completed
@@ -106,15 +107,19 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
 
       // If the note should be completed but isn't, update it
       if (validStatus === 'completed' && data.status !== 'completed') {
-        await supabase
-          .from('notes')
-          .update({ 
-            status: 'completed',
-            processing_progress: 100 
-          })
-          .eq('id', data.id);
-          
-        console.log("Updated note status to completed");
+        try {
+          await supabase
+            .from('notes')
+            .update({ 
+              status: 'completed',
+              processing_progress: 100 
+            })
+            .eq('id', data.id);
+            
+          console.log("Updated note status to completed");
+        } catch (error) {
+          console.error("Error updating note status:", error);
+        }
       }
 
       return transformedNote;
