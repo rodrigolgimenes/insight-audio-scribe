@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useAudioCapture } from "./useAudioCapture";
 import { useDeviceState } from "./device/useDeviceState";
@@ -28,7 +29,7 @@ export const useDeviceSelection = () => {
     devices: audioDevices,
     isLoading: devicesLoading,
     permissionState,
-    requestPermission,
+    requestMicrophoneAccess,
     detectDevices,
     selectedDeviceId: robustSelectedDeviceId,
     setSelectedDeviceId: setRobustSelectedDeviceId
@@ -90,7 +91,7 @@ export const useDeviceSelection = () => {
     console.log('[useDeviceSelection] Refreshing devices...');
     
     // First ensure permission is granted
-    const hasPermission = await requestPermission(true);
+    const hasPermission = await requestMicrophoneAccess(true);
     
     if (hasPermission) {
       // Set permission checked ref for compatibility with existing hooks

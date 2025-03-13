@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AudioDevice } from "../capture/types";
 import { PermissionState } from "../capture/permissions/types";
@@ -132,15 +133,17 @@ export const useRobustDeviceDetection = (
     initialCheck();
     
     // Add a device change listener
-    navigator.mediaDevices.addEventListener('devicechange', () => {
+    const handleDeviceChange = () => {
       console.log('[useRobustDeviceDetection] Device change detected by browser');
       detectDevices();
-    });
+    };
+    
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     
     // Cleanup function
     return () => {
       isMounted.current = false;
-      navigator.mediaDevices.removeEventListener('devicechange', detectDevices);
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };
   }, [detectDevices, permissionState, requestMicrophoneAccess]);
   
