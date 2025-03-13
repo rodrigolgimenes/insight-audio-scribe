@@ -16,6 +16,7 @@ export function useRobustMicrophoneDetection() {
   const detectionInProgressRef = useRef(false);
   const mountedRef = useRef(true);
   const hasPermissionsAPI = useRef(!!navigator.permissions);
+  const isDashboardPage = useRef(window.location.pathname.includes('/app'));
 
   // Clean up on unmount
   const cleanup = useCallback(() => {
@@ -77,10 +78,14 @@ export function useRobustMicrophoneDetection() {
       if (!mountedRef.current) return false;
 
       setPermissionState("granted");
-      toast.success("Microphone access granted", {
-        id: "mic-permission-granted",
-        duration: 2000
-      });
+      
+      // Only show success toast if not on dashboard page
+      if (!isDashboardPage.current) {
+        toast.success("Microphone access granted", {
+          id: "mic-permission-granted",
+          duration: 2000
+        });
+      }
       
       return true;
     } catch (err) {
@@ -90,17 +95,24 @@ export function useRobustMicrophoneDetection() {
 
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         setPermissionState("denied");
-        toast.error("Microphone access denied", {
-          description: "Please allow microphone access in your browser settings",
-          id: "mic-permission-denied",
-          duration: 3000
-        });
+        
+        // Only show error toast if not on dashboard page
+        if (!isDashboardPage.current) {
+          toast.error("Microphone access denied", {
+            description: "Please allow microphone access in your browser settings",
+            id: "mic-permission-denied",
+            duration: 3000
+          });
+        }
       } else if (err instanceof DOMException && err.name === "NotFoundError") {
-        toast.error("No microphone found", {
-          description: "Please connect a microphone and try again",
-          id: "no-microphone-found",
-          duration: 3000
-        });
+        // Only show no microphone found toast if not on dashboard page
+        if (!isDashboardPage.current) {
+          toast.error("No microphone found", {
+            description: "Please connect a microphone and try again",
+            id: "no-microphone-found",
+            duration: 3000
+          });
+        }
       }
       
       return false;
@@ -197,6 +209,9 @@ export function useRobustMicrophoneDetection() {
 
   // Initial detection and device change listener
   useEffect(() => {
+    // Update isDashboardPage on mount
+    isDashboardPage.current = window.location.pathname.includes('/app');
+    
     const handleDeviceChange = () => {
       console.log("[useRobustMicrophoneDetection] devicechange event detected");
       detectDevices(true);

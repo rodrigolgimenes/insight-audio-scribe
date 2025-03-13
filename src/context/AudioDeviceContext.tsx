@@ -32,6 +32,27 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDashboard, setIsDashboard] = useState(false);
+
+  // Check if we're on the dashboard page
+  useEffect(() => {
+    const checkIfDashboard = () => {
+      setIsDashboard(window.location.pathname.includes('/app'));
+    };
+    
+    checkIfDashboard();
+    
+    // Listen for route changes (simple approach that works without router access)
+    const handleRouteChange = () => {
+      checkIfDashboard();
+    };
+    
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, []);
 
   // Request microphone permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -45,18 +66,31 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
       
       setPermissionState("granted");
       console.log("[AudioDeviceContext] Permission granted");
+      
+      // Only show success toast if not on dashboard
+      if (!isDashboard) {
+        toast.success("Microphone access granted", {
+          duration: 2000
+        });
+      }
+      
       return true;
     } catch (error) {
       console.error("[AudioDeviceContext] Permission denied:", error);
       setPermissionState("denied");
-      toast.error("Microphone access denied", {
-        description: "Please allow microphone access in your browser settings"
-      });
+      
+      // Only show error toast if not on dashboard
+      if (!isDashboard) {
+        toast.error("Microphone access denied", {
+          description: "Please allow microphone access in your browser settings"
+        });
+      }
+      
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isDashboard]);
 
   // Format devices from MediaDeviceInfo to our AudioDevice type
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
@@ -103,19 +137,23 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
         setSelectedDeviceId(audioInputDevices[0].deviceId);
       }
       
-      // Show toast only for no devices error case, removed success toast
-      if (audioInputDevices.length === 0) {
+      // Show toast only for no devices error case and not on dashboard
+      if (audioInputDevices.length === 0 && !isDashboard) {
         toast.warning("No microphones found", {
           description: "Please connect a microphone and try again"
         });
       }
     } catch (error) {
       console.error("[AudioDeviceContext] Error refreshing devices:", error);
-      toast.error("Failed to refresh devices");
+      
+      // Only show error toast if not on dashboard
+      if (!isDashboard) {
+        toast.error("Failed to refresh devices");
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [permissionState, requestPermission, formatDevices, selectedDeviceId]);
+  }, [permissionState, requestPermission, formatDevices, selectedDeviceId, isDashboard]);
 
   // Listen for device changes
   useEffect(() => {

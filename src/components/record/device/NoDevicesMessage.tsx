@@ -16,6 +16,11 @@ export function NoDevicesMessage({
   permissionState = 'unknown',
   audioDevices = []
 }: NoDevicesMessageProps) {
+  // Check if we're in the dashboard
+  const isDashboard = React.useMemo(() => {
+    return window.location.pathname.includes('/app');
+  }, []);
+
   // Log when this component shows a warning with extended info
   React.useEffect(() => {
     if (showWarning) {
@@ -23,12 +28,14 @@ export function NoDevicesMessage({
         permissionState,
         showWarning,
         audioDevicesCount: audioDevices.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        isDashboard
       });
     }
-  }, [showWarning, permissionState, audioDevices]);
+  }, [showWarning, permissionState, audioDevices, isDashboard]);
   
-  if (!showWarning) return null;
+  // Don't display the warning on the dashboard page
+  if (isDashboard || !showWarning) return null;
   
   // If permission is granted but no devices, suggest reconnection
   const permissionGranted = permissionState === 'granted';

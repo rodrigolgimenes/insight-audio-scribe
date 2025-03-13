@@ -13,6 +13,7 @@ export const useAudioCapture = () => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [defaultDeviceId, setDefaultDeviceId] = useState<string | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const [isDashboard, setIsDashboard] = useState(false);
   
   // Initialize permissions hook
   const { checkPermissions } = usePermissions();
@@ -36,6 +37,21 @@ export const useAudioCapture = () => {
     }
   );
   
+  // Check if we're on the dashboard page
+  useEffect(() => {
+    setIsDashboard(window.location.pathname.includes('/app'));
+    
+    const checkIfDashboard = () => {
+      setIsDashboard(window.location.pathname.includes('/app'));
+    };
+    
+    window.addEventListener('popstate', checkIfDashboard);
+    
+    return () => {
+      window.removeEventListener('popstate', checkIfDashboard);
+    };
+  }, []);
+  
   // Get audio devices
   const getAudioDevicesWrapper = useCallback(async (): Promise<{ devices: AudioDevice[], defaultId: string | null }> => {
     try {
@@ -55,12 +71,12 @@ export const useAudioCapture = () => {
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
       
-      if (devices.length === 0) {
+      // Only show toast if not on dashboard
+      if (devices.length === 0 && !isDashboard) {
         toast.error("No microphones found", {
           description: "Please connect a microphone and try again"
         });
       }
-      // Removed success toast about finding microphones
       
       setAudioDevices(devices);
       setDefaultDeviceId(defaultId);
@@ -68,12 +84,17 @@ export const useAudioCapture = () => {
       return { devices, defaultId };
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
-      toast.error("Failed to detect microphones", {
-        description: error instanceof Error ? error.message : "Unknown error"
-      });
+      
+      // Only show error toast if not on dashboard
+      if (!isDashboard) {
+        toast.error("Failed to detect microphones", {
+          description: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
+      
       return { devices: [] as AudioDevice[], defaultId: null };
     }
-  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime]);
+  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime, isDashboard]);
   
   // Initial device enumeration
   useEffect(() => {

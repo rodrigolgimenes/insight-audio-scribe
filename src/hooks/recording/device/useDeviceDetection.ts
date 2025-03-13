@@ -16,9 +16,13 @@ export const useDeviceDetection = (
   const fallbackAttemptedRef = useRef(false);
   const lastDetectionTimeRef = useRef(0);
   const forcedApproachTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isDashboardPage = useRef(window.location.pathname.includes('/app'));
 
   // Clean up on unmount
   useEffect(() => {
+    // Update isDashboardPage value
+    isDashboardPage.current = window.location.pathname.includes('/app');
+    
     const cleanup = () => {
       mountedRef.current = false;
       if (autoRetryTimeoutRef.current) {
@@ -68,7 +72,8 @@ export const useDeviceDetection = (
     
     try {
       // First ensure we have permission
-      const hasPermission = await requestPermission(false);
+      // Pass showToast=false when on dashboard page
+      const hasPermission = await requestPermission(!isDashboardPage.current);
       
       if (!mountedRef.current) {
         detectionInProgressRef.current = false;
