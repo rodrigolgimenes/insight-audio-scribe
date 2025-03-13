@@ -1,3 +1,4 @@
+
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
@@ -6,6 +7,9 @@ import { RecordingActions } from "./RecordingActions";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, FileText } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -35,6 +39,7 @@ interface RecordingSectionProps {
   processingProgress?: number;
   processingStage?: string;
   isRestrictedRoute?: boolean;
+  audioFileSize?: number | null;
 }
 
 export const RecordingSection = ({
@@ -64,12 +69,28 @@ export const RecordingSection = ({
   permissionState,
   processingProgress = 0,
   processingStage = "",
-  isRestrictedRoute = false
+  isRestrictedRoute = false,
+  audioFileSize = null
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,
     isPaused,
   });
+
+  // Format file size to human readable format
+  const formatFileSize = (bytes: number | null): string => {
+    if (bytes === null) return 'N/A';
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Check if file size is too large (exceeds 100MB)
+  const isFileTooLarge = audioFileSize && audioFileSize > 100 * 1024 * 1024;
 
   return (
     <div className="flex flex-col w-full items-center">
@@ -95,6 +116,34 @@ export const RecordingSection = ({
             </div>
           )}
         </div>
+        
+        {/* File size display */}
+        {audioUrl && audioFileSize !== null && (
+          <div className="mb-4 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-700">File size:</span>
+              <Badge variant={isFileTooLarge ? "destructive" : "secondary"} className="font-mono">
+                {formatFileSize(audioFileSize)}
+              </Badge>
+            </div>
+            {isFileTooLarge && (
+              <Badge variant="outline" className="text-red-500 border-red-200 bg-red-50">
+                Exceeds 100MB limit
+              </Badge>
+            )}
+          </div>
+        )}
+        
+        {/* File size warning */}
+        {isFileTooLarge && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              This recording exceeds the 100MB upload limit. Try a shorter recording or lower quality settings.
+            </AlertDescription>
+          </Alert>
+        )}
         
         {/* Recording controls */}
         <RecordingControls
@@ -135,6 +184,7 @@ export const RecordingSection = ({
             hasRecording={Boolean(audioUrl)}
             processingProgress={processingProgress}
             processingStage={processingStage}
+            isDisabled={isFileTooLarge}
           />
         )}
       </div>
