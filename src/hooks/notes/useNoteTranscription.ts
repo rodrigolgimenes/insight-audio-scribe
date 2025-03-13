@@ -50,26 +50,52 @@ export const useNoteTranscription = () => {
       // Invalidate queries to force data update
       queryClient.invalidateQueries({ queryKey: ['note', noteId] });
       
-      // Call edge function to restart the process
-      console.log('Calling transcribe-audio function for retry');
-      const { error } = await supabase.functions
-        .invoke('transcribe-audio', {
-          body: { 
-            noteId,
-            recordingId: note.recording_id,
-            isRetry: true
+      // Implement retry logic with multiple attempts
+      let success = false;
+      let attempt = 0;
+      const maxAttempts = 3;
+      let lastError = null;
+      
+      while (attempt < maxAttempts && !success) {
+        attempt++;
+        console.log(`Transcription retry attempt ${attempt} of ${maxAttempts}`);
+        
+        try {
+          // Call edge function to restart the process
+          const { error } = await supabase.functions
+            .invoke('process-recording', {
+              body: { 
+                recordingId: note.recording_id,
+                noteId,
+                isRetry: true
+              }
+            });
+  
+          if (error) {
+            console.error(`Attempt ${attempt} error from process-recording function:`, error);
+            lastError = error;
+            // Wait a bit longer between retries
+            await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+          } else {
+            success = true;
+            break;
           }
-        });
+        } catch (attemptError) {
+          console.error(`Attempt ${attempt} exception:`, attemptError);
+          lastError = attemptError;
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        }
+      }
 
-      if (error) {
-        console.error('Error from transcribe-audio function:', error);
+      if (!success) {
+        console.error('All transcription retry attempts failed');
         
         // Restore error status in case of failure
         await supabase
           .from('notes')
           .update({ 
             status: 'error',
-            error_message: `Failed to start: ${error.message}`
+            error_message: `Failed to start: ${lastError?.message || 'Maximum retry attempts exceeded'}`
           })
           .eq('id', noteId);
         
@@ -78,7 +104,7 @@ export const useNoteTranscription = () => {
             .from('recordings')
             .update({ 
               status: 'error',
-              error_message: `Failed to start: ${error.message}`
+              error_message: `Failed to start: ${lastError?.message || 'Maximum retry attempts exceeded'}`
             })
             .eq('id', note.recording_id);
         }
@@ -87,7 +113,7 @@ export const useNoteTranscription = () => {
         
         toast({
           title: "Error",
-          description: "Failed to start processing. Please try again.",
+          description: "Failed to start processing. Please try again later.",
           variant: "destructive",
         });
         return false;

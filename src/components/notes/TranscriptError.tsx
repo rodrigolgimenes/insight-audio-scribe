@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, RefreshCw, FileSymlink, HelpCircle } from "lucide-react";
@@ -14,26 +15,13 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
   const [isRetrying, setIsRetrying] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  const isFileNotFound = error?.toLowerCase().includes('not found') || 
-                         error?.toLowerCase().includes('file not found');
-  
-  const isFileTooLarge = error?.toLowerCase().includes('maximum allowed size') ||
-                         error?.toLowerCase().includes('too large') ||
-                         error?.toLowerCase().includes('exceeds size limit');
-                         
-  const isPermissionError = error?.toLowerCase().includes('permission') ||
-                          error?.toLowerCase().includes('access denied') ||
-                          error?.toLowerCase().includes('not authorized');
-                          
-  const isNetworkError = error?.toLowerCase().includes('network') ||
-                        error?.toLowerCase().includes('connection') ||
-                        error?.toLowerCase().includes('timeout');
-                        
-  const isProcessingError = error?.toLowerCase().includes('processing') ||
-                          error?.toLowerCase().includes('transcription failed');
-
   const isEdgeFunctionError = error?.toLowerCase().includes('edge function') ||
-                            error?.toLowerCase().includes('status code');
+                            error?.toLowerCase().includes('status code') ||
+                            error?.toLowerCase().includes('non-2xx');
+                            
+  const isServiceUnavailable = error?.toLowerCase().includes('503') ||
+                             error?.toLowerCase().includes('service unavailable') ||
+                             error?.toLowerCase().includes('unavailable');
 
   const handleRetry = async () => {
     if (!noteId) return;
@@ -53,7 +41,11 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
       <AlertCircle className="h-5 w-5" />
       <AlertTitle className="ml-2">Processing error</AlertTitle>
       <AlertDescription className="mt-2">
-        <div className="text-red-600 font-medium mb-2">{error}</div>
+        <div className="text-red-600 font-medium mb-2">
+          {isEdgeFunctionError || isServiceUnavailable 
+            ? "Transcription service is temporarily unavailable" 
+            : error}
+        </div>
         
         <div className="flex items-center gap-2 mt-2 mb-3">
           <Button 
@@ -63,93 +55,31 @@ export const TranscriptError = ({ error, noteId }: TranscriptErrorProps) => {
             onClick={() => setShowDetails(!showDetails)}
           >
             <HelpCircle className="h-3.5 w-3.5 mr-1" />
-            {showDetails ? 'Hide details' : 'Show troubleshooting tips'}
+            {showDetails ? 'Hide tips' : 'Show tips to resolve'}
           </Button>
         </div>
         
         {showDetails && (
           <div className="mt-2 mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-md">
-            {isEdgeFunctionError && (
+            {(isEdgeFunctionError || isServiceUnavailable) && (
               <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">Edge Function issues:</div>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>There was a problem with the processing server</li>
-                  <li>This is usually a temporary issue</li>
-                  <li>Try the 'Retry Transcription' button below</li>
-                  <li>If the problem persists, try uploading a different file format</li>
-                  <li>Some file formats may not be supported by the transcription service</li>
+                  <li>The transcription service is temporarily unavailable</li>
+                  <li>This is a server-side issue that will resolve automatically</li>
+                  <li>Wait a few minutes and try the 'Retry' button</li>
+                  <li>If the problem persists after several attempts, contact support</li>
+                  <li>You can try again later when the service is less busy</li>
                 </ul>
               </div>
             )}
             
-            {isFileNotFound && (
+            {!isEdgeFunctionError && !isServiceUnavailable && (
               <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">File not found issues:</div>
                 <ul className="list-disc pl-5 space-y-1">
-                  <li>The file may have been deleted or not uploaded correctly</li>
-                  <li>The storage bucket permissions may be incorrect</li>
-                  <li>Try uploading the file again</li>
-                  <li>Check if your filename contains special characters, try renaming it</li>
-                  <li>If you just uploaded this file, please wait a moment and try again</li>
-                </ul>
-              </div>
-            )}
-            
-            {isFileTooLarge && (
-              <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">File size issues:</div>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>File size limit is 100MB</li>
-                  <li>Very long recordings (over 1 hour) may be too large to process</li>
-                  <li>Consider splitting your recording into smaller segments</li>
-                  <li>You can compress your audio files to reduce their size</li>
-                </ul>
-              </div>
-            )}
-            
-            {isPermissionError && (
-              <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">Permission issues:</div>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>You may not have permission to access this file</li>
-                  <li>Try logging out and logging back in</li>
-                  <li>The file may be owned by another user</li>
-                </ul>
-              </div>
-            )}
-            
-            {isNetworkError && (
-              <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">Network issues:</div>
-                <ul className="list-disc pl-5 space-y-1">
+                  <li>Try refreshing the page</li>
                   <li>Check your internet connection</li>
-                  <li>The server might be temporarily unavailable</li>
-                  <li>Try again after a few minutes</li>
-                </ul>
-              </div>
-            )}
-            
-            {isProcessingError && (
-              <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">Processing issues:</div>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>The audio format might not be supported</li>
-                  <li>The file might be corrupted</li>
-                  <li>Try converting your audio to a different format (MP3 is recommended)</li>
-                  <li>Very long or complex audio can sometimes cause processing issues</li>
-                </ul>
-              </div>
-            )}
-            
-            {!isFileNotFound && !isFileTooLarge && !isPermissionError && !isNetworkError && !isProcessingError && !isEdgeFunctionError && (
-              <div className="mt-1 text-sm">
-                <div className="font-medium text-red-500 mb-1">General troubleshooting:</div>
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>Try uploading the file again</li>
-                  <li>Check the audio file format (MP3 is recommended)</li>
-                  <li>Ensure the file isn't corrupted</li>
-                  <li>Try a different browser or device</li>
-                  <li>Clear your browser cache and cookies</li>
+                  <li>The file may be in an unsupported format</li>
+                  <li>Wait a few minutes and try again</li>
                 </ul>
               </div>
             )}
