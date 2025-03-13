@@ -3,7 +3,7 @@ import { createSupabaseClient, updateRecordingStatus, getRecordingData, createOr
 import { ProcessRecordingRequest, ProcessResponse } from "./types.ts";
 
 export async function processRecording(request: ProcessRecordingRequest): Promise<ProcessResponse> {
-  const { recordingId, noteId } = request;
+  const { recordingId, noteId, startImmediately, priority } = request;
 
   if (!recordingId) {
     throw new Error('Recording ID is required');
@@ -11,6 +11,8 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
 
   console.log('[process-recording] Processing recording:', recordingId);
   console.log('[process-recording] Note ID (if provided):', noteId);
+  console.log('[process-recording] Start immediately:', !!startImmediately);
+  console.log('[process-recording] Priority:', priority || 'normal');
 
   const supabase = createSupabaseClient();
 
@@ -50,22 +52,29 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
     'process-large-recording' : // A function we would create for handling large files
     'transcribe-audio';
 
+  // Immediately update status to transcribing with higher progress
+  // to indicate active processing has started
+  await updateNoteStatus(supabase, note.id, 'transcribing', 15);
+
   // Implement retry logic for the edge function call
   const maxRetries = 3;
   let retryCount = 0;
   let success = false;
   let lastError = null;
 
+  // Determine if we should process with higher priority
+  const isPriorityRequest = priority === 'high' || startImmediately === true;
+  const waitTime = isPriorityRequest ? 1000 : 5000;
+
   // Start transcription in background
   EdgeRuntime.waitUntil((async () => {
     try {
       console.log(`[process-recording] Starting transcription process with '${functionToInvoke}'`);
-      
-      // Update note status to transcribing
-      await updateNoteStatus(supabase, note.id, 'transcribing', 10);
+      console.log(`[process-recording] Priority request: ${isPriorityRequest}, wait time: ${waitTime}ms`);
       
       // Give Storage time to process the file
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Use shorter wait time for priority requests
+      await new Promise(resolve => setTimeout(resolve, waitTime));
       
       while (retryCount < maxRetries && !success) {
         try {
@@ -78,7 +87,8 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
                 recordingId: recordingId,
                 duration: recording.duration,
                 isLargeFile,
-                isExtremelyLargeFile
+                isExtremelyLargeFile,
+                priority: isPriorityRequest ? 'high' : 'normal'
               }
             });
 

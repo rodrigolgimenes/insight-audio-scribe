@@ -2,6 +2,8 @@
 export interface ProcessRecordingRequest {
   recordingId: string;
   noteId?: string;
+  startImmediately?: boolean;
+  priority?: 'high' | 'normal' | 'low';
 }
 
 export interface RecordingData {

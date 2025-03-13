@@ -89,8 +89,10 @@ export const useRecordingSave = () => {
         duration: 5000,
       });
 
+      // Start processing immediately with a proper async implementation
       const startProcessing = async () => {
         try {
+          console.log('Starting transcription process immediately');
           const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
             recordingData.id,
             audioBlob,
@@ -123,16 +125,32 @@ export const useRecordingSave = () => {
           
           if (transcriptionResult.noteId) {
             try {
+              // Immediately invoke process-recording with high priority
               const { error: processError } = await supabase.functions.invoke('process-recording', {
                 body: { 
                   recordingId: recordingData.id,
                   noteId: transcriptionResult.noteId,
-                  priority: 'high'
+                  priority: 'high',
+                  startImmediately: true
                 },
               });
               
               if (processError) {
                 console.error('Failed to start immediate processing:', processError);
+                // Try direct edge function call as backup
+                await fetch(`${supabase.supabaseUrl}/functions/v1/process-recording`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabase.supabaseKey}`
+                  },
+                  body: JSON.stringify({ 
+                    recordingId: recordingData.id,
+                    noteId: transcriptionResult.noteId,
+                    priority: 'high',
+                    startImmediately: true
+                  }),
+                });
               } else {
                 console.log('Immediate processing started successfully');
               }
@@ -149,6 +167,25 @@ export const useRecordingSave = () => {
               console.log('Updated note status to ensure processing starts');
             } catch (updateError) {
               console.error('Error initiating processing:', updateError);
+              
+              // Retry with direct edge function call
+              try {
+                await fetch(`${supabase.supabaseUrl}/functions/v1/process-recording`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabase.supabaseKey}`
+                  },
+                  body: JSON.stringify({ 
+                    recordingId: recordingData.id,
+                    noteId: transcriptionResult.noteId,
+                    priority: 'high'
+                  }),
+                });
+                console.log('Retried processing via direct API call');
+              } catch (retryError) {
+                console.error('Error in retry attempt:', retryError);
+              }
             }
           }
         } catch (error) {
@@ -156,7 +193,8 @@ export const useRecordingSave = () => {
         }
       };
       
-      setTimeout(startProcessing, 100);
+      // Start immediately instead of setTimeout
+      startProcessing();
       
       toast({
         title: "Recording Saved",
