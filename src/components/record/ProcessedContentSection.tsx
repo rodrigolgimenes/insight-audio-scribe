@@ -36,11 +36,19 @@ export const ProcessedContentSection = ({
   if (isLoading || isRecording) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Processing...</h2>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">
+          {isRecording ? "Recording in Progress" : "Processing..."}
+        </h2>
         <div className="space-y-3">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-5/6" />
           <Skeleton className="h-4 w-4/6" />
+        </div>
+        <div className="mt-4 text-sm text-gray-500">
+          {isRecording ? 
+            "Your recording will be processed after you stop and save it." : 
+            "Your recording is being processed. This may take a few moments."
+          }
         </div>
       </div>
     );
@@ -63,7 +71,18 @@ export const ProcessedContentSection = ({
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
       <h2 className="text-lg font-medium text-gray-900 mb-4">Ready for Processing</h2>
-      <p className="text-gray-500 text-sm">Your recording is ready to be processed.</p>
+      <p className="text-gray-500 text-sm">Your recording is ready to be processed. Click the "Save & Transcribe" button to start transcription.</p>
+      
+      {audioUrl && (
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Preview Your Recording</h3>
+          <audio 
+            controls
+            className="w-full"
+            src={audioUrl}
+          ></audio>
+        </div>
+      )}
     </div>
   );
 };

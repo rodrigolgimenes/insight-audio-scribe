@@ -10,18 +10,23 @@ import { RecordPageLoading } from "@/components/record/RecordPageLoading";
 import { RecordPageError } from "@/components/record/RecordPageError";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
-import { DebugMicrophonePanel } from "@/components/debug/DebugMicrophonePanel";
 import { RecordingSection } from "@/components/record/RecordingSection";
+import { ProcessedContentSection } from "@/components/record/ProcessedContentSection";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { FileUploadSection } from "@/components/record/FileUploadSection";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
   
+  const navigate = useNavigate();
   const { toast: legacyToast } = useToast();
   const [isPageReady, setIsPageReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isSaveProcessing, setIsSaveProcessing] = useState(false);
   const { isUploading } = useFileUpload();
 
   const recordingHook = useRecording();
@@ -33,11 +38,7 @@ const SimpleRecord = () => {
       selectedDeviceId: recordingHook.selectedDeviceId,
       deviceSelectionReady: recordingHook.deviceSelectionReady,
       permissionState: recordingHook.permissionState,
-      devicesLoading: recordingHook.devicesLoading,
-      devices: recordingHook.audioDevices.map(d => ({
-        id: d.deviceId,
-        label: d.label || 'No label'
-      }))
+      devicesLoading: recordingHook.devicesLoading
     });
   }, [
     recordingHook.audioDevices, 
@@ -86,20 +87,118 @@ const SimpleRecord = () => {
     }
   }, [recordingHook.initError]);
 
-  const handleForceRefresh = () => {
-    console.log("[SimpleRecord] Force refreshing devices - BEFORE:", {
-      deviceCount: recordingHook.audioDevices.length,
-      permissionState: recordingHook.permissionState
-    });
-    
-    if (recordingHook.refreshDevices) {
-      recordingHook.refreshDevices().then(() => {
-        console.log("[SimpleRecord] Force refresh completed - AFTER:", {
-          deviceCount: recordingHook.audioDevices.length,
-          permissionState: recordingHook.permissionState
+  // Handler to save the recording to the database and process it
+  const saveRecording = async () => {
+    if (!recordingHook.audioUrl) {
+      toast.error("No recording to save");
+      return { success: false };
+    }
+
+    setIsSaveProcessing(true);
+    try {
+      // Get user information
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to save recordings");
+        return { success: false };
+      }
+
+      // Get recording duration and blob
+      let recordingBlob: Blob | null = null;
+      let recordedDuration = 0;
+
+      // If we're still recording, stop it first
+      if (recordingHook.isRecording) {
+        const result = await recordingHook.handleStopRecording();
+        if (result && 'blob' in result) {
+          recordingBlob = result.blob;
+          recordedDuration = result.duration || 0;
+        }
+      } else {
+        // Get the blob from the audioUrl
+        const response = await fetch(recordingHook.audioUrl);
+        recordingBlob = await response.blob();
+        recordedDuration = recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0;
+      }
+
+      if (!recordingBlob) {
+        throw new Error("Failed to get recording data");
+      }
+
+      // Generate a unique filename
+      const fileName = `${user.id}/${Date.now()}.webm`;
+      
+      console.log('Creating recording with user ID:', user.id);
+      console.log('Recording duration in seconds:', recordedDuration);
+
+      // Create the recording entry in the database
+      const { error: dbError, data: recordingData } = await supabase
+        .from('recordings')
+        .insert({
+          title: `Recording ${new Date().toLocaleString()}`,
+          duration: Math.round(recordedDuration * 1000), // Convert to milliseconds
+          file_path: fileName,
+          user_id: user.id,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw new Error(`Failed to save recording: ${dbError.message}`);
+      }
+
+      // Upload the audio file
+      const { error: uploadError } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, recordingBlob, {
+          contentType: 'audio/webm',
+          upsert: false
         });
-      });
-      toast.info("Forcing device refresh...");
+
+      if (uploadError) {
+        // Clean up on failure
+        await supabase.from('recordings').delete().eq('id', recordingData.id);
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
+      }
+
+      // Create a note for the recording
+      const { error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingData.title,
+          recording_id: recordingData.id,
+          user_id: user.id,
+          status: 'pending',
+          processing_progress: 0,
+          duration: Math.round(recordedDuration * 1000)
+        });
+
+      if (noteError) {
+        throw new Error(`Failed to create note: ${noteError.message}`);
+      }
+
+      // Start the processing via the edge function
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { recordingId: recordingData.id },
+        });
+
+      if (processError) {
+        toast.warning("Recording saved but processing failed to start. It will retry automatically.");
+      } else {
+        toast.success("Recording saved and processing started!");
+      }
+
+      // Navigate to the dashboard
+      navigate("/app");
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to save recording");
+      return { success: false };
+    } finally {
+      setIsSaveProcessing(false);
     }
   };
 
@@ -115,97 +214,73 @@ const SimpleRecord = () => {
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-ghost-white">
           <main className="container mx-auto px-4 py-8 space-y-8">
-            <Card className="bg-white shadow">
-              <CardContent className="p-4">
-                <h2 className="text-lg font-bold mb-2">Debugging Tools</h2>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={handleForceRefresh}
-                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                  >
-                    Force Refresh Devices
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (recordingHook.audioDevices.length > 0) {
-                        recordingHook.setSelectedDeviceId(recordingHook.audioDevices[0].deviceId);
-                        toast.info(`Selected first device: ${recordingHook.audioDevices[0].label || 'Unknown device'}`);
-                      } else {
-                        toast.error("No devices available to select");
-                      }
-                    }}
-                    className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-                    disabled={recordingHook.audioDevices.length === 0}
-                  >
-                    Force Select First Device
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Unified Device Manager Demo Section */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
-              <h2 className="text-xl font-bold mb-4 text-blue-800">Unified Device Manager Demo</h2>
-              <p className="text-blue-700 mb-4">
-                This section demonstrates the unified device management approach using a shared context.
-                Both components below share the same device list and selection state.
-              </p>
-              
+            <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <DebugMicrophonePanel />
-                <RecordingSection />
-              </div>
-            </div>
-            
-            {/* Device Selection Debug */}
-            <Card className="bg-white shadow">
-              <CardContent className="p-6">
-                <h2 className="text-xl font-bold mb-4">Device Selection Debug</h2>
-                <div className="space-y-2 text-sm">
-                  <div><span className="font-semibold">Selected Device ID:</span> {recordingHook.selectedDeviceId || 'None'}</div>
-                  <div><span className="font-semibold">Device Selection Ready:</span> {recordingHook.deviceSelectionReady ? 'Yes' : 'No'}</div>
-                  <div><span className="font-semibold">Devices Found:</span> {recordingHook.audioDevices.length}</div>
-                  <div><span className="font-semibold">Permission State:</span> {recordingHook.permissionState}</div>
-                  <div><span className="font-semibold">Devices Loading:</span> {recordingHook.devicesLoading ? 'Yes' : 'No'}</div>
+                <Card>
+                  <CardContent className="p-6">
+                    <RecordingSection
+                      isRecording={recordingHook.isRecording}
+                      isPaused={recordingHook.isPaused}
+                      audioUrl={recordingHook.audioUrl}
+                      mediaStream={recordingHook.mediaStream}
+                      isSystemAudio={recordingHook.isSystemAudio}
+                      handleStartRecording={recordingHook.handleStartRecording}
+                      handleStopRecording={recordingHook.handleStopRecording}
+                      handlePauseRecording={recordingHook.handlePauseRecording}
+                      handleResumeRecording={recordingHook.handleResumeRecording}
+                      handleDelete={recordingHook.handleDelete}
+                      onSystemAudioChange={recordingHook.setIsSystemAudio}
+                      audioDevices={recordingHook.audioDevices}
+                      selectedDeviceId={recordingHook.selectedDeviceId}
+                      onDeviceSelect={recordingHook.setSelectedDeviceId}
+                      deviceSelectionReady={recordingHook.deviceSelectionReady}
+                      lastAction={recordingHook.lastAction}
+                      onRefreshDevices={() => {
+                        if (recordingHook.refreshDevices) recordingHook.refreshDevices();
+                      }}
+                      devicesLoading={recordingHook.devicesLoading}
+                      permissionState={recordingHook.permissionState}
+                    />
+                  </CardContent>
+                </Card>
+                
+                <div className="space-y-8">
+                  <ProcessedContentSection
+                    audioUrl={recordingHook.audioUrl}
+                    isRecording={recordingHook.isRecording}
+                    isLoading={isUploading || isSaveProcessing}
+                  />
                   
-                  <div className="pt-2">
-                    <span className="font-semibold">Available Devices:</span>
-                    <div className="pl-4 mt-1 space-y-1">
-                      {recordingHook.audioDevices.length > 0 ? (
-                        recordingHook.audioDevices.map((device, index) => (
-                          <div key={device.deviceId} className={`p-2 border rounded ${device.deviceId === recordingHook.selectedDeviceId ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}>
-                            <div className="flex justify-between">
-                              <span className="font-medium">{device.label || `Device ${index + 1}`}</span>
-                              <button
-                                onClick={() => recordingHook.setSelectedDeviceId(device.deviceId)}
-                                className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                              >
-                                Select
-                              </button>
-                            </div>
-                            <div className="text-xs text-gray-500 truncate">{device.deviceId}</div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-red-500">No devices available</div>
-                      )}
-                    </div>
-                  </div>
+                  <FileUploadSection />
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Using the properly connected SimpleRecordContent */}
-            <SimpleRecordContent
-              recordingHook={recordingHook}
-              isLoading={isUploading}
-              error={error}
-              saveRecording={() => {
-                toast.success("Recording would be saved in production environment");
-                return Promise.resolve({ success: true });
-              }}
-              isSaveProcessing={false}
-            />
+              </div>
+              
+              {recordingHook.audioUrl && !recordingHook.isRecording && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={saveRecording}
+                    disabled={isSaveProcessing}
+                    className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white px-6 py-3 rounded-md font-medium flex items-center gap-2"
+                  >
+                    {isSaveProcessing ? (
+                      <>
+                        <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                          <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        <span>Save & Transcribe</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
           </main>
         </div>
       </div>
