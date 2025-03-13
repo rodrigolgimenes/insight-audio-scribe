@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
 import { useFileUpload } from "@/hooks";
 import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
-import { RecordPageLoading } from "@/components/record/RecordPageLoading";
 import { RecordPageError } from "@/components/record/RecordPageError";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
@@ -25,9 +24,7 @@ const SimpleRecord = () => {
   
   const navigate = useNavigate();
   const { toast: legacyToast } = useToast();
-  const [isPageReady, setIsPageReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const [isSaveProcessing, setIsSaveProcessing] = useState(false);
   const { isUploading } = useFileUpload();
 
@@ -66,22 +63,6 @@ const SimpleRecord = () => {
       recordingHook.setSelectedDeviceId(recordingHook.audioDevices[0].deviceId);
     }
   }, [recordingHook.audioDevices, recordingHook.selectedDeviceId, recordingHook.setSelectedDeviceId]);
-  
-  useEffect(() => {
-    if (!isPageReady) {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 20;
-        setLoadingProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-          setIsPageReady(true);
-        }
-      }, 100);
-
-      return () => clearInterval(interval);
-    }
-  }, []);
 
   useEffect(() => {
     if (recordingHook.initError) {
@@ -209,10 +190,6 @@ const SimpleRecord = () => {
       setIsSaveProcessing(false);
     }
   };
-
-  if (!isPageReady) {
-    return <RecordPageLoading loadingProgress={loadingProgress} />;
-  }
 
   PageLoadTracker.trackPhase('Render Main Content', true);
   
