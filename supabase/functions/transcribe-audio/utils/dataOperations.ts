@@ -73,6 +73,7 @@ export async function updateRecordingAndNote(
       .from('recordings')
       .update({ 
         status: recordingStatus,
+        transcription: transcriptionText, // Ensure transcription is saved in recordings too
         updated_at: new Date().toISOString()
       })
       .eq('id', recordingId);
@@ -137,6 +138,18 @@ export async function startMeetingMinutesGeneration(
     // Update note status to generating_minutes
     await updateNoteProgress(supabase, noteId, status, 80);
     
+    // Get the recording ID for the note to update both tables
+    const { data: noteData, error: noteError } = await supabase
+      .from('notes')
+      .select('recording_id')
+      .eq('id', noteId)
+      .single();
+      
+    if (noteError) {
+      console.error(`[transcribe-audio] Error getting note data: ${noteError.message}`);
+      throw noteError;
+    }
+    
     // Invoke the generate-meeting-minutes function
     const { error } = await supabase.functions
       .invoke('generate-meeting-minutes', {
@@ -152,8 +165,42 @@ export async function startMeetingMinutesGeneration(
     }
     
     console.log('[transcribe-audio] Meeting minutes generation started successfully');
+    
+    // Set a timeout to check and update the status to completed if not already
+    // This ensures we don't leave the status as "generating_minutes" even if the edge function completes
+    setTimeout(async () => {
+      try {
+        // Check if the note is still in generating_minutes status
+        const { data: currentStatus } = await supabase
+          .from('notes')
+          .select('status, processing_progress')
+          .eq('id', noteId)
+          .single();
+          
+        if (currentStatus && currentStatus.status === 'generating_minutes') {
+          console.log('[transcribe-audio] Note still in generating_minutes status, updating to completed');
+          
+          // Update note to completed
+          await updateNoteProgress(supabase, noteId, 'completed', 100);
+          
+          // Also update the recording to completed
+          if (noteData?.recording_id) {
+            await supabase
+              .from('recordings')
+              .update({ 
+                status: 'completed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', noteData.recording_id);
+          }
+        }
+      } catch (error) {
+        console.error('[transcribe-audio] Error in status check timeout:', error);
+      }
+    }, 30000); // Check after 30 seconds
   } catch (error) {
     console.error('[transcribe-audio] Exception in startMeetingMinutesGeneration:', error);
     throw error;
   }
 }
+

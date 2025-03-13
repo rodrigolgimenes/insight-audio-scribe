@@ -77,6 +77,27 @@ export class ProgressTracker {
     // Instead use 'completed' which is a valid status
     const status = this.validateStatus('completed');
     await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBED);
+    
+    // Also update the recording linked to this note
+    try {
+      const { data } = await this.supabase
+        .from('notes')
+        .select('recording_id')
+        .eq('id', this.noteId)
+        .single();
+        
+      if (data?.recording_id) {
+        await this.supabase
+          .from('recordings')
+          .update({ 
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', data.recording_id);
+      }
+    } catch (error) {
+      console.error('[transcribe-audio] Error updating recording status after transcription:', error);
+    }
   }
 
   /**
@@ -93,6 +114,27 @@ export class ProgressTracker {
   async markCompleted() {
     const status = this.validateStatus('completed');
     await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.COMPLETED);
+    
+    // Also update the recording linked to this note
+    try {
+      const { data } = await this.supabase
+        .from('notes')
+        .select('recording_id')
+        .eq('id', this.noteId)
+        .single();
+        
+      if (data?.recording_id) {
+        await this.supabase
+          .from('recordings')
+          .update({ 
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', data.recording_id);
+      }
+    } catch (error) {
+      console.error('[transcribe-audio] Error updating recording status after completion:', error);
+    }
   }
 
   /**
@@ -109,5 +151,27 @@ export class ProgressTracker {
         error_message: errorMessage
       })
       .eq('id', this.noteId);
+      
+    // Also update the recording linked to this note
+    try {
+      const { data } = await this.supabase
+        .from('notes')
+        .select('recording_id')
+        .eq('id', this.noteId)
+        .single();
+        
+      if (data?.recording_id) {
+        await this.supabase
+          .from('recordings')
+          .update({ 
+            status: 'error',
+            error_message: errorMessage,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', data.recording_id);
+      }
+    } catch (error) {
+      console.error('[transcribe-audio] Error updating recording status after error:', error);
+    }
   }
 }

@@ -12,10 +12,14 @@ export const NoteStatus = ({ status, progress = 0 }: NoteStatusProps) => {
   
   console.log("Rendering status:", status, "normalized progress:", displayProgress);
   
-  // Check for edge function error in status
-  const isEdgeFunctionError = status === 'error' && displayProgress === 0;
+  // Force completed status for edge cases where minutes are generated
+  const forceCompleted = status === 'generating_minutes' && displayProgress >= 100;
+  const displayStatus = forceCompleted ? 'completed' : status;
   
-  switch (status) {
+  // Check for edge function error in status
+  const isEdgeFunctionError = displayStatus === 'error' && displayProgress === 0;
+  
+  switch (displayStatus) {
     case "completed":
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">

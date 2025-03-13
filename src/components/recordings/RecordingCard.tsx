@@ -38,14 +38,31 @@ export const RecordingCard = ({
     queryFn: async () => {
       const { data } = await supabase
         .from('notes')
-        .select('id, duration, status, processing_progress')
+        .select('id, duration, status, processing_progress, original_transcript')
         .eq('recording_id', recording.id)
         .single();
       return data;
     },
   });
 
-  // Configurar listener em tempo real para atualizações em notas
+  // Check if meeting minutes exist to help determine the true status
+  const { data: minutesExist } = useQuery({
+    queryKey: ['meeting-minutes-exist', noteData?.id],
+    queryFn: async () => {
+      if (!noteData?.id) return false;
+      
+      const { data, error } = await supabase
+        .from('meeting_minutes')
+        .select('id')
+        .eq('note_id', noteData.id)
+        .maybeSingle();
+        
+      return !!data?.id;
+    },
+    enabled: !!noteData?.id
+  });
+
+  // Configure real-time updates for notes
   useEffect(() => {
     const channel = supabase
       .channel(`recording-${recording.id}`)
@@ -58,8 +75,8 @@ export const RecordingCard = ({
           filter: `recording_id=eq.${recording.id}`
         },
         (payload) => {
-          console.log('Nota atualizada:', payload);
-          refetch();  // Recarregar dados da nota
+          console.log('Note updated:', payload);
+          refetch();  // Reload note data
         }
       )
       .subscribe();
@@ -72,18 +89,34 @@ export const RecordingCard = ({
   // Use the duration from the note if available (as it might be more accurate)
   const displayDuration = noteData?.duration || recording.duration;
   
-  // Usar o progresso da nota quando disponível
+  // Use the progress from the note when available
   const displayProgress = Math.round(noteData?.processing_progress || progress || 0);
   
-  // Usar o status da nota quando disponível
-  const displayStatus = noteData?.status || recording.status;
+  // Determine the effective status based on all available information
+  let displayStatus = noteData?.status || recording.status;
   
-  console.log('Recording data:', {
+  // If meeting minutes exist but status is still generating_minutes, consider it completed
+  if (minutesExist && displayStatus === 'generating_minutes') {
+    displayStatus = 'completed';
+  }
+  
+  // If transcript exists but status doesn't show completed, it should be completed
+  if (noteData?.original_transcript && displayStatus !== 'completed' && displayStatus !== 'error') {
+    displayStatus = 'completed';
+  }
+  
+  // If progress is 100% and status is still processing/generating_minutes, consider it completed
+  if (displayProgress >= 100 && (displayStatus === 'generating_minutes' || displayStatus === 'processing')) {
+    displayStatus = 'completed';
+  }
+  
+  console.log('Recording card data:', {
     recordingId: recording.id,
     displayStatus,
     displayProgress,
     noteStatus: noteData?.status,
-    recordingStatus: recording.status
+    recordingStatus: recording.status,
+    minutesExist
   });
 
   const getStatusMessage = (status: string, progress: number) => {
@@ -113,6 +146,13 @@ export const RecordingCard = ({
             <span>Transcribing... {progress}%</span>
           </div>
         );
+      case 'generating_minutes':
+        return (
+          <div className="flex items-center gap-2 text-blue-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Generating Minutes {progress}%</span>
+          </div>
+        );
       case 'completed':
         return (
           <div className="flex items-center gap-2 text-green-600">
@@ -138,51 +178,37 @@ export const RecordingCard = ({
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // If status is completed and we have a note ID, navigate to note page
-    if (displayStatus === 'completed' && noteData?.id) {
-      e.preventDefault();
-      e.stopPropagation();
-      navigate(`/notes/${noteData.id}`);
-    } else if (displayStatus !== 'completed') {
-      // If not completed, just play the recording
+    // If we have a note ID, navigate to note page
+    if (noteData?.id) {
+      navigate(`/app/notes/${noteData.id}`);
+    } else {
       onPlay(recording.id);
     }
   };
 
-  const cursorClass = displayStatus === 'completed' ? 'cursor-pointer' : 'cursor-default';
-
   return (
-    <Card 
-      className={`hover:shadow-lg transition-shadow ${cursorClass} hover:bg-gray-50`}
-      onClick={handleCardClick}
-    >
-      <CardHeader>
-        <CardTitle className="text-xl">{recording.title}</CardTitle>
+    <Card className="cursor-pointer transition-all hover:shadow-md" onClick={handleCardClick}>
+      <CardHeader className="p-4 pb-0">
+        <CardTitle className="text-lg">{recording.title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {getStatusMessage(displayStatus, displayProgress)}
-        
-        {['pending', 'processing', 'transcribing', 'uploaded'].includes(displayStatus) && displayProgress > 0 && (
-          <Progress value={displayProgress} className="w-full" />
-        )}
-
-        {displayStatus === 'completed' && !recording.transcription?.includes('No audio was captured') && (
-          <>
-            <div className="text-sm text-gray-600">
-              <h3 className="font-semibold mb-1">Transcription:</h3>
-              <p className="line-clamp-3">{recording.transcription}</p>
-            </div>
-          </>
-        )}
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            {formatDuration(displayDuration)}
-          </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            {formatDate(recording.created_at)}
-          </span>
+      <CardContent className="p-4">
+        <div className="space-y-4">
+          {getStatusMessage(displayStatus, displayProgress)}
+          
+          {displayStatus !== 'completed' && displayStatus !== 'error' && (
+            <Progress value={displayProgress} className="h-2" />
+          )}
+          
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <span className="flex items-center gap-1">
+              <Clock className="h-4 w-4" />
+              {formatDuration(displayDuration)}
+            </span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              {formatDate(recording.created_at)}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>

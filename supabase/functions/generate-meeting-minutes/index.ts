@@ -1,177 +1,180 @@
 
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { Configuration, OpenAIApi } from 'https://esm.sh/openai@3.2.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface RequestBody {
-  noteId: string;
-  isRegeneration?: boolean; // Kept for backward compatibility, but not used
-}
-
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY') || '';
+
+  // Check for required environment variables
+  if (!supabaseUrl || !supabaseKey || !openaiApiKey) {
+    console.error('Missing required environment variables');
+    throw new Error('Missing required environment variables');
+  }
+
+  // Initialize Supabase client
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
   try {
-    const { noteId } = await req.json() as RequestBody;
-    console.log('Starting minutes generation with params:', { noteId });
+    const { noteId, transcript: providedTranscript, isRegeneration = false } = await req.json();
+    
+    console.log('[generate-meeting-minutes] Request received for note:', noteId);
+    console.log('[generate-meeting-minutes] Is regeneration:', isRegeneration);
+    console.log('[generate-meeting-minutes] Transcript provided:', !!providedTranscript);
 
-    if (!noteId) {
-      throw new Error('Note ID is required');
-    }
+    // Update the note status to show we're generating minutes
+    await supabase
+      .from('notes')
+      .update({ 
+        status: 'generating_minutes',
+        processing_progress: 90 
+      })
+      .eq('id', noteId);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-
-    if (!supabaseUrl || !supabaseKey || !openAIApiKey) {
-      throw new Error('Missing required environment variables');
-    }
-
-    console.log('Initializing Supabase client...');
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // First fetch the transcript from the note
-    console.log('Fetching note data...');
+    // Get the note data to access the transcript
     const { data: noteData, error: noteError } = await supabase
       .from('notes')
-      .select('original_transcript, user_id')
+      .select('original_transcript, recording_id')
       .eq('id', noteId)
       .single();
 
-    if (noteError || !noteData?.original_transcript) {
-      console.error('Error fetching note transcript:', noteError);
-      throw new Error('Failed to fetch note transcript');
+    if (noteError) {
+      console.error('[generate-meeting-minutes] Error fetching note:', noteError);
+      throw new Error(`Failed to fetch note: ${noteError.message}`);
     }
 
-    const transcript = noteData.original_transcript;
-    const userId = noteData.user_id;
-
-    // Always fetch fresh persona data
-    console.log('Fetching persona data...');
-    const { data: personaData, error: personaError } = await supabase
-      .from('meeting_personas')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (personaError && personaError.code !== 'PGRST116') {
-      console.error('Error fetching persona:', personaError);
+    // Use the provided transcript if available, otherwise use the one from the note
+    const transcript = providedTranscript || noteData.original_transcript;
+    
+    if (!transcript) {
+      console.error('[generate-meeting-minutes] No transcript available for note:', noteId);
+      throw new Error('No transcript available for this note');
     }
 
-    // Build the persona-aware prompt
-    let systemPrompt = `Você é um especialista em análise de reuniões profissionais, focado em gerar atas detalhadas e bem estruturadas em português, usando formatação Markdown.
+    // Initialize OpenAI API
+    const configuration = new Configuration({
+      apiKey: openaiApiKey,
+    });
+    const openai = new OpenAIApi(configuration);
 
-Instruções Gerais:
-1. Analise cuidadosamente a transcrição fornecida.
-2. Estruture a ata em seções claras e bem definidas usando títulos Markdown (# para título principal, ## para subtítulos).
-3. Use formatação Markdown de forma consistente:
-   - Listas com hífens (-)
-   - **Negrito** para enfatizar pontos importantes
-   - *Itálico* para termos técnicos
-   - ### para subseções
-4. Inclua apenas informações presentes na transcrição.
-5. Mantenha um tom profissional e objetivo.
-6. Use emojis corporativos apropriados para melhorar a legibilidade:
-   - 📅 Para datas e prazos
-   - ✅ Para decisões tomadas
-   - 📋 Para listas de tarefas
-   - 🎯 Para objetivos
-   - 👥 Para participantes
-   - 📊 Para dados e métricas
-   - ⚠️ Para pontos de atenção
-   - 🔄 Para próximos passos
-   - 💡 Para ideias e sugestões`;
+    console.log('[generate-meeting-minutes] Generating meeting minutes...');
 
-    // Add persona context if available
-    if (personaData) {
-      const roleContext = personaData.custom_role || personaData.primary_role;
-      const focusAreas = personaData.focus_areas?.join(', ') || '';
-      const vocabulary = personaData.custom_vocabulary?.join('; ') || '';
-
-      systemPrompt += `\n\n👤 Contexto do Profissional:
-- Função: ${roleContext}
-- Áreas de Foco: ${focusAreas}
-- Vocabulário Técnico: ${vocabulary}
-
-Adaptações Específicas:
-1. Destaque aspectos relevantes para ${roleContext}
-2. Priorize informações relacionadas a: ${focusAreas}
-3. Utilize o vocabulário técnico apropriado quando relevante
-4. Mantenha o foco nas implicações práticas para este perfil profissional`;
-    }
-
-    console.log('Generating minutes with GPT-4...');
-
-    const minutesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: `Por favor, gere uma ata detalhada para esta reunião com base na seguinte transcrição:\n\n${transcript}`
-          }
-        ],
-        temperature: 0.7
-      }),
+    // Generate meeting minutes using OpenAI
+    const response = await openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional assistant that creates well-structured meeting minutes from transcripts. Format the output in markdown with appropriate sections like 'Date & Time', 'Participants', 'Meeting Objective', 'Discussion Points', 'Action Items', and 'Decisions Made'."
+        },
+        {
+          role: "user",
+          content: `Please create meeting minutes from this transcription: ${transcript}`
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
     });
 
-    if (!minutesResponse.ok) {
-      const errorText = await minutesResponse.text();
-      console.error('OpenAI API Error:', errorText);
-      throw new Error(`Failed to generate minutes with GPT-4: ${errorText}`);
+    if (!response.data.choices[0].message?.content) {
+      throw new Error('Failed to generate meeting minutes: Empty response from OpenAI');
     }
 
-    const minutesData = await minutesResponse.json();
-    const minutes = minutesData.choices[0].message.content;
+    const minutes = response.data.choices[0].message.content;
+    console.log('[generate-meeting-minutes] Minutes generated successfully, length:', minutes.length);
 
-    console.log('Minutes generated successfully, saving to database...');
-
-    // Save the minutes
-    const { error: upsertError } = await supabase
+    // Save meeting minutes to the database
+    const { error: insertError } = await supabase
       .from('meeting_minutes')
-      .upsert({
-        note_id: noteId,
-        content: minutes,
-        format: 'markdown',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+      .upsert([
+        {
+          note_id: noteId,
+          content: minutes,
+          format: 'markdown',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ], { 
+        onConflict: 'note_id' 
       });
 
-    if (upsertError) {
-      console.error('Error saving meeting minutes:', upsertError);
-      throw new Error('Failed to save meeting minutes');
+    if (insertError) {
+      console.error('[generate-meeting-minutes] Error saving minutes:', insertError);
+      throw new Error(`Failed to save meeting minutes: ${insertError.message}`);
     }
 
-    console.log('Minutes saved successfully');
-
-    return new Response(JSON.stringify({ minutes }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
-    });
-  } catch (error) {
-    console.error('Error generating meeting minutes:', error);
+    // Update the note status to completed
+    await supabase
+      .from('notes')
+      .update({ 
+        status: 'completed',
+        processing_progress: 100 
+      })
+      .eq('id', noteId);
     
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : 'Error generating meeting minutes',
-      details: error instanceof Error ? error.stack : undefined
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200 // Keep 200 to avoid CORS errors
-    });
+    // Also update the recording status for consistency
+    if (noteData.recording_id) {
+      await supabase
+        .from('recordings')
+        .update({ 
+          status: 'completed'
+        })
+        .eq('id', noteData.recording_id);
+    }
+
+    console.log('[generate-meeting-minutes] Process completed successfully for note:', noteId);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        minutes 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  } catch (error) {
+    console.error('[generate-meeting-minutes] Error:', error);
+
+    try {
+      // If we have a noteId from the request, update the note status to error
+      const requestData = await req.json();
+      if (requestData.noteId) {
+        await supabase
+          .from('notes')
+          .update({ 
+            status: 'error',
+            processing_progress: 0,
+            error_message: error instanceof Error ? error.message : 'Unknown error'
+          })
+          .eq('id', requestData.noteId);
+      }
+    } catch (updateError) {
+      console.error('[generate-meeting-minutes] Error updating note status:', updateError);
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An unknown error occurred' 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 // Using 200 even for errors to avoid CORS issues
+      }
+    );
   }
 });
