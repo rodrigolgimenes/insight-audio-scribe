@@ -37,20 +37,26 @@ export const useAudioCapture = () => {
     }
   );
   
+  // Check if we're on a restricted route
+  const isRestrictedRoute = useCallback((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+  }, []);
+  
   // Check if we're on the dashboard page
   useEffect(() => {
-    setIsDashboard(window.location.pathname.includes('/app'));
-    
     const checkIfDashboard = () => {
-      setIsDashboard(window.location.pathname.includes('/app'));
+      setIsDashboard(isRestrictedRoute());
     };
+    
+    checkIfDashboard();
     
     window.addEventListener('popstate', checkIfDashboard);
     
     return () => {
       window.removeEventListener('popstate', checkIfDashboard);
     };
-  }, []);
+  }, [isRestrictedRoute]);
   
   // Get audio devices
   const getAudioDevicesWrapper = useCallback(async (): Promise<{ devices: AudioDevice[], defaultId: string | null }> => {
@@ -71,8 +77,8 @@ export const useAudioCapture = () => {
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
       
-      // Only show toast if not on dashboard
-      if (devices.length === 0 && !isDashboard) {
+      // Only show toast if not on a restricted route
+      if (devices.length === 0 && !isRestrictedRoute()) {
         toast.error("No microphones found", {
           description: "Please connect a microphone and try again"
         });
@@ -85,8 +91,8 @@ export const useAudioCapture = () => {
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       
-      // Only show error toast if not on dashboard
-      if (!isDashboard) {
+      // Only show error toast if not on a restricted route
+      if (!isRestrictedRoute()) {
         toast.error("Failed to detect microphones", {
           description: error instanceof Error ? error.message : "Unknown error"
         });
@@ -94,7 +100,7 @@ export const useAudioCapture = () => {
       
       return { devices: [] as AudioDevice[], defaultId: null };
     }
-  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime, isDashboard]);
+  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime, isRestrictedRoute]);
   
   // Initial device enumeration
   useEffect(() => {

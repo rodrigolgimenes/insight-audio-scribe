@@ -16,7 +16,7 @@ export function useRobustMicrophoneDetection() {
   const detectionInProgressRef = useRef(false);
   const mountedRef = useRef(true);
   const hasPermissionsAPI = useRef(!!navigator.permissions);
-  const isDashboardPage = useRef(window.location.pathname.includes('/app'));
+  const isDashboardPage = useRef(false);
 
   // Clean up on unmount
   const cleanup = useCallback(() => {
@@ -27,6 +27,12 @@ export function useRobustMicrophoneDetection() {
     mountedRef.current = true;
     return cleanup;
   }, [cleanup]);
+
+  // Check if we're on a restricted route
+  const isRestrictedRoute = useCallback((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+  }, []);
 
   /**
    * Formats MediaDeviceInfo array into AudioDevice array
@@ -69,6 +75,10 @@ export function useRobustMicrophoneDetection() {
     setIsLoading(true);
     console.log("[useRobustMicrophoneDetection] Requesting microphone access...");
 
+    // Check if we're on a restricted route before showing any toasts
+    const restricted = isRestrictedRoute();
+    isDashboardPage.current = restricted;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -79,11 +89,15 @@ export function useRobustMicrophoneDetection() {
 
       setPermissionState("granted");
       
-      // Only show success toast if not on dashboard page
-      if (!isDashboardPage.current) {
+      // Only show success toast if not on a restricted route
+      if (!restricted) {
         toast.success("Microphone access granted", {
           id: "mic-permission-granted",
           duration: 2000
+        });
+      } else {
+        console.log("[useRobustMicrophoneDetection] On restricted route, suppressing toast", {
+          path: window.location.pathname
         });
       }
       
@@ -96,8 +110,8 @@ export function useRobustMicrophoneDetection() {
       if (err instanceof DOMException && err.name === "NotAllowedError") {
         setPermissionState("denied");
         
-        // Only show error toast if not on dashboard page
-        if (!isDashboardPage.current) {
+        // Only show error toast if not on a restricted route
+        if (!restricted) {
           toast.error("Microphone access denied", {
             description: "Please allow microphone access in your browser settings",
             id: "mic-permission-denied",
@@ -105,8 +119,8 @@ export function useRobustMicrophoneDetection() {
           });
         }
       } else if (err instanceof DOMException && err.name === "NotFoundError") {
-        // Only show no microphone found toast if not on dashboard page
-        if (!isDashboardPage.current) {
+        // Only show no microphone found toast if not on a restricted route
+        if (!restricted) {
           toast.error("No microphone found", {
             description: "Please connect a microphone and try again",
             id: "no-microphone-found",
@@ -121,7 +135,7 @@ export function useRobustMicrophoneDetection() {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [isRestrictedRoute]);
 
   /**
    * Detects audio devices
@@ -210,11 +224,12 @@ export function useRobustMicrophoneDetection() {
   // Initial detection and device change listener
   useEffect(() => {
     // Update isDashboardPage on mount
-    isDashboardPage.current = window.location.pathname.includes('/app');
+    isDashboardPage.current = isRestrictedRoute();
     
+    // Create a proper event handler for devicechange events
     const handleDeviceChange = () => {
       console.log("[useRobustMicrophoneDetection] devicechange event detected");
-      detectDevices(true);
+      detectDevices(true).catch(console.error);
     };
 
     // Add listener for device changes
@@ -228,7 +243,7 @@ export function useRobustMicrophoneDetection() {
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
       cleanup();
     };
-  }, [detectDevices, cleanup]);
+  }, [detectDevices, cleanup, isRestrictedRoute]);
 
   return {
     devices,

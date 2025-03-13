@@ -34,10 +34,21 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isDashboard, setIsDashboard] = useState(false);
 
+  // Check if we're on a restricted route (index, dashboard, etc)
+  const isRestrictedRoute = useCallback((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+  }, []);
+
   // Check if we're on the dashboard page
   useEffect(() => {
     const checkIfDashboard = () => {
-      setIsDashboard(window.location.pathname.includes('/app'));
+      const restricted = isRestrictedRoute();
+      setIsDashboard(restricted);
+      console.log("[AudioDeviceContext] Route check:", {
+        path: window.location.pathname,
+        isRestricted: restricted
+      });
     };
     
     checkIfDashboard();
@@ -52,7 +63,7 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
     };
-  }, []);
+  }, [isRestrictedRoute]);
 
   // Request microphone permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
@@ -67,11 +78,13 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
       setPermissionState("granted");
       console.log("[AudioDeviceContext] Permission granted");
       
-      // Only show success toast if not on dashboard
-      if (!isDashboard) {
+      // Only show success toast if not on restricted route
+      if (!isRestrictedRoute()) {
         toast.success("Microphone access granted", {
           duration: 2000
         });
+      } else {
+        console.log("[AudioDeviceContext] Suppressing success toast on restricted route");
       }
       
       return true;
@@ -79,18 +92,20 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
       console.error("[AudioDeviceContext] Permission denied:", error);
       setPermissionState("denied");
       
-      // Only show error toast if not on dashboard
-      if (!isDashboard) {
+      // Only show error toast if not on restricted route
+      if (!isRestrictedRoute()) {
         toast.error("Microphone access denied", {
           description: "Please allow microphone access in your browser settings"
         });
+      } else {
+        console.log("[AudioDeviceContext] Suppressing error toast on restricted route");
       }
       
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [isDashboard]);
+  }, [isRestrictedRoute]);
 
   // Format devices from MediaDeviceInfo to our AudioDevice type
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
@@ -137,8 +152,8 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
         setSelectedDeviceId(audioInputDevices[0].deviceId);
       }
       
-      // Show toast only for no devices error case and not on dashboard
-      if (audioInputDevices.length === 0 && !isDashboard) {
+      // Show toast only for no devices error case and not on restricted route
+      if (audioInputDevices.length === 0 && !isRestrictedRoute()) {
         toast.warning("No microphones found", {
           description: "Please connect a microphone and try again"
         });
@@ -146,14 +161,14 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
     } catch (error) {
       console.error("[AudioDeviceContext] Error refreshing devices:", error);
       
-      // Only show error toast if not on dashboard
-      if (!isDashboard) {
+      // Only show error toast if not on restricted route
+      if (!isRestrictedRoute()) {
         toast.error("Failed to refresh devices");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [permissionState, requestPermission, formatDevices, selectedDeviceId, isDashboard]);
+  }, [permissionState, requestPermission, formatDevices, selectedDeviceId, isRestrictedRoute]);
 
   // Listen for device changes
   useEffect(() => {
