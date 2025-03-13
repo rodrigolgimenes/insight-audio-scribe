@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
@@ -64,7 +63,7 @@ class ChunkedTranscriptionService {
       // Check if we have multiple chunks
       const isMultiChunk = processedAudio.chunks.length > 1;
       
-      // Upload the audio file
+      // Upload the audio file - first chunk for now
       onProgress?.(30, "Uploading audio...");
       
       const { error: uploadError } = await supabase.storage
@@ -86,7 +85,8 @@ class ChunkedTranscriptionService {
         .update({ 
           file_path: fileName,
           status: 'uploaded',
-          duration: durationInMs // Now correctly using milliseconds
+          duration: durationInMs, // Now correctly using milliseconds
+          updated_at: new Date().toISOString() // Force timestamp update to trigger any watchers
         })
         .eq('id', recordingId);
         
@@ -104,7 +104,7 @@ class ChunkedTranscriptionService {
           recording_id: recordingId,
           user_id: user.id,
           status: 'pending',
-          processing_progress: 0,
+          processing_progress: 10, // Start with some progress to show activity
           duration: durationInMs // Now correctly using milliseconds
         })
         .select()
@@ -113,6 +113,9 @@ class ChunkedTranscriptionService {
       if (noteError) {
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
+      
+      // Immediately start transcription with higher priority
+      onProgress?.(45, "Starting transcription...");
       
       // For small files that don't need chunking
       if (!isMultiChunk) {
@@ -127,21 +130,51 @@ class ChunkedTranscriptionService {
           throw new Error('Could not get URL for audio');
         }
         
-        // Process the single audio file
-        const { error: processError } = await supabase.functions
-          .invoke('transcribe-audio', {
-            body: { 
-              noteId: noteData.id,
-              audioUrl: urlData.signedUrl,
-              durationMs: durationInMs // Pass duration to the function
-            },
-          });
+        // Implement retry logic for process invocation
+        let processSuccess = false;
+        let processAttempts = 0;
+        const maxProcessAttempts = 3;
+        let processError = null;
+        
+        while (processAttempts < maxProcessAttempts && !processSuccess) {
+          try {
+            // Process the single audio file
+            const { error } = await supabase.functions
+              .invoke('transcribe-audio', {
+                body: { 
+                  noteId: noteData.id,
+                  audioUrl: urlData.signedUrl,
+                  durationMs: durationInMs, // Pass duration to the function
+                  priority: 'high' // Indicate high priority
+                },
+              });
+              
+            if (!error) {
+              processSuccess = true;
+              console.log('Successfully started transcription on attempt', processAttempts + 1);
+              break;
+            } else {
+              processError = error;
+              console.error(`Transcription start attempt ${processAttempts + 1} failed:`, error);
+            }
+          } catch (attemptError) {
+            processError = attemptError;
+            console.error(`Transcription start exception on attempt ${processAttempts + 1}:`, attemptError);
+          }
           
-        if (processError) {
-          console.error('Processing error:', processError);
+          processAttempts++;
+          if (processAttempts < maxProcessAttempts) {
+            // Wait with exponential backoff before retry
+            const waitTime = Math.min(1000 * Math.pow(2, processAttempts), 5000);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+          
+        if (!processSuccess) {
+          console.error('Processing error after all attempts:', processError);
           return {
             success: false,
-            error: `Transcription failed to start: ${processError.message}`,
+            error: `Transcription failed to start: ${processError?.message || 'Maximum retry attempts exceeded'}`,
             noteId: noteData.id
           };
         }
@@ -152,31 +185,58 @@ class ChunkedTranscriptionService {
         
         // Process each chunk
         const totalChunks = processedAudio.chunks.length;
-        const transcribedChunks: TranscribedChunk[] = [];
         
         // First, inform the server that we'll be processing in chunks
-        const { data: processingResult, error: processingError } = await supabase.functions
-          .invoke('transcribe-audio', {
-            body: { 
-              noteId: noteData.id,
-              isChunkedTranscription: true,
-              totalChunks,
-              durationMs: durationInMs // Pass duration to the function
-            },
-          });
+        let chunkedSuccess = false;
+        let chunkedAttempts = 0;
+        const maxChunkedAttempts = 3;
+        let chunkedError = null;
+        
+        while (chunkedAttempts < maxChunkedAttempts && !chunkedSuccess) {
+          try {
+            const { error: processingError } = await supabase.functions
+              .invoke('transcribe-audio', {
+                body: { 
+                  noteId: noteData.id,
+                  isChunkedTranscription: true,
+                  totalChunks,
+                  durationMs: durationInMs, // Pass duration to the function
+                  priority: 'high' // Indicate high priority
+                },
+              });
+              
+            if (!processingError) {
+              chunkedSuccess = true;
+              console.log('Successfully started chunked processing on attempt', chunkedAttempts + 1);
+              break;
+            } else {
+              chunkedError = processingError;
+              console.error(`Chunked processing start attempt ${chunkedAttempts + 1} failed:`, processingError);
+            }
+          } catch (attemptError) {
+            chunkedError = attemptError;
+            console.error(`Chunked processing exception on attempt ${chunkedAttempts + 1}:`, attemptError);
+          }
           
-        if (processingError) {
-          console.error('Error starting chunked processing:', processingError);
+          chunkedAttempts++;
+          if (chunkedAttempts < maxChunkedAttempts) {
+            // Wait with exponential backoff before retry
+            const waitTime = Math.min(1000 * Math.pow(2, chunkedAttempts), 5000);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+          
+        if (!chunkedSuccess) {
+          console.error('Chunked processing error after all attempts:', chunkedError);
           return {
             success: false,
-            error: `Failed to start chunked processing: ${processingError.message}`,
+            error: `Failed to start chunked processing: ${chunkedError?.message || 'Maximum retry attempts exceeded'}`,
             noteId: noteData.id
           };
         }
         
-        // Upload and process each chunk
-        for (let i = 0; i < processedAudio.chunks.length; i++) {
-          const chunk = processedAudio.chunks[i];
+        // Upload and process each chunk in parallel instead of sequentially
+        const chunkUploadPromises = processedAudio.chunks.map(async (chunk, i) => {
           const chunkFileName = `${user.id}/${Date.now()}_chunk_${i}.mp3`;
           
           // Update progress
@@ -198,13 +258,11 @@ class ChunkedTranscriptionService {
               
             if (chunkUploadError) {
               console.error(`Error uploading chunk ${i}:`, chunkUploadError);
-              transcribedChunks.push({
+              return {
                 index: i,
-                text: '',
                 success: false,
                 error: `Failed to upload chunk: ${chunkUploadError.message}`
-              });
-              continue;
+              };
             }
             
             // Get signed URL for this chunk
@@ -214,107 +272,100 @@ class ChunkedTranscriptionService {
               
             if (!chunkUrlData?.signedUrl) {
               console.error(`Error generating URL for chunk ${i}`);
-              transcribedChunks.push({
+              return {
                 index: i,
-                text: '',
                 success: false,
                 error: 'Could not get URL for chunk'
-              });
-              continue;
+              };
             }
             
-            // Send this chunk for transcription
-            const { data: chunkResult, error: chunkError } = await supabase.functions
-              .invoke('transcribe-audio', {
-                body: { 
-                  noteId: noteData.id,
-                  audioUrl: chunkUrlData.signedUrl,
-                  isChunkedTranscription: true,
-                  chunkIndex: i,
-                  totalChunks,
-                  durationMs: durationInMs // Pass duration to the function
-                },
-              });
+            // Implement retry logic for chunk transcription
+            let chunkSuccess = false;
+            let chunkAttempts = 0;
+            const maxChunkAttempts = 3;
+            let chunkError = null;
+            
+            while (chunkAttempts < maxChunkAttempts && !chunkSuccess) {
+              try {
+                // Send this chunk for transcription
+                const { error: chunkError } = await supabase.functions
+                  .invoke('transcribe-audio', {
+                    body: { 
+                      noteId: noteData.id,
+                      audioUrl: chunkUrlData.signedUrl,
+                      isChunkedTranscription: true,
+                      chunkIndex: i,
+                      totalChunks,
+                      durationMs: durationInMs, // Pass duration to the function
+                      priority: 'high' // Indicate high priority
+                    },
+                  });
+                  
+                if (!chunkError) {
+                  chunkSuccess = true;
+                  console.log(`Chunk ${i} transcription started successfully on attempt ${chunkAttempts + 1}`);
+                  break;
+                } else {
+                  console.error(`Chunk ${i} transcription error on attempt ${chunkAttempts + 1}:`, chunkError);
+                  chunkError = chunkError;
+                }
+              } catch (error) {
+                console.error(`Chunk ${i} transcription exception on attempt ${chunkAttempts + 1}:`, error);
+                chunkError = error;
+              }
               
-            if (chunkError) {
-              console.error(`Error transcribing chunk ${i}:`, chunkError);
-              transcribedChunks.push({
-                index: i,
-                text: '',
-                success: false,
-                error: `Transcription failed: ${chunkError.message}`
-              });
-            } else {
-              console.log(`Chunk ${i} transcribed successfully`);
-              transcribedChunks.push({
-                index: i,
-                text: chunkResult?.transcription || '',
-                success: true
-              });
+              chunkAttempts++;
+              if (chunkAttempts < maxChunkAttempts) {
+                // Wait with exponential backoff before retry
+                const waitTime = Math.min(1000 * Math.pow(2, chunkAttempts), 5000);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+              }
             }
-          } catch (chunkProcessError) {
-            console.error(`Error processing chunk ${i}:`, chunkProcessError);
-            transcribedChunks.push({
+            
+            if (!chunkSuccess) {
+              return {
+                index: i,
+                success: false,
+                error: `Transcription failed: ${chunkError?.message || 'Maximum retry attempts exceeded'}`
+              };
+            }
+            
+            return {
               index: i,
-              text: '',
-              success: false,
-              error: `Processing error: ${chunkProcessError instanceof Error ? chunkProcessError.message : 'Unknown error'}`
-            });
-          }
-        }
-        
-        console.log(`Chunk processing completed: ${transcribedChunks.filter(c => c.success).length}/${totalChunks} successful`);
-        
-        // At this point, all chunks have been sent for processing
-        onProgress?.(80, "Waiting for transcription to complete...");
-      }
-      
-      // Poll for note status until processing completes or fails
-      let attempts = 0;
-      const maxAttempts = 60; // 30 minutes max (60 x 30 seconds)
-      
-      while (attempts < maxAttempts) {
-        onProgress?.(80 + (attempts * 0.33), "Checking transcription status...");
-        
-        const { data: noteStatus } = await supabase
-          .from('notes')
-          .select('status, processing_progress, original_transcript, error_message')
-          .eq('id', noteData.id)
-          .single();
-          
-        if (noteStatus) {
-          console.log(`Note status: ${noteStatus.status}, Progress: ${noteStatus.processing_progress}%`);
-          
-          if (noteStatus.status === 'completed' && noteStatus.original_transcript) {
-            onProgress?.(100, "Transcription completed!");
-            return {
               success: true,
-              noteId: noteData.id
+              text: '' // We don't have text yet as it's being processed
             };
-          } else if (noteStatus.status === 'error') {
+          } catch (error) {
+            console.error(`Error processing chunk ${i}:`, error);
             return {
+              index: i,
               success: false,
-              error: noteStatus.error_message || "Transcription service encountered an error",
-              noteId: noteData.id
+              error: `Processing error: ${error instanceof Error ? error.message : 'Unknown error'}`
             };
-          } else if (noteStatus.processing_progress > 0) {
-            // Update progress based on the note's processing progress
-            onProgress?.(
-              80 + (noteStatus.processing_progress * 0.2), 
-              `Transcribing... ${noteStatus.processing_progress}%`
-            );
           }
-        }
+        });
         
-        // Wait 30 seconds before checking again
-        await new Promise(resolve => setTimeout(resolve, 30000));
-        attempts++;
+        // Start the chunk uploads in parallel
+        await Promise.allSettled(chunkUploadPromises);
+        
+        console.log('All chunks have been submitted for processing');
       }
       
-      // If we get here, the processing is taking too long
+      // Ensure we update the DB record to reflect processing has started
+      await supabase
+        .from('notes')
+        .update({ 
+          status: 'processing',
+          processing_progress: 20
+        })
+        .eq('id', noteData.id);
+      
+      onProgress?.(80, "Transcription started successfully!");
+      
+      // Return immediately with success and note ID
+      // The transcription will continue in the background
       return {
         success: true,
-        error: "Transcription is in progress but is taking longer than expected",
         noteId: noteData.id
       };
     } catch (error) {

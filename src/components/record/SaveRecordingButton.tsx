@@ -74,7 +74,7 @@ export const SaveRecordingButton = ({
       
       {isSaving && progress > 0 && (
         <div className="mt-2">
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2 bg-gray-200" />
           <p className="text-xs text-gray-500 mt-1">
             {stage || "Processing"}: {Math.round(progress)}%
           </p>

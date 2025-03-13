@@ -59,6 +59,19 @@ export const NoteCardContent = ({
     effectiveStatus = 'completed';
   }
   
+  // Determine estimated time based on progress
+  const getEstimatedTime = () => {
+    if (effectiveStatus === 'pending' || effectiveStatus === 'processing') {
+      if (displayProgress < 10) return 'Starting...';
+      if (displayProgress < 30) return '~3-5 minutes';
+      if (displayProgress < 50) return '~2-3 minutes';
+      if (displayProgress < 70) return '~1-2 minutes';
+      if (displayProgress < 90) return 'Almost done';
+      return 'Finishing up...';
+    }
+    return '';
+  };
+  
   const getStatusDisplay = () => {
     // Force completed status if we have meeting minutes
     if (minutesExist && effectiveStatus !== 'error') {
@@ -97,31 +110,51 @@ export const NoteCardContent = ({
         );
       case 'transcribing':
         return (
-          <div className="flex items-center gap-2 text-blue-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Transcribing... {displayProgress}%</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Transcribing... {displayProgress}%</span>
+            </div>
+            {displayProgress > 0 && displayProgress < 100 && (
+              <div className="text-xs text-gray-500">{getEstimatedTime()}</div>
+            )}
           </div>
         );
       case 'generating_minutes':
         return (
-          <div className="flex items-center gap-2 text-blue-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Generating Minutes... {displayProgress}%</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Generating Minutes... {displayProgress}%</span>
+            </div>
+            {displayProgress > 0 && displayProgress < 100 && (
+              <div className="text-xs text-gray-500">{getEstimatedTime()}</div>
+            )}
           </div>
         );
       case 'pending':
         return (
-          <div className="flex items-center gap-2 text-yellow-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Pending... {displayProgress > 0 ? `${displayProgress}%` : ''}</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-yellow-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Starting transcription{displayProgress > 0 ? ` ${displayProgress}%` : '...'}</span>
+            </div>
+            {displayProgress > 0 && (
+              <div className="text-xs text-gray-500">{getEstimatedTime()}</div>
+            )}
           </div>
         );
       case 'processing':
       default:
         return (
-          <div className="flex items-center gap-2 text-blue-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Processing... {displayProgress}%</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2 text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Processing... {displayProgress}%</span>
+            </div>
+            {displayProgress > 0 && displayProgress < 100 && (
+              <div className="text-xs text-gray-500">{getEstimatedTime()}</div>
+            )}
           </div>
         );
     }
@@ -133,7 +166,7 @@ export const NoteCardContent = ({
       <div className="space-y-2">
         {getStatusDisplay()}
         {effectiveStatus !== 'completed' && effectiveStatus !== 'error' && (
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className="h-2 bg-gray-200" />
         )}
       </div>
 

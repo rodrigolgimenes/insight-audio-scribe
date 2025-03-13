@@ -96,41 +96,55 @@ export const useRecordingSave = () => {
       // Show initial toast notification for longer process
       sonnerToast.info("Processing your recording", {
         description: "This may take a few minutes for larger files",
-        duration: 3000,
+        duration: 5000, // Increased duration to give feedback longer
       });
       
       // Process audio with our enhanced service that handles compression and chunking
-      const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
-        recordingData.id,
-        audioBlob,
-        finalDuration,
-        (progress, stage) => {
-          setProcessingProgress(progress);
-          setProcessingStage(stage);
+      // We'll add a small delay before processing to ensure database operations complete
+      setTimeout(async () => {
+        try {
+          // Start transcription process immediately with high priority
+          const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
+            recordingData.id,
+            audioBlob,
+            finalDuration,
+            (progress, stage) => {
+              setProcessingProgress(progress);
+              setProcessingStage(stage);
+            }
+          );
+          
+          console.log('Transcription initiation result:', transcriptionResult);
+          
+          // Force invalidation of any cached queries to ensure UI updates
+          // This happens in a background task to not block the user
+          if (transcriptionResult.noteId) {
+            try {
+              await supabase
+                .from('notes')
+                .update({ 
+                  processing_progress: 15, // Set an initial progress to show activity
+                  status: 'processing'
+                })
+                .eq('id', transcriptionResult.noteId);
+              
+              console.log('Updated note status to ensure processing starts');
+            } catch (updateError) {
+              console.error('Error updating note status:', updateError);
+            }
+          }
+        } catch (error) {
+          console.error('Background transcription error:', error);
         }
-      );
+      }, 500); // Small delay to ensure database consistency
       
-      if (transcriptionResult.success) {
-        console.log('Transcription completed successfully');
-        toast({
-          title: "Success",
-          description: "Recording saved and transcribed successfully!",
-        });
-      } else {
-        console.error('Transcription error:', transcriptionResult.error);
-        toast({
-          title: "Warning",
-          description: transcriptionResult.error || "Transcription encountered an issue, but your recording was saved.",
-          variant: "destructive",
-        });
-      }
-
-      // Navigate to the dashboard or the new note
-      if (transcriptionResult.noteId) {
-        navigate(`/app/notes/${transcriptionResult.noteId}`);
-      } else {
-        navigate("/app");
-      }
+      // Navigate to dashboard immediately after saving
+      toast({
+        title: "Recording Saved",
+        description: "Your recording is being processed in the background",
+      });
+      
+      navigate("/app");
       
     } catch (error) {
       console.error('Error saving recording:', error);
