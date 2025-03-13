@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import { AudioRecorder } from "@/utils/audio/audioRecorder";
 import { useSystemAudioCapture } from "./capture/useSystemAudio";
@@ -9,51 +8,42 @@ import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
 import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
 import { useRecordingActions } from "./actions/useRecordingActions";
 import { DeviceContext } from "@/components/providers/DeviceProvider";
-import { toAudioDevice } from "../recording/capture/types";
 
 export function useRecordingHook() {
   const recorder = useRef<AudioRecorder | null>(null);
   const recordingState = useRecordingState();
+  const { audioDevices, initError, refreshDevices, devicesLoading, permissionState } = useContext(DeviceContext);
   const [isRestrictedRoute, setIsRestrictedRoute] = useState(false);
-  
-  // Use device context
-  const deviceContext = useContext(DeviceContext);
 
   // Initialize the recorder
   useEffect(() => {
     recorder.current = new AudioRecorder();
   }, []);
 
-  // Convert MediaDeviceInfo[] to AudioDevice[]
-  const audioDevices = deviceContext.audioDevices.map((device, index) => 
-    toAudioDevice(device, device.deviceId === 'default', index)
-  );
-
   // Initialize system audio capture
   const {
+    isSystemAudio,
+    setIsSystemAudio,
     startSystemAudioCapture,
-    stopSystemAudioCapture,
-    isSystemAudio: captureIsSystemAudio,
-    setIsSystemAudio
+    stopSystemAudioCapture
   } = useSystemAudioCapture(recorder, recordingState);
 
   // Initialize microphone capture
   const {
+    selectedDeviceId,
+    setSelectedDeviceId,
     startMicrophoneCapture,
-    stopMicrophoneCapture,
-    selectedDeviceId: captureSelectedDeviceId,
-    setSelectedDeviceId
+    stopMicrophoneCapture
   } = useMicrophoneCapture(recorder, recordingState);
 
   // Lifecycle actions
   const { stopRecording } = useStopRecording(recorder, recordingState);
   const { pauseRecording, resumeRecording } = usePauseResumeRecording(recorder, recordingState);
-  const { handleDelete, handleSaveRecording } = useSaveDeleteRecording(recordingState, stopRecording);
+  const { handleDelete, handleSaveRecording } = useSaveDeleteRecording(recordingState, stopRecording, recordingState.setLastAction);
 
   // Actions
   const {
     handleStartRecording,
-    handleStopRecording,
     handlePauseRecording,
     handleResumeRecording
   } = useRecordingActions(
@@ -126,8 +116,6 @@ export function useRecordingHook() {
     selectedDeviceId,
     lastAction,
     recordingAttemptsCount,
-    deviceSelectionReady,
-    audioFileSize,
     
     // Actions
     handleStartRecording,
@@ -137,13 +125,15 @@ export function useRecordingHook() {
     handleDelete,
     handleSaveRecording,
     setIsSystemAudio: handleSystemAudioChange,
-    audioDevices, // Now correctly returns AudioDevice[] instead of MediaDeviceInfo[]
+    audioDevices,
+    deviceSelectionReady: recordingState.deviceSelectionReady,
     getCurrentDuration,
-    initError: deviceContext.initError,
-    refreshDevices: deviceContext.refreshDevices,
+    initError,
+    refreshDevices,
     setSelectedDeviceId: wrappedSetSelectedDeviceId,
-    devicesLoading: deviceContext.devicesLoading,
-    permissionState: deviceContext.permissionState,
-    isRestrictedRoute
+    devicesLoading,
+    permissionState,
+    isRestrictedRoute,
+    audioFileSize
   };
 }

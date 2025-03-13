@@ -16,7 +16,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { AudioDevice } from "@/hooks/recording/capture/types";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -115,8 +114,8 @@ const SimpleRecord = () => {
       if (recordingHook.isRecording) {
         const result = await recordingHook.handleStopRecording();
         if (result && 'blob' in result) {
-          recordingBlob = result.blob as Blob;
-          recordedDuration = (result as any).duration || 0;
+          recordingBlob = result.blob;
+          recordedDuration = result.duration || 0;
         }
       } else {
         const response = await fetch(recordingHook.audioUrl);
@@ -222,7 +221,7 @@ const SimpleRecord = () => {
                       handleResumeRecording={recordingHook.handleResumeRecording}
                       handleDelete={recordingHook.handleDelete}
                       onSystemAudioChange={recordingHook.setIsSystemAudio}
-                      audioDevices={recordingHook.audioDevices as AudioDevice[]}
+                      audioDevices={recordingHook.audioDevices}
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={recordingHook.deviceSelectionReady}
