@@ -16,26 +16,29 @@ export function NoDevicesMessage({
   permissionState = 'unknown',
   audioDevices = []
 }: NoDevicesMessageProps) {
-  // Check if we're in the dashboard
-  const isDashboard = React.useMemo(() => {
-    return window.location.pathname.includes('/app');
+  // Expanded check for dashboard/index routes
+  const isRestrictedRoute = React.useMemo(() => {
+    const path = window.location.pathname.toLowerCase();
+    // Check if we're on the dashboard, index, or app routes where we should hide the warnings
+    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
   }, []);
 
-  // Log when this component shows a warning with extended info
+  // Debug log info but don't show UI
   React.useEffect(() => {
     if (showWarning) {
-      console.log('[NoDevicesMessage] Showing no devices warning with detailed state:', {
+      console.log('[NoDevicesMessage] Warning suppressed on restricted route:', {
+        isRestrictedRoute,
+        path: window.location.pathname,
         permissionState,
         showWarning,
         audioDevicesCount: audioDevices.length,
-        timestamp: new Date().toISOString(),
-        isDashboard
+        timestamp: new Date().toISOString()
       });
     }
-  }, [showWarning, permissionState, audioDevices, isDashboard]);
+  }, [showWarning, permissionState, audioDevices, isRestrictedRoute]);
   
-  // Don't display the warning on the dashboard page
-  if (isDashboard || !showWarning) return null;
+  // Don't show warning on restricted routes
+  if (isRestrictedRoute || !showWarning) return null;
   
   // If permission is granted but no devices, suggest reconnection
   const permissionGranted = permissionState === 'granted';
