@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { chunkedTranscriptionService } from "@/services/transcription/ChunkedTranscriptionService";
 import { toast as sonnerToast } from "sonner";
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
 // Get the Supabase URL and key from the client file
 const SUPABASE_URL = "https://wbptvnuyhgstaaufzysh.supabase.co";
@@ -93,16 +94,64 @@ export const useRecordingSave = () => {
         duration: 5000,
       });
 
+      // Compressão e conversão do áudio para MP3 antes do upload
+      setProcessingStage("Compressing audio...");
+      setProcessingProgress(15);
+      
+      // Usar o AudioCompressor para converter o blob para MP3
+      console.log('Original audio format:', audioBlob.type, 'Size:', Math.round(audioBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      const compressedBlob = await audioCompressor.compressAudio(audioBlob);
+      console.log('Compressed audio to MP3, new size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      setProcessingProgress(30);
+      setProcessingStage("Uploading to server...");
+      
+      // Upload the compressed MP3 file
+      let uploadAttempts = 0;
+      const maxAttempts = 3;
+      let uploadError = null;
+
+      while (uploadAttempts < maxAttempts) {
+        try {
+          const { error } = await supabase.storage
+            .from('audio_recordings')
+            .upload(fileName, compressedBlob, {
+              contentType: 'audio/mp3',
+              upsert: false
+            });
+
+          if (!error) {
+            uploadError = null;
+            break;
+          }
+          uploadError = error;
+        } catch (error) {
+          uploadError = error;
+        }
+        uploadAttempts++;
+        if (uploadAttempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempts));
+        }
+      }
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error(`Failed to upload audio: ${uploadError.message || 'Unknown error'}`);
+      }
+      
+      console.log('Audio file uploaded successfully as MP3');
+      setProcessingProgress(50);
+
       // Start processing immediately with a proper async implementation
       const startProcessing = async () => {
         try {
           console.log('Starting transcription process immediately');
           const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
             recordingData.id,
-            audioBlob,
+            compressedBlob, // Use the compressed blob for transcription
             finalDuration,
             (progress, stage) => {
-              setProcessingProgress(progress);
+              setProcessingProgress(50 + (progress * 0.5)); // Adjust progress scale
               setProcessingStage(stage);
               
               if (transcriptionResult?.noteId && progress % 10 === 0) {
