@@ -103,14 +103,10 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
         setSelectedDeviceId(audioInputDevices[0].deviceId);
       }
       
-      // Show toast with device count
+      // Show toast only for no devices error case, removed success toast
       if (audioInputDevices.length === 0) {
         toast.warning("No microphones found", {
           description: "Please connect a microphone and try again"
-        });
-      } else {
-        toast.success(`Found ${audioInputDevices.length} microphone(s)`, {
-          duration: 2000
         });
       }
     } catch (error) {

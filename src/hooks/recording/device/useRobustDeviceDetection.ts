@@ -1,117 +1,168 @@
-
-import { useEffect, useState, useRef } from "react";
-import { AudioDevice } from "@/hooks/recording/capture/types";
-import { usePermissionRequest } from "./usePermissionRequest";
-import { useDeviceDetection } from "./useDeviceDetection";
-import { usePermissionMonitoring } from "./usePermissionMonitoring";
-import { usePeriodicDeviceCheck } from "./usePeriodicDeviceCheck";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { AudioDevice } from "../capture/types";
+import { PermissionState } from "../capture/permissions/types";
+import { usePermissionMonitor } from "../capture/permissions/permissionMonitor";
 
 /**
- * Enhanced hook for robust device detection and permission handling
+ * Hook for robust microphone detection and management
  */
 export const useRobustDeviceDetection = (
-  getAudioDevices: () => Promise<{devices: AudioDevice[], defaultId: string | null}>,
+  getAudioDevices: () => Promise<{ devices: AudioDevice[]; defaultId: string | null }>,
   checkPermissions: () => Promise<boolean>
 ) => {
-  // Track locally selected device ID
-  const [localSelectedDeviceId, setLocalSelectedDeviceId] = useState<string | null>(null);
-  // Reference to track if devices have been fetched at least once
-  const hasAttemptedFetchRef = useRef(false);
+  const [devices, setDevices] = useState<AudioDevice[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
+  const [initialDeviceCheckComplete, setInitialDeviceCheckComplete] = useState(false);
+  const { permissionStatus } = usePermissionMonitor();
+  const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
   
-  // Handle permission checks and requests
-  const {
-    permissionState,
-    setPermissionState,
-    hasAttemptedPermission,
-    requestPermission,
-    cleanup: cleanupPermissions
-  } = usePermissionRequest(checkPermissions);
-
-  // Handle device detection
-  const {
-    devices,
-    isLoading,
-    refreshAttempts,
-    detectDevices,
-    cleanup: cleanupDeviceDetection
-  } = useDeviceDetection(getAudioDevices, requestPermission);
-
-  // Monitor permission changes
-  usePermissionMonitoring(detectDevices, setPermissionState);
-
-  // Periodic check for reconnected devices
-  usePeriodicDeviceCheck(devices.length, detectDevices);
+  // Ref to track if the component is mounted
+  const isMounted = useRef(false);
   
-  // Log key state changes
+  // Update permission state based on permission status
   useEffect(() => {
-    console.log('[useRobustDeviceDetection] Key state changed:', {
-      deviceCount: devices.length,
-      permissionState,
-      isLoading,
-      hasAttemptedPermission,
-      hasAttemptedFetch: hasAttemptedFetchRef.current
-    });
-  }, [devices.length, permissionState, isLoading, hasAttemptedPermission]);
-
-  // Initialize on mount with device detection
-  useEffect(() => {
-    console.log('[useRobustDeviceDetection] Initializing device detection...');
+    setPermissionState(permissionStatus);
+  }, [permissionStatus]);
+  
+  // Function to request microphone access
+  const requestMicrophoneAccess = useCallback(async (skipCheck = false): Promise<boolean> => {
+    console.log('[useRobustDeviceDetection] Requesting microphone access');
+    setIsLoading(true);
+    setDeviceError(null);
     
-    const init = async () => {
-      hasAttemptedFetchRef.current = true;
+    try {
+      if (!skipCheck) {
+        const hasPermission = await checkPermissions();
+        if (hasPermission) {
+          console.log('[useRobustDeviceDetection] Already have permission');
+          setPermissionState('granted');
+          return true;
+        }
+      }
+      
+      // Use a more modern approach to request permissions
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Stop all tracks on the stream immediately
+      stream.getTracks().forEach(track => track.stop());
+      
+      console.log('[useRobustDeviceDetection] Microphone access granted');
+      setPermissionState('granted');
+      return true;
+    } catch (error: any) {
+      console.error('[useRobustDeviceDetection] Microphone access denied:', error);
+      setDeviceError('Microphone access denied. Please check your browser settings.');
+      setPermissionState('denied');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [checkPermissions]);
+  
+  // Function to detect available devices
+  const detectDevices = useCallback(async (forceRefresh = false): Promise<{ devices: AudioDevice[]; defaultId: string | null }> => {
+    console.log('[useRobustDeviceDetection] Detecting devices');
+    setIsLoading(true);
+    setDeviceError(null);
+    
+    try {
+      // Ensure we have permission before enumerating
+      if (permissionState !== 'granted') {
+        const hasPermission = await requestMicrophoneAccess(true);
+        if (!hasPermission) {
+          console.warn('[useRobustDeviceDetection] No permission to access devices');
+          return { devices: [], defaultId: null };
+        }
+      }
+      
+      // Enumerate devices
+      const { devices: detectedDevices, defaultId } = await getAudioDevices();
+      
+      if (detectedDevices.length === 0) {
+        console.warn('[useRobustDeviceDetection] No devices detected');
+        setDeviceError('No microphones detected. Please ensure a microphone is connected.');
+      }
+      
+      // Update state only if mounted
+      if (isMounted.current) {
+        setDevices(detectedDevices);
+        
+        // Auto-select the first device if none is selected
+        if (!selectedDeviceId && detectedDevices.length > 0) {
+          console.log('[useRobustDeviceDetection] Auto-selecting first device:', detectedDevices[0].deviceId);
+          setSelectedDeviceId(detectedDevices[0].deviceId);
+        }
+      }
+      
+      return { devices: detectedDevices, defaultId };
+    } catch (error: any) {
+      console.error('[useRobustDeviceDetection] Error detecting devices:', error);
+      setDeviceError('Error detecting devices. Please check your microphone and browser settings.');
+      return { devices: [], defaultId: null };
+    } finally {
+      if (isMounted.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [getAudioDevices, permissionState, requestMicrophoneAccess, selectedDeviceId]);
+  
+  // Initial device check on mount
+  useEffect(() => {
+    isMounted.current = true;
+    
+    const initialCheck = async () => {
+      console.log('[useRobustDeviceDetection] Performing initial device check');
+      
+      // First, check permissions
+      if (permissionState !== 'granted') {
+        console.log('[useRobustDeviceDetection] Requesting permissions before initial device check');
+        await requestMicrophoneAccess(true);
+      }
+      
+      // Then, detect devices
       await detectDevices();
       
-      // Try to auto-select first device if we have devices
-      if (devices.length > 0 && !localSelectedDeviceId) {
-        const deviceToSelect = devices[0].deviceId;
-        console.log('[useRobustDeviceDetection] Auto-selecting first device:', deviceToSelect);
-        setLocalSelectedDeviceId(deviceToSelect);
-      }
+      // Mark initial check as complete
+      setInitialDeviceCheckComplete(true);
     };
     
-    init();
+    initialCheck();
     
-    // Clean up on unmount
+    // Add a device change listener
+    navigator.mediaDevices.addEventListener('devicechange', () => {
+      console.log('[useRobustDeviceDetection] Device change detected by browser');
+      detectDevices();
+    });
+    
+    // Cleanup function
     return () => {
-      cleanupPermissions();
-      cleanupDeviceDetection();
+      isMounted.current = false;
+      navigator.mediaDevices.removeEventListener('devicechange', detectDevices);
     };
-  }, [detectDevices, cleanupPermissions, cleanupDeviceDetection]);
+  }, [detectDevices, permissionState, requestMicrophoneAccess]);
   
-  // Try to select first device when devices become available
+  // Effect to set device selection ready when a device is selected and initial check is complete
   useEffect(() => {
-    if (devices.length > 0 && !localSelectedDeviceId) {
-      const deviceToSelect = devices[0].deviceId;
-      console.log('[useRobustDeviceDetection] Devices available, auto-selecting:', deviceToSelect);
-      setLocalSelectedDeviceId(deviceToSelect);
+    if (selectedDeviceId && initialDeviceCheckComplete) {
+      console.log('[useRobustDeviceDetection] Device selection ready');
+      setDeviceSelectionReady(true);
+    } else {
+      setDeviceSelectionReady(false);
     }
-  }, [devices, localSelectedDeviceId]);
-
-  // Enhanced detectDevices that also ensures selection
-  const enhancedDetectDevices = async (forceRefresh = false) => {
-    console.log('[useRobustDeviceDetection] Enhanced detect devices called');
-    const result = await detectDevices(forceRefresh);
-    
-    // If we have devices but no selection, select the first one
-    if (result.devices.length > 0 && !localSelectedDeviceId) {
-      const deviceToSelect = result.devices[0].deviceId;
-      console.log('[useRobustDeviceDetection] Auto-selecting device after detection:', deviceToSelect);
-      setLocalSelectedDeviceId(deviceToSelect);
-    }
-    
-    return result;
-  };
-
+  }, [selectedDeviceId, initialDeviceCheckComplete]);
+  
   return {
     devices,
+    selectedDeviceId,
+    setSelectedDeviceId,
     isLoading,
+    deviceError,
+    deviceSelectionReady,
     permissionState,
-    hasAttemptedPermission,
-    hasAttemptedFetch: hasAttemptedFetchRef.current,
-    refreshAttempts,
-    detectDevices: enhancedDetectDevices,
-    requestPermission,
-    selectedDeviceId: localSelectedDeviceId,
-    setSelectedDeviceId: setLocalSelectedDeviceId
+    requestMicrophoneAccess,
+    detectDevices
   };
 };

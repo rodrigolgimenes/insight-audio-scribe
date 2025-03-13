@@ -44,7 +44,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Remove success toast about device selection
+    // Toast removed here
   };
   
   // Handle refresh

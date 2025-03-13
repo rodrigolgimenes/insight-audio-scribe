@@ -165,8 +165,7 @@ export const useAudioCapture = () => {
         currentRetryAttemptRef.current = 0;
         fallbackAttemptedRef.current = false;
         
-        // Remove success message - we don't want to show it anymore
-        // Previously had toast.success here
+        // Success toast removed (this is where it was)
         
         // Update our state
         setAudioDevices(devices);
