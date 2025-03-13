@@ -10,29 +10,53 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  let noteId, recordingId; 
+  let noteId, recordingId, audioUrl, isChunkedTranscription, chunkIndex, totalChunks; 
   
   try {
     const requestBody = await req.json();
-    const { recordingId: reqRecordingId, noteId: reqNoteId, duration, isLargeFile, isRetry } = requestBody;
+    const { 
+      recordingId: reqRecordingId, 
+      noteId: reqNoteId, 
+      duration, 
+      isLargeFile, 
+      isRetry,
+      audioUrl: reqAudioUrl,
+      isChunkedTranscription: reqIsChunked,
+      chunkIndex: reqChunkIndex,
+      totalChunks: reqTotalChunks
+    } = requestBody;
     
     recordingId = reqRecordingId;
     noteId = reqNoteId;
+    audioUrl = reqAudioUrl;
+    isChunkedTranscription = reqIsChunked;
+    chunkIndex = reqChunkIndex;
+    totalChunks = reqTotalChunks;
     
-    console.log('[transcribe-audio] Starting transcription process with parameters:', {
+    const logParams = {
       recordingId, 
       noteId, 
       duration: duration ? `${Math.round(duration/1000)} seconds` : 'unknown',
       isLargeFile, 
-      isRetry
-    });
+      isRetry,
+      isChunkedTranscription,
+      chunkIndex,
+      totalChunks,
+      hasAudioUrl: !!audioUrl
+    };
+    
+    console.log('[transcribe-audio] Starting transcription process with parameters:', logParams);
 
     const transcriptionText = await handleTranscription({
       recordingId,
       noteId,
       duration,
       isLargeFile,
-      isRetry
+      isRetry,
+      audioUrl,
+      isChunkedTranscription,
+      chunkIndex,
+      totalChunks
     });
 
     console.log('[transcribe-audio] Process completed successfully');
@@ -87,10 +111,13 @@ serve(async (req) => {
           
           // Enhance error message for file not found errors
           if (isFileNotFoundError) {
-            errorMessage = `File not found in storage: ${note.audio_url || 'unknown file'}`;
+            errorMessage = `File not found in storage: ${note.audio_url || audioUrl || 'unknown file'}`;
           }
           
-          await handleTranscriptionError(supabase, note.id, errorMessage);
+          // Only update the main note status if this is not a chunk in a chunked transcription
+          if (!isChunkedTranscription) {
+            await handleTranscriptionError(supabase, note.id, errorMessage);
+          }
         }
       }
     } catch (handlingError) {

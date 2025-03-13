@@ -7,7 +7,7 @@ import { ProgressTracker } from './progressTracker.ts';
 import { MAX_FILE_SIZE_MB, VALID_NOTE_STATUSES } from './constants.ts';
 
 /**
- * Download and validate the audio file
+ * Download and validate the audio file from Supabase storage
  */
 export async function downloadAndValidateAudio(
   supabase: any, 
@@ -53,18 +53,61 @@ export async function downloadAndValidateAudio(
 }
 
 /**
+ * Download audio file from a direct URL
+ */
+export async function downloadAudioFromUrl(url: string): Promise<Blob> {
+  console.log('[transcribe-audio] Downloading audio from URL');
+  
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch audio from URL: ${response.status} ${response.statusText}`);
+    }
+    
+    const audioData = await response.blob();
+    
+    // Check for file validity
+    if (!audioData || audioData.size === 0) {
+      throw new Error('Downloaded audio file is empty or invalid');
+    }
+    
+    console.log('[transcribe-audio] File downloaded from URL successfully:', 
+      `Size: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
+    
+    // Check if file is too large for direct transcription
+    if (audioData.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      console.warn('[transcribe-audio] Audio file from URL is too large:', 
+        `${Math.round(audioData.size/1024/1024*100)/100}MB. Maximum is ${MAX_FILE_SIZE_MB}MB`);
+      
+      throw new Error(`Audio file exceeds size limit for transcription (max: ${MAX_FILE_SIZE_MB}MB)`);
+    }
+    
+    return audioData;
+  } catch (error) {
+    console.error('[transcribe-audio] Error downloading audio from URL:', error);
+    throw error;
+  }
+}
+
+/**
  * Process transcription with error handling and progress tracking
  */
 export async function processTranscription(
   supabase: any, 
   note: any, 
-  recording: any, 
+  recording: any | undefined, 
   audioData: Blob, 
   progressTracker: ProgressTracker,
-  isExtremelyLargeFile?: boolean
+  isExtremelyLargeFile?: boolean,
+  isChunkedTranscription?: boolean,
+  chunkIndex?: number,
+  totalChunks?: number
 ): Promise<string> {
   // Update status to processing with consistent progress
-  await progressTracker.markProcessing();
+  if (!isChunkedTranscription) {
+    await progressTracker.markProcessing();
+  }
   
   // Set a timeout for transcription - extended for longer recordings
   const timeoutDuration = isExtremelyLargeFile ? 240 * 60 * 1000 : 120 * 60 * 1000; // 4 hours for very large files, 2 hours otherwise
@@ -78,30 +121,63 @@ export async function processTranscription(
     const transcriptionPromise = transcribeAudio(audioData);
     
     // Update progress during transcription
-    await progressTracker.markTranscribing();
+    if (!isChunkedTranscription) {
+      await progressTracker.markTranscribing();
+    } else {
+      console.log(`[transcribe-audio] Transcribing chunk ${chunkIndex} of ${totalChunks}`);
+    }
     
     transcription = await Promise.race([transcriptionPromise, timeoutPromise]);
     
     // Update progress after successful transcription - using a definitely valid status
     // IMPORTANT: Never use 'transcribed' status which isn't in VALID_NOTE_STATUSES
-    await progressTracker.markTranscribed();
+    if (!isChunkedTranscription) {
+      await progressTracker.markTranscribed();
+    } else {
+      console.log(`[transcribe-audio] Chunk ${chunkIndex} transcribed successfully`);
+    }
     
     console.log('[transcribe-audio] Transcription completed successfully, text length:', 
       transcription.text ? transcription.text.length : 0);
   } catch (error) {
     console.error('[transcribe-audio] Transcription error or timeout:', error);
-    await progressTracker.markError(
-      error instanceof Error ? 
-        `Transcription error: ${error.message}` : 
-        'Transcription failed'
-    );
+    
+    // Only update the main note status if this is not a chunk in a chunked transcription
+    if (!isChunkedTranscription) {
+      await progressTracker.markError(
+        error instanceof Error ? 
+          `Transcription error: ${error.message}` : 
+          'Transcription failed'
+      );
+    } else {
+      console.error(`[transcribe-audio] Error transcribing chunk ${chunkIndex}:`, error);
+    }
+    
     throw error;
+  }
+  
+  // For chunked transcription, simply return the text without updating the note
+  if (isChunkedTranscription) {
+    return transcription.text;
   }
   
   // Update recording and note with transcription
   try {
-    await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
-    console.log('[transcribe-audio] Updated database with transcription');
+    if (recording) {
+      await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
+      console.log('[transcribe-audio] Updated database with transcription');
+    } else {
+      // Direct update for note without a recording
+      await supabase
+        .from('notes')
+        .update({
+          original_transcript: transcription.text,
+          status: 'completed',
+          processing_progress: 90
+        })
+        .eq('id', note.id);
+      console.log('[transcribe-audio] Updated note with transcription (no recording)');
+    }
     
     // Update progress to generating minutes stage
     await progressTracker.markGeneratingMinutes();

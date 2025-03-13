@@ -3,11 +3,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { chunkedTranscriptionService } from "@/services/transcription/ChunkedTranscriptionService";
+import { toast as sonnerToast } from "sonner";
 
 export const useRecordingSave = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState("");
 
   const saveRecording = async (
     isRecording: boolean,
@@ -18,39 +22,60 @@ export const useRecordingSave = () => {
   ) => {
     try {
       let recordingResult;
+      let audioBlob: Blob | null = null;
+      let finalDuration = recordedDuration;
+
+      // First stop recording if still active
       if (isRecording) {
         recordingResult = await handleStopRecording();
+        
+        // Get blob and duration from the result if available
+        if (recordingResult?.blob) {
+          audioBlob = recordingResult.blob;
+        }
+        
+        if (recordingResult?.duration) {
+          finalDuration = recordingResult.duration;
+        }
+      } else if (audioUrl) {
+        // If not recording but have audioUrl, fetch the blob
+        const response = await fetch(audioUrl);
+        audioBlob = await response.blob();
+      }
+
+      // Validate we have audio data
+      if (!audioBlob) {
+        throw new Error('No audio data available to save');
       }
 
       setIsProcessing(true);
+      setProcessingProgress(0);
+      setProcessingStage("Initializing...");
+
+      // Get authenticated user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
       
-      // Sanitize filename to prevent issues
-      const fileName = `${user.id}/${Date.now()}.webm`.replace(/[^\x00-\x7F]/g, '');
-      
-      console.log('Creating recording with user ID:', user.id);
-
+      // Stop any active media tracks
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
           track.stop();
         });
       }
 
-      // Get the duration from the recording result if available, or use the provided recordedDuration
-      const durationInMs = recordingResult?.duration 
-        ? Math.round(recordingResult.duration * 1000) // Convert seconds to ms if from result
-        : Math.round(recordedDuration * 1000);  // Convert seconds to ms if from parameter
-
+      // Convert duration to milliseconds for database
+      const durationInMs = Math.round(finalDuration * 1000);
       console.log('Recording duration to save (ms):', durationInMs);
 
       // Create initial recording entry
+      setProcessingProgress(5);
+      setProcessingStage("Creating recording entry...");
+
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
           duration: durationInMs,
-          file_path: fileName,
           user_id: user.id,
           status: 'pending'
         })
@@ -63,104 +88,45 @@ export const useRecordingSave = () => {
       }
 
       console.log('Recording entry created:', recordingData);
-
-      if (audioUrl) {
-        const response = await fetch(audioUrl);
-        const blob = await response.blob();
-
-        // Upload with retries
-        let uploadAttempts = 0;
-        const maxAttempts = 3;
-        let uploadError = null;
-
-        while (uploadAttempts < maxAttempts) {
-          try {
-            const { error } = await supabase.storage
-              .from('audio_recordings')
-              .upload(fileName, blob, {
-                contentType: 'audio/webm',
-                upsert: false
-              });
-
-            if (!error) {
-              uploadError = null;
-              break;
-            }
-            uploadError = error;
-          } catch (error) {
-            uploadError = error;
-          }
-          uploadAttempts++;
-          if (uploadAttempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempts));
-          }
+      
+      // Show initial toast notification for longer process
+      sonnerToast.info("Processing your recording", {
+        description: "This may take a few minutes for larger files",
+        duration: 3000,
+      });
+      
+      // Process audio with our enhanced service that handles compression and chunking
+      const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
+        recordingData.id,
+        audioBlob,
+        finalDuration,
+        (progress, stage) => {
+          setProcessingProgress(progress);
+          setProcessingStage(stage);
         }
-
-        if (uploadError) {
-          // Clean up the recording entry if upload fails
-          await supabase
-            .from('recordings')
-            .delete()
-            .eq('id', recordingData.id);
-          throw new Error(`Failed to upload audio: ${uploadError.message}`);
-        }
-
-        // Update recording status after successful upload
-        const { error: updateError } = await supabase
-          .from('recordings')
-          .update({
-            file_path: fileName,
-            status: 'uploaded'
-          })
-          .eq('id', recordingData.id);
-
-        if (updateError) {
-          throw new Error(`Failed to update recording: ${updateError.message}`);
-        }
-      }
-
-      // Initiate processing with retry logic
-      let processAttempts = 0;
-      const maxProcessAttempts = 3;
-      let processError = null;
-
-      while (processAttempts < maxProcessAttempts) {
-        try {
-          const { error } = await supabase.functions
-            .invoke('process-recording', {
-              body: { recordingId: recordingData.id },
-            });
-
-          if (!error) {
-            processError = null;
-            break;
-          }
-          processError = error;
-        } catch (error) {
-          processError = error;
-        }
-        processAttempts++;
-        if (processAttempts < maxProcessAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * processAttempts));
-        }
-      }
-
-      if (processError) {
-        console.error('Processing error:', processError);
-        toast({
-          title: "Warning",
-          description: "Recording saved but processing failed to start. It will retry automatically.",
-          variant: "destructive",
-        });
-      } else {
+      );
+      
+      if (transcriptionResult.success) {
+        console.log('Transcription completed successfully');
         toast({
           title: "Success",
-          description: "Recording saved and processing started!",
+          description: "Recording saved and transcribed successfully!",
+        });
+      } else {
+        console.error('Transcription error:', transcriptionResult.error);
+        toast({
+          title: "Warning",
+          description: transcriptionResult.error || "Transcription encountered an issue, but your recording was saved.",
+          variant: "destructive",
         });
       }
 
-      // Navigate anyway since the recording is saved
-      navigate("/app");
+      // Navigate to the dashboard or the new note
+      if (transcriptionResult.noteId) {
+        navigate(`/app/notes/${transcriptionResult.noteId}`);
+      } else {
+        navigate("/app");
+      }
       
     } catch (error) {
       console.error('Error saving recording:', error);
@@ -173,8 +139,15 @@ export const useRecordingSave = () => {
       });
     } finally {
       setIsProcessing(false);
+      setProcessingProgress(0);
+      setProcessingStage("");
     }
   };
 
-  return { saveRecording, isProcessing };
+  return { 
+    saveRecording, 
+    isProcessing,
+    processingProgress,
+    processingStage
+  };
 };

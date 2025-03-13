@@ -8,6 +8,8 @@ interface RecordingActionsProps {
   isLoading: boolean;
   isRecording: boolean;
   hasRecording: boolean;
+  processingProgress?: number;
+  processingStage?: string;
 }
 
 export const RecordingActions = ({ 
@@ -15,7 +17,9 @@ export const RecordingActions = ({
   isSaving, 
   isLoading, 
   isRecording,
-  hasRecording
+  hasRecording,
+  processingProgress = 0,
+  processingStage = ""
 }: RecordingActionsProps) => {
   return (
     <div className="flex flex-col items-center mt-8 gap-8">
@@ -28,6 +32,8 @@ export const RecordingActions = ({
             onSave={onSave}
             isSaving={isSaving}
             isDisabled={isLoading || (!isRecording && !hasRecording)}
+            progress={processingProgress}
+            stage={processingStage}
           />
         </div>
         

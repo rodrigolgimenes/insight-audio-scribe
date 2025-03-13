@@ -1,177 +1,110 @@
 
-import { updateNoteProgress } from './utils/dataOperations.ts';
-import { PROGRESS_STAGES, VALID_NOTE_STATUSES } from './constants.ts';
+import { VALID_NOTE_STATUSES } from './constants.ts';
 
 /**
- * A class to handle tracking transcription progress
+ * Manages note progress updates during transcription
  */
 export class ProgressTracker {
   private supabase: any;
   private noteId: string;
-
-  constructor(supabase: any, noteId: string) {
+  private isChunkedTranscription: boolean;
+  private chunkIndex?: number;
+  private totalChunks?: number;
+  
+  constructor(
+    supabase: any, 
+    noteId: string,
+    isChunkedTranscription: boolean = false,
+    chunkIndex?: number,
+    totalChunks?: number
+  ) {
     this.supabase = supabase;
     this.noteId = noteId;
+    this.isChunkedTranscription = isChunkedTranscription;
+    this.chunkIndex = chunkIndex;
+    this.totalChunks = totalChunks;
   }
-
-  /**
-   * Validates that a status is among the allowed values
-   * @param status Status to validate
-   * @returns Valid status that is safe to use
-   */
-  private validateStatus(status: string): string {
-    // Always check against the list of valid statuses
+  
+  async updateStatus(status: string, progress: number = 0, errorMessage?: string): Promise<void> {
+    if (this.isChunkedTranscription) {
+      // For chunked transcription, don't update the main note status to avoid conflicts
+      console.log(`[ProgressTracker] Skipping note update for chunk ${this.chunkIndex}`);
+      return;
+    }
+    
+    // Validate status is allowed
     if (!VALID_NOTE_STATUSES.includes(status)) {
-      console.error(`[transcribe-audio] Invalid status requested: ${status}. Using 'processing' instead.`);
-      return 'processing'; // Fallback to a safe default value
+      console.warn(`[ProgressTracker] Invalid status: ${status}, defaulting to 'processing'`);
+      status = 'processing';
     }
-    return status;
-  }
-
-  /**
-   * Update progress to started stage
-   */
-  async markStarted() {
-    const status = this.validateStatus('processing');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.STARTED);
-  }
-
-  /**
-   * Update progress to downloading stage
-   */
-  async markDownloading() {
-    const status = this.validateStatus('processing');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.DOWNLOADING);
-  }
-
-  /**
-   * Update progress to downloaded stage
-   */
-  async markDownloaded() {
-    const status = this.validateStatus('processing');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.DOWNLOADED);
-  }
-
-  /**
-   * Update progress to processing stage
-   */
-  async markProcessing() {
-    const status = this.validateStatus('processing');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.PROCESSING);
-  }
-
-  /**
-   * Update progress to transcribing stage
-   */
-  async markTranscribing() {
-    const status = this.validateStatus('transcribing');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBING);
-  }
-
-  /**
-   * Update progress to transcribed stage
-   * Note: We must use a valid database status!
-   */
-  async markTranscribed() {
-    // IMPORTANT: Never use 'transcribed' status which isn't in VALID_NOTE_STATUSES
-    // Instead use 'completed' which is a valid status
-    const status = this.validateStatus('completed');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.TRANSCRIBED);
     
-    // Also update the recording linked to this note
     try {
-      const { data } = await this.supabase
-        .from('notes')
-        .select('recording_id')
-        .eq('id', this.noteId)
-        .single();
-        
-      if (data?.recording_id) {
-        await this.supabase
-          .from('recordings')
-          .update({ 
-            status: 'completed',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', data.recording_id);
-      }
-    } catch (error) {
-      console.error('[transcribe-audio] Error updating recording status after transcription:', error);
-    }
-  }
-
-  /**
-   * Update progress to generating minutes stage
-   */
-  async markGeneratingMinutes() {
-    const status = this.validateStatus('generating_minutes');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.GENERATING_MINUTES);
-  }
-
-  /**
-   * Update progress to completed stage
-   */
-  async markCompleted() {
-    const status = this.validateStatus('completed');
-    await updateNoteProgress(this.supabase, this.noteId, status, PROGRESS_STAGES.COMPLETED);
-    
-    // Also update the recording linked to this note
-    try {
-      const { data } = await this.supabase
-        .from('notes')
-        .select('recording_id')
-        .eq('id', this.noteId)
-        .single();
-        
-      if (data?.recording_id) {
-        await this.supabase
-          .from('recordings')
-          .update({ 
-            status: 'completed',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', data.recording_id);
-      }
-    } catch (error) {
-      console.error('[transcribe-audio] Error updating recording status after completion:', error);
-    }
-  }
-
-  /**
-   * Update progress to error stage
-   */
-  async markError(errorMessage: string) {
-    const status = this.validateStatus('error');
-    await updateNoteProgress(this.supabase, this.noteId, status, 0);
-    
-    // Add error message to note
-    await this.supabase
-      .from('notes')
-      .update({ 
-        error_message: errorMessage
-      })
-      .eq('id', this.noteId);
+      const updateData: any = {
+        status,
+        processing_progress: Math.max(0, Math.min(100, Math.round(progress)))
+      };
       
-    // Also update the recording linked to this note
-    try {
-      const { data } = await this.supabase
+      if (errorMessage) {
+        updateData.error_message = errorMessage;
+      }
+      
+      console.log(`[ProgressTracker] Updating note ${this.noteId} status to ${status} with progress ${progress}%`);
+      
+      const { error } = await this.supabase
         .from('notes')
-        .select('recording_id')
-        .eq('id', this.noteId)
-        .single();
+        .update(updateData)
+        .eq('id', this.noteId);
         
-      if (data?.recording_id) {
-        await this.supabase
-          .from('recordings')
-          .update({ 
-            status: 'error',
-            error_message: errorMessage,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', data.recording_id);
+      if (error) {
+        console.error('[ProgressTracker] Error updating note status:', error);
       }
     } catch (error) {
-      console.error('[transcribe-audio] Error updating recording status after error:', error);
+      console.error('[ProgressTracker] Exception in updateStatus:', error);
     }
+  }
+  
+  // Mark status as started - 10% progress
+  async markStarted(): Promise<void> {
+    await this.updateStatus('processing', 10);
+  }
+  
+  // Mark status as downloading - 15% progress
+  async markDownloading(): Promise<void> {
+    await this.updateStatus('processing', 15);
+  }
+  
+  // Mark status as downloaded - 20% progress
+  async markDownloaded(): Promise<void> {
+    await this.updateStatus('processing', 20);
+  }
+  
+  // Mark status as processing - 30% progress
+  async markProcessing(): Promise<void> {
+    await this.updateStatus('processing', 30);
+  }
+  
+  // Mark status as transcribing - 50% progress
+  async markTranscribing(): Promise<void> {
+    await this.updateStatus('transcribing', 50);
+  }
+  
+  // Mark status as transcribed - 70% progress
+  async markTranscribed(): Promise<void> {
+    await this.updateStatus('processing', 70);
+  }
+  
+  // Mark status as generating minutes - 80% progress
+  async markGeneratingMinutes(): Promise<void> {
+    await this.updateStatus('generating_minutes', 80);
+  }
+  
+  // Mark status as completed - 100% progress
+  async markCompleted(): Promise<void> {
+    await this.updateStatus('completed', 100);
+  }
+  
+  // Mark status as error - 0% progress
+  async markError(errorMessage: string): Promise<void> {
+    await this.updateStatus('error', 0, errorMessage);
   }
 }

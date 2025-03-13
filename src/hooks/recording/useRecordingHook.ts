@@ -1,4 +1,3 @@
-
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -11,7 +10,7 @@ import { useSystemAudio } from "./useSystemAudio";
 import { useRecorderInitialization } from "./useRecorderInitialization";
 import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
 import { useRecordingLogger } from "./useRecordingLogger";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 
 /**
  * Main hook that combines all recording functionality
@@ -134,6 +133,42 @@ export const useRecording = () => {
     recordingState.lastAction
   );
 
+  // Add new state for processing progress
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState("");
+
+  // Update handleSaveRecording to pass progress callbacks
+  const handleSaveRecording = useCallback(() => {
+    if (!recordingSave) return;
+    
+    recordingSave.saveRecording(
+      isRecording,
+      handleStopRecording,
+      mediaStream,
+      audioUrl,
+      recordedDuration
+    );
+  }, [
+    recordingSave, 
+    isRecording, 
+    handleStopRecording, 
+    mediaStream, 
+    audioUrl, 
+    recordedDuration
+  ]);
+
+  // Use the new progress information from useRecordingSave
+  useEffect(() => {
+    if (recordingSave) {
+      setProcessingProgress(recordingSave.processingProgress || 0);
+      setProcessingStage(recordingSave.processingStage || "");
+    }
+  }, [
+    recordingSave?.processingProgress,
+    recordingSave?.processingStage,
+    recordingSave
+  ]);
+
   console.log('[useRecordingHook] Hook initialized, returning methods');
   
   return {
@@ -150,8 +185,9 @@ export const useRecording = () => {
     getCurrentDuration,
     initError,
     refreshDevices,
-    // New exposed states
     devicesLoading,
-    permissionState
+    permissionState,
+    processingProgress,
+    processingStage
   };
 };
