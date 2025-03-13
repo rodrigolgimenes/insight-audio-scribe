@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -103,7 +102,7 @@ export const useRecordingSave = () => {
       console.log('Original audio format:', audioBlob.type, 'Size:', Math.round(audioBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
       // Use the AudioCompressor to convert the blob to MP3
-      const compressedBlob = await audioCompressor.compressAudio(audioBlob);
+      let compressedBlob = await audioCompressor.compressAudio(audioBlob);
       
       // Debug log the compressed audio blob details
       console.log('Compressed audio format:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
@@ -113,9 +112,8 @@ export const useRecordingSave = () => {
         console.warn('Compressed blob is not in MP3 format. Forcing MIME type to audio/mp3');
         // Force the correct MIME type if not set properly
         const rawData = await compressedBlob.arrayBuffer();
-        const forcedMp3Blob = new Blob([rawData], { type: 'audio/mp3' });
-        console.log('Forced MP3 blob type:', forcedMp3Blob.type);
-        compressedBlob = forcedMp3Blob;
+        compressedBlob = new Blob([rawData], { type: 'audio/mp3' });
+        console.log('Forced MP3 blob type:', compressedBlob.type);
       }
       
       setProcessingProgress(30);
