@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthCallback } from "@/components/auth/AuthCallback";
@@ -20,6 +20,21 @@ import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import UncategorizedFolder from "./pages/UncategorizedFolder";
+
+// Route logger component to help with debugging route changes
+const RouteLogger = () => {
+  const location = useLocation();
+  
+  React.useEffect(() => {
+    console.log('[App] Route changed:', {
+      pathname: location.pathname,
+      isRestricted: ["/", "/index", "/dashboard", "/app"].includes(location.pathname) || 
+                    location.pathname.startsWith("/app/")
+    });
+  }, [location]);
+  
+  return null;
+};
 
 // Modified to properly handle auth issues - this allows components to render
 // even if auth is failing, which helps with debugging
@@ -88,6 +103,7 @@ const App = () => {
           {/* IMPORTANT: Single DeviceManagerProvider for global access */}
           <DeviceManagerProvider>
             <AudioDeviceProvider>
+              <RouteLogger />
               <Toaster />
               <Sonner />
               <Routes>

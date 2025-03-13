@@ -34,10 +34,14 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isDashboard, setIsDashboard] = useState(false);
 
-  // Check if we're on a restricted route (index, dashboard, etc)
+  // Improved check for restricted routes - dashboard/index/app paths
   const isRestrictedRoute = useCallback((): boolean => {
     const path = window.location.pathname.toLowerCase();
-    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
   }, []);
 
   // Check if we're on the dashboard page
@@ -152,7 +156,7 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
         setSelectedDeviceId(audioInputDevices[0].deviceId);
       }
       
-      // Show toast only for no devices error case and not on restricted route
+      // Only show toast for no devices error case when not on restricted route
       if (audioInputDevices.length === 0 && !isRestrictedRoute()) {
         toast.warning("No microphones found", {
           description: "Please connect a microphone and try again"

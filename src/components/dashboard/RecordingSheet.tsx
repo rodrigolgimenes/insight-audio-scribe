@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { RecordingSection } from "@/components/record/RecordingSection";
@@ -38,6 +38,16 @@ export function RecordingSheet() {
     devicesLoading,
     permissionState
   } = useRecording();
+
+  // Enhanced check for restricted routes - dashboard/index/app paths
+  const isRestrictedRoute = useCallback((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
 
   // Create a wrapper for refreshDevices that returns a Promise
   const handleRefreshDevices = async () => {
@@ -85,11 +95,12 @@ export function RecordingSheet() {
       hasInitError: !!initError,
       isComponentReady,
       devicesLoading,
-      permissionState
+      permissionState,
+      isRestrictedRoute: isRestrictedRoute()
     });
   }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, 
       audioDevices.length, recordingAttemptsCount, initError, isComponentReady,
-      devicesLoading, permissionState]);
+      devicesLoading, permissionState, isRestrictedRoute]);
 
   return (
     <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">

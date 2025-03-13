@@ -37,13 +37,17 @@ export const useAudioCapture = () => {
     }
   );
   
-  // Check if we're on a restricted route
+  // Improved check for restricted routes
   const isRestrictedRoute = useCallback((): boolean => {
     const path = window.location.pathname.toLowerCase();
-    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
   }, []);
   
-  // Check if we're on the dashboard page
+  // Check if we're on the dashboard or index page
   useEffect(() => {
     const checkIfDashboard = () => {
       setIsDashboard(isRestrictedRoute());

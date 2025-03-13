@@ -7,6 +7,28 @@ interface DeviceSelectorLabelProps {
 }
 
 export function DeviceSelectorLabel({ permissionStatus }: DeviceSelectorLabelProps) {
+  // Check if we're on a restricted route (dashboard, index, app)
+  const isRestrictedRoute = React.useMemo((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+
+  // Don't show status indicators on restricted routes
+  if (isRestrictedRoute) {
+    return (
+      <div className="flex items-center">
+        <label className="text-sm font-medium flex items-center gap-1">
+          <Mic className="h-4 w-4" />
+          Audio device
+        </label>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-between">
       <label className="text-sm font-medium flex items-center gap-1">

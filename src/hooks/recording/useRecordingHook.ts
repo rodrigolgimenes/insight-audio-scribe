@@ -21,6 +21,16 @@ export const useRecording = () => {
   console.log('[useRecordingHook] Initializing hook');
   const initialized = useRef(false);
   
+  // Check if we're on a restricted route (index, dashboard, or app routes)
+  const isRestrictedRoute = useCallback((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+  
   // Main state
   const recordingState = useRecordingState();
   
@@ -31,7 +41,8 @@ export const useRecording = () => {
     console.log('[useRecordingHook] Current state before update:', {
       selectedDeviceId: recordingState.selectedDeviceId,
       deviceSelectionReady: deviceSelectionReady,
-      isRecording: recordingState.isRecording
+      isRecording: recordingState.isRecording,
+      isRestrictedRoute: isRestrictedRoute()
     });
     
     // Call original function
@@ -70,9 +81,10 @@ export const useRecording = () => {
       deviceSelectionReady,
       audioDevicesCount: audioDevices.length,
       permissionState,
-      selectedDeviceId: recordingState.selectedDeviceId
+      selectedDeviceId: recordingState.selectedDeviceId,
+      isRestrictedRoute: isRestrictedRoute()
     });
-  }, [deviceSelectionReady, audioDevices.length, permissionState, recordingState.selectedDeviceId]);
+  }, [deviceSelectionReady, audioDevices.length, permissionState, recordingState.selectedDeviceId, isRestrictedRoute]);
 
   // Media stream handling
   const { streamManager } = useMediaStream(recordingState.setLastAction);
@@ -194,6 +206,7 @@ export const useRecording = () => {
     permissionState,
     processingProgress,
     processingStage,
-    isLoading: recordingSaveHook?.isProcessing || false
+    isLoading: recordingSaveHook?.isProcessing || false,
+    isRestrictedRoute: isRestrictedRoute()
   };
 };

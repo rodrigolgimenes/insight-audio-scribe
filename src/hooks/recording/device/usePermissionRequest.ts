@@ -19,10 +19,14 @@ export const usePermissionRequest = (
     mountedRef.current = false;
   };
 
-  // Check if we're on a restricted route (index, dashboard, etc)
+  // Improved check for restricted routes - includes app/ as a path segment
   const isRestrictedRoute = (): boolean => {
     const path = window.location.pathname.toLowerCase();
-    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
   };
 
   // Enhanced permission check with multiple retry strategies
@@ -53,6 +57,7 @@ export const usePermissionRequest = (
       setPermissionState(hasPermission ? 'granted' : 'denied');
       detectionInProgressRef.current = false;
       
+      // Only show toast if on a non-restricted route
       if (hasPermission && showToast && !isRestrictedRoute()) {
         toast.success("Microphone access granted", {
           id: "mic-permission-granted",
@@ -67,6 +72,7 @@ export const usePermissionRequest = (
       if (mountedRef.current) {
         setPermissionState('unknown');
         
+        // Only show toast if on a non-restricted route
         if (showToast && !isRestrictedRoute()) {
           toast.error("Failed to access microphone", {
             description: err instanceof Error ? err.message : "Unknown error",
