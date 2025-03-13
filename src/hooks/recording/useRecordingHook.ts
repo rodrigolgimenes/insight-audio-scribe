@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import { AudioRecorder } from "@/utils/audio/audioRecorder";
 import { useSystemAudioCapture } from "./capture/useSystemAudio";
@@ -22,7 +23,7 @@ export function useRecordingHook() {
 
   // Initialize system audio capture
   const {
-    isSystemAudio,
+    isSystemAudio: captureIsSystemAudio,
     setIsSystemAudio,
     startSystemAudioCapture,
     stopSystemAudioCapture
@@ -30,7 +31,7 @@ export function useRecordingHook() {
 
   // Initialize microphone capture
   const {
-    selectedDeviceId,
+    selectedDeviceId: captureSelectedDeviceId,
     setSelectedDeviceId,
     startMicrophoneCapture,
     stopMicrophoneCapture
@@ -38,8 +39,8 @@ export function useRecordingHook() {
 
   // Lifecycle actions
   const { stopRecording } = useStopRecording(recorder, recordingState);
-  const { pauseRecording, resumeRecording } = usePauseResumeRecording(recorder, recordingState);
-  const { handleDelete, handleSaveRecording } = useSaveDeleteRecording(recordingState, stopRecording, recordingState.setLastAction);
+  const { pauseRecording, resumeRecording } = usePauseResumeRecording(recorder);
+  const { handleDelete, handleSaveRecording } = useSaveDeleteRecording(recordingState, stopRecording);
 
   // Actions
   const {
@@ -47,14 +48,9 @@ export function useRecordingHook() {
     handlePauseRecording,
     handleResumeRecording
   } = useRecordingActions(
-    recorder,
     recordingState,
     startMicrophoneCapture,
-    startSystemAudioCapture,
-    stopMicrophoneCapture,
-    stopSystemAudioCapture,
-    pauseRecording,
-    resumeRecording
+    stopMicrophoneCapture
   );
 
   // System audio change handler
@@ -103,6 +99,12 @@ export function useRecordingHook() {
     audioFileSize
   } = recordingState;
   
+  // Create a handleStopRecording function using the stopRecording from the hook
+  const handleStopRecording = useCallback(async () => {
+    console.log('[useRecordingHook] Stopping recording');
+    return await stopRecording();
+  }, [stopRecording]);
+  
   // Return the public API of the hook
   return {
     // State
@@ -112,8 +114,8 @@ export function useRecordingHook() {
     mediaStream,
     isSaving,
     isTranscribing,
-    isSystemAudio,
-    selectedDeviceId,
+    isSystemAudio: isSystemAudio || captureIsSystemAudio, // Use from state or from capture
+    selectedDeviceId: selectedDeviceId || captureSelectedDeviceId, // Use from state or from capture
     lastAction,
     recordingAttemptsCount,
     
