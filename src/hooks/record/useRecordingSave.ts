@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { chunkedTranscriptionService } from "@/services/transcription/ChunkedTranscriptionService";
 import { toast as sonnerToast } from "sonner";
 
+// Get the Supabase URL and key from the client file
+const SUPABASE_URL = "https://wbptvnuyhgstaaufzysh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicHR2bnV5aGdzdGFhdWZ6eXNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ2MjQyNTEsImV4cCI6MjA1MDIwMDI1MX0.-wzEsrbHLbcbfe3xdMixrbCH-KVtcf0TOnrwyWK6paA";
+
 export const useRecordingSave = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -138,11 +142,11 @@ export const useRecordingSave = () => {
               if (processError) {
                 console.error('Failed to start immediate processing:', processError);
                 // Try direct edge function call as backup
-                await fetch(`${supabase.supabaseUrl}/functions/v1/process-recording`, {
+                await fetch(`${SUPABASE_URL}/functions/v1/process-recording`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${supabase.supabaseKey}`
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                   },
                   body: JSON.stringify({ 
                     recordingId: recordingData.id,
@@ -170,11 +174,11 @@ export const useRecordingSave = () => {
               
               // Retry with direct edge function call
               try {
-                await fetch(`${supabase.supabaseUrl}/functions/v1/process-recording`, {
+                await fetch(`${SUPABASE_URL}/functions/v1/process-recording`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${supabase.supabaseKey}`
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                   },
                   body: JSON.stringify({ 
                     recordingId: recordingData.id,
