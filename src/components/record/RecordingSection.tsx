@@ -21,14 +21,14 @@ interface RecordingSectionProps {
   handleResumeRecording?: () => void;
   handleDelete?: () => void;
   onSystemAudioChange?: (value: boolean) => void;
-  audioDevices?: AudioDevice[]; // Changed from MediaDeviceInfo[] to AudioDevice[]
+  audioDevices?: AudioDevice[];
   selectedDeviceId?: string | null;
   onDeviceSelect?: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
   lastAction?: { action: string; timestamp: number; success: boolean; error?: string } | null;
-  onRefreshDevices?: () => void | Promise<void>; // Allow void or Promise<void>
+  onRefreshDevices?: () => void | Promise<void>;
   devicesLoading?: boolean;
   permissionState?: "prompt" | "granted" | "denied" | "unknown";
 }

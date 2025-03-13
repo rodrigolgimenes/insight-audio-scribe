@@ -1,6 +1,7 @@
 
 import { ProcessedContent } from "@/components/record/ProcessedContent";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AudioWaveform } from "lucide-react";
 
 interface ProcessedContentSectionProps {
   audioUrl: string | null;
@@ -27,7 +28,10 @@ export const ProcessedContentSection = ({
     return (
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
         <h2 className="text-lg font-medium text-gray-900 mb-4">Processed Content</h2>
-        <p className="text-gray-500 text-sm">Record or upload audio to see processed content here.</p>
+        <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+          <AudioWaveform className="h-12 w-12 text-gray-300 mb-4" />
+          <p className="text-center">Record or upload audio to see processed content here.</p>
+        </div>
       </div>
     );
   }

@@ -16,6 +16,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { FileUploadSection } from "@/components/record/FileUploadSection";
+import { RecordTimer } from "@/components/record/RecordTimer";
+import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -30,6 +32,12 @@ const SimpleRecord = () => {
   const { isUploading } = useFileUpload();
 
   const recordingHook = useRecording();
+  
+  // Create a wrapper for stopRecording that doesn't return any value (fixing TypeScript error)
+  const handleWrappedStopRecording = async () => {
+    await recordingHook.handleStopRecording();
+    // Not returning any value
+  };
   
   useEffect(() => {
     console.log("[SimpleRecord RENDER] Recording hook states:", {
@@ -225,7 +233,7 @@ const SimpleRecord = () => {
                       mediaStream={recordingHook.mediaStream}
                       isSystemAudio={recordingHook.isSystemAudio}
                       handleStartRecording={recordingHook.handleStartRecording}
-                      handleStopRecording={recordingHook.handleStopRecording}
+                      handleStopRecording={handleWrappedStopRecording}
                       handlePauseRecording={recordingHook.handlePauseRecording}
                       handleResumeRecording={recordingHook.handleResumeRecording}
                       handleDelete={recordingHook.handleDelete}
@@ -241,6 +249,22 @@ const SimpleRecord = () => {
                       devicesLoading={recordingHook.devicesLoading}
                       permissionState={recordingHook.permissionState}
                     />
+                    
+                    {recordingHook.isRecording && (
+                      <div className="mt-6">
+                        <RecordTimer 
+                          isRecording={recordingHook.isRecording} 
+                          isPaused={recordingHook.isPaused} 
+                        />
+                        <div className="mt-4">
+                          <AudioVisualizer 
+                            mediaStream={recordingHook.mediaStream} 
+                            isRecording={recordingHook.isRecording} 
+                            isPaused={recordingHook.isPaused}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 
