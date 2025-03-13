@@ -1,144 +1,128 @@
 
-import React from "react";
-import { DiagnosticsPanel } from "./DiagnosticsPanel";
-import { AudioDevice } from "@/hooks/recording/capture/types";
-import { RecordingHeader } from "./sections/RecordingHeader";
-import { RecordingMain } from "./sections/RecordingMain";
-import { RecordingOptions } from "./sections/RecordingOptions";
-import { RecordingActions } from "./sections/RecordingActions";
-import { useDiagnostics } from "@/hooks/recording/useDiagnostics";
+import React, { useState } from "react";
+import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
+import { useDeviceManager } from "@/context/DeviceManagerContext";
+import { Card, CardContent } from "@/components/ui/card";
+import { Mic, Square } from "lucide-react";
+import { toast } from "sonner";
 
-interface RecordingSectionProps {
-  isRecording: boolean;
-  isPaused: boolean;
-  audioUrl: string | null;
-  mediaStream: MediaStream | null;
-  isSystemAudio?: boolean;
-  handleStartRecording: () => void;
-  handleStopRecording: () => void;
-  handlePauseRecording: () => void;
-  handleResumeRecording: () => void;
-  handleDelete?: () => void;
-  onSystemAudioChange?: (isSystemAudio: boolean) => void;
-  audioDevices: AudioDevice[];
-  selectedDeviceId: string | null;
-  onDeviceSelect: (deviceId: string) => void;
-  deviceSelectionReady: boolean;
-  showPlayButton?: boolean;
-  showDeleteButton?: boolean;
-  showDiagnosticsPanel?: boolean;
-  lastAction?: { 
-    action: string; 
-    timestamp: number; 
-    success: boolean;
-    error?: string;
+export function RecordingSection() {
+  const { permissionState, selectedDeviceId } = useDeviceManager();
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const canRecord = permissionState === "granted" && !!selectedDeviceId && !isRecording;
+
+  const handleStartRecording = async () => {
+    if (!canRecord) return;
+    
+    try {
+      console.log("[RecordingSection] Starting recording with device:", selectedDeviceId);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: selectedDeviceId || undefined }
+      });
+      
+      console.log("[RecordingSection] Stream obtained:", stream.getAudioTracks().length, "audio tracks");
+      setIsRecording(true);
+      
+      // Start timer
+      const interval = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      setTimer(interval);
+      
+      toast.success("Recording started", {
+        description: "Recording with selected microphone"
+      });
+      
+      // This would be where MediaRecorder is initialized in a real implementation
+    } catch (error) {
+      console.error("[RecordingSection] Failed to start recording:", error);
+      toast.error("Recording failed", {
+        description: error instanceof Error ? error.message : "Unknown error occurred"
+      });
+      setIsRecording(false);
+    }
   };
-  onRefreshDevices?: () => void;
-  devicesLoading?: boolean;
-  permissionState?: 'prompt'|'granted'|'denied'|'unknown';
-}
 
-export function RecordingSection({
-  isRecording,
-  isPaused,
-  audioUrl,
-  mediaStream,
-  isSystemAudio = false,
-  handleStartRecording,
-  handleStopRecording,
-  handlePauseRecording,
-  handleResumeRecording,
-  handleDelete,
-  onSystemAudioChange,
-  audioDevices,
-  selectedDeviceId,
-  onDeviceSelect,
-  deviceSelectionReady,
-  showPlayButton = true,
-  showDeleteButton = false,
-  showDiagnosticsPanel = true,
-  lastAction,
-  onRefreshDevices,
-  devicesLoading = false,
-  permissionState = 'unknown',
-}: RecordingSectionProps) {
-  // Use our diagnostics hook
-  useDiagnostics({
-    selectedDeviceId,
-    deviceSelectionReady,
-    audioDevices,
-    isRecording
-  });
+  const handleStopRecording = () => {
+    console.log("[RecordingSection] Stopping recording");
+    setIsRecording(false);
+    
+    // Clear timer
+    if (timer) {
+      clearInterval(timer);
+      setTimer(null);
+    }
+    
+    setRecordingTime(0);
+    
+    toast.info("Recording stopped", {
+      description: "Your recording has been stopped"
+    });
+    
+    // This would be where MediaRecorder is stopped in a real implementation
+  };
 
-  // Log device information on every render
-  console.log('[RecordingSection RENDER]', {
-    audioDevicesCount: audioDevices.length,
-    audioDevices: audioDevices.map(d => ({ id: d.deviceId, label: d.label })),
-    selectedDeviceId,
-    deviceSelectionReady,
-    permissionState
-  });
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Header Section with Timer */}
-      <RecordingHeader 
-        isRecording={isRecording} 
-        isPaused={isPaused} 
-      />
-      
-      {/* Main Recording Controls */}
-      <RecordingMain 
-        isRecording={isRecording}
-        isPaused={isPaused}
-        mediaStream={mediaStream}
-        handleStartRecording={handleStartRecording}
-        handleStopRecording={handleStopRecording}
-        handlePauseRecording={handlePauseRecording}
-        handleResumeRecording={handleResumeRecording}
-        deviceSelectionReady={deviceSelectionReady}
-        selectedDeviceId={selectedDeviceId}
-        audioDevices={audioDevices}
-        lastAction={lastAction}
-        permissionState={permissionState}
-      />
-      
-      {/* Device and System Audio Options */}
-      <RecordingOptions 
-        isRecording={isRecording}  
-        isSystemAudio={isSystemAudio}
-        onSystemAudioChange={onSystemAudioChange}
-        audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        onDeviceSelect={onDeviceSelect}
-        deviceSelectionReady={deviceSelectionReady}
-        onRefreshDevices={onRefreshDevices}
-        devicesLoading={devicesLoading}
-        permissionState={permissionState}
-      />
-      
-      {/* Delete Recording Button */}
-      <RecordingActions 
-        showDeleteButton={showDeleteButton}
-        handleDelete={handleDelete}
-        audioUrl={audioUrl}
-      />
-      
-      {/* Diagnostics Panel */}
-      {showDiagnosticsPanel && (
-        <DiagnosticsPanel
-          isRecording={isRecording}
-          isPaused={isPaused}
-          mediaStream={mediaStream}
-          deviceSelectionReady={deviceSelectionReady}
-          deviceId={selectedDeviceId}
-          lastAction={lastAction}
-          onRefreshDevices={onRefreshDevices}
-          deviceCount={audioDevices.length}
-          devicesLoading={devicesLoading}
-          permissionState={permissionState}
-        />
-      )}
-    </div>
+    <Card>
+      <CardContent className="p-6">
+        <h3 className="text-lg font-medium mb-4">Record Audio</h3>
+        <MicrophoneSelector />
+
+        <div className="mt-6 space-y-4">
+          {isRecording && (
+            <div className="text-center py-2 bg-red-50 border border-red-200 rounded-md text-red-600 animate-pulse">
+              <div className="text-sm font-medium">Recording in progress</div>
+              <div className="text-xl font-bold">{formatTime(recordingTime)}</div>
+            </div>
+          )}
+          
+          <div className="flex space-x-3">
+            {!isRecording ? (
+              <button
+                onClick={handleStartRecording}
+                disabled={!canRecord}
+                className={`flex-1 py-3 rounded-md flex items-center justify-center space-x-2 ${
+                  canRecord 
+                    ? "bg-red-500 hover:bg-red-600 text-white" 
+                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                <Mic className="h-5 w-5" />
+                <span>Start Recording</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleStopRecording}
+                className="flex-1 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-md flex items-center justify-center space-x-2"
+              >
+                <Square className="h-5 w-5" />
+                <span>Stop Recording</span>
+              </button>
+            )}
+          </div>
+          
+          {!canRecord && !isRecording && (
+            <div className="text-xs text-center text-amber-600">
+              {!selectedDeviceId ? (
+                <p>Please select a microphone to enable recording</p>
+              ) : permissionState !== "granted" ? (
+                <p>Microphone permission is required to record audio</p>
+              ) : (
+                <p>Unable to start recording at this time</p>
+              )}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

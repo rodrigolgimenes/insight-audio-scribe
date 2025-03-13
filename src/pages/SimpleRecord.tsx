@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -11,7 +10,7 @@ import { RecordPageError } from "@/components/record/RecordPageError";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
 import { DebugMicrophonePanel } from "@/components/debug/DebugMicrophonePanel";
-import { UnifiedRecordingSection } from "@/components/record/UnifiedRecordingSection";
+import { RecordingSection } from "@/components/record/RecordingSection";
 import { Card, CardContent } from "@/components/ui/card";
 
 const SimpleRecord = () => {
@@ -86,44 +85,6 @@ const SimpleRecord = () => {
     }
   }, [recordingHook.initError]);
 
-  const mockSaveRecording = async () => {
-    toast.success("Recording would be saved in production environment");
-    return { success: true };
-  };
-  
-  const saveProps = {
-    saveRecording: mockSaveRecording,
-    isProcessing: false
-  };
-
-  const handleSave = async () => {
-    PageLoadTracker.trackPhase('Save Operation Started', true);
-    try {
-      if (recordingHook.isRecording) {
-        await recordingHook.handleStopRecording();
-      }
-      
-      toast.success("Recording processed successfully!", {
-        description: "In a production environment, this would be saved to your account."
-      });
-      
-      PageLoadTracker.trackPhase('Save Operation Complete', true);
-    } catch (error) {
-      PageLoadTracker.trackPhase('Save Operation Error', false, error.message);
-      toast.error("Error", {
-        description: "An error occurred while saving the recording."
-      });
-    }
-  };
-
-  const isLoading = recordingHook.isTranscribing || recordingHook.isSaving || isUploading || saveProps.isProcessing;
-
-  if (!isPageReady) {
-    return <RecordPageLoading loadingProgress={loadingProgress} />;
-  }
-
-  PageLoadTracker.trackPhase('Render Main Content', true);
-  
   const handleForceRefresh = () => {
     console.log("[SimpleRecord] Force refreshing devices - BEFORE:", {
       deviceCount: recordingHook.audioDevices.length,
@@ -141,6 +102,12 @@ const SimpleRecord = () => {
     }
   };
 
+  if (!isPageReady) {
+    return <RecordPageLoading loadingProgress={loadingProgress} />;
+  }
+
+  PageLoadTracker.trackPhase('Render Main Content', true);
+  
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-ghost-white">
@@ -180,11 +147,12 @@ const SimpleRecord = () => {
               <h2 className="text-xl font-bold mb-4 text-blue-800">Unified Device Manager Demo</h2>
               <p className="text-blue-700 mb-4">
                 This section demonstrates the unified device management approach using a shared context.
+                Both components below share the same device list and selection state.
               </p>
               
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <DebugMicrophonePanel />
-                <UnifiedRecordingSection />
+                <RecordingSection />
               </div>
             </div>
             
@@ -227,10 +195,13 @@ const SimpleRecord = () => {
             
             <SimpleRecordContent
               recordingHook={recordingHook}
-              isLoading={isLoading}
+              isLoading={isUploading}
               error={error}
-              saveRecording={handleSave}
-              isSaveProcessing={saveProps.isProcessing}
+              saveRecording={() => {
+                toast.success("Recording would be saved in production environment");
+                return Promise.resolve({ success: true });
+              }}
+              isSaveProcessing={false}
             />
           </main>
         </div>
