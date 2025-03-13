@@ -15,6 +15,16 @@ export function SimpleMicrophoneSelector() {
   } = useRobustMicrophoneDetection();
   const [isOpen, setIsOpen] = useState(false);
   
+  // Check if we're on a restricted route (dashboard, index, app)
+  const isRestrictedRoute = React.useMemo(() => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+  
   // Log details on render and when state changes
   useEffect(() => {
     console.log('[SimpleMicrophoneSelector] State updated:', {
@@ -52,7 +62,9 @@ export function SimpleMicrophoneSelector() {
       // Remove toast notification about refreshing microphones
     } catch (error) {
       console.error('[SimpleMicrophoneSelector] Error refreshing devices:', error);
-      toast.error("Failed to refresh microphones");
+      if (!isRestrictedRoute) {
+        toast.error("Failed to refresh microphones");
+      }
     }
   };
   

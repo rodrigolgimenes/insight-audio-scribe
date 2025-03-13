@@ -26,6 +26,16 @@ export function DeviceAutoSelection({
     deviceList: deviceList.map(d => ({id: d.deviceId, label: 'deviceId' in d && d.label ? d.label : 'No label'}))
   });
   
+  // Check if we're on a restricted route (dashboard, index, app)
+  const isRestrictedRoute = React.useMemo(() => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+  
   // Auto-selection logic
   useEffect(() => {
     // If we have devices but no selection has been made
@@ -38,10 +48,12 @@ export function DeviceAutoSelection({
       if (firstDeviceId) {
         console.log('[DeviceAutoSelection] Auto-selecting device:', firstDeviceId);
         
-        // Show notification for better user feedback
-        toast.success("Automatically selected microphone", {
-          id: "auto-device-selection"
-        });
+        // Show notification for better user feedback, but only if not on restricted route
+        if (!isRestrictedRoute) {
+          toast.success("Automatically selected microphone", {
+            id: "auto-device-selection"
+          });
+        }
         
         // Select device and mark selection as attempted
         onDeviceSelect(firstDeviceId);
@@ -58,16 +70,18 @@ export function DeviceAutoSelection({
         const firstDeviceId = deviceList[0].deviceId;
         
         if (firstDeviceId) {
-          // Show notification
-          toast.info("Selected device no longer available, switching microphone", {
-            id: "device-replacement"
-          });
+          // Show notification only if not on restricted route
+          if (!isRestrictedRoute) {
+            toast.info("Selected device no longer available, switching microphone", {
+              id: "device-replacement"
+            });
+          }
           
           onDeviceSelect(firstDeviceId);
         }
       }
     }
-  }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection, setHasAttemptedSelection]);
+  }, [deviceList, selectedDeviceId, onDeviceSelect, hasAttemptedSelection, setHasAttemptedSelection, isRestrictedRoute]);
 
   return null; // This is a logic-only component
 }
