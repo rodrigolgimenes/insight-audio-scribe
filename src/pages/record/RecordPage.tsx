@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { ShellLayout } from "@/components/layouts/ShellLayout";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { useRecording } from "@/hooks/useRecording";
@@ -7,6 +7,10 @@ import { ProcessedContentSection } from "@/components/record/ProcessedContentSec
 import { AppPageHeader } from "@/components/dashboard/AppPageHeader";
 
 export default function RecordPage() {
+  // Add processingProgress and processingStage states
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState("");
+  
   const {
     isRecording,
     isPaused,
@@ -30,8 +34,7 @@ export default function RecordPage() {
     refreshDevices,
     devicesLoading,
     permissionState,
-    processingProgress,
-    processingStage
+    audioFileSize
   } = useRecording();
 
   // Create wrapper functions that return proper Promise types
@@ -54,6 +57,37 @@ export default function RecordPage() {
     } catch (error) {
       console.error("Error refreshing devices:", error);
       return Promise.reject(error);
+    }
+  };
+
+  // Simulate processing (this would normally be connected to real processing events)
+  const handleSave = () => {
+    if (handleSaveRecording) {
+      setProcessingProgress(0);
+      setProcessingStage("Starting processing...");
+      
+      // Start a fake progress simulation
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        setProcessingProgress(progress);
+        
+        if (progress < 30) {
+          setProcessingStage("Preparing audio...");
+        } else if (progress < 60) {
+          setProcessingStage("Processing audio...");
+        } else if (progress < 90) {
+          setProcessingStage("Finalizing...");
+        } else {
+          setProcessingStage("Completed");
+          clearInterval(interval);
+        }
+        
+        if (progress >= 100) {
+          clearInterval(interval);
+          handleSaveRecording();
+        }
+      }, 500);
     }
   };
 
@@ -83,15 +117,16 @@ export default function RecordPage() {
               selectedDeviceId={selectedDeviceId}
               onDeviceSelect={setSelectedDeviceId}
               deviceSelectionReady={deviceSelectionReady}
-              onSave={handleSaveRecording}
+              onSave={handleSave}
               isSaving={isSaving}
-              isLoading={false}  // Fixed isLoading property
+              isLoading={false}
               lastAction={lastAction}
               onRefreshDevices={handleWrappedRefreshDevices}
               devicesLoading={devicesLoading}
-              permissionState={permissionState as any}  // Use type assertion
+              permissionState={permissionState as any}
               processingProgress={processingProgress}
               processingStage={processingStage}
+              audioFileSize={audioFileSize}
             />
           </div>
 

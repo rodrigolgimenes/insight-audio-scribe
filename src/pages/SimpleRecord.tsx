@@ -114,8 +114,8 @@ const SimpleRecord = () => {
       if (recordingHook.isRecording) {
         const result = await recordingHook.handleStopRecording();
         if (result && 'blob' in result) {
-          recordingBlob = result.blob;
-          recordedDuration = result.duration || 0;
+          recordingBlob = result.blob as Blob;
+          recordedDuration = (result as any).duration || 0;
         }
       } else {
         const response = await fetch(recordingHook.audioUrl);
