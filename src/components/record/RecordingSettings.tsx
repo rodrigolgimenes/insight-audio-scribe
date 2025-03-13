@@ -3,11 +3,12 @@ import React from "react";
 import { DeviceSelector } from "./DeviceSelector";
 import { SystemAudioToggle } from "./SystemAudioToggle";
 import { Card, CardContent } from "@/components/ui/card";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingSettingsProps {
   isSystemAudio: boolean;
   onSystemAudioChange: (value: boolean) => void;
-  audioDevices: Array<{ deviceId: string; label: string }>;
+  audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
@@ -49,7 +50,7 @@ export const RecordingSettings = ({
               
               <SystemAudioToggle 
                 isSystemAudio={isSystemAudio}
-                onChange={onSystemAudioChange}
+                onSystemAudioChange={onSystemAudioChange}
                 disabled={isRecording}
               />
             </div>
