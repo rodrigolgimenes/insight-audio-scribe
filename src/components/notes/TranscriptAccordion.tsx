@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,8 +19,14 @@ interface TranscriptAccordionProps {
 
 export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localTranscript, setLocalTranscript] = useState<string | null>(transcript);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Update local state when props change
+  useEffect(() => {
+    setLocalTranscript(transcript);
+  }, [transcript]);
   
   console.log('TranscriptAccordion - Transcript data received:', {
     hasTranscript: !!transcript,
@@ -28,16 +34,28 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
     transcriptPreview: transcript?.substring(0, 100),
     transcriptType: typeof transcript,
     isEmptyOrWhitespace: !transcript?.trim(),
+    noteId
   });
 
   // Handle case where transcript might be null or empty
-  const hasValidTranscript = transcript && transcript.trim() !== '';
+  const hasValidTranscript = localTranscript && localTranscript.trim() !== '';
   
   const handleRefreshTranscript = async () => {
     if (!noteId) return;
     
     setIsRefreshing(true);
     try {
+      // First check if there's a meeting minutes for this note
+      const { data: minutesData } = await supabase
+        .from('meeting_minutes')
+        .select('content')
+        .eq('note_id', noteId)
+        .maybeSingle();
+        
+      if (minutesData?.content && (!localTranscript || localTranscript.trim() === '')) {
+        console.log("Found meeting minutes but no transcript - this is inconsistent, fetching recording data");
+      }
+      
       // Fetch the latest transcription directly from the database
       const { data, error } = await supabase
         .from('notes')
@@ -50,6 +68,9 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
       }
       
       if (data?.original_transcript) {
+        // If note already has transcript, use it
+        setLocalTranscript(data.original_transcript);
+        
         // Invalidate the query to force a refresh
         queryClient.invalidateQueries({ queryKey: ['note', noteId] });
         toast({
@@ -79,17 +100,52 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
             })
             .eq('id', noteId);
             
+          setLocalTranscript(recordingData.transcription);
           queryClient.invalidateQueries({ queryKey: ['note', noteId] });
           toast({
             title: "Success",
             description: "Transcript has been synchronized from recording data.",
           });
         } else {
-          toast({
-            title: "No transcript available",
-            description: "No transcript was found in the recording or note.",
-            variant: "destructive",
-          });
+          // Try alternative ways to fetch the transcript
+          const { data: fullRecording } = await supabase
+            .from('recordings')
+            .select('*')
+            .eq('id', data.recording_id)
+            .single();
+            
+          console.log('Full recording data:', fullRecording);
+          
+          if (fullRecording?.status === 'completed' && !fullRecording.transcription) {
+            toast({
+              title: "Inconsistent state detected",
+              description: "Recording is marked as completed but has no transcript. Fixing...",
+            });
+            
+            // Force a retry of the transcription process
+            try {
+              await supabase.functions.invoke('transcribe-audio', {
+                body: { 
+                  noteId,
+                  recordingId: data.recording_id,
+                  isRetry: true
+                }
+              });
+              
+              toast({
+                title: "Transcription restarted",
+                description: "Check back in a few moments for the transcript.",
+              });
+            } catch (invokeError) {
+              console.error('Error invoking transcribe function:', invokeError);
+            }
+          } else {
+            toast({
+              title: "No transcript available",
+              description: "No transcript was found in the recording or note.",
+              variant: "destructive",
+            });
+          }
         }
       }
     } catch (error) {
@@ -129,7 +185,7 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
             
             {hasValidTranscript ? (
               <div className="whitespace-pre-wrap text-gray-700 max-h-[500px] overflow-y-auto prose prose-sm">
-                {transcript}
+                {localTranscript}
               </div>
             ) : (
               <div className="text-center py-8 space-y-4">

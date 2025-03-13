@@ -22,7 +22,7 @@ export const useTranscriptionActions = (noteId?: string) => {
       if (success) {
         toast({
           title: "Processing started",
-          description: "Transcription process has been initiated. This may take a few minutes.",
+          description: "Transcription process has been restarted. This may take a few minutes.",
           variant: "default",
         });
       } else {
@@ -48,7 +48,7 @@ export const useTranscriptionActions = (noteId?: string) => {
       // First check if the recording has a transcript
       const { data: note } = await supabase
         .from('notes')
-        .select('recording_id, original_transcript')
+        .select('recording_id, original_transcript, meeting_minutes(*)')
         .eq('id', noteId)
         .single();
         
@@ -61,7 +61,10 @@ export const useTranscriptionActions = (noteId?: string) => {
         .select('transcription, status')
         .eq('id', note.recording_id)
         .single();
-        
+      
+      // Check for various inconsistency scenarios
+      let wasUpdated = false;
+      
       if (recording?.transcription && (!note.original_transcript || note.original_transcript.trim() === '')) {
         // If recording has transcription but note doesn't, sync them
         await supabase
@@ -73,11 +76,7 @@ export const useTranscriptionActions = (noteId?: string) => {
           })
           .eq('id', noteId);
         
-        queryClient.invalidateQueries({ queryKey: ['note', noteId] });
-        toast({
-          title: "Status synchronized",
-          description: "Transcript and status have been successfully synchronized.",
-        });
+        wasUpdated = true;
       } else if (note.original_transcript && note.original_transcript.trim() !== '') {
         // If note has transcript but inconsistent status, fix the status
         await supabase
@@ -87,11 +86,40 @@ export const useTranscriptionActions = (noteId?: string) => {
             processing_progress: 100
           })
           .eq('id', noteId);
+        
+        wasUpdated = true;
+      } else if (note.meeting_minutes && (!note.original_transcript || note.original_transcript.trim() === '')) {
+        // Rare case: We have meeting minutes but no transcript
+        console.log("Found inconsistency: meeting minutes exist but no transcript");
+        
+        if (recording?.transcription) {
+          // Use recording's transcript
+          await supabase
+            .from('notes')
+            .update({
+              original_transcript: recording.transcription,
+              status: 'completed',
+              processing_progress: 100
+            })
+            .eq('id', noteId);
           
+          wasUpdated = true;
+        } else {
+          // This is a critical inconsistency - meeting minutes without transcript in either place
+          console.error("Critical inconsistency: Meeting minutes exist but no transcript found in recording or note");
+          toast({
+            title: "Data inconsistency detected",
+            description: "Meeting minutes exist but no transcript was found. You may need to retry the transcription.",
+            variant: "destructive",
+          });
+        }
+      }
+      
+      if (wasUpdated) {
         queryClient.invalidateQueries({ queryKey: ['note', noteId] });
         toast({
-          title: "Status fixed",
-          description: "Note status has been updated to 'completed'.",
+          title: "Status synchronized",
+          description: "Transcript and status have been successfully synchronized.",
         });
       } else {
         toast({

@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
@@ -53,11 +52,11 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
       let noteTranscript = data.original_transcript;
       
       // If recording has transcript but note doesn't, use it and update
-      if (recordingData?.transcription && !data.original_transcript) {
+      if (recordingData?.transcription && (!noteTranscript || noteTranscript.trim() === '')) {
         console.log("Fixing inconsistency: recording has transcript but note doesn't");
         noteTranscript = recordingData.transcription;
         
-        // Update the note in the background - Fixed Promise handling here
+        // Update the note in the background using try/catch instead of Promise chains
         try {
           await supabase
             .from('notes')
@@ -74,8 +73,49 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
         }
       }
       
+      // Additional check: If meeting minutes exist, but original transcript doesn't, fetch the transcript from recordings
+      if (!noteTranscript || noteTranscript.trim() === '') {
+        try {
+          // Check if meeting minutes exist for this note
+          const { data: minutesData } = await supabase
+            .from('meeting_minutes')
+            .select('*')
+            .eq('note_id', data.id)
+            .maybeSingle();
+            
+          if (minutesData && recordingData?.id) {
+            console.log("Meeting minutes exist but no transcript found, fetching from recording");
+            
+            // Get latest transcription data from recordings
+            const { data: latestRecording } = await supabase
+              .from('recordings')
+              .select('transcription')
+              .eq('id', recordingData.id)
+              .single();
+              
+            if (latestRecording?.transcription) {
+              console.log("Found transcript in recording, updating note");
+              noteTranscript = latestRecording.transcription;
+              
+              await supabase
+                .from('notes')
+                .update({ 
+                  original_transcript: latestRecording.transcription,
+                  status: 'completed',
+                  processing_progress: 100
+                })
+                .eq('id', data.id);
+                
+              console.log("Note updated with transcript from latest recording data");
+            }
+          }
+        } catch (syncError) {
+          console.error("Error trying to sync transcript data:", syncError);
+        }
+      }
+      
       // If we have a transcript, the status should be completed
-      if (noteTranscript) {
+      if (noteTranscript && noteTranscript.trim() !== '') {
         noteStatus = 'completed';
       }
 
