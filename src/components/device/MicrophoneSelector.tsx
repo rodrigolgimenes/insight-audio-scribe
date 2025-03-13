@@ -16,8 +16,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     setSelectedDeviceId,
     permissionState,
     isLoading,
-    refreshDevices,
-    requestPermission
+    refreshDevices
   } = useDeviceManager();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -39,84 +38,27 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     }
   };
 
-  // Handle device selection with enhanced logging
+  // Handle device selection
   const handleSelect = (deviceId: string) => {
     console.log('[MicrophoneSelector] Selecting device:', deviceId);
-    
-    // Verify device ID is valid
-    if (!deviceId || deviceId === '') {
-      console.warn('[MicrophoneSelector] Attempted to select invalid device ID');
-      toast.error("Invalid device selection", {
-        description: "The selected device ID is not valid"
-      });
-      return;
-    }
-    
-    // Verify device exists in the list
-    const deviceExists = devices.some(d => d.deviceId === deviceId);
-    if (!deviceExists) {
-      console.warn('[MicrophoneSelector] Selected device not found in current devices list');
-    }
-    
-    // Log device selection
-    console.log('[MicrophoneSelector] Before setting device ID:', {
-      currentSelection: selectedDeviceId,
-      newSelection: deviceId,
-      deviceExists
-    });
-    
-    // Set the selected device
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
-    
-    // Debug log
-    console.log('[MicrophoneSelector] Device selected, updated state:', {
-      selectedId: deviceId,
-      foundInList: deviceExists
-    });
     
     // Show success toast
     const device = devices.find(d => d.deviceId === deviceId);
     toast.success(`Selected: ${device?.label || 'Microphone'}`, {
       duration: 2000
     });
-    
-    // Verify context was properly updated (setTimeout for async check)
-    setTimeout(() => {
-      console.log('[MicrophoneSelector] Selection verification (async):', {
-        expected: deviceId,
-        actual: selectedDeviceId,
-        match: deviceId === selectedDeviceId
-      });
-    }, 100);
   };
   
   // Handle refresh
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent dropdown toggle
-    
     console.log('[MicrophoneSelector] Refreshing devices');
     await refreshDevices();
-    
-    // Auto-select first device after refresh if none selected
-    if (devices.length > 0 && !selectedDeviceId) {
-      console.log('[MicrophoneSelector] Auto-selecting first device after refresh:', devices[0].deviceId);
-      setSelectedDeviceId(devices[0].deviceId);
-    }
   };
   
-  // Handle permission request
-  const handleRequestPermission = async () => {
-    console.log('[MicrophoneSelector] Requesting permission');
-    const granted = await requestPermission();
-    
-    if (granted && devices.length > 0 && !selectedDeviceId) {
-      // Auto-select first device if permission was just granted
-      console.log('[MicrophoneSelector] Permission granted, auto-selecting first device:', devices[0].deviceId);
-      setSelectedDeviceId(devices[0].deviceId);
-    }
-  };
-  
+  // Get selected device object
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
   const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
 
@@ -172,21 +114,10 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         {isOpen && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
             {devices.length === 0 ? (
-              needsPermission ? (
-                <button
-                  type="button"
-                  className="w-full text-left p-3 hover:bg-gray-100 text-amber-600 flex items-center"
-                  onClick={handleRequestPermission}
-                >
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Request microphone permission
-                </button>
-              ) : (
-                <div className="p-3 text-amber-500 flex items-center">
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  No microphones found
-                </div>
-              )
+              <div className="p-3 text-amber-500 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-2" />
+                {needsPermission ? 'Allow microphone access' : 'No microphones found'}
+              </div>
             ) : (
               <>
                 {devices.map((device, index) => (
@@ -201,7 +132,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
                     <Mic className={`h-4 w-4 mr-2 ${device.deviceId === selectedDeviceId ? 'text-blue-500' : 'text-gray-500'}`} />
                     <div className="flex flex-col">
                       <span>{device.label || `Microphone ${index + 1}`}</span>
-                      {device.isDefault && (
+                      {device.groupId && device.groupId === 'default' && (
                         <span className="text-xs text-green-600">Default device</span>
                       )}
                     </div>

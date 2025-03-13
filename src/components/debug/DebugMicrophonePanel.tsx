@@ -1,21 +1,11 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function DebugMicrophonePanel() {
   const { permissionState, devices, selectedDeviceId } = useDeviceManager();
-
-  // Enhanced logging for debugging
-  useEffect(() => {
-    console.log("[DebugMicrophonePanel] State update:", {
-      permissionState,
-      selectedDeviceId,
-      devicesCount: devices.length,
-      devicesList: devices.map(d => ({ id: d.deviceId, label: d.label }))
-    });
-  }, [permissionState, selectedDeviceId, devices]);
 
   return (
     <Card>
@@ -38,7 +28,7 @@ export function DebugMicrophonePanel() {
                 <ul className="pl-4 list-disc">
                   {devices.map(device => (
                     <li key={device.deviceId} className="text-xs truncate">
-                      {device.label || `Microphone ${device.index + 1}`}
+                      {device.label || `Microphone ${device.deviceId.slice(0, 8)}`}
                       {device.deviceId === selectedDeviceId && (
                         <span className="ml-1 text-green-600">(selected)</span>
                       )}

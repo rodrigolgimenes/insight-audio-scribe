@@ -7,18 +7,16 @@ import { toast } from "sonner";
 import { Mic, MicOff, RefreshCw, AlertCircle } from "lucide-react";
 
 export function UnifiedRecordingSection() {
-  const { selectedDeviceId, permissionState, refreshDevices, devices } = useDeviceManager();
+  const { selectedDeviceId, permissionState, refreshDevices } = useDeviceManager();
   const [isRecording, setIsRecording] = React.useState(false);
 
-  // Enhanced debugging logs to track device and permission state
+  // Log device and permission state for debugging
   useEffect(() => {
-    console.log("[UnifiedRecordingSection] Device state update:", {
+    console.log("[UnifiedRecordingSection] State update:", {
       selectedDeviceId,
-      permissionState,
-      devicesCount: devices.length,
-      devicesList: devices.map(d => ({ id: d.deviceId, label: d.label }))
+      permissionState
     });
-  }, [selectedDeviceId, permissionState, devices]);
+  }, [selectedDeviceId, permissionState]);
 
   const handleStartRecording = async () => {
     if (!selectedDeviceId) {
@@ -33,13 +31,6 @@ export function UnifiedRecordingSection() {
       toast.success("Recording started", {
         description: "Using selected microphone"
       });
-      
-      // Log device being used for recording
-      const device = devices.find(d => d.deviceId === selectedDeviceId);
-      console.log(`[UnifiedRecordingSection] Started recording with device:`, {
-        id: selectedDeviceId,
-        label: device?.label || 'Unknown device'
-      });
     } catch (error) {
       console.error('[UnifiedRecordingSection] Error starting recording:', error);
       toast.error("Failed to start recording", {
@@ -52,20 +43,10 @@ export function UnifiedRecordingSection() {
   const handleStopRecording = () => {
     setIsRecording(false);
     toast.info("Recording stopped");
-    
-    console.log('[UnifiedRecordingSection] Stopped recording');
   };
 
   // Simplified canRecord check
   const canRecord = permissionState === 'granted' && !!selectedDeviceId;
-  
-  console.log("[UnifiedRecordingSection] canRecord evaluation:", { 
-    permissionState, 
-    selectedDeviceId,
-    selectedDeviceCheck: !!selectedDeviceId,
-    permissionCheck: permissionState === 'granted',
-    finalResult: canRecord
-  });
 
   return (
     <Card className="mb-8">
