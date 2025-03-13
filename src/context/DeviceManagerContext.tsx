@@ -249,16 +249,13 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
         }
       }
       
-      // Show appropriate toast based on results
+      // Show appropriate toast based on results, but only for errors
       if (formattedDevices.length === 0) {
         toast.warning("No microphones found", {
           description: "Please connect a microphone and try again"
         });
-      } else {
-        toast.success(`Found ${formattedDevices.length} microphone(s)`, {
-          duration: 2000
-        });
       }
+      // Removed success toast about finding microphones
     } catch (error) {
       console.error("[DeviceManagerContext] Error in refreshDevices:", error);
       if (mountedRef.current) {

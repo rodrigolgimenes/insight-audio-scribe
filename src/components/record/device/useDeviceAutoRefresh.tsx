@@ -1,6 +1,5 @@
 
 import { useState, useEffect, useRef } from "react";
-import { toast } from "sonner";
 
 export function useDeviceAutoRefresh(
   deviceCount: number,

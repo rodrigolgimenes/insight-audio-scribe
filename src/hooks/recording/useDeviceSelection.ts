@@ -89,12 +89,6 @@ export const useDeviceSelection = () => {
   const refreshDevices = async () => {
     console.log('[useDeviceSelection] Refreshing devices...');
     
-    // Show loading toast for better feedback
-    toast.info("Refreshing microphone list...", {
-      id: "refreshing-devices",
-      duration: 2000
-    });
-    
     // First ensure permission is granted
     const hasPermission = await requestPermission(true);
     

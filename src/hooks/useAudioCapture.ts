@@ -59,11 +59,8 @@ export const useAudioCapture = () => {
         toast.error("No microphones found", {
           description: "Please connect a microphone and try again"
         });
-      } else {
-        toast.success(`Found ${devices.length} microphone(s)`, {
-          description: "Select a microphone to start recording"
-        });
       }
+      // Removed success toast about finding microphones
       
       setAudioDevices(devices);
       setDefaultDeviceId(defaultId);
