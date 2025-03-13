@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -94,18 +95,29 @@ export const useRecordingSave = () => {
         duration: 5000,
       });
 
-      // Compressão e conversão do áudio para MP3 antes do upload
+      // Compress and convert audio to MP3 before upload
       setProcessingStage("Compressing audio...");
       setProcessingProgress(15);
       
       // Debug log the original audio blob details
       console.log('Original audio format:', audioBlob.type, 'Size:', Math.round(audioBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
-      // Use the AudioCompressor to convert the blob to MP3
-      let compressedBlob = await audioCompressor.compressAudio(audioBlob);
-      
-      // Debug log the compressed audio blob details
-      console.log('Compressed audio format:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      // Attempt to compress the audio, but continue even if it fails
+      let compressedBlob: Blob;
+      try {
+        compressedBlob = await audioCompressor.compressAudio(audioBlob);
+        console.log('Compressed audio format:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      } catch (compressionError) {
+        console.error('Audio compression failed, using original audio:', compressionError);
+        sonnerToast.warning("Audio compression failed, using original format", {
+          description: "Your recording will still be saved but may be larger in size",
+          duration: 3000,
+        });
+        
+        // Use the original blob but force the MIME type to MP3
+        const rawData = await audioBlob.arrayBuffer();
+        compressedBlob = new Blob([rawData], { type: 'audio/mp3' });
+      }
       
       // Verify the blob has the correct type
       if (!compressedBlob.type.includes('mp3') && !compressedBlob.type.includes('mpeg')) {

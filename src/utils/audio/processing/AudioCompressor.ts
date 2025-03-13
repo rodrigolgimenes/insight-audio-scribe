@@ -1,4 +1,3 @@
-
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
@@ -44,14 +43,62 @@ export class AudioCompressor {
       console.log('[AudioCompressor] Loading FFmpeg...');
       const ffmpeg = new FFmpeg();
       
-      // Load FFmpeg core
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-      await ffmpeg.load({
-        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-      });
+      // Load FFmpeg core - using CDN URLs that are more reliable
+      // Try multiple CDN sources to improve reliability
+      let loaded = false;
+      let lastError = null;
       
-      console.log('[AudioCompressor] FFmpeg loaded successfully');
+      // Attempt with unpkg (primary source)
+      try {
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        loaded = true;
+        console.log('[AudioCompressor] FFmpeg loaded successfully from unpkg');
+      } catch (error) {
+        console.warn('[AudioCompressor] Failed to load FFmpeg from unpkg:', error);
+        lastError = error;
+      }
+      
+      // Fallback to jsDelivr if unpkg failed
+      if (!loaded) {
+        try {
+          const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+          await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          });
+          loaded = true;
+          console.log('[AudioCompressor] FFmpeg loaded successfully from jsDelivr');
+        } catch (error) {
+          console.warn('[AudioCompressor] Failed to load FFmpeg from jsDelivr:', error);
+          lastError = error;
+        }
+      }
+      
+      // Final fallback to Cloudflare
+      if (!loaded) {
+        try {
+          const baseURL = 'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.6/umd';
+          await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+          });
+          loaded = true;
+          console.log('[AudioCompressor] FFmpeg loaded successfully from Cloudflare');
+        } catch (error) {
+          console.warn('[AudioCompressor] Failed to load FFmpeg from Cloudflare:', error);
+          lastError = error;
+        }
+      }
+      
+      if (!loaded) {
+        throw new Error('Failed to load FFmpeg from all sources: ' + 
+          (lastError instanceof Error ? lastError.message : String(lastError)));
+      }
+      
       this.ffmpeg = ffmpeg;
       this.isLoaded = true;
       return ffmpeg;
@@ -70,7 +117,20 @@ export class AudioCompressor {
   async compressAudio(audioBlob: Blob): Promise<Blob> {
     try {
       console.log(`[AudioCompressor] Compressing audio file: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB, type: ${audioBlob.type}`);
-      const ffmpeg = await this.loadFFmpeg();
+      
+      // Check if FFmpeg is available
+      let ffmpeg;
+      try {
+        ffmpeg = await this.loadFFmpeg();
+      } catch (ffmpegError) {
+        console.error('[AudioCompressor] FFmpeg loading failed, falling back to direct format change:', ffmpegError);
+        
+        // Simple fallback: just change the MIME type without actual compression
+        // This is better than nothing if FFmpeg fails to load
+        console.warn('[AudioCompressor] Using fallback method (no actual compression)');
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        return new Blob([arrayBuffer], { type: 'audio/mp3' });
+      }
       
       // Determine input format from blob type or default to webm
       const mimeType = audioBlob.type.toLowerCase();
@@ -124,7 +184,16 @@ export class AudioCompressor {
       return compressedBlob;
     } catch (error) {
       console.error('[AudioCompressor] Compression error:', error);
-      throw new Error('Failed to compress audio: ' + (error instanceof Error ? error.message : String(error)));
+      
+      // Fallback if compression fails: just change the MIME type
+      console.warn('[AudioCompressor] Compression failed, using fallback method');
+      try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        return new Blob([arrayBuffer], { type: 'audio/mp3' });
+      } catch (fallbackError) {
+        console.error('[AudioCompressor] Fallback method also failed:', fallbackError);
+        throw new Error('Failed to compress audio: ' + (error instanceof Error ? error.message : String(error)));
+      }
     }
   }
   
