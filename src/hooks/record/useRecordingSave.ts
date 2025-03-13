@@ -37,12 +37,19 @@ export const useRecordingSave = () => {
         });
       }
 
+      // Get the duration from the recording result if available, or use the provided recordedDuration
+      const durationInMs = recordingResult?.duration 
+        ? Math.round(recordingResult.duration * 1000) // Convert seconds to ms if from result
+        : Math.round(recordedDuration * 1000);  // Convert seconds to ms if from parameter
+
+      console.log('Recording duration to save (ms):', durationInMs);
+
       // Create initial recording entry
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
-          duration: recordedDuration * 1000, // Convert seconds to milliseconds
+          duration: durationInMs,
           file_path: fileName,
           user_id: user.id,
           status: 'pending'

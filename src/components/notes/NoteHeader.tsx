@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Download, Play, Pause, Pencil, MoreVertical } from "lucide-react";
 import { formatDate } from "@/utils/formatDate";
@@ -36,6 +35,13 @@ export const NoteHeader = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // Para fins de depuração, vamos registrar o valor da duração recebida
+  console.log('NoteHeader received duration value:', {
+    duration,
+    durationType: typeof duration,
+    formattedDuration: formatDuration(duration)
+  });
 
   const handleRename = async () => {
     if (editedTitle.trim() && editedTitle !== title) {
@@ -90,9 +96,7 @@ export const NoteHeader = ({
           )}
           <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
             <span>Uploaded {formatDate(createdAt)}</span>
-            {duration !== null && (
-              <span>Duration: {formatDuration(duration)}</span>
-            )}
+            <span>Duration: {formatDuration(duration)}</span>
             <span>
               Folder: <span className="font-bold">{folder ? folder.name : "Uncategorized"}</span>
             </span>

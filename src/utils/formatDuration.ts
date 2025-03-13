@@ -1,18 +1,21 @@
 
-export const formatDuration = (duration: number | null): string => {
-  if (!duration) return "0:00";
-  
-  // Convert milliseconds to seconds if needed
-  // (Some durations may already be in seconds, but we standardize to handle both)
-  const totalSeconds = duration > 1000 ? Math.floor(duration / 1000) : Math.floor(duration);
-  
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  } else {
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+/**
+ * Formats a duration in milliseconds to a human-readable string format (MM:SS)
+ */
+export const formatDuration = (durationMs: number | null): string => {
+  if (!durationMs || durationMs <= 0) {
+    return "0:00";
   }
+  
+  // Convert milliseconds to seconds
+  const totalSeconds = Math.round(durationMs / 1000);
+  
+  // Calculate minutes and remaining seconds
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  
+  // Format seconds with leading zero if needed
+  const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+  
+  return `${minutes}:${formattedSeconds}`;
 };

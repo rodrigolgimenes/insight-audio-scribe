@@ -46,7 +46,18 @@ export function useStopRecording(
       
       // Get blob from result
       const blob = result?.blob || null;
-      const duration = result?.duration || result?.stats?.duration || 0;
+      
+      // Certifique-se de que a duração está em segundos, conforme esperado pelo sistema
+      let duration = 0;
+      if (result?.duration) {
+        // A duração retornada já está em segundos
+        duration = result.duration;
+      } else if (result?.stats?.duration) {
+        // Alternativa: usar stats.duration 
+        duration = result.stats.duration;
+      }
+      
+      console.log('[useStopRecording] Extracted duration (seconds):', duration);
       
       if (blob) {
         // Create object URL

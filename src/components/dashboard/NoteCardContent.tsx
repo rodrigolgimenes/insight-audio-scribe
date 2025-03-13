@@ -1,4 +1,3 @@
-
 import { Progress } from "@/components/ui/progress";
 import { formatDate } from "@/utils/formatDate";
 import { formatDuration } from "@/utils/formatDuration";
@@ -23,6 +22,13 @@ export const NoteCardContent = ({
 }: NoteCardContentProps) => {
   // Ensure progress is a number and properly rounded
   const displayProgress = Math.round(progress || 0);
+  
+  // Depuração para verificar o valor da duração
+  console.log('NoteCardContent duration value:', {
+    duration,
+    durationType: typeof duration,
+    formattedDuration: formatDuration(duration)
+  });
   
   const getStatusDisplay = () => {
     // Check if we have a transcript but inconsistent status
@@ -95,12 +101,10 @@ export const NoteCardContent = ({
 
       {/* Metadata */}
       <div className="flex items-center gap-4 text-sm text-gray-500">
-        {duration !== null && (
-          <span className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            {formatDuration(duration)}
-          </span>
-        )}
+        <span className="flex items-center gap-1">
+          <Clock className="h-4 w-4" />
+          {formatDuration(duration)}
+        </span>
         <span className="flex items-center gap-1">
           <Calendar className="h-4 w-4" />
           {formatDate(createdAt)}

@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Note } from "@/integrations/supabase/types/notes";
@@ -45,18 +46,40 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
       }
 
       console.log("Note data from database:", data);
+      console.log("Recording duration data:", data.recordings?.duration);
+      console.log("Note duration data:", data.duration);
 
       // Handle possible inconsistencies between note and recording data
       const recordingData = data.recordings;
       let noteStatus = data.status;
       let noteTranscript = data.original_transcript;
       
+      // Se a nota não tem duração mas a gravação tem, sincronize
+      if ((!data.duration || data.duration === 0) && recordingData?.duration && recordingData.duration > 0) {
+        console.log("Fixing inconsistency: recording has duration but note doesn't");
+        
+        try {
+          await supabase
+            .from('notes')
+            .update({ 
+              duration: recordingData.duration
+            })
+            .eq('id', data.id);
+            
+          console.log("Note updated with duration from recording");
+          // Atualize o valor de duração localmente para exibição imediata
+          data.duration = recordingData.duration;
+        } catch (err) {
+          console.error("Error updating note with recording duration:", err);
+        }
+      }
+      
       // If recording has transcript but note doesn't, use it and update
       if (recordingData?.transcription && (!noteTranscript || noteTranscript.trim() === '')) {
         console.log("Fixing inconsistency: recording has transcript but note doesn't");
         noteTranscript = recordingData.transcription;
         
-        // Update the note in the background using try/catch instead of Promise chains
+        // Update the note in the background using try/catch
         try {
           await supabase
             .from('notes')
@@ -126,7 +149,9 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
           : 'processing';
 
       // Prioritize the note's own duration, but fall back to recording duration if needed
-      const duration = data.duration !== null ? data.duration : recordingData?.duration || null;
+      const duration = data.duration !== null && data.duration > 0 
+        ? data.duration 
+        : recordingData?.duration || null;
 
       const transformedNote: Note = {
         id: data.id,
