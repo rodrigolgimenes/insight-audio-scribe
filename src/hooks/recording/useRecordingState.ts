@@ -24,8 +24,6 @@ export type RecordingStateType = {
   setRecordingAttemptsCount: (count: number | ((prev: number) => number)) => void;
   deviceSelectionReady: boolean;
   setDeviceSelectionReady: (ready: boolean) => void;
-  audioFileSize: number | null;
-  setAudioFileSize: (size: number | null) => void;
 };
 
 export const useRecordingState = (): RecordingStateType => {
@@ -45,7 +43,6 @@ export const useRecordingState = (): RecordingStateType => {
   } | null>(null);
   const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
-  const [audioFileSize, setAudioFileSize] = useState<number | null>(null);
 
   return {
     isRecording,
@@ -69,8 +66,6 @@ export const useRecordingState = (): RecordingStateType => {
     recordingAttemptsCount,
     setRecordingAttemptsCount,
     deviceSelectionReady,
-    setDeviceSelectionReady,
-    audioFileSize,
-    setAudioFileSize
+    setDeviceSelectionReady
   };
 };

@@ -140,8 +140,7 @@ export function RecordingSheet() {
       isComponentReady,
       devicesLoading,
       permissionState,
-      isRestrictedRoute,
-      audioFileSize: mediaStream ? 'streaming' : audioUrl ? 'available' : 'none'
+      isRestrictedRoute: isRestrictedRoute
     });
   }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, 
       audioDevices.length, recordingAttemptsCount, initError, isComponentReady,
@@ -212,7 +211,6 @@ export function RecordingSheet() {
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
               isRestrictedRoute={isRestrictedRoute}
-              audioFileSize={audioFileSize}
             />
 
             <div className="mt-6 flex justify-center">
@@ -222,17 +220,9 @@ export function RecordingSheet() {
                   handleSaveRecording();
                 }}
                 isSaving={isSaving}
-                isDisabled={!isRecording && !audioUrl || (audioFileSize && audioFileSize > 100 * 1024 * 1024)}
+                isDisabled={!isRecording && !audioUrl}
               />
             </div>
-            
-            {audioFileSize && audioFileSize > 100 * 1024 * 1024 && (
-              <div className="flex justify-center mt-2">
-                <p className="text-sm text-red-500">
-                  O arquivo excede o limite de 100MB para upload.
-                </p>
-              </div>
-            )}
           </>
         )}
       </div>

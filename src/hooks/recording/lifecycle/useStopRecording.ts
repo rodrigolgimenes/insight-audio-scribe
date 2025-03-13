@@ -10,8 +10,7 @@ export function useStopRecording(
     mediaStream,
     setIsRecording,
     setIsPaused,
-    setAudioUrl,
-    setAudioFileSize
+    setAudioUrl
   } = recordingState;
 
   const stopRecording = useCallback(async () => {
@@ -48,14 +47,6 @@ export function useStopRecording(
       // Get blob from result
       const blob = result?.blob || null;
       
-      // Set the file size in bytes if blob exists
-      if (blob) {
-        setAudioFileSize(blob.size);
-        console.log('[useStopRecording] Audio file size:', blob.size, 'bytes');
-      } else {
-        setAudioFileSize(null);
-      }
-      
       // Certifique-se de que a duração está em segundos, conforme esperado pelo sistema
       let duration = 0;
       if (result?.duration) {
@@ -88,7 +79,7 @@ export function useStopRecording(
       
       throw error;
     }
-  }, [recorder, mediaStream, setIsRecording, setIsPaused, setAudioUrl, setAudioFileSize]);
+  }, [recorder, mediaStream, setIsRecording, setIsPaused, setAudioUrl]);
 
   return {
     stopRecording

@@ -1,125 +1,230 @@
 
-import { useState, useRef, useEffect, useCallback, useContext } from "react";
-import { AudioRecorder } from "@/utils/audio/audioRecorder";
-import { useSystemAudioCapture } from "./capture/useSystemAudio";
-import { useMicrophoneCapture } from "./capture/useMicrophone";
 import { useRecordingState } from "./useRecordingState";
-import { useStopRecording } from "./lifecycle/useStopRecording";
-import { usePauseResumeRecording } from "./lifecycle/usePauseResumeRecording";
+import { useRecordingLifecycle } from "./useRecordingLifecycle";
+import { useDeviceSelection } from "./useDeviceSelection";
+import { useRecordingActions } from "./useRecordingActions";
+import { useMediaStream } from "./useMediaStream";
+import { useRecordingError } from "./useRecordingError";
+import { useSimpleRecorder } from "./useSimpleRecorder";
 import { useSaveDeleteRecording } from "./lifecycle/useSaveDeleteRecording";
-import { useRecordingActions } from "./actions/useRecordingActions";
-import { DeviceContext } from "@/components/providers/DeviceProvider";
+import { useSystemAudio } from "./useSystemAudio";
+import { useRecorderInitialization } from "./useRecorderInitialization";
+import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
+import { useRecordingLogger } from "./useRecordingLogger";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { useRecordingSave } from "../record/useRecordingSave";
+import { toast } from "sonner";
 
-export function useRecordingHook() {
-  const recorder = useRef<AudioRecorder | null>(null);
-  const recordingState = useRecordingState();
-  const { audioDevices, initError, refreshDevices, devicesLoading, permissionState } = useContext(DeviceContext);
-  const [isRestrictedRoute, setIsRestrictedRoute] = useState(false);
-
-  // Initialize the recorder
-  useEffect(() => {
-    recorder.current = new AudioRecorder();
+/**
+ * Main hook that combines all recording functionality
+ */
+export const useRecording = () => {
+  console.log('[useRecordingHook] Initializing hook');
+  const initialized = useRef(false);
+  
+  // Check if we're on a restricted route (index, dashboard, or app routes)
+  const isRestrictedRoute = useCallback((): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
   }, []);
+  
+  // Main state
+  const recordingState = useRecordingState();
+  
+  // Set deviceSelectionReady if not already in the state
+  useEffect(() => {
+    // Set deviceSelectionReady based on available devices and selected device
+    if (audioDevices.length > 0 && recordingState.selectedDeviceId) {
+      recordingState.setDeviceSelectionReady(true);
+    } else {
+      recordingState.setDeviceSelectionReady(false);
+    }
+  }, [recordingState.selectedDeviceId]);
+  
+  // Create a wrapped version of setSelectedDeviceId that adds logging
+  // and prevents toasts on restricted routes
+  const originalSetSelectedDeviceId = recordingState.setSelectedDeviceId;
+  recordingState.setSelectedDeviceId = (deviceId: string | null) => {
+    console.log('[useRecordingHook] setSelectedDeviceId called with:', deviceId);
+    console.log('[useRecordingHook] Current state before update:', {
+      selectedDeviceId: recordingState.selectedDeviceId,
+      deviceSelectionReady: recordingState.deviceSelectionReady,
+      isRecording: recordingState.isRecording,
+      isRestrictedRoute: isRestrictedRoute()
+    });
+    
+    // Call original function
+    originalSetSelectedDeviceId(deviceId);
+    
+    // Only show toast if not on a restricted route and deviceId is provided
+    if (deviceId && !isRestrictedRoute()) {
+      console.log('[useRecordingHook] Would show toast for device selection, but route is restricted');
+    }
+    
+    // Log after update (will show previous value due to closure)
+    console.log('[useRecordingHook] State update initiated, will verify in next render');
+    
+    // Add timeout to verify state update
+    setTimeout(() => {
+      console.log('[useRecordingHook] State after update (timeout check):', {
+        selectedDeviceId: recordingState.selectedDeviceId,
+        deviceId
+      });
+    }, 100);
+  };
 
-  // Initialize system audio capture
+  // Error handling
   const {
-    isSystemAudio: captureIsSystemAudio,
-    setIsSystemAudio,
-    startSystemAudioCapture,
-    stopSystemAudioCapture
-  } = useSystemAudioCapture(recorder, recordingState);
+    initError,
+    setInitError
+  } = useRecordingError();
 
-  // Initialize microphone capture
+  // Device selection
   const {
-    selectedDeviceId: captureSelectedDeviceId,
-    setSelectedDeviceId,
-    startMicrophoneCapture,
-    stopMicrophoneCapture
-  } = useMicrophoneCapture(recorder, recordingState);
+    audioDevices,
+    deviceSelectionReady,
+    refreshDevices,
+    devicesLoading,
+    permissionState
+  } = useDeviceSelection();
 
-  // Lifecycle actions
-  const { stopRecording } = useStopRecording(recorder, recordingState);
-  const { pauseRecording, resumeRecording } = usePauseResumeRecording(recorder);
-  const { handleDelete, handleSaveRecording } = useSaveDeleteRecording(recordingState, stopRecording);
+  // Update the recording state deviceSelectionReady when device selection changes
+  useEffect(() => {
+    recordingState.setDeviceSelectionReady(deviceSelectionReady);
+  }, [deviceSelectionReady]);
 
-  // Actions
+  // Log device selection state changes
+  useEffect(() => {
+    console.log('[useRecordingHook] Device selection state updated:', {
+      deviceSelectionReady,
+      audioDevicesCount: audioDevices.length,
+      permissionState,
+      selectedDeviceId: recordingState.selectedDeviceId,
+      isRestrictedRoute: isRestrictedRoute()
+    });
+  }, [deviceSelectionReady, audioDevices.length, permissionState, recordingState.selectedDeviceId, isRestrictedRoute]);
+
+  // Media stream handling
+  const { streamManager } = useMediaStream(recordingState.setLastAction);
+
+  // Recording operations
+  const { 
+    recorder,
+    getCurrentDuration,
+    initializeRecorder
+  } = useSimpleRecorder();
+
+  // Set up lifecycle methods
+  const {
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording
+  } = useRecordingLifecycle(recorder, recordingState);
+
+  // Set up action handlers
   const {
     handleStartRecording,
+    handleStopRecording,
     handlePauseRecording,
     handleResumeRecording
   } = useRecordingActions(
     recordingState,
-    startMicrophoneCapture,
-    stopMicrophoneCapture
+    startRecording,
+    stopRecording,
+    pauseRecording,
+    resumeRecording
   );
 
-  // System audio change handler
-  const handleSystemAudioChange = useCallback((value: boolean) => {
-    setIsSystemAudio(value);
-  }, [setIsSystemAudio]);
+  // System audio handler
+  const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
 
-  // Get current duration
-  const getCurrentDuration = useCallback(() => {
-    if (!recorder.current) return 0;
-    return recorder.current.getCurrentDuration();
-  }, []);
-
-  // Wrapper for setSelectedDeviceId to include logging
-  const wrappedSetSelectedDeviceId = useCallback((deviceId: string | null) => {
-    console.log('[useRecordingHook] Setting selected device ID:', deviceId);
-    setSelectedDeviceId(deviceId);
-  }, [setSelectedDeviceId]);
-
-  // Check for restricted routes on mount
-  useEffect(() => {
-    const checkIsRestrictedRoute = (): boolean => {
-      const path = window.location.pathname.toLowerCase();
-      return path === '/' ||
-             path === '/index' ||
-             path === '/dashboard' ||
-             path === '/app' ||
-             path.startsWith('/app/');
-    };
-    setIsRestrictedRoute(checkIsRestrictedRoute());
-  }, []);
+  // Save and delete functionality with toast suppression on restricted routes
+  const originalHandleDelete = useSaveDeleteRecording(
+    recordingState, 
+    stopRecording, 
+    recordingState.setLastAction
+  ).handleDelete;
   
-  // Extract all relevant state items from recordingState
-  const {
-    isRecording,
-    isPaused,
-    audioUrl,
-    mediaStream,
-    isSaving,
-    isTranscribing,
-    isSystemAudio,
-    selectedDeviceId,
-    lastAction,
-    recordingAttemptsCount,
-    deviceSelectionReady,
-    audioFileSize
-  } = recordingState;
-  
-  // Create a handleStopRecording function using the stopRecording from the hook
-  const handleStopRecording = useCallback(async () => {
-    console.log('[useRecordingHook] Stopping recording');
-    return await stopRecording();
-  }, [stopRecording]);
-  
-  // Return the public API of the hook
-  return {
-    // State
-    isRecording,
-    isPaused,
-    audioUrl,
-    mediaStream,
-    isSaving,
-    isTranscribing,
-    isSystemAudio: isSystemAudio || captureIsSystemAudio, // Use from state or from capture
-    selectedDeviceId: selectedDeviceId || captureSelectedDeviceId, // Use from state or from capture
-    lastAction,
-    recordingAttemptsCount,
+  // Wrap the delete handler to prevent toasts on restricted routes
+  const handleDelete = () => {
+    // Execute the original handler
+    originalHandleDelete();
     
-    // Actions
+    // Only show toast if not on restricted route
+    if (!isRestrictedRoute()) {
+      toast.info("Recording deleted", {
+        id: "recording-deleted"
+      });
+    }
+  };
+
+  // Initialize recorder
+  useRecorderInitialization(initializeRecorder, setInitError, recordingState.selectedDeviceId);
+
+  // Track recording attempts
+  useRecordingAttemptTracker(recordingState.isRecording, recordingState.setRecordingAttemptsCount);
+
+  // Log state changes
+  useRecordingLogger(
+    recordingState.isRecording, 
+    recordingState.isPaused, 
+    recordingState.audioUrl, 
+    recordingState.mediaStream, 
+    recordingState.selectedDeviceId, 
+    recordingState.deviceSelectionReady, 
+    recordingState.recordingAttemptsCount, 
+    recordingState.isSystemAudio, 
+    recordingState.lastAction
+  );
+
+  // Add new state for processing progress
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState("");
+  
+  // Initialize recording save hook
+  const recordingSaveHook = useRecordingSave();
+
+  // Create save recording handler
+  const handleSaveRecording = useCallback(() => {
+    if (!recordingSaveHook) return;
+    
+    recordingSaveHook.saveRecording(
+      recordingState.isRecording,
+      handleStopRecording,
+      recordingState.mediaStream,
+      recordingState.audioUrl,
+      getCurrentDuration ? getCurrentDuration() : 0
+    );
+  }, [
+    recordingSaveHook, 
+    recordingState.isRecording, 
+    handleStopRecording, 
+    recordingState.mediaStream, 
+    recordingState.audioUrl, 
+    getCurrentDuration
+  ]);
+
+  // Use the new progress information from useRecordingSave
+  useEffect(() => {
+    if (recordingSaveHook) {
+      setProcessingProgress(recordingSaveHook.processingProgress || 0);
+      setProcessingStage(recordingSaveHook.processingStage || "");
+    }
+  }, [
+    recordingSaveHook?.processingProgress,
+    recordingSaveHook?.processingStage,
+    recordingSaveHook
+  ]);
+
+  console.log('[useRecordingHook] Hook initialized, returning methods');
+  
+  return {
+    ...recordingState,
     handleStartRecording,
     handleStopRecording,
     handlePauseRecording,
@@ -132,10 +237,11 @@ export function useRecordingHook() {
     getCurrentDuration,
     initError,
     refreshDevices,
-    setSelectedDeviceId: wrappedSetSelectedDeviceId,
     devicesLoading,
     permissionState,
-    isRestrictedRoute,
-    audioFileSize
+    processingProgress,
+    processingStage,
+    isLoading: recordingSaveHook?.isProcessing || false,
+    isRestrictedRoute: isRestrictedRoute()
   };
-}
+};

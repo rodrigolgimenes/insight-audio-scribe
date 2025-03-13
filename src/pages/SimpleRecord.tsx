@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -29,6 +30,7 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
   
+  // Create a wrapper for stopRecording that returns a Promise
   const handleWrappedStopRecording = async () => {
     try {
       await recordingHook.handleStopRecording();
@@ -39,6 +41,7 @@ const SimpleRecord = () => {
     }
   };
   
+  // Create a wrapper for refreshDevices that returns a Promise
   const handleWrappedRefreshDevices = async () => {
     try {
       if (recordingHook.refreshDevices) {
@@ -59,16 +62,14 @@ const SimpleRecord = () => {
       selectedDeviceId: recordingHook.selectedDeviceId,
       deviceSelectionReady: recordingHook.deviceSelectionReady,
       permissionState: recordingHook.permissionState,
-      devicesLoading: recordingHook.devicesLoading,
-      audioFileSize: recordingHook.audioFileSize
+      devicesLoading: recordingHook.devicesLoading
     });
   }, [
     recordingHook.audioDevices, 
     recordingHook.selectedDeviceId, 
     recordingHook.deviceSelectionReady,
     recordingHook.permissionState,
-    recordingHook.devicesLoading,
-    recordingHook.audioFileSize
+    recordingHook.devicesLoading
   ]);
 
   useEffect(() => {
@@ -94,6 +95,7 @@ const SimpleRecord = () => {
     }
   }, [recordingHook.initError]);
 
+  // Handler to save the recording to the database and process it
   const saveRecording = async () => {
     if (!recordingHook.audioUrl) {
       toast.error("No recording to save");
@@ -102,15 +104,18 @@ const SimpleRecord = () => {
 
     setIsSaveProcessing(true);
     try {
+      // Get user information
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("You must be logged in to save recordings");
         return { success: false };
       }
 
+      // Get recording duration and blob
       let recordingBlob: Blob | null = null;
       let recordedDuration = 0;
 
+      // If we're still recording, stop it first
       if (recordingHook.isRecording) {
         const result = await recordingHook.handleStopRecording();
         if (result && 'blob' in result) {
@@ -118,6 +123,7 @@ const SimpleRecord = () => {
           recordedDuration = result.duration || 0;
         }
       } else {
+        // Get the blob from the audioUrl
         const response = await fetch(recordingHook.audioUrl);
         recordingBlob = await response.blob();
         recordedDuration = recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0;
@@ -127,16 +133,18 @@ const SimpleRecord = () => {
         throw new Error("Failed to get recording data");
       }
 
+      // Generate a unique filename
       const fileName = `${user.id}/${Date.now()}.webm`;
       
       console.log('Creating recording with user ID:', user.id);
       console.log('Recording duration in seconds:', recordedDuration);
 
+      // Create the recording entry in the database
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
-          duration: Math.round(recordedDuration * 1000),
+          duration: Math.round(recordedDuration * 1000), // Convert to milliseconds
           file_path: fileName,
           user_id: user.id,
           status: 'pending'
@@ -148,6 +156,7 @@ const SimpleRecord = () => {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
+      // Upload the audio file
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
         .upload(fileName, recordingBlob, {
@@ -156,10 +165,12 @@ const SimpleRecord = () => {
         });
 
       if (uploadError) {
+        // Clean up on failure
         await supabase.from('recordings').delete().eq('id', recordingData.id);
         throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
 
+      // Create a note for the recording
       const { error: noteError } = await supabase
         .from('notes')
         .insert({
@@ -175,6 +186,7 @@ const SimpleRecord = () => {
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
+      // Start the processing via the edge function
       const { error: processError } = await supabase.functions
         .invoke('process-recording', {
           body: { recordingId: recordingData.id },
@@ -186,6 +198,7 @@ const SimpleRecord = () => {
         toast.success("Recording saved and processing started!");
       }
 
+      // Navigate to the dashboard
       navigate("/app");
       return { success: true };
     } catch (error) {
@@ -229,7 +242,6 @@ const SimpleRecord = () => {
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
                       permissionState={recordingHook.permissionState as any}
-                      audioFileSize={recordingHook.audioFileSize}
                     />
                     
                     {recordingHook.isRecording && (
@@ -265,8 +277,8 @@ const SimpleRecord = () => {
                 <div className="flex justify-center mt-6">
                   <button
                     onClick={saveRecording}
-                    disabled={isSaveProcessing || (recordingHook.audioFileSize && recordingHook.audioFileSize > 100 * 1024 * 1024)}
-                    className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white px-6 py-3 rounded-md font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSaveProcessing}
+                    className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white px-6 py-3 rounded-md font-medium flex items-center gap-2"
                   >
                     {isSaveProcessing ? (
                       <>
@@ -284,14 +296,6 @@ const SimpleRecord = () => {
                       </>
                     )}
                   </button>
-                </div>
-              )}
-              
-              {recordingHook.audioFileSize && recordingHook.audioFileSize > 100 * 1024 * 1024 && (
-                <div className="flex justify-center mt-2">
-                  <p className="text-sm text-red-500">
-                    Este arquivo de áudio excede o limite de 100MB. Tente uma gravação mais curta.
-                  </p>
                 </div>
               )}
             </div>
