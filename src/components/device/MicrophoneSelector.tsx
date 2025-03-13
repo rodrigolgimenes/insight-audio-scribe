@@ -21,15 +21,26 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   
   const [isOpen, setIsOpen] = useState(false);
   
+  // Check if we're on a restricted route (dashboard, index, app)
+  const isRestrictedRoute = React.useMemo(() => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+  
   // Debug log for selector state on mount and updates
   React.useEffect(() => {
     console.log('[MicrophoneSelector] Component state:', {
       deviceCount: devices.length,
       selectedDeviceId,
       permissionState,
-      isLoading
+      isLoading,
+      isRestrictedRoute: isRestrictedRoute
     });
-  }, [devices.length, selectedDeviceId, permissionState, isLoading]);
+  }, [devices.length, selectedDeviceId, permissionState, isLoading, isRestrictedRoute]);
   
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -44,7 +55,12 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Toast removed here
+    // Only show toast on non-restricted routes
+    if (!isRestrictedRoute) {
+      toast.success("Microphone selected", {
+        id: "mic-selected"
+      });
+    }
   };
   
   // Handle refresh

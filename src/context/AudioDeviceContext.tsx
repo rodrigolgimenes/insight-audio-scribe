@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { AudioDevice, PermissionState } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
@@ -221,10 +220,26 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
     checkPermissionStatus();
   }, [refreshDevices]);
 
+  // Custom set selected device function to handle toasts
+  const handleSetSelectedDevice = useCallback((deviceId: string) => {
+    console.log('[AudioDeviceContext] Setting selected device:', deviceId);
+    setSelectedDeviceId(deviceId);
+    
+    // Only show toast if not on restricted route
+    if (!isRestrictedRoute()) {
+      toast.success("Microphone selected", {
+        id: "audio-device-selected",
+        duration: 2000
+      });
+    } else {
+      console.log('[AudioDeviceContext] Toast suppressed on restricted route');
+    }
+  }, [isRestrictedRoute]);
+
   const value = {
     devices,
     selectedDeviceId,
-    setSelectedDeviceId,
+    setSelectedDeviceId: handleSetSelectedDevice,
     permissionState,
     isLoading,
     refreshDevices,

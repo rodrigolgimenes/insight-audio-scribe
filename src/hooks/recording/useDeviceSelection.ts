@@ -24,6 +24,16 @@ export const useDeviceSelection = () => {
   const selectionAttemptsRef = useRef(0);
   const lastSelectedIdRef = useRef<string | null>(null);
   
+  // Check if we're on a restricted route (dashboard, index, app)
+  const isRestrictedRoute = () => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  };
+  
   // Use our robust device detection hook
   const {
     devices: audioDevices,
@@ -59,7 +69,8 @@ export const useDeviceSelection = () => {
       selectedDeviceId,
       lastSelectedId: lastSelectedIdRef.current,
       audioDevicesCount: audioDevices.length,
-      deviceSelectionReady
+      deviceSelectionReady,
+      isRestrictedRoute: isRestrictedRoute()
     });
     lastSelectedIdRef.current = selectedDeviceId;
   }, [selectedDeviceId, audioDevices.length, deviceSelectionReady]);
@@ -104,11 +115,14 @@ export const useDeviceSelection = () => {
       
       // If we have no devices, show a message
       if (devices.length === 0) {
-        toast.warning("No microphones found", {
-          description: "Please check your microphone connection",
-          id: "no-mics-found",
-          duration: 5000
-        });
+        // Only show toast on non-restricted routes
+        if (!isRestrictedRoute()) {
+          toast.warning("No microphones found", {
+            description: "Please check your microphone connection",
+            id: "no-mics-found",
+            duration: 5000
+          });
+        }
         setDeviceSelectionReady(false);
         return { devices: [], defaultId: null };
       }
@@ -173,11 +187,13 @@ export const useDeviceSelection = () => {
     if (deviceExists) {
       setDeviceSelectionReady(true);
       
-      // Show success toast
-      toast.success("Microphone selected", {
-        id: "mic-selected",
-        duration: 2000
-      });
+      // Show success toast only on non-restricted routes
+      if (!isRestrictedRoute()) {
+        toast.success("Microphone selected", {
+          id: "mic-selected",
+          duration: 2000
+        });
+      }
     }
     
     // Verify state was updated correctly with a timeout

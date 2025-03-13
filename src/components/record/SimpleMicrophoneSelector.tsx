@@ -32,17 +32,23 @@ export function SimpleMicrophoneSelector() {
       devices: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
       selectedDeviceId,
       permissionState,
-      isLoading
+      isLoading,
+      isRestrictedRoute: isRestrictedRoute
     });
-  }, [devices, selectedDeviceId, permissionState, isLoading]);
+  }, [devices, selectedDeviceId, permissionState, isLoading, isRestrictedRoute]);
   
   // Auto-select first device when devices load
   useEffect(() => {
     if (devices.length > 0 && !selectedDeviceId) {
       console.log('[SimpleMicrophoneSelector] Auto-selecting first device');
       setSelectedDeviceId(devices[0].deviceId);
+      
+      // Only show toast on non-restricted routes
+      if (!isRestrictedRoute) {
+        console.log('[SimpleMicrophoneSelector] Suppressing auto-selection toast on restricted route');
+      }
     }
-  }, [devices, selectedDeviceId]);
+  }, [devices, selectedDeviceId, isRestrictedRoute]);
   
   // Handle device selection
   const handleDeviceSelect = (deviceId: string) => {
@@ -50,7 +56,15 @@ export function SimpleMicrophoneSelector() {
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Remove toast notification about device selection
+    // Only show toast notification about device selection on non-restricted routes
+    if (!isRestrictedRoute) {
+      toast.success("Microphone selected", {
+        id: "simple-mic-selected", 
+        duration: 2000
+      });
+    } else {
+      console.log('[SimpleMicrophoneSelector] Suppressing selection toast on restricted route');
+    }
   };
   
   // Handle refreshing devices
@@ -59,7 +73,13 @@ export function SimpleMicrophoneSelector() {
     
     try {
       await detectDevices(true);
-      // Remove toast notification about refreshing microphones
+      // Only show toast on non-restricted routes
+      if (!isRestrictedRoute) {
+        toast.success("Microphones refreshed", {
+          id: "mics-refreshed",
+          duration: 2000
+        });
+      }
     } catch (error) {
       console.error('[SimpleMicrophoneSelector] Error refreshing devices:', error);
       if (!isRestrictedRoute) {

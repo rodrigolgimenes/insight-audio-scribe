@@ -1,4 +1,3 @@
-
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -13,6 +12,7 @@ import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
 import { useRecordingLogger } from "./useRecordingLogger";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useRecordingSave } from "../record/useRecordingSave";
+import { toast } from "sonner";
 
 /**
  * Main hook that combines all recording functionality
@@ -35,18 +35,24 @@ export const useRecording = () => {
   const recordingState = useRecordingState();
   
   // Create a wrapped version of setSelectedDeviceId that adds logging
+  // and prevents toasts on restricted routes
   const originalSetSelectedDeviceId = recordingState.setSelectedDeviceId;
   recordingState.setSelectedDeviceId = (deviceId: string | null) => {
     console.log('[useRecordingHook] setSelectedDeviceId called with:', deviceId);
     console.log('[useRecordingHook] Current state before update:', {
       selectedDeviceId: recordingState.selectedDeviceId,
-      deviceSelectionReady: deviceSelectionReady,
+      deviceSelectionReady: recordingState.deviceSelectionReady,
       isRecording: recordingState.isRecording,
       isRestrictedRoute: isRestrictedRoute()
     });
     
     // Call original function
     originalSetSelectedDeviceId(deviceId);
+    
+    // Only show toast if not on a restricted route and deviceId is provided
+    if (deviceId && !isRestrictedRoute()) {
+      console.log('[useRecordingHook] Would show toast for device selection, but route is restricted');
+    }
     
     // Log after update (will show previous value due to closure)
     console.log('[useRecordingHook] State update initiated, will verify in next render');
@@ -121,12 +127,25 @@ export const useRecording = () => {
   // System audio handler
   const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
 
-  // Save and delete functionality
-  const { handleDelete } = useSaveDeleteRecording(
+  // Save and delete functionality with toast suppression on restricted routes
+  const originalHandleDelete = useSaveDeleteRecording(
     recordingState, 
     stopRecording, 
     recordingState.setLastAction
-  );
+  ).handleDelete;
+  
+  // Wrap the delete handler to prevent toasts on restricted routes
+  const handleDelete = () => {
+    // Execute the original handler
+    originalHandleDelete();
+    
+    // Only show toast if not on restricted route
+    if (!isRestrictedRoute()) {
+      toast.info("Recording deleted", {
+        id: "recording-deleted"
+      });
+    }
+  };
 
   // Initialize recorder
   useRecorderInitialization(initializeRecorder, setInitError, recordingState.selectedDeviceId);

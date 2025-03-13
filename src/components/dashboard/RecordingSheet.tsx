@@ -7,6 +7,7 @@ import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 export function RecordingSheet() {
   const { toast } = useToast();
@@ -36,11 +37,12 @@ export function RecordingSheet() {
     lastAction,
     refreshDevices,
     devicesLoading,
-    permissionState
+    permissionState,
+    isRestrictedRoute
   } = useRecording();
 
   // Enhanced check for restricted routes - dashboard/index/app paths
-  const isRestrictedRoute = useCallback((): boolean => {
+  const checkIsRestrictedRoute = useCallback((): boolean => {
     const path = window.location.pathname.toLowerCase();
     return path === '/' || 
            path === '/index' || 
@@ -49,16 +51,49 @@ export function RecordingSheet() {
            path.startsWith('/app/');
   }, []);
 
-  // Create a wrapper for refreshDevices that returns a Promise
+  // Create a wrapper for refreshDevices that returns a Promise and suppresses toasts
   const handleRefreshDevices = async () => {
     try {
       if (refreshDevices) {
         await refreshDevices();
+        
+        // Only show toast if not on restricted route
+        if (!checkIsRestrictedRoute()) {
+          toast({
+            title: "Devices refreshed",
+            variant: "default"
+          });
+        }
       }
       return Promise.resolve();
     } catch (error) {
       console.error("Error refreshing devices:", error);
+      
+      // Only show error toast if not on restricted route
+      if (!checkIsRestrictedRoute()) {
+        toast({
+          title: "Error refreshing devices",
+          variant: "destructive"
+        });
+      }
+      
       return Promise.reject(error);
+    }
+  };
+
+  // Create a wrapper for device selection that prevents toasts on dashboard
+  const handleDeviceSelect = (deviceId: string) => {
+    console.log('[RecordingSheet] Device selected:', deviceId);
+    setSelectedDeviceId(deviceId);
+    
+    // Don't show toast on restricted routes
+    if (!checkIsRestrictedRoute()) {
+      toast({
+        title: "Microphone selected",
+        variant: "default"
+      });
+    } else {
+      console.log('[RecordingSheet] Toast suppressed on restricted route');
     }
   };
 
@@ -67,6 +102,15 @@ export function RecordingSheet() {
     try {
       await handleStopRecording();
       console.log('[RecordingSheet] Recording stopped manually');
+      
+      // Only show toast if not on restricted route
+      if (!checkIsRestrictedRoute()) {
+        toast({
+          title: "Recording stopped",
+          variant: "default"
+        });
+      }
+      
       return Promise.resolve();
     } catch (error) {
       console.error("Error stopping recording:", error);
@@ -158,10 +202,7 @@ export function RecordingSheet() {
               }}
               audioDevices={audioDevices}
               selectedDeviceId={selectedDeviceId}
-              onDeviceSelect={(deviceId) => {
-                console.log('[RecordingSheet] Device selected:', deviceId);
-                setSelectedDeviceId(deviceId);
-              }}
+              onDeviceSelect={handleDeviceSelect}
               deviceSelectionReady={deviceSelectionReady}
               showPlayButton={false}
               showDeleteButton={true}
@@ -169,6 +210,7 @@ export function RecordingSheet() {
               onRefreshDevices={handleRefreshDevices}
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
+              isRestrictedRoute={checkIsRestrictedRoute()}
             />
 
             <div className="mt-6 flex justify-center">

@@ -1,11 +1,11 @@
-
 import React, {
   createContext,
   useContext,
   useEffect,
   useRef,
   useState,
-  useCallback
+  useCallback,
+  useMemo
 } from "react";
 import { toast } from "sonner";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -24,17 +24,15 @@ interface DeviceManagerContextValue {
 
 const DeviceManagerContext = createContext<DeviceManagerContextValue | null>(null);
 
-export function DeviceManagerProvider({ children }: { children: React.ReactNode }) {
+export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Reference to prevent simultaneous detection attempts
   const detectionInProgressRef = useRef(false);
   const mountedRef = useRef(true);
 
-  // Format MediaDeviceInfo to our AudioDevice type
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
     return mediaDevices
       .filter(device => device.kind === "audioinput")
@@ -51,7 +49,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       });
   }, []);
 
-  // Request permission explicitly
   const requestPermission = useCallback(async (): Promise<boolean> => {
     console.log("[DeviceManagerContext] Explicitly requesting microphone permission");
     setIsLoading(true);
@@ -59,7 +56,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Stop tracks immediately after permission is granted
       stream.getTracks().forEach(track => track.stop());
       
       if (!mountedRef.current) return false;
@@ -101,11 +97,9 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     }
   }, []);
 
-  // Handle device selection with logging
   const handleSetSelectedDeviceId = useCallback((deviceId: string) => {
     console.log("[DeviceManagerContext] Setting selected device:", deviceId);
     
-    // Validate device exists in our list
     const deviceExists = devices.some(d => d.deviceId === deviceId);
     console.log("[DeviceManagerContext] Device exists in list:", deviceExists);
     
@@ -113,19 +107,15 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       console.warn("[DeviceManagerContext] Selected device not in current device list!");
     }
     
-    // Store previous for comparison
     const previous = selectedDeviceId;
     
-    // Update state
     setSelectedDeviceId(deviceId);
     
-    // Log for verification
     console.log("[DeviceManagerContext] Device selection changed:", {
       from: previous,
       to: deviceId
     });
     
-    // Verify with timeout for async state update
     setTimeout(() => {
       console.log("[DeviceManagerContext] Selection verification:", {
         expected: deviceId,
@@ -135,9 +125,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     }, 100);
   }, [devices, selectedDeviceId]);
 
-  /**
-   * Main function to refresh device list
-   */
   const refreshDevices = useCallback(async () => {
     if (detectionInProgressRef.current) {
       console.log("[DeviceManagerContext] refreshDevices: already in progress");
@@ -149,14 +136,12 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     console.log("[DeviceManagerContext] Starting device refresh...");
 
     try {
-      // 1) Check permission status first with Permissions API if available
       if (navigator.permissions) {
         try {
           const permResult = await navigator.permissions.query({ name: "microphone" as PermissionName });
           console.log("[DeviceManagerContext] Permission status:", permResult.state);
           
           if (permResult.state !== "granted") {
-            // Only request permission if not already granted
             if (permResult.state === "denied") {
               setPermissionState("denied");
               console.log("[DeviceManagerContext] Permission already denied in browser settings");
@@ -169,19 +154,15 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
               return;
             }
             
-            // Need to request permission
             await requestPermission();
           } else {
-            // Already granted
             setPermissionState("granted");
           }
         } catch (err) {
           console.warn("[DeviceManagerContext] Error using Permissions API:", err);
-          // Fallback to getUserMedia
         }
       }
 
-      // 2) If we don't know permission state or need to force-request, use getUserMedia
       if (permissionState !== "granted") {
         console.log("[DeviceManagerContext] Requesting microphone access...");
         try {
@@ -217,7 +198,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
         }
       }
 
-      // 3) Enumerate devices now that we have permission
       console.log("[DeviceManagerContext] Enumerating devices...");
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = allDevices.filter(d => d.kind === "audioinput");
@@ -233,29 +213,24 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       
       setDevices(formattedDevices);
 
-      // Auto-select first device if none selected
       if (!selectedDeviceId && formattedDevices.length > 0) {
         const deviceToSelect = formattedDevices[0].deviceId;
         console.log("[DeviceManagerContext] Auto-selecting first device:", deviceToSelect);
         setSelectedDeviceId(deviceToSelect);
       } else if (selectedDeviceId) {
-        // Verify selected device still exists
         const deviceExists = formattedDevices.some(d => d.deviceId === selectedDeviceId);
         if (!deviceExists && formattedDevices.length > 0) {
-          // Selected device no longer exists, select first available
           const deviceToSelect = formattedDevices[0].deviceId;
           console.log("[DeviceManagerContext] Selected device no longer exists, selecting:", deviceToSelect);
           setSelectedDeviceId(deviceToSelect);
         }
       }
       
-      // Show appropriate toast based on results, but only for errors
       if (formattedDevices.length === 0) {
         toast.warning("No microphones found", {
           description: "Please connect a microphone and try again"
         });
       }
-      // Removed success toast about finding microphones
     } catch (error) {
       console.error("[DeviceManagerContext] Error in refreshDevices:", error);
       if (mountedRef.current) {
@@ -273,14 +248,20 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     }
   }, [permissionState, selectedDeviceId, formatDevices, requestPermission]);
 
-  // Initialize on mount and handle cleanup
-  useEffect(() => {
+  const isRestrictedRoute = React.useMemo(() => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+
+  React.useEffect(() => {
     mountedRef.current = true;
     
-    // Initial device check
     refreshDevices().catch(console.error);
 
-    // Listen for device changes
     const handleDeviceChange = () => {
       console.log("[DeviceManagerContext] devicechange event detected -> refreshing devices");
       refreshDevices().catch(console.error);
@@ -288,7 +269,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
-    // Check permission status with Permissions API if available
     if (navigator.permissions) {
       try {
         navigator.permissions.query({ name: "microphone" as PermissionName })
@@ -298,14 +278,12 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
             console.log("[DeviceManagerContext] Initial permission status:", permissionStatus.state);
             setPermissionState(permissionStatus.state as PermissionState);
             
-            // Set up permission change listener
             permissionStatus.addEventListener("change", () => {
               if (!mountedRef.current) return;
               
               console.log("[DeviceManagerContext] Permission status changed:", permissionStatus.state);
               setPermissionState(permissionStatus.state as PermissionState);
               
-              // Refresh devices if permission was just granted
               if (permissionStatus.state === "granted") {
                 refreshDevices().catch(console.error);
               }
@@ -319,27 +297,30 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       }
     }
 
-    // Cleanup on unmount
     return () => {
       mountedRef.current = false;
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
   }, [refreshDevices]);
 
-  // Log state changes
-  useEffect(() => {
-    console.log("[DeviceManagerContext] State changed:", {
-      permissionState,
-      devicesCount: devices.length,
-      selectedDeviceId,
-      isLoading
-    });
-  }, [permissionState, devices.length, selectedDeviceId, isLoading]);
+  const setSelectedDeviceIdWithRouteAwareness = React.useCallback((deviceId: string) => {
+    console.log('[DeviceManagerContext] Setting selected device ID:', deviceId);
+    setSelectedDeviceId(deviceId);
+    
+    if (!isRestrictedRoute) {
+      toast.success("Microphone selected", {
+        id: "device-manager-selection",
+        duration: 2000
+      });
+    } else {
+      console.log('[DeviceManagerContext] Toast suppressed on restricted route');
+    }
+  }, [isRestrictedRoute]);
 
-  const contextValue: DeviceManagerContextValue = {
+  const value: DeviceManagerContextValue = {
     devices,
     selectedDeviceId,
-    setSelectedDeviceId: handleSetSelectedDeviceId,
+    setSelectedDeviceId: setSelectedDeviceIdWithRouteAwareness,
     permissionState,
     isLoading,
     refreshDevices,
@@ -347,7 +328,7 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
   };
 
   return (
-    <DeviceManagerContext.Provider value={contextValue}>
+    <DeviceManagerContext.Provider value={value}>
       {children}
     </DeviceManagerContext.Provider>
   );
