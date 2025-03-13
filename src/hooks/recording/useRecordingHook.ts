@@ -1,5 +1,4 @@
 
-import { useState, useRef, useEffect, useCallback } from "react";
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -12,7 +11,7 @@ import { useSystemAudio } from "./useSystemAudio";
 import { useRecorderInitialization } from "./useRecorderInitialization";
 import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
 import { useRecordingLogger } from "./useRecordingLogger";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useRecordingSave } from "../record/useRecordingSave";
 import { toast } from "sonner";
 
@@ -145,11 +144,24 @@ export const useRecording = () => {
   const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
 
   // Save and delete functionality with toast suppression on restricted routes
-  const { handleDelete } = useSaveDeleteRecording(
+  const originalHandleDelete = useSaveDeleteRecording(
     recordingState, 
     stopRecording, 
     recordingState.setLastAction
-  );
+  ).handleDelete;
+  
+  // Wrap the delete handler to prevent toasts on restricted routes
+  const handleDelete = () => {
+    // Execute the original handler
+    originalHandleDelete();
+    
+    // Only show toast if not on restricted route
+    if (!isRestrictedRoute()) {
+      toast.info("Recording deleted", {
+        id: "recording-deleted"
+      });
+    }
+  };
 
   // Initialize recorder
   useRecorderInitialization(initializeRecorder, setInitError, recordingState.selectedDeviceId);
