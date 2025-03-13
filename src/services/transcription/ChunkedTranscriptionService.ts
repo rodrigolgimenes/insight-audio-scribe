@@ -26,21 +26,27 @@ class ChunkedTranscriptionService {
   ): Promise<TranscriptionResult> {
     try {
       // Report initial progress
-      onProgress?.(10, "Preparando áudio...");
+      onProgress?.(10, "Preparing audio...");
       
       // Get authenticated user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error('Usuário não autenticado');
+        throw new Error('User not authenticated');
       }
       
       // Generate a unique file path
       const fileName = `${user.id}/${Date.now()}.mp3`;
       
       // Compress audio before uploading
-      onProgress?.(15, "Compactando áudio...");
+      onProgress?.(15, "Compressing audio...");
       
-      console.log(`Processando áudio: Tamanho original: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB, Duração: ${durationInSeconds}s`);
+      console.log(`Processing audio: Original size: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB, Duration: ${durationInSeconds}s`);
+      
+      // Ensure duration is a valid number
+      const validDuration = isNaN(durationInSeconds) || durationInSeconds <= 0 ? 0 : durationInSeconds;
+      const durationInMs = Math.round(validDuration * 1000);
+      
+      console.log(`Audio duration: ${validDuration}s (${durationInMs}ms)`);
       
       // Process audio (compress and chunk if needed)
       const processedAudio = await audioCompressor.processAudioForTranscription(
@@ -49,17 +55,17 @@ class ChunkedTranscriptionService {
         (compressProgress) => {
           // Map compression progress to 15-25% of total progress
           const mappedProgress = 15 + (compressProgress * 0.1);
-          onProgress?.(mappedProgress, `Compactando áudio... ${Math.round(compressProgress)}%`);
+          onProgress?.(mappedProgress, `Compressing audio... ${Math.round(compressProgress)}%`);
         }
       );
       
-      console.log(`Áudio processado: ${processedAudio.chunks.length} chunks, Tamanho original: ${(processedAudio.originalSize / 1024 / 1024).toFixed(2)}MB, Tamanho após processamento: ${(processedAudio.processedSize / 1024 / 1024).toFixed(2)}MB`);
+      console.log(`Audio processed: ${processedAudio.chunks.length} chunks, Original size: ${(processedAudio.originalSize / 1024 / 1024).toFixed(2)}MB, Processed size: ${(processedAudio.processedSize / 1024 / 1024).toFixed(2)}MB`);
       
       // Check if we have multiple chunks
       const isMultiChunk = processedAudio.chunks.length > 1;
       
       // Upload the audio file
-      onProgress?.(30, "Enviando áudio...");
+      onProgress?.(30, "Uploading audio...");
       
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
@@ -69,48 +75,48 @@ class ChunkedTranscriptionService {
         });
 
       if (uploadError) {
-        throw new Error(`Falha ao enviar áudio: ${uploadError.message}`);
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
       
       // Update the recording with the file path
-      onProgress?.(35, "Atualizando gravação...");
+      onProgress?.(35, "Updating recording...");
       
       const { error: updateError } = await supabase
         .from('recordings')
         .update({ 
           file_path: fileName,
           status: 'uploaded',
-          duration: Math.round(durationInSeconds * 1000)
+          duration: durationInMs // Now correctly using milliseconds
         })
         .eq('id', recordingId);
         
       if (updateError) {
-        throw new Error(`Falha ao atualizar gravação: ${updateError.message}`);
+        throw new Error(`Failed to update recording: ${updateError.message}`);
       }
       
       // Create a note for this recording
-      onProgress?.(40, "Criando nota...");
+      onProgress?.(40, "Creating note...");
       
       const { error: noteError, data: noteData } = await supabase
         .from('notes')
         .insert({
-          title: `Gravação ${new Date().toLocaleString()}`,
+          title: `Recording ${new Date().toLocaleString()}`,
           recording_id: recordingId,
           user_id: user.id,
           status: 'pending',
           processing_progress: 0,
-          duration: Math.round(durationInSeconds * 1000)
+          duration: durationInMs // Now correctly using milliseconds
         })
         .select()
         .single();
         
       if (noteError) {
-        throw new Error(`Falha ao criar nota: ${noteError.message}`);
+        throw new Error(`Failed to create note: ${noteError.message}`);
       }
       
       // For small files that don't need chunking
       if (!isMultiChunk) {
-        onProgress?.(50, "Iniciando transcrição...");
+        onProgress?.(50, "Starting transcription...");
         
         // Get presigned URL for the uploaded audio
         const { data: urlData } = await supabase.storage
@@ -118,7 +124,7 @@ class ChunkedTranscriptionService {
           .createSignedUrl(fileName, 60 * 60); // 1 hour expiry
           
         if (!urlData?.signedUrl) {
-          throw new Error('Não foi possível obter URL para o áudio');
+          throw new Error('Could not get URL for audio');
         }
         
         // Process the single audio file
@@ -126,22 +132,23 @@ class ChunkedTranscriptionService {
           .invoke('transcribe-audio', {
             body: { 
               noteId: noteData.id,
-              audioUrl: urlData.signedUrl
+              audioUrl: urlData.signedUrl,
+              durationMs: durationInMs // Pass duration to the function
             },
           });
           
         if (processError) {
-          console.error('Erro de processamento:', processError);
+          console.error('Processing error:', processError);
           return {
             success: false,
-            error: `A transcrição falhou ao iniciar: ${processError.message}`,
+            error: `Transcription failed to start: ${processError.message}`,
             noteId: noteData.id
           };
         }
       } else {
         // For larger files that need chunking
-        onProgress?.(50, "Preparando processamento em blocos...");
-        console.log(`Iniciando processamento em blocos: ${processedAudio.chunks.length} chunks`);
+        onProgress?.(50, "Preparing chunked processing...");
+        console.log(`Starting chunked processing: ${processedAudio.chunks.length} chunks`);
         
         // Process each chunk
         const totalChunks = processedAudio.chunks.length;
@@ -153,15 +160,16 @@ class ChunkedTranscriptionService {
             body: { 
               noteId: noteData.id,
               isChunkedTranscription: true,
-              totalChunks
+              totalChunks,
+              durationMs: durationInMs // Pass duration to the function
             },
           });
           
         if (processingError) {
-          console.error('Erro ao iniciar processamento em blocos:', processingError);
+          console.error('Error starting chunked processing:', processingError);
           return {
             success: false,
-            error: `Falha ao iniciar processamento em blocos: ${processingError.message}`,
+            error: `Failed to start chunked processing: ${processingError.message}`,
             noteId: noteData.id
           };
         }
@@ -174,10 +182,10 @@ class ChunkedTranscriptionService {
           // Update progress
           onProgress?.(
             50 + Math.floor((i / processedAudio.chunks.length) * 30), 
-            `Processando parte ${i+1} de ${processedAudio.chunks.length}...`
+            `Processing part ${i+1} of ${processedAudio.chunks.length}...`
           );
           
-          console.log(`Processando chunk ${i+1}/${totalChunks}: ${(chunk.size / 1024 / 1024).toFixed(2)}MB`);
+          console.log(`Processing chunk ${i+1}/${totalChunks}: ${(chunk.size / 1024 / 1024).toFixed(2)}MB`);
           
           try {
             // Upload this chunk
@@ -189,12 +197,12 @@ class ChunkedTranscriptionService {
               });
               
             if (chunkUploadError) {
-              console.error(`Erro ao fazer upload do chunk ${i}:`, chunkUploadError);
+              console.error(`Error uploading chunk ${i}:`, chunkUploadError);
               transcribedChunks.push({
                 index: i,
                 text: '',
                 success: false,
-                error: `Falha ao enviar chunk: ${chunkUploadError.message}`
+                error: `Failed to upload chunk: ${chunkUploadError.message}`
               });
               continue;
             }
@@ -205,12 +213,12 @@ class ChunkedTranscriptionService {
               .createSignedUrl(chunkFileName, 60 * 60); // 1 hour expiry
               
             if (!chunkUrlData?.signedUrl) {
-              console.error(`Erro ao gerar URL para o chunk ${i}`);
+              console.error(`Error generating URL for chunk ${i}`);
               transcribedChunks.push({
                 index: i,
                 text: '',
                 success: false,
-                error: 'Não foi possível obter URL para o chunk'
+                error: 'Could not get URL for chunk'
               });
               continue;
             }
@@ -223,20 +231,21 @@ class ChunkedTranscriptionService {
                   audioUrl: chunkUrlData.signedUrl,
                   isChunkedTranscription: true,
                   chunkIndex: i,
-                  totalChunks
+                  totalChunks,
+                  durationMs: durationInMs // Pass duration to the function
                 },
               });
               
             if (chunkError) {
-              console.error(`Erro ao transcrever chunk ${i}:`, chunkError);
+              console.error(`Error transcribing chunk ${i}:`, chunkError);
               transcribedChunks.push({
                 index: i,
                 text: '',
                 success: false,
-                error: `Falha na transcrição: ${chunkError.message}`
+                error: `Transcription failed: ${chunkError.message}`
               });
             } else {
-              console.log(`Chunk ${i} transcrito com sucesso`);
+              console.log(`Chunk ${i} transcribed successfully`);
               transcribedChunks.push({
                 index: i,
                 text: chunkResult?.transcription || '',
@@ -244,20 +253,20 @@ class ChunkedTranscriptionService {
               });
             }
           } catch (chunkProcessError) {
-            console.error(`Erro no processamento do chunk ${i}:`, chunkProcessError);
+            console.error(`Error processing chunk ${i}:`, chunkProcessError);
             transcribedChunks.push({
               index: i,
               text: '',
               success: false,
-              error: `Erro no processamento: ${chunkProcessError instanceof Error ? chunkProcessError.message : 'Erro desconhecido'}`
+              error: `Processing error: ${chunkProcessError instanceof Error ? chunkProcessError.message : 'Unknown error'}`
             });
           }
         }
         
-        console.log(`Processamento de chunks concluído: ${transcribedChunks.filter(c => c.success).length}/${totalChunks} com sucesso`);
+        console.log(`Chunk processing completed: ${transcribedChunks.filter(c => c.success).length}/${totalChunks} successful`);
         
         // At this point, all chunks have been sent for processing
-        onProgress?.(80, "Aguardando conclusão da transcrição...");
+        onProgress?.(80, "Waiting for transcription to complete...");
       }
       
       // Poll for note status until processing completes or fails
@@ -265,7 +274,7 @@ class ChunkedTranscriptionService {
       const maxAttempts = 60; // 30 minutes max (60 x 30 seconds)
       
       while (attempts < maxAttempts) {
-        onProgress?.(80 + (attempts * 0.33), "Verificando status da transcrição...");
+        onProgress?.(80 + (attempts * 0.33), "Checking transcription status...");
         
         const { data: noteStatus } = await supabase
           .from('notes')
@@ -274,10 +283,10 @@ class ChunkedTranscriptionService {
           .single();
           
         if (noteStatus) {
-          console.log(`Status da nota: ${noteStatus.status}, Progresso: ${noteStatus.processing_progress}%`);
+          console.log(`Note status: ${noteStatus.status}, Progress: ${noteStatus.processing_progress}%`);
           
           if (noteStatus.status === 'completed' && noteStatus.original_transcript) {
-            onProgress?.(100, "Transcrição concluída!");
+            onProgress?.(100, "Transcription completed!");
             return {
               success: true,
               noteId: noteData.id
@@ -285,14 +294,14 @@ class ChunkedTranscriptionService {
           } else if (noteStatus.status === 'error') {
             return {
               success: false,
-              error: noteStatus.error_message || "Serviço de transcrição encontrou um erro",
+              error: noteStatus.error_message || "Transcription service encountered an error",
               noteId: noteData.id
             };
           } else if (noteStatus.processing_progress > 0) {
             // Update progress based on the note's processing progress
             onProgress?.(
               80 + (noteStatus.processing_progress * 0.2), 
-              `Transcrevendo... ${noteStatus.processing_progress}%`
+              `Transcribing... ${noteStatus.processing_progress}%`
             );
           }
         }
@@ -305,14 +314,14 @@ class ChunkedTranscriptionService {
       // If we get here, the processing is taking too long
       return {
         success: true,
-        error: "A transcrição está em andamento mas está demorando mais do que o esperado",
+        error: "Transcription is in progress but is taking longer than expected",
         noteId: noteData.id
       };
     } catch (error) {
-      console.error('Erro de transcrição:', error);
+      console.error('Transcription error:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Erro desconhecido durante a transcrição"
+        error: error instanceof Error ? error.message : "Unknown error during transcription"
       };
     } finally {
       // Clean up FFmpeg instance
@@ -321,11 +330,11 @@ class ChunkedTranscriptionService {
   }
 
   /**
-   * Concatena uma matriz de fragmentos transcritos em um único texto coerente.
-   * Cada fragmento deve ter um índice para indicar sua ordem.
+   * Concatenates an array of transcribed chunks into a single coherent text.
+   * Each chunk should have an index to indicate its order.
    */
   private concatenateTranscriptions(chunks: TranscribedChunk[]): string {
-    // Filtrar chunks bem-sucedidos e ordenar pelo índice
+    // Filter successful chunks and sort by index
     const sortedChunks = chunks
       .filter(chunk => chunk.success)
       .sort((a, b) => a.index - b.index);
@@ -334,35 +343,35 @@ class ChunkedTranscriptionService {
       return "";
     }
     
-    // Concatenar com lógica melhorada para garantir fluidez
+    // Concatenate with improved logic for fluidity
     let result = sortedChunks[0].text || "";
     
     for (let i = 1; i < sortedChunks.length; i++) {
       const currentText = sortedChunks[i].text || "";
       if (!currentText) continue;
       
-      // Verificar se o texto atual termina com pontuação
+      // Check if current text ends with punctuation
       const endsWithPunctuation = /[.!?]$/.test(result);
       
-      // Verificar se o próximo chunk começa com maiúscula
+      // Check if next chunk starts with capital letter
       const startsWithCapital = /^[A-Z]/.test(currentText);
       
       if (endsWithPunctuation && startsWithCapital) {
-        // Nova frase - adicionar espaço
+        // New sentence - add space
         result += " " + currentText;
       } else if (endsWithPunctuation) {
-        // Adicionar espaço após pontuação
+        // Add space after punctuation
         result += " " + currentText;
       } else if (startsWithCapital) {
-        // Adicionar ponto e espaço antes de nova frase
+        // Add period and space before new sentence
         result += ". " + currentText;
       } else {
-        // Adicionar espaço simples
+        // Add simple space
         result += " " + currentText;
       }
     }
     
-    // Limpeza final - remover espaços duplos
+    // Final cleanup - remove double spaces
     return result.replace(/\s{2,}/g, ' ');
   }
 }
