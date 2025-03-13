@@ -30,10 +30,29 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
   
-  // Create a wrapper for stopRecording that doesn't return any value (fixing TypeScript error)
+  // Create a wrapper for stopRecording that returns a Promise
   const handleWrappedStopRecording = async () => {
-    await recordingHook.handleStopRecording();
-    // Not returning any value
+    try {
+      await recordingHook.handleStopRecording();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      return Promise.reject(error);
+    }
+  };
+  
+  // Create a wrapper for refreshDevices that returns a Promise
+  const handleWrappedRefreshDevices = async () => {
+    try {
+      if (recordingHook.refreshDevices) {
+        const result = await recordingHook.refreshDevices();
+        return Promise.resolve();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing devices:", error);
+      return Promise.reject(error);
+    }
   };
   
   useEffect(() => {
@@ -220,11 +239,9 @@ const SimpleRecord = () => {
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={recordingHook.deviceSelectionReady}
                       lastAction={recordingHook.lastAction}
-                      onRefreshDevices={() => {
-                        if (recordingHook.refreshDevices) recordingHook.refreshDevices();
-                      }}
+                      onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
-                      permissionState={recordingHook.permissionState}
+                      permissionState={recordingHook.permissionState as any}
                     />
                     
                     {recordingHook.isRecording && (

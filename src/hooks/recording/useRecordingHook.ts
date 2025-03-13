@@ -1,3 +1,4 @@
+
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -11,6 +12,7 @@ import { useRecorderInitialization } from "./useRecorderInitialization";
 import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
 import { useRecordingLogger } from "./useRecordingLogger";
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useRecordingSave } from "../record/useRecordingSave";
 
 /**
  * Main hook that combines all recording functionality
@@ -108,7 +110,7 @@ export const useRecording = () => {
   const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
 
   // Save and delete functionality
-  const { handleSaveRecording, handleDelete } = useSaveDeleteRecording(
+  const { handleDelete } = useSaveDeleteRecording(
     recordingState, 
     stopRecording, 
     recordingState.setLastAction
@@ -136,37 +138,40 @@ export const useRecording = () => {
   // Add new state for processing progress
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingStage, setProcessingStage] = useState("");
+  
+  // Initialize recording save hook
+  const recordingSaveHook = useRecordingSave();
 
-  // Update handleSaveRecording to pass progress callbacks
+  // Create save recording handler
   const handleSaveRecording = useCallback(() => {
-    if (!recordingSave) return;
+    if (!recordingSaveHook) return;
     
-    recordingSave.saveRecording(
-      isRecording,
+    recordingSaveHook.saveRecording(
+      recordingState.isRecording,
       handleStopRecording,
-      mediaStream,
-      audioUrl,
-      recordedDuration
+      recordingState.mediaStream,
+      recordingState.audioUrl,
+      getCurrentDuration ? getCurrentDuration() : 0
     );
   }, [
-    recordingSave, 
-    isRecording, 
+    recordingSaveHook, 
+    recordingState.isRecording, 
     handleStopRecording, 
-    mediaStream, 
-    audioUrl, 
-    recordedDuration
+    recordingState.mediaStream, 
+    recordingState.audioUrl, 
+    getCurrentDuration
   ]);
 
   // Use the new progress information from useRecordingSave
   useEffect(() => {
-    if (recordingSave) {
-      setProcessingProgress(recordingSave.processingProgress || 0);
-      setProcessingStage(recordingSave.processingStage || "");
+    if (recordingSaveHook) {
+      setProcessingProgress(recordingSaveHook.processingProgress || 0);
+      setProcessingStage(recordingSaveHook.processingStage || "");
     }
   }, [
-    recordingSave?.processingProgress,
-    recordingSave?.processingStage,
-    recordingSave
+    recordingSaveHook?.processingProgress,
+    recordingSaveHook?.processingStage,
+    recordingSaveHook
   ]);
 
   console.log('[useRecordingHook] Hook initialized, returning methods');
@@ -188,6 +193,7 @@ export const useRecording = () => {
     devicesLoading,
     permissionState,
     processingProgress,
-    processingStage
+    processingStage,
+    isLoading: recordingSaveHook?.isProcessing || false
   };
 };

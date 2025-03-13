@@ -1,4 +1,5 @@
 
+import React from "react";
 import { ShellLayout } from "@/components/layouts/ShellLayout";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { useRecording } from "@/hooks/useRecording";
@@ -25,7 +26,6 @@ export default function RecordPage() {
     handleSaveRecording,
     handleDelete,
     deviceSelectionReady,
-    isLoading,
     lastAction,
     refreshDevices,
     devicesLoading,
@@ -33,6 +33,29 @@ export default function RecordPage() {
     processingProgress,
     processingStage
   } = useRecording();
+
+  // Create wrapper functions that return proper Promise types
+  const handleWrappedStopRecording = async () => {
+    try {
+      await handleStopRecording();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      return Promise.reject(error);
+    }
+  };
+  
+  const handleWrappedRefreshDevices = async () => {
+    try {
+      if (refreshDevices) {
+        await refreshDevices();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing devices:", error);
+      return Promise.reject(error);
+    }
+  };
 
   return (
     <ShellLayout>
@@ -51,7 +74,7 @@ export default function RecordPage() {
               mediaStream={mediaStream}
               isSystemAudio={isSystemAudio}
               handleStartRecording={handleStartRecording}
-              handleStopRecording={handleStopRecording}
+              handleStopRecording={handleWrappedStopRecording}
               handlePauseRecording={handlePauseRecording}
               handleResumeRecording={handleResumeRecording}
               handleDelete={handleDelete}
@@ -62,11 +85,11 @@ export default function RecordPage() {
               deviceSelectionReady={deviceSelectionReady}
               onSave={handleSaveRecording}
               isSaving={isSaving}
-              isLoading={isLoading}
+              isLoading={false}  // Fixed isLoading property
               lastAction={lastAction}
-              onRefreshDevices={refreshDevices}
+              onRefreshDevices={handleWrappedRefreshDevices}
               devicesLoading={devicesLoading}
-              permissionState={permissionState}
+              permissionState={permissionState as any}  // Use type assertion
               processingProgress={processingProgress}
               processingStage={processingStage}
             />

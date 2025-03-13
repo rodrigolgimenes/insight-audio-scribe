@@ -71,13 +71,17 @@ export const useRecordingSave = () => {
       setProcessingProgress(5);
       setProcessingStage("Creating recording entry...");
 
+      // Generate a unique file path for this recording
+      const fileName = `${user.id}/${Date.now()}.mp3`;
+
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
           duration: durationInMs,
           user_id: user.id,
-          status: 'pending'
+          status: 'pending',
+          file_path: fileName  // Added file_path field
         })
         .select()
         .single();

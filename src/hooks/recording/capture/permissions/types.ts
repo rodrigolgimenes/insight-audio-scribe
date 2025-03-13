@@ -1,6 +1,6 @@
 
 /**
- * Valid permission states with "unknown" state
+ * Valid permission states including "unknown" state
  */
 export type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 

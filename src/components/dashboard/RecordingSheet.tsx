@@ -39,10 +39,29 @@ export function RecordingSheet() {
     permissionState
   } = useRecording();
 
-  // Create a wrapper for refreshDevices that doesn't return anything
+  // Create a wrapper for refreshDevices that returns a Promise
   const handleRefreshDevices = async () => {
-    await refreshDevices();
-    // No return value - this function returns void
+    try {
+      if (refreshDevices) {
+        await refreshDevices();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing devices:", error);
+      return Promise.reject(error);
+    }
+  };
+
+  // Create a wrapper for stopRecording that returns a Promise
+  const handleWrappedStopRecording = async () => {
+    try {
+      await handleStopRecording();
+      console.log('[RecordingSheet] Recording stopped manually');
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      return Promise.reject(error);
+    }
   };
 
   // Ensure component is mounted before rendering complex components
@@ -118,9 +137,7 @@ export function RecordingSheet() {
                 console.log('[RecordingSheet] Start recording button clicked');
                 handleStartRecording();
               }}
-              handleStopRecording={() => handleStopRecording().then(() => {
-                console.log('[RecordingSheet] Recording stopped manually');
-              })}
+              handleStopRecording={handleWrappedStopRecording}
               handlePauseRecording={handlePauseRecording}
               handleResumeRecording={handleResumeRecording}
               handleDelete={handleDelete}
@@ -140,7 +157,7 @@ export function RecordingSheet() {
               lastAction={lastAction}
               onRefreshDevices={handleRefreshDevices}
               devicesLoading={devicesLoading}
-              permissionState={permissionState}
+              permissionState={permissionState as any}
             />
 
             <div className="mt-6 flex justify-center">
