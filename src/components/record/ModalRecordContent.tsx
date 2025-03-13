@@ -25,7 +25,8 @@ export function ModalRecordContent({ recordingHook, error, errorDetails }: Modal
         <DialogTitle>Record Audio</DialogTitle>
       </DialogHeader>
 
-      <RecordingSection
+      <RecordingSection 
+        // Pass all recording hook properties as props
         isRecording={recordingHook.isRecording}
         isPaused={recordingHook.isPaused}
         audioUrl={recordingHook.audioUrl}

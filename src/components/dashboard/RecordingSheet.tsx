@@ -102,7 +102,7 @@ export function RecordingSheet() {
 
         {isComponentReady && (
           <>
-            <RecordingSection
+            <RecordingSection 
               isRecording={isRecording}
               isPaused={isPaused}
               audioUrl={audioUrl}

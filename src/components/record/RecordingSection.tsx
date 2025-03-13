@@ -1,68 +1,119 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 
-export function RecordingSection() {
-  const { permissionState, selectedDeviceId } = useDeviceManager();
+// Define all possible props that can be passed to this component
+interface RecordingSectionProps {
+  // Props passed from other components
+  isRecording?: boolean;
+  isPaused?: boolean;
+  audioUrl?: string | null;
+  mediaStream?: MediaStream | null;
+  isSystemAudio?: boolean;
+  handleStartRecording?: () => void;
+  handleStopRecording?: () => void | Promise<void>;
+  handlePauseRecording?: () => void;
+  handleResumeRecording?: () => void;
+  handleDelete?: () => void;
+  onSystemAudioChange?: (value: boolean) => void;
+  audioDevices?: MediaDeviceInfo[];
+  selectedDeviceId?: string | null;
+  onDeviceSelect?: (deviceId: string) => void;
+  deviceSelectionReady?: boolean;
+  showPlayButton?: boolean;
+  showDeleteButton?: boolean;
+  lastAction?: { action: string; timestamp: number; success: boolean; error?: string } | null;
+  onRefreshDevices?: () => void | Promise<void>;
+  devicesLoading?: boolean;
+  permissionState?: "prompt" | "granted" | "denied" | "unknown";
+}
+
+export function RecordingSection(props: RecordingSectionProps = {}) {
+  // Use context for device management when props aren't provided
+  const deviceManager = useDeviceManager();
+  
+  // Determine whether to use props or context
+  const permissionState = props.permissionState || deviceManager.permissionState;
+  const selectedDeviceId = props.selectedDeviceId || deviceManager.selectedDeviceId;
+  
+  // Local state when not controlled externally
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [timer, setTimer] = useState<NodeJS.Timeout | null>(null);
 
-  const canRecord = permissionState === "granted" && !!selectedDeviceId && !isRecording;
+  // If isRecording is provided as a prop, use that instead of local state
+  const recordingState = props.isRecording !== undefined ? props.isRecording : isRecording;
+  
+  const canRecord = permissionState === "granted" && !!selectedDeviceId && !recordingState;
+
+  // Handle external recording state changes
+  useEffect(() => {
+    if (props.isRecording === false && timer) {
+      clearInterval(timer);
+      setTimer(null);
+      setRecordingTime(0);
+    }
+  }, [props.isRecording, timer]);
 
   const handleStartRecording = async () => {
     if (!canRecord) return;
     
-    try {
-      console.log("[RecordingSection] Starting recording with device:", selectedDeviceId);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: selectedDeviceId || undefined }
-      });
-      
-      console.log("[RecordingSection] Stream obtained:", stream.getAudioTracks().length, "audio tracks");
-      setIsRecording(true);
-      
-      // Start timer
-      const interval = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-      setTimer(interval);
-      
-      toast.success("Recording started", {
-        description: "Recording with selected microphone"
-      });
-      
-      // This would be where MediaRecorder is initialized in a real implementation
-    } catch (error) {
-      console.error("[RecordingSection] Failed to start recording:", error);
-      toast.error("Recording failed", {
-        description: error instanceof Error ? error.message : "Unknown error occurred"
-      });
-      setIsRecording(false);
+    if (props.handleStartRecording) {
+      props.handleStartRecording();
+    } else {
+      try {
+        console.log("[RecordingSection] Starting recording with device:", selectedDeviceId);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { deviceId: selectedDeviceId || undefined }
+        });
+        
+        console.log("[RecordingSection] Stream obtained:", stream.getAudioTracks().length, "audio tracks");
+        setIsRecording(true);
+        
+        // Start timer
+        const interval = setInterval(() => {
+          setRecordingTime(prev => prev + 1);
+        }, 1000);
+        setTimer(interval);
+        
+        toast.success("Recording started", {
+          description: "Recording with selected microphone"
+        });
+        
+        // This would be where MediaRecorder is initialized in a real implementation
+      } catch (error) {
+        console.error("[RecordingSection] Failed to start recording:", error);
+        toast.error("Recording failed", {
+          description: error instanceof Error ? error.message : "Unknown error occurred"
+        });
+        setIsRecording(false);
+      }
     }
   };
 
   const handleStopRecording = () => {
-    console.log("[RecordingSection] Stopping recording");
-    setIsRecording(false);
-    
-    // Clear timer
-    if (timer) {
-      clearInterval(timer);
-      setTimer(null);
+    if (props.handleStopRecording) {
+      props.handleStopRecording();
+    } else {
+      console.log("[RecordingSection] Stopping recording");
+      setIsRecording(false);
+      
+      // Clear timer
+      if (timer) {
+        clearInterval(timer);
+        setTimer(null);
+      }
+      
+      setRecordingTime(0);
+      
+      toast.info("Recording stopped", {
+        description: "Your recording has been stopped"
+      });
     }
-    
-    setRecordingTime(0);
-    
-    toast.info("Recording stopped", {
-      description: "Your recording has been stopped"
-    });
-    
-    // This would be where MediaRecorder is stopped in a real implementation
   };
 
   const formatTime = (seconds: number) => {
@@ -78,7 +129,7 @@ export function RecordingSection() {
         <MicrophoneSelector />
 
         <div className="mt-6 space-y-4">
-          {isRecording && (
+          {recordingState && (
             <div className="text-center py-2 bg-red-50 border border-red-200 rounded-md text-red-600 animate-pulse">
               <div className="text-sm font-medium">Recording in progress</div>
               <div className="text-xl font-bold">{formatTime(recordingTime)}</div>
@@ -86,7 +137,7 @@ export function RecordingSection() {
           )}
           
           <div className="flex space-x-3">
-            {!isRecording ? (
+            {!recordingState ? (
               <button
                 onClick={handleStartRecording}
                 disabled={!canRecord}
@@ -110,7 +161,7 @@ export function RecordingSection() {
             )}
           </div>
           
-          {!canRecord && !isRecording && (
+          {!canRecord && !recordingState && (
             <div className="text-xs text-center text-amber-600">
               {!selectedDeviceId ? (
                 <p>Please select a microphone to enable recording</p>

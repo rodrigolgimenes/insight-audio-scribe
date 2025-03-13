@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -156,6 +157,7 @@ const SimpleRecord = () => {
               </div>
             </div>
             
+            {/* Device Selection Debug */}
             <Card className="bg-white shadow">
               <CardContent className="p-6">
                 <h2 className="text-xl font-bold mb-4">Device Selection Debug</h2>
@@ -193,6 +195,7 @@ const SimpleRecord = () => {
               </CardContent>
             </Card>
             
+            {/* Using the properly connected SimpleRecordContent */}
             <SimpleRecordContent
               recordingHook={recordingHook}
               isLoading={isUploading}
