@@ -10,6 +10,13 @@ interface ModalRecordContentProps {
 }
 
 export function ModalRecordContent({ recordingHook, error, errorDetails }: ModalRecordContentProps) {
+  // Create a wrapper for refreshDevices that doesn't return anything
+  const handleRefreshDevices = async () => {
+    if (recordingHook.refreshDevices) {
+      await recordingHook.refreshDevices();
+    }
+  };
+
   if (error) {
     return (
       <div className="text-red-500 p-4">
@@ -45,7 +52,7 @@ export function ModalRecordContent({ recordingHook, error, errorDetails }: Modal
         showPlayButton={true}
         showDeleteButton={true}
         lastAction={recordingHook.lastAction}
-        onRefreshDevices={recordingHook.refreshDevices}
+        onRefreshDevices={handleRefreshDevices}
         devicesLoading={recordingHook.devicesLoading}
         permissionState={recordingHook.permissionState}
       />

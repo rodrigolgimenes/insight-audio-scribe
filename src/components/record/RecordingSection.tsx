@@ -5,6 +5,7 @@ import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Mic, Square } from "lucide-react";
 import { toast } from "sonner";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 // Define all possible props that can be passed to this component
 interface RecordingSectionProps {
@@ -20,14 +21,14 @@ interface RecordingSectionProps {
   handleResumeRecording?: () => void;
   handleDelete?: () => void;
   onSystemAudioChange?: (value: boolean) => void;
-  audioDevices?: MediaDeviceInfo[];
+  audioDevices?: AudioDevice[]; // Changed from MediaDeviceInfo[] to AudioDevice[]
   selectedDeviceId?: string | null;
   onDeviceSelect?: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
   lastAction?: { action: string; timestamp: number; success: boolean; error?: string } | null;
-  onRefreshDevices?: () => void | Promise<void>;
+  onRefreshDevices?: () => void | Promise<void>; // Allow void or Promise<void>
   devicesLoading?: boolean;
   permissionState?: "prompt" | "granted" | "denied" | "unknown";
 }

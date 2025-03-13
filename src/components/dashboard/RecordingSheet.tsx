@@ -39,6 +39,12 @@ export function RecordingSheet() {
     permissionState
   } = useRecording();
 
+  // Create a wrapper for refreshDevices that doesn't return anything
+  const handleRefreshDevices = async () => {
+    await refreshDevices();
+    // No return value - this function returns void
+  };
+
   // Ensure component is mounted before rendering complex components
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -132,7 +138,7 @@ export function RecordingSheet() {
               showPlayButton={false}
               showDeleteButton={true}
               lastAction={lastAction}
-              onRefreshDevices={refreshDevices}
+              onRefreshDevices={handleRefreshDevices}
               devicesLoading={devicesLoading}
               permissionState={permissionState}
             />
