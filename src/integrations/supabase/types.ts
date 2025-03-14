@@ -847,11 +847,23 @@ export type Database = {
       }
     }
     Functions: {
+      count_transcription_chunks: {
+        Args: {
+          note_id_param: string
+        }
+        Returns: number
+      }
       generate_audio_url: {
         Args: {
           file_path: string
         }
         Returns: string
+      }
+      get_note_total_chunks: {
+        Args: {
+          note_id_param: string
+        }
+        Returns: number
       }
       move_note_to_folder: {
         Args: {

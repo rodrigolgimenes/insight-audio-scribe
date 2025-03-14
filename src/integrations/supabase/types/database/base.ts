@@ -44,6 +44,18 @@ export interface Functions {
     }
     Returns: void
   }
+  count_transcription_chunks: {
+    Args: {
+      note_id_param: string
+    }
+    Returns: number
+  }
+  get_note_total_chunks: {
+    Args: {
+      note_id_param: string
+    }
+    Returns: number
+  }
 }
 
 export type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
