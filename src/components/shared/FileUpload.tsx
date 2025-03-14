@@ -2,168 +2,124 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Upload, Loader2, FileText, AlertCircle } from "lucide-react";
-import { useFileUpload } from "@/hooks";
-import { validateFile } from "@/utils/upload/fileValidation";
-import { useToast } from "@/hooks/use-toast";
+import { useFileUpload } from "@/hooks/upload/useFileUpload";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string) => void;
   label?: string;
   description?: string;
-  accept?: string;
   buttonText?: string;
-  className?: string;
-  buttonClassName?: string;
-  maxSize?: number;
-  disabled?: boolean;
+  accept?: string;
   initiateTranscription?: boolean;
+  disabled?: boolean;
+  buttonClassName?: string;
   hideDescription?: boolean;
 }
 
-export function FileUpload({
+export const FileUpload: React.FC<FileUploadProps> = ({
   onUploadComplete,
-  label = "Upload file",
-  description = "Upload an audio or video file to transcribe",
-  accept = "audio/*,video/mp4",
+  label = "Upload Audio",
+  description = "Upload your audio file",
   buttonText = "Upload File",
-  className = "",
-  buttonClassName = "",
-  maxSize = 100,
-  disabled = false,
+  accept = "audio/*,video/mp4",
   initiateTranscription = true,
+  disabled = false,
+  buttonClassName = "",
   hideDescription = false,
-}: FileUploadProps) {
+}) => {
   const { isUploading, handleFileUpload } = useFileUpload();
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [processingState, setProcessingState] = useState<'idle' | 'processing' | 'uploading'>('idle');
   const { toast } = useToast();
   const navigate = useNavigate();
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    setError(null);
-    
-    if (file) {
-      setFileName(file.name);
-      const validation = validateFile(file);
-      
-      if (!validation.isValid) {
-        setError(validation.errorMessage || "Invalid file");
-        return;
-      }
-      
-      try {
-        console.log("Initiating file upload with transcription flag:", initiateTranscription);
-        const noteId = await handleFileUpload(event, initiateTranscription);
-        
-        if (noteId) {
-          console.log("Upload complete, noteId:", noteId);
-          
-          if (!onUploadComplete) {
-            console.log(`Navigating to dashboard after upload`);
-            navigate(`/app`);
-            
-            setTimeout(async () => {
-              const { data: note } = await supabase
-                .from('notes')
-                .select('status')
-                .eq('id', noteId)
-                .single();
-                
-              if (note && (note.status === 'pending' || note.status === 'uploaded')) {
-                console.log("Auto-retrying transcription for note:", noteId);
-                await supabase.functions.invoke('process-recording', {
-                  body: { noteId: noteId }
-                });
-              }
-            }, 3000);
-          } else {
-            console.log(`Calling onUploadComplete with noteId: ${noteId}`);
-            onUploadComplete(noteId);
-          }
-          
-          toast({
-            title: "Upload successful",
-            description: initiateTranscription 
-              ? "Your file has been uploaded and transcription process started."
-              : "Your file has been uploaded successfully.",
-          });
-        } else {
-          toast({
-            title: "Warning",
-            description: "File was uploaded but something went wrong with the process. Please check your Dashboard.",
-            variant: "destructive",
-          });
-          navigate("/app");
-        }
-      } catch (err) {
-        console.error("File upload error:", err);
-        setError(err instanceof Error ? err.message : "Failed to upload file");
-        
-        toast({
-          title: "Upload Error",
-          description: err instanceof Error ? err.message : "Failed to upload file",
-          variant: "destructive",
-        });
-      }
+  const handleClick = () => {
+    if (inputRef.current) {
+      inputRef.current.click();
     }
   };
 
-  return (
-    <div className={`space-y-4 ${className}`}>
-      {label && !hideDescription && <Label htmlFor="file-upload">{label}</Label>}
-      {description && !hideDescription && <p className="text-sm text-gray-500 mb-4">{description}</p>}
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.length) return;
+
+    const file = e.target.files[0];
+    
+    // Verificar se é um arquivo de vídeo para mostrar mensagem de processamento
+    if (file.type.startsWith('video/')) {
+      setProcessingState('processing');
+      toast({
+        title: "Processing Video",
+        description: "Extracting audio from video file. This may take a moment...",
+      });
+    } else if (file.type.startsWith('audio/') && file.type !== 'audio/mp3' && file.type !== 'audio/mpeg') {
+      setProcessingState('processing');
+      toast({
+        title: "Processing Audio",
+        description: "Converting audio to optimal format. This may take a moment...",
+      });
+    } else {
+      setProcessingState('uploading');
+    }
+
+    try {
+      const noteId = await handleFileUpload(e, initiateTranscription);
+      setProcessingState('idle');
       
-      <div className="flex flex-col gap-4">
-        <Input
-          type="file"
-          accept={accept}
-          className="hidden"
-          id="file-upload"
-          onChange={handleFileChange}
-          disabled={isUploading || disabled}
-        />
+      if (noteId) {
+        toast({
+          title: "Upload Complete",
+          description: "Your file has been uploaded and is being processed.",
+        });
         
-        <div className="flex flex-col gap-2">
-          <Button 
-            onClick={() => document.getElementById('file-upload')?.click()}
-            disabled={isUploading || disabled}
-            className={`bg-[#9b87f5] hover:bg-[#7E69AB] active:bg-[#7E69AB] text-white gap-2 w-full sm:w-auto ${buttonClassName}`}
-          >
-            {isUploading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4" />
-            )}
-            {isUploading ? 'Uploading...' : buttonText}
-          </Button>
-          
-          {fileName && !error && !isUploading && (
-            <div className="flex items-center gap-2 text-sm text-green-600">
-              <FileText className="w-4 h-4" />
-              <span className="truncate max-w-xs">{fileName}</span>
-            </div>
-          )}
-        </div>
-        
-        {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="ml-2">{error}</AlertDescription>
-          </Alert>
+        if (onUploadComplete) {
+          onUploadComplete(noteId);
+        } else {
+          navigate(`/app/notes/${noteId}`);
+        }
+      }
+    } catch (error) {
+      setProcessingState('idle');
+      console.error("File upload error:", error);
+    }
+  };
+
+  const getButtonText = () => {
+    if (processingState === 'processing') {
+      return "Processing Audio...";
+    } else if (processingState === 'uploading' || isUploading) {
+      return "Uploading...";
+    }
+    return buttonText;
+  };
+
+  return (
+    <div className="w-full">
+      {label && <label className="block text-sm font-medium mb-2">{label}</label>}
+      {!hideDescription && description && (
+        <p className="text-sm text-muted-foreground mb-4">{description}</p>
+      )}
+      <Input
+        ref={inputRef}
+        id="file-upload"
+        type="file"
+        accept={accept}
+        onChange={handleChange}
+        className="hidden"
+        disabled={disabled || isUploading || processingState !== 'idle'}
+      />
+      <Button
+        onClick={handleClick}
+        disabled={disabled || isUploading || processingState !== 'idle'}
+        className={buttonClassName}
+      >
+        {(isUploading || processingState !== 'idle') && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         )}
-        
-        {isUploading && (
-          <p className="text-sm text-blue-600">
-            Uploading {fileName}... This may take a while for larger files.
-          </p>
-        )}
-      </div>
+        {getButtonText()}
+      </Button>
     </div>
   );
-}
+};

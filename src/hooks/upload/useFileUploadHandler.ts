@@ -4,6 +4,7 @@ import { validateFile, showValidationError } from "@/utils/upload/fileValidation
 import { getMediaDuration } from "@/utils/mediaUtils";
 import { uploadFileToSupabase } from "@/services/supabase/uploadService";
 import { createRecordingEntry, updateRecordingStatus } from "@/services/recording/recordingService";
+import { audioProcessor } from "@/utils/audio/processing/AudioProcessor";
 
 export const useFileUploadHandler = (
   setIsUploading: React.Dispatch<React.SetStateAction<boolean>>,
@@ -27,12 +28,31 @@ export const useFileUploadHandler = (
         throw new Error(authError ? authError.message : 'User not authenticated');
       }
 
+      // Process file if needed (extract audio from video or convert to MP3)
+      let processedFile = file;
+      
+      if (audioProcessor.needsProcessing(file)) {
+        console.log('Processing file to extract audio or convert format...');
+        try {
+          processedFile = await audioProcessor.processFile(file);
+          console.log('File processed successfully:', processedFile.name, processedFile.type, processedFile.size);
+        } catch (processingError) {
+          console.error('Error processing file:', processingError);
+          toast({
+            title: "Processing Warning",
+            description: "Could not process file for optimal audio. Using original file instead.",
+            variant: "warning",
+          });
+          // Continue with original file as fallback
+        }
+      }
+
       // Get file duration
       console.log('Getting media duration...');
       let durationInMs = 0;
       
       try {
-        durationInMs = await getMediaDuration(file);
+        durationInMs = await getMediaDuration(processedFile);
         console.log('Successfully got media duration:', durationInMs);
       } catch (durationError) {
         console.error('Error getting media duration:', durationError);
@@ -41,7 +61,8 @@ export const useFileUploadHandler = (
 
       // Generate unique file name with sanitization
       const timestamp = Date.now();
-      const sanitizedFileName = file.name.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_');
+      const sanitizedFileName = processedFile.name.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_');
+      // Always ensure the file has .mp3 extension if it's been processed
       const fileName = `${user.id}/${timestamp}_${sanitizedFileName}`;
       console.log('Sanitized file name:', fileName);
 
@@ -49,14 +70,15 @@ export const useFileUploadHandler = (
       console.log('Creating recording entry...');
       const recordingData = await createRecordingEntry(
         user.id,
-        file.name || `Recording ${new Date().toLocaleString()}`,
+        processedFile.name || `Recording ${new Date().toLocaleString()}`,
         fileName,
-        durationInMs
+        durationInMs,
+        'file' // Set mode to 'file' to indicate this was an uploaded file
       );
       console.log('Recording entry created with ID:', recordingData.id);
 
       // Upload file to storage with retries
-      const uploadResult = await uploadFileWithRetries(fileName, file);
+      const uploadResult = await uploadFileWithRetries(fileName, processedFile);
       if (!uploadResult.success) {
         // Clean up the recording entry if upload fails
         await cleanupFailedRecording(recordingData.id);

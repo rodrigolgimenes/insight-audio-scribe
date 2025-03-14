@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.9",
-    "@ffmpeg/util": "^0.12.1",
+    "@ffmpeg/util": "^0.12.2",
     "@hookform/resolvers": "^3.9.0",
     "@playwright/test": "^1.50.1",
     "@radix-ui/react-accordion": "^1.2.0",

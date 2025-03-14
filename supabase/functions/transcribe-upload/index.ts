@@ -65,9 +65,26 @@ serve(async (req) => {
       throw new Error(`Failed to update recording status: ${statusError.message}`);
     }
 
+    // Verificar se o arquivo é MP3, caso contrário, tentar tratar
+    let fileToUpload = file as File;
+    let fileType = fileToUpload.type;
+    
+    // Garantir que o Content-Type seja audio/mp3 para processamento consistente
+    // O arquivo já deveria estar processado pelo cliente, mas vamos garantir
+    if (fileType !== 'audio/mp3' && fileType !== 'audio/mpeg') {
+      console.log(`File type is ${fileType}, setting Content-Type to audio/mp3 for consistency`);
+      // Criar um novo Blob com o tipo de conteúdo correto
+      const arrayBuffer = await fileToUpload.arrayBuffer();
+      fileToUpload = new File(
+        [arrayBuffer], 
+        fileToUpload.name.replace(/\.[^/.]+$/, '') + '.mp3',
+        { type: 'audio/mp3' }
+      );
+    }
+    
     // Upload the audio file directly
-    const filePath = `${recordingId}/${crypto.randomUUID()}.webm`;
-    const fileBlob = new Blob([await (file as File).arrayBuffer()], { type: 'audio/webm' });
+    const filePath = `${recordingId}/${crypto.randomUUID()}.mp3`;
+    const fileBlob = new Blob([await fileToUpload.arrayBuffer()], { type: 'audio/mp3' });
     
     console.log('Uploading audio file...', {
       filePath,
