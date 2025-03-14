@@ -6,6 +6,7 @@ import { useFileUpload } from "@/hooks/upload/useFileUpload";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
+import { audioProcessor } from "@/utils/audio/processing/AudioProcessor";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string) => void;
@@ -65,6 +66,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     try {
+      // Verificação adicional se o arquivo é um vídeo ou áudio que precisa de conversão
+      if (audioProcessor.needsProcessing(file)) {
+        console.log("File needs processing before upload:", file.type);
+      }
+
       const noteId = await handleFileUpload(e, initiateTranscription);
       setProcessingState('idle');
       

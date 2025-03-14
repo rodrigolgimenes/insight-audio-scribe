@@ -65,24 +65,33 @@ serve(async (req) => {
       throw new Error(`Failed to update recording status: ${statusError.message}`);
     }
 
-    // Verificar se o arquivo é MP3, caso contrário, tentar tratar
+    // Verificar se o arquivo é MP3, caso contrário, forçar o tipo correto
     let fileToUpload = file as File;
     let fileType = fileToUpload.type;
     
-    // Garantir que o Content-Type seja audio/mp3 para processamento consistente
-    // O arquivo já deveria estar processado pelo cliente, mas vamos garantir
-    if (fileType !== 'audio/mp3' && fileType !== 'audio/mpeg') {
-      console.log(`File type is ${fileType}, setting Content-Type to audio/mp3 for consistency`);
-      // Criar um novo Blob com o tipo de conteúdo correto
+    // IMPORTANTE: Garantir que o arquivo tenha o tipo correto, independentemente do formato original
+    if (fileType !== 'audio/mp3' && fileType !== 'audio/mpeg' || 
+        !fileToUpload.name.toLowerCase().endsWith('.mp3')) {
+      console.log(`File type is ${fileType}, enforcing audio/mp3 for processing`);
+      
+      // Se o nome do arquivo não termina em .mp3, modificar o nome
+      let newFilename = fileToUpload.name;
+      if (!newFilename.toLowerCase().endsWith('.mp3')) {
+        newFilename = newFilename.replace(/\.[^/.]+$/, '') + '.mp3';
+      }
+      
+      // Criar um novo File com o tipo de conteúdo correto
       const arrayBuffer = await fileToUpload.arrayBuffer();
       fileToUpload = new File(
         [arrayBuffer], 
-        fileToUpload.name.replace(/\.[^/.]+$/, '') + '.mp3',
+        newFilename,
         { type: 'audio/mp3' }
       );
+      
+      console.log('File type enforced to MP3:', fileToUpload.name, fileToUpload.type);
     }
     
-    // Upload the audio file directly
+    // Upload the audio file directly - SEMPRE com extensão .mp3
     const filePath = `${recordingId}/${crypto.randomUUID()}.mp3`;
     const fileBlob = new Blob([await fileToUpload.arrayBuffer()], { type: 'audio/mp3' });
     

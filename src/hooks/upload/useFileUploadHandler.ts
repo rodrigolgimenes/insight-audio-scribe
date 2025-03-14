@@ -63,7 +63,7 @@ export const useFileUploadHandler = (
       const timestamp = Date.now();
       const sanitizedFileName = processedFile.name.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_');
       // Always ensure the file has .mp3 extension if it's been processed
-      const fileName = `${user.id}/${timestamp}_${sanitizedFileName}`;
+      const fileName = `${user.id}/${timestamp}_${sanitizedFileName.replace(/\.[^/.]+$/, '')}.mp3`;
       console.log('Sanitized file name:', fileName);
 
       // Create initial recording entry in database
@@ -115,7 +115,13 @@ async function uploadFileWithRetries(fileName: string, file: File): Promise<{ su
 
   while (!uploadSuccess && uploadAttempts < maxUploadAttempts) {
     try {
-      const { error } = await uploadFileToSupabase(fileName, file);
+      // Force MP3 content type regardless of the actual file type
+      const { error } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, file, {
+          contentType: 'audio/mp3',
+          upsert: true
+        });
       
       if (!error) {
         uploadSuccess = true;
