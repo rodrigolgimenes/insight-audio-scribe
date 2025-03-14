@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { getMediaDuration } from "@/utils/mediaUtils";
@@ -71,8 +70,7 @@ export const useFileUploadHandler = (
         user.id,
         processedFile.name || `Recording ${new Date().toLocaleString()}`,
         fileName,
-        durationInMs,
-        'file' // Set mode to 'file' to indicate this was an uploaded file
+        durationInMs
       );
       console.log('Recording entry created with ID:', recordingData.id);
 
