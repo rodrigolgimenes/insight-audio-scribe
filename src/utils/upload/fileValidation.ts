@@ -14,30 +14,34 @@ export const validateFile = (file?: File): ValidationResult => {
     };
   }
 
-  // Lista expandida de tipos MIME suportados
+  // Extended list of supported MIME types
   const allowedTypes = [
-    // Formatos de áudio
+    // Audio formats
     'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
     'audio/webm', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/x-m4a',
-    // Formatos de vídeo
+    'audio/mp4', 'audio/x-aiff', 'audio/basic',
+    // Video formats
     'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg', 
-    'video/x-matroska', 'video/3gpp', 'video/x-flv', 'application/x-mpegURL', 'video/MP2T'
+    'video/x-matroska', 'video/3gpp', 'video/x-flv', 'application/x-mpegURL', 'video/MP2T',
+    'video/ogg', 'video/avi', 'video/x-ms-wmv'
   ];
   
-  // Extensões de arquivo suportadas para verificação secundária
+  // Supported file extensions for secondary validation
   const supportedExtensions = [
-    '.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', 
-    '.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v'
+    // Audio extensions
+    '.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', '.aiff', '.au',
+    // Video extensions 
+    '.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v', '.webm', '.ogv'
   ];
   
-  // Verificação primária por MIME type
+  // Primary validation by MIME type
   const hasValidMimeType = allowedTypes.includes(file.type);
   
-  // Verificação secundária por extensão de arquivo (caso o MIME type não seja reconhecido corretamente)
+  // Secondary validation by file extension
   const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
   const hasValidExtension = supportedExtensions.includes(fileExtension);
   
-  // Log para depuração
+  // Log for debugging
   console.log(`File validation: Type=${file.type}, Extension=${fileExtension}, ValidMime=${hasValidMimeType}, ValidExt=${hasValidExtension}`);
   
   if (!hasValidMimeType && !hasValidExtension) {

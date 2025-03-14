@@ -41,32 +41,37 @@ export class AudioProcessor {
   }
 
   private async _initializeFFmpeg(): Promise<void> {
-    try {
-      // Create new FFmpeg instance
-      this.ffmpeg = new FFmpeg();
+    // Create new FFmpeg instance
+    this.ffmpeg = new FFmpeg();
+    
+    // Log FFmpeg loading progress
+    this.ffmpeg.on('log', ({ message }) => {
+      console.log('[FFmpeg]', message);
+    });
+    
+    this.ffmpeg.on('progress', ({ progress }) => {
+      this.loadingProgress = progress * 100;
+      console.log(`[FFmpeg] Loading: ${Math.round(this.loadingProgress)}%`);
+    });
+    
+    // Try multiple CDN sources to improve reliability
+    const sources = [
+      'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd',
+      'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/umd',
+      'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.4/umd',
+      'https://esm.sh/@ffmpeg/core@0.12.4/dist/umd',
+    ];
+    
+    let loaded = false;
+    let attempts = 0;
+    const maxAttempts = 3;
+    const loadingErrors = [];
+    
+    // Try each source with retry logic
+    while (!loaded && attempts < maxAttempts) {
+      attempts++;
+      console.log(`[AudioProcessor] Loading attempt ${attempts} of ${maxAttempts}`);
       
-      // Log FFmpeg loading progress
-      this.ffmpeg.on('log', ({ message }) => {
-        console.log('[FFmpeg]', message);
-      });
-      
-      this.ffmpeg.on('progress', ({ progress }) => {
-        this.loadingProgress = progress * 100;
-        console.log(`[FFmpeg] Loading: ${Math.round(this.loadingProgress)}%`);
-      });
-      
-      // Try multiple CDN sources to improve reliability
-      const sources = [
-        'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd',
-        'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/umd',
-        'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.4/umd',
-        'https://esm.sh/@ffmpeg/core@0.12.4/dist/umd',
-      ];
-      
-      let loaded = false;
-      let loadingErrors = [];
-      
-      // Try each source until one works
       for (const baseURL of sources) {
         if (loaded) break;
         
@@ -84,22 +89,26 @@ export class AudioProcessor {
         }
       }
       
-      if (!loaded) {
-        const errorDetails = loadingErrors.join('; ');
-        throw new Error(`Failed to load FFmpeg from all sources: ${errorDetails}`);
+      if (!loaded && attempts < maxAttempts) {
+        // Wait before next attempt with exponential backoff
+        const waitTime = 1000 * Math.pow(2, attempts - 1);
+        console.log(`[AudioProcessor] Waiting ${waitTime}ms before next attempt`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
       }
-      
-      // Test if FFmpeg is working by running a simple command
-      try {
-        await this.ffmpeg.exec(['-version']);
-        console.log('[AudioProcessor] FFmpeg is working correctly');
-      } catch (testError) {
-        console.warn('[AudioProcessor] FFmpeg test command failed:', testError);
-        // Continue anyway, as some commands might still work
-      }
-    } catch (error) {
-      console.error('[AudioProcessor] Error loading FFmpeg:', error);
-      throw error;
+    }
+    
+    if (!loaded) {
+      const errorDetails = loadingErrors.join('; ');
+      throw new Error(`Failed to load FFmpeg after ${attempts} attempts: ${errorDetails}`);
+    }
+    
+    // Test if FFmpeg is working by running a simple command
+    try {
+      await this.ffmpeg.exec(['-version']);
+      console.log('[AudioProcessor] FFmpeg is working correctly');
+    } catch (testError) {
+      console.warn('[AudioProcessor] FFmpeg test command failed:', testError);
+      // Continue anyway, as some commands might still work
     }
   }
 
@@ -118,9 +127,9 @@ export class AudioProcessor {
     const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
     const supportedExtensions = [
       // Audio
-      '.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', 
+      '.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', '.aiff', '.au',
       // Video
-      '.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v'
+      '.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v', '.webm', '.ogv'
     ];
     
     return supportedExtensions.includes(fileExtension);
@@ -161,12 +170,12 @@ export class AudioProcessor {
     try {
       // Determine if file is video or audio
       const isVideo = file.type.startsWith('video/') || 
-                     ['.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v'].some(
+                     ['.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v', '.webm', '.ogv'].some(
                        ext => file.name.toLowerCase().endsWith(ext)
                      );
       
       const isAudio = file.type.startsWith('audio/') || 
-                     ['.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac'].some(
+                     ['.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', '.aiff', '.au'].some(
                        ext => file.name.toLowerCase().endsWith(ext)
                      );
       
@@ -193,145 +202,140 @@ export class AudioProcessor {
       const inputBuffer = new Uint8Array(arrayBuffer);
       
       await this.ffmpeg.writeFile(inputFileName, inputBuffer);
-      console.log(`[AudioProcessor] File written to FFmpeg filesystem: ${inputFileName}`);
+      console.log(`[AudioProcessor] File written to FFmpeg filesystem: ${inputFileName} (${inputBuffer.length} bytes)`);
       
       // Video processing requires special handling
       if (isVideo) {
         console.log('[AudioProcessor] Processing video file to extract audio');
+        
+        // Get video information
         try {
-          // First, check the video file info
+          await this.ffmpeg.exec(['-i', inputFileName]);
+        } catch (infoError) {
+          // This is expected to throw an error but gives us file info in logs
+          console.log('[AudioProcessor] Retrieved video info (ignore error)');
+        }
+        
+        // Process the video file with retry and multiple methods
+        const maxAttempts = 3;
+        let processSuccess = false;
+        
+        for (let attempt = 0; attempt < maxAttempts && !processSuccess; attempt++) {
           try {
-            await this.ffmpeg.exec(['-i', inputFileName]);
-          } catch (infoError) {
-            // This is expected to throw an error but gives us the file info in console logs
-            console.log('[AudioProcessor] Retrieved video file info (ignore error)');
-          }
-          
-          // For MP4 files, try a more reliable approach first
-          if (fileExtension === '.mp4' || file.type === 'video/mp4') {
-            try {
-              // Use a simpler, more reliable command for MP4 files
+            console.log(`[AudioProcessor] Video processing attempt ${attempt + 1}/${maxAttempts}`);
+            
+            if (attempt === 0) {
+              // First attempt: Optimal settings for transcription
               await this.ffmpeg.exec([
                 '-i', inputFileName,
                 '-vn',                // Disable video
                 '-acodec', 'libmp3lame', // Use MP3 codec
-                '-ac', '1',           // Mono channel
-                '-ar', '16000',       // 16kHz sample rate
-                '-b:a', '32k',        // 32kbps bitrate
+                '-ac', '1',           // Mono channel (better for speech)
+                '-ar', '16000',       // 16kHz sample rate (optimal for speech)
+                '-b:a', '32k',        // 32kbps bitrate (sufficient for speech)
                 '-f', 'mp3',          // Force MP3 format
-                '-y',                 // Overwrite output files without asking
+                '-y',                 // Overwrite output files
                 outputFileName
               ]);
-              console.log('[AudioProcessor] MP4 processing successful with primary method');
-            } catch (mp4Error) {
-              console.warn('[AudioProcessor] Primary MP4 processing failed, trying fallback method:', mp4Error);
-              
-              // Fallback to simpler command
+            } else if (attempt === 1) {
+              // Second attempt: Simpler command with mono
               await this.ffmpeg.exec([
                 '-i', inputFileName,
                 '-vn',                // Disable video
-                '-ar', '16000',       // 16kHz sample rate
                 '-ac', '1',           // Mono channel
-                '-b:a', '32k',        // 32kbps bitrate
-                '-f', 'mp3',          // Force output format
-                '-y',                 // Overwrite output files without asking
+                '-f', 'mp3',          // Force MP3 format
+                '-y',                 // Overwrite output files
                 outputFileName
               ]);
-              console.log('[AudioProcessor] MP4 processing successful with fallback method');
+            } else {
+              // Last attempt: Ultra simple fallback
+              await this.ffmpeg.exec([
+                '-i', inputFileName,
+                '-vn',                // Disable video
+                '-f', 'mp3',          // Force MP3 format
+                '-y',                 // Overwrite output files
+                outputFileName
+              ]);
             }
-          } else {
-            // For other video formats
-            try {
-              await this.ffmpeg.exec([
-                '-i', inputFileName,
-                '-vn',                // Disable video
-                '-acodec', 'libmp3lame', // Use MP3 codec
-                '-ac', '1',           // Mono channel
-                '-ar', '16000',       // 16kHz sample rate
-                '-b:a', '32k',        // 32kbps bitrate
-                '-f', 'mp3',          // Force output format
-                '-y',                 // Overwrite output files without asking
-                outputFileName
-              ]);
-              console.log('[AudioProcessor] Video processing successful');
-            } catch (videoError) {
-              console.warn('[AudioProcessor] Video processing failed, trying simplest fallback:', videoError);
-              
-              // Ultra simple fallback
-              await this.ffmpeg.exec([
-                '-i', inputFileName,
-                '-vn',                // Disable video
-                '-f', 'mp3',          // Force MP3 format
-                '-y',                 // Overwrite output files without asking
-                outputFileName
-              ]);
-              console.log('[AudioProcessor] Video processing successful with ultra fallback');
+            
+            // Check if the output file exists and has content
+            const outputData = await this.ffmpeg.readFile(outputFileName);
+            if (outputData instanceof Uint8Array && outputData.length > 0) {
+              console.log(`[AudioProcessor] Video processing successful on attempt ${attempt + 1}`);
+              processSuccess = true;
+            } else {
+              throw new Error("Output file is empty or invalid");
+            }
+          } catch (processingError) {
+            console.warn(`[AudioProcessor] Video processing attempt ${attempt + 1} failed:`, processingError);
+            
+            if (attempt === maxAttempts - 1) {
+              throw new Error(`All video processing attempts failed: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
             }
           }
-        } catch (videoProcessError) {
-          console.error('[AudioProcessor] All video processing methods failed:', videoProcessError);
-          throw new Error(`Failed to extract audio from video: ${videoProcessError instanceof Error ? videoProcessError.message : String(videoProcessError)}`);
         }
       } else {
-        // Audio file processing
+        // Audio file processing with retry logic
         console.log('[AudioProcessor] Processing audio file');
-        try {
-          await this.ffmpeg.exec([
-            '-i', inputFileName,
-            '-acodec', 'libmp3lame', // Use MP3 codec
-            '-ac', '1',           // Mono channel
-            '-ar', '16000',       // 16kHz sample rate
-            '-b:a', '32k',        // 32kbps bitrate
-            '-f', 'mp3',          // Force MP3 format
-            '-y',                 // Overwrite output files without asking
-            outputFileName
-          ]);
-          console.log('[AudioProcessor] Audio processing successful');
-        } catch (audioError) {
-          console.warn('[AudioProcessor] Audio processing failed, trying fallback:', audioError);
-          
-          // Try simpler command
-          await this.ffmpeg.exec([
-            '-i', inputFileName,
-            '-f', 'mp3',          // Force MP3 format
-            '-y',                 // Overwrite output files without asking
-            outputFileName
-          ]);
-          console.log('[AudioProcessor] Audio processing successful with fallback');
+        const maxAttempts = 2;
+        let processSuccess = false;
+        
+        for (let attempt = 0; attempt < maxAttempts && !processSuccess; attempt++) {
+          try {
+            console.log(`[AudioProcessor] Audio processing attempt ${attempt + 1}/${maxAttempts}`);
+            
+            if (attempt === 0) {
+              // First attempt: Optimal settings for transcription
+              await this.ffmpeg.exec([
+                '-i', inputFileName,
+                '-acodec', 'libmp3lame', // Use MP3 codec
+                '-ac', '1',           // Mono channel
+                '-ar', '16000',       // 16kHz sample rate
+                '-b:a', '32k',        // 32kbps bitrate
+                '-f', 'mp3',          // Force MP3 format
+                '-y',                 // Overwrite output files
+                outputFileName
+              ]);
+            } else {
+              // Second attempt: Simpler command
+              await this.ffmpeg.exec([
+                '-i', inputFileName,
+                '-f', 'mp3',          // Force MP3 format
+                '-y',                 // Overwrite output files
+                outputFileName
+              ]);
+            }
+            
+            // Check if the output file exists and has content
+            const outputData = await this.ffmpeg.readFile(outputFileName);
+            if (outputData instanceof Uint8Array && outputData.length > 0) {
+              console.log(`[AudioProcessor] Audio processing successful on attempt ${attempt + 1}`);
+              processSuccess = true;
+            } else {
+              throw new Error("Output file is empty or invalid");
+            }
+          } catch (processingError) {
+            console.warn(`[AudioProcessor] Audio processing attempt ${attempt + 1} failed:`, processingError);
+            
+            if (attempt === maxAttempts - 1) {
+              throw new Error(`All audio processing attempts failed: ${processingError instanceof Error ? processingError.message : String(processingError)}`);
+            }
+          }
         }
-      }
-      
-      // Verify the output file exists
-      const files = await this.ffmpeg.listDir('./');
-      const outputExists = files.some(file => file.name === outputFileName);
-      
-      if (!outputExists) {
-        console.error('[AudioProcessor] Output file not created by FFmpeg');
-        throw new Error('FFmpeg failed to create output file');
       }
       
       // Read the output file
       const outputData = await this.ffmpeg.readFile(outputFileName);
       
-      // Proper type checking to handle possible return types from FFmpeg readFile
-      if (!outputData) {
-        throw new Error('Failed to read converted audio file');
-      }
-      
-      let outputSize = 0;
-      
-      // Check the type of outputData and handle accordingly
-      if (outputData instanceof Uint8Array) {
-        outputSize = outputData.byteLength;
-      } else if (typeof outputData === 'string') {
-        outputSize = outputData.length;
-      } else {
+      // Type checking for output data
+      if (!(outputData instanceof Uint8Array)) {
         throw new Error('Unexpected output type from FFmpeg');
       }
       
+      const outputSize = outputData.byteLength;
+      
       if (outputSize === 0) {
-        console.error('[AudioProcessor] Output file is empty');
-        throw new Error('FFmpeg produced an empty output file');
+        throw new Error('Processed file is empty. Conversion failed.');
       }
       
       console.log(`[AudioProcessor] Output file read, size: ${outputSize} bytes`);
@@ -356,20 +360,23 @@ export class AudioProcessor {
       
       console.log(`[AudioProcessor] File processed successfully: ${outputFile.name} (${outputFile.size} bytes)`);
       
-      // Verify the output file has content
+      // Final validation
       if (outputFile.size === 0) {
-        throw new Error('Processed file is empty. Conversion failed.');
+        throw new Error('Processed file is empty after conversion.');
       }
       
       return outputFile;
     } catch (error) {
       console.error('[AudioProcessor] Error processing file:', error);
-      // Log stack trace for better debugging
-      if (error instanceof Error && error.stack) {
-        console.error('[AudioProcessor] Stack trace:', error.stack);
+      
+      // Only fall back to original file if it's audio, not video
+      if (file.type.startsWith('audio/')) {
+        console.warn('[AudioProcessor] Falling back to original audio file');
+        return file;
       }
       
-      throw new Error(`Failed to process audio: ${error instanceof Error ? error.message : String(error)}`);
+      // For video files or other errors, throw the error
+      throw error;
     }
   }
   
