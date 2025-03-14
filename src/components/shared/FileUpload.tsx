@@ -36,6 +36,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const { toast } = useToast();
   const navigate = useNavigate();
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
 
   const handleClick = () => {
     if (inputRef.current) {
@@ -47,8 +48,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     if (!e.target.files?.length) return;
 
     const file = e.target.files[0];
+    setProcessingError(null);
     
-    // Verificar se é um arquivo de vídeo para mostrar mensagem de processamento
+    // Show appropriate message based on file type
     if (file.type.startsWith('video/')) {
       setProcessingState('processing');
       toast({
@@ -66,18 +68,67 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     try {
-      // Verificação adicional se o arquivo é um vídeo ou áudio que precisa de conversão
+      let processedFile = file;
+      
+      // Process video/audio files if needed
       if (audioProcessor.needsProcessing(file)) {
         console.log("File needs processing before upload:", file.type);
+        try {
+          processedFile = await audioProcessor.processFile(file);
+          console.log("File processed successfully:", 
+            processedFile.type, processedFile.size, "bytes");
+            
+          // Verify the processed file actually has MP3 mime type
+          if (!processedFile.type.includes("mp3") && !processedFile.type.includes("mpeg")) {
+            console.warn("Processed file doesn't have MP3 mime type:", processedFile.type);
+            // Force the correct MIME type
+            const arrayBuffer = await processedFile.arrayBuffer();
+            processedFile = new File(
+              [arrayBuffer], 
+              processedFile.name, 
+              { type: 'audio/mp3' }
+            );
+            console.log("File MIME type forced to audio/mp3");
+          }
+          
+          // Verify file has content
+          if (processedFile.size === 0) {
+            throw new Error("Processed file is empty (0 bytes)");
+          }
+          
+          console.log("Proceeding with processed file:", 
+            processedFile.name, processedFile.type, processedFile.size);
+        } catch (processingError) {
+          console.error("Error processing file:", processingError);
+          setProcessingError("Could not process file for optimal audio. Using original file instead.");
+          
+          toast({
+            title: "Processing Warning",
+            description: "Could not process file for optimal audio. Using original file instead.",
+            variant: "warning",
+          });
+          
+          // Force mime type on original file if it's being used as fallback
+          const arrayBuffer = await file.arrayBuffer();
+          processedFile = new File(
+            [arrayBuffer], 
+            file.name.replace(/\.[^/.]+$/, '') + '.mp3', 
+            { type: 'audio/mp3' }
+          );
+        }
       }
 
-      const noteId = await handleFileUpload(e, initiateTranscription);
+      setProcessingState('uploading');
+      
+      const noteId = await handleFileUpload(e, initiateTranscription, processedFile);
       setProcessingState('idle');
       
       if (noteId) {
         toast({
           title: "Upload Complete",
-          description: "Your file has been uploaded and is being processed.",
+          description: processingError ? 
+            "Your file has been uploaded with the original format and is being processed." :
+            "Your file has been uploaded and is being processed.",
         });
         
         if (onUploadComplete) {
@@ -89,6 +140,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     } catch (error) {
       setProcessingState('idle');
       console.error("File upload error:", error);
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -126,6 +182,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         )}
         {getButtonText()}
       </Button>
+      {processingError && (
+        <p className="mt-2 text-sm text-yellow-600">{processingError}</p>
+      )}
     </div>
   );
 };

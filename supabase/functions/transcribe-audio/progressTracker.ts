@@ -42,7 +42,7 @@ export class ProgressTracker {
       const updateData: any = {
         status,
         processing_progress: Math.max(0, Math.min(100, Math.round(progress))),
-        updated_at: new Date().toISOString() // Adicionar timestamp atualizado
+        updated_at: new Date().toISOString()
       };
       
       if (errorMessage) {
@@ -61,10 +61,10 @@ export class ProgressTracker {
       } else {
         console.log(`[ProgressTracker] Successfully updated note status to ${status} with progress ${progress}%`);
         
-        // Verificar se marcamos como concluído e atualizar também a gravação, se necessário
+        // Check if we're marking as completed and update the recording if needed
         if (status === 'completed' && progress >= 95) {
           try {
-            // Obter o ID da gravação
+            // Get the recording ID
             const { data: noteData } = await this.supabase
               .from('notes')
               .select('recording_id')
@@ -74,6 +74,7 @@ export class ProgressTracker {
             if (noteData?.recording_id) {
               console.log(`[ProgressTracker] Updating recording ${noteData.recording_id} to completed`);
               
+              // Also update timestamps to ensure they're current
               await this.supabase
                 .from('recordings')
                 .update({ 
@@ -81,6 +82,15 @@ export class ProgressTracker {
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', noteData.recording_id);
+                
+              // Double-check the update was successful
+              const { data: updatedRecording } = await this.supabase
+                .from('recordings')
+                .select('status')
+                .eq('id', noteData.recording_id)
+                .single();
+                
+              console.log(`[ProgressTracker] Recording status after update: ${updatedRecording?.status}`);
             }
           } catch (recordingError) {
             console.error('[ProgressTracker] Error updating recording:', recordingError);
@@ -130,6 +140,34 @@ export class ProgressTracker {
   // Mark status as completed - 100% progress
   async markCompleted(): Promise<void> {
     await this.updateStatus('completed', 100);
+    
+    // Double-check that the status was actually updated to completed
+    try {
+      // Wait a short delay to ensure the database has had time to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const { data: noteStatus } = await this.supabase
+        .from('notes')
+        .select('status, processing_progress')
+        .eq('id', this.noteId)
+        .single();
+        
+      if (noteStatus?.status !== 'completed' || noteStatus?.processing_progress !== 100) {
+        console.warn('[ProgressTracker] Note not properly marked as completed. Retrying update.');
+        
+        // Force update to completed
+        await this.supabase
+          .from('notes')
+          .update({
+            status: 'completed',
+            processing_progress: 100,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.noteId);
+      }
+    } catch (verifyError) {
+      console.error('[ProgressTracker] Error verifying completion status:', verifyError);
+    }
   }
   
   // Mark status as error - 0% progress

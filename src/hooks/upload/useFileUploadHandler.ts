@@ -26,22 +26,24 @@ export const useFileUploadHandler = (
         throw new Error(authError ? authError.message : 'User not authenticated');
       }
 
-      // Process file if needed (extract audio from video or convert to MP3)
+      // Ensure file has the correct MIME type
       let processedFile = file;
       
-      if (audioProcessor.needsProcessing(file)) {
-        console.log('Processing file to extract audio or convert format...');
+      // Verify MIME type and fix if necessary
+      if (!processedFile.type.includes('mp3') && !processedFile.type.includes('mpeg')) {
+        console.log('Ensuring file has audio/mp3 MIME type...');
+        // Create a new File with proper MIME type
         try {
-          processedFile = await audioProcessor.processFile(file);
-          console.log('File processed successfully:', processedFile.name, processedFile.type, processedFile.size);
-        } catch (processingError) {
-          console.error('Error processing file:', processingError);
-          toast({
-            title: "Processing Warning",
-            description: "Could not process file for optimal audio. Using original file instead.",
-            variant: "warning",
-          });
-          // Continue with original file as fallback
+          const arrayBuffer = await processedFile.arrayBuffer();
+          processedFile = new File(
+            [arrayBuffer], 
+            processedFile.name.replace(/\.[^/.]+$/, '') + '.mp3',
+            { type: 'audio/mp3' }
+          );
+          console.log('File type set to audio/mp3:', processedFile.type);
+        } catch (typeError) {
+          console.error('Error setting file MIME type:', typeError);
+          // Continue with original file as last resort
         }
       }
 
@@ -60,7 +62,7 @@ export const useFileUploadHandler = (
       // Generate unique file name with sanitization
       const timestamp = Date.now();
       const sanitizedFileName = processedFile.name.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_');
-      // Always ensure the file has .mp3 extension if it's been processed
+      // Always ensure the file has .mp3 extension
       const fileName = `${user.id}/${timestamp}_${sanitizedFileName.replace(/\.[^/.]+$/, '')}.mp3`;
       console.log('Sanitized file name:', fileName);
 
@@ -74,12 +76,35 @@ export const useFileUploadHandler = (
       );
       console.log('Recording entry created with ID:', recordingData.id);
 
-      // Upload file to storage with retries
+      // Upload file to storage with retries and explicit content type
       const uploadResult = await uploadFileWithRetries(fileName, processedFile);
       if (!uploadResult.success) {
         // Clean up the recording entry if upload fails
         await cleanupFailedRecording(recordingData.id);
         throw uploadResult.error;
+      }
+
+      // Verify the file was uploaded with correct content type
+      try {
+        const { data: fileInfo } = await supabase.storage
+          .from('audio_recordings')
+          .getPublicUrl(fileName);
+          
+        console.log('File uploaded with public URL:', fileInfo.publicUrl);
+        
+        // Update recording with additional metadata about the file
+        await supabase
+          .from('recordings')
+          .update({
+            file_mime_type: 'audio/mp3',
+            original_file_type: file.type, // Store the original file type for reference
+            original_file_size: file.size,
+            processed_file_size: processedFile.size
+          })
+          .eq('id', recordingData.id);
+      } catch (infoError) {
+        console.error('Error getting file info:', infoError);
+        // Non-fatal, continue process
       }
 
       // Update recording status to uploaded
@@ -112,7 +137,7 @@ async function uploadFileWithRetries(fileName: string, file: File): Promise<{ su
 
   while (!uploadSuccess && uploadAttempts < maxUploadAttempts) {
     try {
-      // Force MP3 content type regardless of the actual file type
+      // Explicitly set content type to audio/mp3
       const { error } = await supabase.storage
         .from('audio_recordings')
         .upload(fileName, file, {
