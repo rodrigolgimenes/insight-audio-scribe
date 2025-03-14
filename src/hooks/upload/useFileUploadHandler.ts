@@ -77,13 +77,19 @@ export const useFileUploadHandler = (
       );
       console.log('Recording entry created with ID:', recordingData.id);
       
-      // Store original file type as metadata
-      await supabase
-        .from('recordings')
-        .update({
-          original_file_type: originalFileType // Store the original file type as metadata
-        })
-        .eq('id', recordingData.id);
+      // Store the original file type in the title or another existing field
+      // Since 'original_file_type' is not a valid field in the schema
+      if (originalFileType !== 'audio/mp3' && originalFileType !== 'audio/mpeg') {
+        await supabase
+          .from('recordings')
+          .update({
+            // Store in title field or add a comment to processed_content
+            title: `${recordingData.title} (Original: ${originalFileType})`,
+            // Alternatively, you could append to processed_content
+            processed_content: `Original file type: ${originalFileType}`
+          })
+          .eq('id', recordingData.id);
+      }
 
       // Upload file to storage with retries and explicit content type
       const uploadResult = await uploadFileWithRetries(fileName, processedFile);
