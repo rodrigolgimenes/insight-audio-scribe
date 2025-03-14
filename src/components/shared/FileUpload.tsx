@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { supabase } from "@/integrations/supabase/client";
+import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string, recordingId: string) => void;
@@ -67,13 +68,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       return;
     }
     
+    // Determine file type
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const fileType = isVideo ? 'video' : isAudio ? 'audio' : 'file';
+    
     // Show appropriate message based on file type
-    if (file.type.startsWith('video/')) {
+    if (isVideo) {
       toast({
         title: "Processing Video",
-        description: "Your video will be uploaded and processed by our server. This may take a moment...",
+        description: "Your video will be uploaded and processed for audio extraction. This may take a moment...",
       });
-    } else if (file.type.startsWith('audio/')) {
+    } else if (isAudio) {
       toast({
         title: "Processing Audio",
         description: "Your audio will be uploaded and processed. This may take a moment...",
@@ -97,36 +103,47 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         setCurrentRecordingId(recordingId);
         
         // Create initial log entry
-        if (file.type.startsWith('video/')) {
+        await supabase
+          .from('processing_logs')
+          .insert({
+            recording_id: recordingId,
+            note_id: noteId,
+            stage: 'file_uploaded',
+            message: `${fileType.charAt(0).toUpperCase() + fileType.slice(1)} file uploaded successfully`,
+            details: { 
+              fileName: file.name, 
+              fileType: file.type, 
+              fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB`,
+              needsAudioExtraction: isVideo
+            },
+            status: 'success'
+          });
+          
+        // If it's a video file, add a log about needing audio extraction
+        if (isVideo) {
           await supabase
             .from('processing_logs')
             .insert({
               recording_id: recordingId,
               note_id: noteId,
-              stage: 'file_uploaded',
-              message: 'Video file uploaded successfully',
+              stage: 'extraction_started',
+              message: 'Video detected, audio extraction required',
               details: { 
                 fileName: file.name, 
-                fileType: file.type, 
-                fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB` 
+                fileType: file.type
               },
-              status: 'success'
+              status: 'info'
             });
-        } else {
+            
+          // Update the recording to indicate it needs audio extraction
           await supabase
-            .from('processing_logs')
-            .insert({
-              recording_id: recordingId,
-              note_id: noteId,
-              stage: 'file_uploaded',
-              message: 'Audio file uploaded successfully',
-              details: { 
-                fileName: file.name, 
-                fileType: file.type, 
-                fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB` 
-              },
-              status: 'success'
-            });
+            .from('recordings')
+            .update({ 
+              needs_audio_extraction: true,
+              original_file_type: file.type,
+              original_file_path: file.name
+            })
+            .eq('id', recordingId);
         }
       }
       

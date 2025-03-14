@@ -9,12 +9,13 @@ import { Check, AlertCircle, Clock, Info, FileAudio2, FileVideo2 } from "lucide-
 interface ProcessingLog {
   id: string;
   recording_id: string;
-  note_id: string;
+  note_id: string | null;
   timestamp: string;
   stage: string;
   message: string;
   status: 'info' | 'warning' | 'error' | 'success';
   details?: any;
+  visible_to_user?: boolean;
 }
 
 interface ProcessingLogsProps {
@@ -32,6 +33,7 @@ const stageIcons: Record<string, JSX.Element> = {
   retrieve_audio: <FileAudio2 className="h-4 w-4" />,
   transcription_start: <Clock className="h-4 w-4" />,
   extraction_error: <AlertCircle className="h-4 w-4" />,
+  file_uploaded: <FileVideo2 className="h-4 w-4" />,
 };
 
 const statusIcons: Record<string, JSX.Element> = {
@@ -51,6 +53,7 @@ export const ProcessingLogs = ({ recordingId, noteId, maxHeight = "300px" }: Pro
     if (logs.length === 0) return 0;
     
     const stages = [
+      'file_uploaded',
       'extraction_started',
       'retrieve_file',
       'download_file',
@@ -76,21 +79,27 @@ export const ProcessingLogs = ({ recordingId, noteId, maxHeight = "300px" }: Pro
   // Fetch existing logs on load
   useEffect(() => {
     const fetchLogs = async () => {
-      if (!recordingId) return;
+      if (!recordingId && !noteId) return;
       
       setLoading(true);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('processing_logs')
-        .select('*')
-        .eq('recording_id', recordingId)
-        .order('timestamp', { ascending: true });
+        .select('*');
+        
+      if (recordingId) {
+        query = query.eq('recording_id', recordingId);
+      } else if (noteId) {
+        query = query.eq('note_id', noteId);
+      }
+      
+      const { data, error } = await query.order('timestamp', { ascending: true });
       
       if (error) {
         console.error('Error fetching processing logs:', error);
       } else if (data) {
-        setLogs(data);
-        const calculatedProgress = calculateProgress(data);
+        setLogs(data as ProcessingLog[]);
+        const calculatedProgress = calculateProgress(data as ProcessingLog[]);
         setProgress(calculatedProgress >= 0 ? calculatedProgress : 0);
       }
       
@@ -98,11 +107,21 @@ export const ProcessingLogs = ({ recordingId, noteId, maxHeight = "300px" }: Pro
     };
     
     fetchLogs();
-  }, [recordingId]);
+  }, [recordingId, noteId]);
 
   // Subscribe to real-time updates
   useEffect(() => {
-    if (!recordingId) return;
+    if (!recordingId && !noteId) return;
+    
+    // Define the filter based on what's available
+    let filter = '';
+    if (recordingId) {
+      filter = `recording_id=eq.${recordingId}`;
+    } else if (noteId) {
+      filter = `note_id=eq.${noteId}`;
+    } else {
+      return;
+    }
     
     // Subscribe to changes
     const channel = supabase
@@ -113,11 +132,14 @@ export const ProcessingLogs = ({ recordingId, noteId, maxHeight = "300px" }: Pro
           event: 'INSERT',
           schema: 'public',
           table: 'processing_logs',
-          filter: `recording_id=eq.${recordingId}`
+          filter
         },
         (payload) => {
+          const newLog = payload.new as ProcessingLog;
+          console.log('New processing log received:', newLog);
+          
           setLogs(prevLogs => {
-            const newLogs = [...prevLogs, payload.new as ProcessingLog];
+            const newLogs = [...prevLogs, newLog];
             const calculatedProgress = calculateProgress(newLogs);
             setProgress(calculatedProgress >= 0 ? calculatedProgress : 0);
             return newLogs;
@@ -126,12 +148,15 @@ export const ProcessingLogs = ({ recordingId, noteId, maxHeight = "300px" }: Pro
       )
       .subscribe();
     
+    console.log(`Subscribed to processing logs changes with filter: ${filter}`);
+    
     return () => {
+      console.log('Unsubscribing from processing logs channel');
       supabase.removeChannel(channel);
     };
-  }, [recordingId]);
+  }, [recordingId, noteId]);
 
-  if (!recordingId || (logs.length === 0 && !loading)) {
+  if ((!recordingId && !noteId) || (logs.length === 0 && !loading)) {
     return null;
   }
 
@@ -167,7 +192,7 @@ export const ProcessingLogs = ({ recordingId, noteId, maxHeight = "300px" }: Pro
             <div className="animate-spin h-6 w-6 border-2 border-blue-500 rounded-full border-t-transparent"></div>
           </div>
         ) : (
-          <ScrollArea className={`h-[${maxHeight}]`}>
+          <ScrollArea className="h-[200px]">
             <div className="space-y-2">
               {logs.map((log) => (
                 <div 

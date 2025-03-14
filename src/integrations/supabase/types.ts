@@ -401,6 +401,64 @@ export type Database = {
           },
         ]
       }
+      processing_logs: {
+        Row: {
+          details: Json | null
+          id: string
+          message: string
+          note_id: string | null
+          recording_id: string
+          stage: string
+          status: string | null
+          timestamp: string
+          visible_to_user: boolean | null
+        }
+        Insert: {
+          details?: Json | null
+          id?: string
+          message: string
+          note_id?: string | null
+          recording_id: string
+          stage: string
+          status?: string | null
+          timestamp?: string
+          visible_to_user?: boolean | null
+        }
+        Update: {
+          details?: Json | null
+          id?: string
+          message?: string
+          note_id?: string | null
+          recording_id?: string
+          stage?: string
+          status?: string | null
+          timestamp?: string
+          visible_to_user?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processing_logs_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processing_logs_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processing_logs_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean | null
@@ -472,8 +530,12 @@ export type Database = {
           audio_url: string | null
           created_at: string
           duration: number | null
+          error_message: string | null
           file_path: string
           id: string
+          needs_audio_extraction: boolean | null
+          original_file_path: string | null
+          original_file_type: string | null
           processed_at: string | null
           processed_audio_url: string | null
           processed_content: string | null
@@ -487,8 +549,12 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           duration?: number | null
+          error_message?: string | null
           file_path: string
           id?: string
+          needs_audio_extraction?: boolean | null
+          original_file_path?: string | null
+          original_file_type?: string | null
           processed_at?: string | null
           processed_audio_url?: string | null
           processed_content?: string | null
@@ -502,8 +568,12 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           duration?: number | null
+          error_message?: string | null
           file_path?: string
           id?: string
+          needs_audio_extraction?: boolean | null
+          original_file_path?: string | null
+          original_file_type?: string | null
           processed_at?: string | null
           processed_audio_url?: string | null
           processed_content?: string | null
