@@ -105,7 +105,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           toast({
             title: "Processing Warning",
             description: "Could not process file for optimal audio. Using original file instead.",
-            variant: "warning",
+            // Fix the invalid variant "warning" to use "destructive" instead
+            variant: "destructive",
           });
           
           // Force mime type on original file if it's being used as fallback

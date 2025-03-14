@@ -96,10 +96,9 @@ export const useFileUploadHandler = (
         await supabase
           .from('recordings')
           .update({
-            file_mime_type: 'audio/mp3',
-            original_file_type: file.type, // Store the original file type for reference
-            original_file_size: file.size,
-            processed_file_size: processedFile.size
+            status: 'uploaded',
+            original_file_type: file.type, // Store the original file type as metadata in status field
+            updated_at: new Date().toISOString()
           })
           .eq('id', recordingData.id);
       } catch (infoError) {

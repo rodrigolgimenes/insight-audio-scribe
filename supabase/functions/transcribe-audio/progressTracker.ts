@@ -91,6 +91,32 @@ export class ProgressTracker {
                 .single();
                 
               console.log(`[ProgressTracker] Recording status after update: ${updatedRecording?.status}`);
+              
+              // Verify note status again to ensure it's really completed
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Check note status
+              const { data: updatedNote } = await this.supabase
+                .from('notes')
+                .select('status, processing_progress')
+                .eq('id', this.noteId)
+                .single();
+                
+              console.log(`[ProgressTracker] Note status after update: ${updatedNote?.status}, progress: ${updatedNote?.processing_progress}%`);
+              
+              // If not properly marked as completed, try one more time with direct update
+              if (updatedNote?.status !== 'completed' || updatedNote?.processing_progress !== 100) {
+                console.log('[ProgressTracker] Note not properly marked as completed, trying direct update');
+                
+                await this.supabase
+                  .from('notes')
+                  .update({
+                    status: 'completed',
+                    processing_progress: 100,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', this.noteId);
+              }
             }
           } catch (recordingError) {
             console.error('[ProgressTracker] Error updating recording:', recordingError);
@@ -144,7 +170,7 @@ export class ProgressTracker {
     // Double-check that the status was actually updated to completed
     try {
       // Wait a short delay to ensure the database has had time to update
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const { data: noteStatus } = await this.supabase
         .from('notes')
@@ -164,6 +190,23 @@ export class ProgressTracker {
             updated_at: new Date().toISOString()
           })
           .eq('id', this.noteId);
+          
+        // Also update the recording status for consistency
+        const { data: noteData } = await this.supabase
+          .from('notes')
+          .select('recording_id')
+          .eq('id', this.noteId)
+          .single();
+          
+        if (noteData?.recording_id) {
+          await this.supabase
+            .from('recordings')
+            .update({ 
+              status: 'completed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', noteData.recording_id);
+        }
       }
     } catch (verifyError) {
       console.error('[ProgressTracker] Error verifying completion status:', verifyError);

@@ -13,11 +13,8 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
     // Ensure the blob has the correct MIME type
     let audioBlob = audioData;
     
-    // Check if the blob might not be an audio format
-    if (!audioBlob.type.includes('audio/') || 
-        audioBlob.type.includes('video/') || 
-        audioBlob.type === '') {
-      
+    // Always ensure the blob is MP3 format to avoid issues with the API
+    if (!audioBlob.type.includes('audio/mp3') && !audioBlob.type.includes('audio/mpeg')) {
       console.log(`[transcribe-audio] Converting blob with type: ${audioBlob.type} to audio/mp3`);
       
       // Create a new blob with the correct MIME type

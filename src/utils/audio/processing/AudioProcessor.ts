@@ -160,12 +160,14 @@ export class AudioProcessor {
       // Read the output file
       const outputData = await this.ffmpeg.readFile(outputFileName);
       
-      if (!outputData || outputData.byteLength === 0) {
+      // Fix the byteLength check for both Uint8Array and string types
+      if (!outputData || (outputData instanceof Uint8Array ? outputData.byteLength === 0 : outputData.length === 0)) {
         console.error('[AudioProcessor] Output file is empty');
         throw new Error('FFmpeg produced an empty output file');
       }
       
-      console.log(`[AudioProcessor] Output file read, size: ${outputData.byteLength} bytes`);
+      // Fix the size logging for both types
+      console.log(`[AudioProcessor] Output file read, size: ${outputData instanceof Uint8Array ? outputData.byteLength : outputData.length} bytes`);
       
       // Clean up temporary files
       try {
