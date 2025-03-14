@@ -33,10 +33,10 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
     console.error('[process-recording] Error checking file size:', fileError);
   }
   
-  // Verificar o tamanho real do arquivo
+  // Check the real file size
   let realFileSize = 0;
   try {
-    // Tente obter o tamanho real do arquivo fazendo uma solicitação HEAD
+    // Try to get the real file size using a HEAD request
     const { data: fileInfo } = await supabase.storage
       .from('audio_recordings')
       .getPublicUrl(recording.file_path || '');
@@ -53,16 +53,16 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
     console.error('[process-recording] Error getting file size from HEAD request:', headError);
   }
   
-  // Usar o tamanho real do arquivo se disponível, caso contrário, usar a verificação padrão
+  // Use the real file size if available, otherwise use the default check
   let fileSizeInfo;
   if (realFileSize > 0) {
-    // Criar um objeto fileData simulado com o tamanho real
+    // Create a simulated fileData object with the real size
     const simulatedFileData = [{
       metadata: { size: realFileSize }
     }];
     fileSizeInfo = checkFileSize(simulatedFileData);
   } else {
-    // Usar a verificação padrão
+    // Use the default check
     fileSizeInfo = checkFileSize(fileData || []);
   }
   
@@ -77,10 +77,10 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
   const note = await createOrGetNote(supabase, recordingId, recording, noteId);
   console.log('[process-recording] Note:', note);
 
-  // Para arquivos maiores, use uma estratégia diferente
-  // Se o tamanho for maior que 20MB (~20 minutos de áudio) ou se detectamos como arquivo grande,
-  // vamos usar o processo específico para arquivos grandes
-  const functionToInvoke = isLargeFile || realFileSize > 20 * 1024 * 1024 ? 
+  // For larger files, use a different strategy
+  // If the size is larger than 15MB (~15 minutes of audio) or if we detect it as a large file,
+  // we'll use the specific process for large files
+  const functionToInvoke = isLargeFile || realFileSize > 15 * 1024 * 1024 ? 
     'process-large-recording' : 
     'transcribe-audio';
 

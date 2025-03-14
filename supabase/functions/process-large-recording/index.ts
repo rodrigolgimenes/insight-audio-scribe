@@ -2,8 +2,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { FFmpeg } from 'https://esm.sh/@ffmpeg/ffmpeg@0.12.9';
-import { splitAudioIntoChunks } from '../transcribe-upload/audioProcessing.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,17 +55,25 @@ serve(async (req) => {
     }
 
     console.log(`Processing file: ${recording.file_path}`);
-
-    // Download the audio file
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('audio_recordings')
-      .download(recording.file_path);
-
-    if (downloadError || !fileData) {
-      throw new Error(`Failed to download file: ${downloadError?.message || 'File not found'}`);
+    
+    // Get file size using getPublicUrl and HEAD request
+    let fileSize = 0;
+    try {
+      const { data: fileInfo } = await supabase.storage
+        .from('audio_recordings')
+        .getPublicUrl(recording.file_path);
+        
+      if (fileInfo?.publicUrl) {
+        const response = await fetch(fileInfo.publicUrl, { method: 'HEAD' });
+        const contentLength = response.headers.get('content-length');
+        if (contentLength) {
+          fileSize = parseInt(contentLength, 10);
+          console.log(`File size from HEAD request: ${fileSize} bytes (${Math.round(fileSize/1024/1024*100)/100} MB)`);
+        }
+      }
+    } catch (headError) {
+      console.error('Error getting file size from HEAD request:', headError);
     }
-
-    console.log(`File downloaded, size: ${fileData.size} bytes (${Math.round(fileData.size/1024/1024*100)/100} MB)`);
 
     // Update progress
     await supabase
@@ -78,121 +84,67 @@ serve(async (req) => {
       })
       .eq('id', noteId);
 
-    // Se o arquivo for maior que ~20MB, vamos sempre usar o processamento em chunks
-    // para evitar problemas com a API da OpenAI
-    const shouldUseChunking = fileData.size > 20 * 1024 * 1024;
-    console.log(`Should use chunking based on file size: ${shouldUseChunking ? 'Yes' : 'No'}`);
+    // Define chunk duration based on file size
+    // For extremely large files, use smaller chunks
+    const chunkDurationMs = isExtremelyLargeFile ? 10 * 60 * 1000 : 15 * 60 * 1000; // 10 or 15 minutes
+    console.log(`Using chunk duration of ${chunkDurationMs/1000/60} minutes`);
     
-    // Para arquivos grandes ou extremamente grandes, sempre usamos chunking
-    if (shouldUseChunking || isExtremelyLargeFile) {
-      console.log('Processing large file with chunking');
+    // Calculate total duration of the audio from the recording
+    const totalDurationMs = recording.duration || (isExtremelyLargeFile ? 120 * 60 * 1000 : 60 * 60 * 1000);
+    
+    // Calculate number of chunks based on audio duration
+    const estimatedChunks = Math.ceil(totalDurationMs / chunkDurationMs);
+    console.log(`Estimated total chunks: ${estimatedChunks} based on duration ${totalDurationMs}ms`);
+    
+    // Update note with total chunks
+    await supabase
+      .from('notes')
+      .update({ 
+        total_chunks: estimatedChunks,
+        processing_progress: 30,
+        status: 'processing' 
+      })
+      .eq('id', noteId);
+    
+    // Process each chunk with time-based offsets
+    for (let i = 0; i < estimatedChunks; i++) {
+      console.log(`Processing chunk ${i + 1} of ${estimatedChunks}`);
       
-      // Initialize FFmpeg
-      const ffmpeg = new FFmpeg();
-      await ffmpeg.load();
+      const startTime = i * chunkDurationMs;
+      const endTime = Math.min((i + 1) * chunkDurationMs, totalDurationMs);
       
-      // Convert the blob to Uint8Array
-      const arrayBuffer = await fileData.arrayBuffer();
-      const fileUint8Array = new Uint8Array(arrayBuffer);
-      
-      // Get the file extension
-      const fileExtension = recording.file_path.split('.').pop() || 'mp3';
-      const inputFileName = `input.${fileExtension}`;
-      
-      console.log(`Starting to split large file into chunks...`);
-      
-      // Tamanho de chunk baseado no tamanho do arquivo
-      // Para arquivos extremamente grandes, usamos chunks menores
-      const chunkDurationSeconds = isExtremelyLargeFile ? 10 * 60 : 15 * 60; // 10 ou 15 minutos
-      console.log(`Using chunk duration of ${chunkDurationSeconds} seconds`);
-      
-      // Split into chunks
-      const chunks = await splitAudioIntoChunks(
-        ffmpeg, 
-        fileUint8Array, 
-        inputFileName,
-        chunkDurationSeconds
-      );
-      
-      console.log(`File split into ${chunks.length} chunks`);
-      
-      // Update note with total chunks
-      await supabase
-        .from('notes')
-        .update({ 
-          total_chunks: chunks.length,
-          processing_progress: 30,
-          status: 'processing' 
-        })
-        .eq('id', noteId);
-      
-      // Process each chunk with transcribe-audio function
-      for (let i = 0; i < chunks.length; i++) {
-        console.log(`Processing chunk ${i + 1} of ${chunks.length}`);
-        
-        // Create a file from the chunk
-        const chunkBlob = new Blob([chunks[i]], { type: 'audio/mp3' });
-        const chunkPath = `${recordingId}/chunk_${i + 1}.mp3`;
-        
-        // Upload the chunk
-        const { error: uploadError } = await supabase.storage
-          .from('audio_recordings')
-          .upload(chunkPath, chunkBlob, {
-            contentType: 'audio/mp3',
-            upsert: true
-          });
-        
-        if (uploadError) {
-          console.error(`Error uploading chunk ${i + 1}:`, uploadError);
-          continue; // Try the next chunk
-        }
-        
-        // Call transcribe-audio function with chunk information
-        const { error: transcribeError } = await supabase.functions.invoke('transcribe-audio', {
-          body: {
-            noteId,
-            recordingId,
-            chunkInfo: {
-              index: i,
-              total: chunks.length,
-              path: chunkPath
-            },
-            isChunkedTranscription: true,
-            chunkIndex: i,
-            totalChunks: chunks.length
-          }
-        });
-        
-        if (transcribeError) {
-          console.error(`Error transcribing chunk ${i + 1}:`, transcribeError);
-        }
-        
-        // Update progress based on chunks processed
-        const progress = Math.min(30 + Math.floor((i + 1) / chunks.length * 60), 90);
-        await supabase
-          .from('notes')
-          .update({ 
-            processing_progress: progress,
-            status: 'processing',
-            current_chunk: i + 1
-          })
-          .eq('id', noteId);
-      }
-    } else {
-      // Para arquivos menores, usamos transcrição direta
-      console.log('Processing file with direct transcription');
-      
+      // Call transcribe-audio function with time range information
       const { error: transcribeError } = await supabase.functions.invoke('transcribe-audio', {
-        body: { 
+        body: {
           noteId,
           recordingId,
-          isLargeFile: true
+          chunkInfo: {
+            index: i,
+            total: estimatedChunks,
+            startTime,
+            endTime,
+            durationMs: endTime - startTime
+          },
+          isChunkedTranscription: true,
+          chunkIndex: i,
+          totalChunks: estimatedChunks
         }
       });
       
       if (transcribeError) {
-        throw new Error(`Failed to start transcription: ${transcribeError.message}`);
+        console.error(`Error transcribing chunk ${i + 1}:`, transcribeError);
       }
+      
+      // Update progress based on chunks processed
+      const progress = Math.min(30 + Math.floor((i + 1) / estimatedChunks * 60), 90);
+      await supabase
+        .from('notes')
+        .update({ 
+          processing_progress: progress,
+          status: 'processing',
+          current_chunk: i + 1
+        })
+        .eq('id', noteId);
     }
 
     return new Response(
