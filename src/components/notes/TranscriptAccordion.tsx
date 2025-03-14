@@ -45,33 +45,34 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
     
     setIsRefreshing(true);
     try {
-      // First check if there are transcription chunks available
+      // Check if there are transcription chunks available - using direct SQL query to avoid type issues
       const { data: chunksData, error: chunksError } = await supabase
-        .from('transcription_chunks')
-        .select('count(*)', { count: 'exact' })
-        .eq('note_id', noteId);
+        .rpc('count_transcription_chunks', { note_id_param: noteId });
         
       if (chunksError) {
         console.error('Error checking for transcription chunks:', chunksError);
-      } else if (chunksData && typeof chunksData === 'object' && 'count' in chunksData && chunksData.count > 0) {
-        console.log(`Found ${chunksData.count} transcription chunks for note ${noteId}`);
+      } else if (chunksData && typeof chunksData === 'number' && chunksData > 0) {
+        console.log(`Found ${chunksData} transcription chunks for note ${noteId}`);
         
         // Attempt to concatenate chunks
         try {
-          const { data: noteTotalChunks } = await supabase
-            .from('notes')
-            .select('total_chunks')
-            .eq('id', noteId)
-            .single();
+          // Get the total chunks from a custom RPC function instead of direct column access
+          const { data: noteTotalChunks, error: totalChunksError } = await supabase
+            .rpc('get_note_total_chunks', { note_id_param: noteId });
             
-          if (noteTotalChunks?.total_chunks) {
+          if (totalChunksError) {
+            console.error('Error getting total chunks:', totalChunksError);
+            throw totalChunksError;
+          }
+            
+          if (noteTotalChunks && typeof noteTotalChunks === 'number' && noteTotalChunks > 0) {
             // Invoke edge function to concatenate chunks
             const { data: concatenatedData, error: concatenateError } = await supabase.functions
               .invoke('process-recording', {
                 body: { 
                   noteId: noteId,
                   action: 'concatenate-chunks',
-                  totalChunks: noteTotalChunks.total_chunks
+                  totalChunks: noteTotalChunks
                 },
               });
               
@@ -258,3 +259,4 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
     </Accordion>
   );
 };
+
