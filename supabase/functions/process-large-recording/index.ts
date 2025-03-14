@@ -67,7 +67,7 @@ serve(async (req) => {
       throw new Error(`Failed to download file: ${downloadError?.message || 'File not found'}`);
     }
 
-    console.log(`File downloaded, size: ${fileData.size} bytes`);
+    console.log(`File downloaded, size: ${fileData.size} bytes (${Math.round(fileData.size/1024/1024*100)/100} MB)`);
 
     // Update progress
     await supabase
@@ -78,9 +78,14 @@ serve(async (req) => {
       })
       .eq('id', noteId);
 
-    // For extremely large files, we need to chunk them
-    if (isExtremelyLargeFile) {
-      console.log('Processing extremely large file with chunking');
+    // Se o arquivo for maior que ~20MB, vamos sempre usar o processamento em chunks
+    // para evitar problemas com a API da OpenAI
+    const shouldUseChunking = fileData.size > 20 * 1024 * 1024;
+    console.log(`Should use chunking based on file size: ${shouldUseChunking ? 'Yes' : 'No'}`);
+    
+    // Para arquivos grandes ou extremamente grandes, sempre usamos chunking
+    if (shouldUseChunking || isExtremelyLargeFile) {
+      console.log('Processing large file with chunking');
       
       // Initialize FFmpeg
       const ffmpeg = new FFmpeg();
@@ -96,8 +101,12 @@ serve(async (req) => {
       
       console.log(`Starting to split large file into chunks...`);
       
-      // Split into 15-minute chunks for large files
-      const chunkDurationSeconds = 15 * 60; // 15 minutes
+      // Tamanho de chunk baseado no tamanho do arquivo
+      // Para arquivos extremamente grandes, usamos chunks menores
+      const chunkDurationSeconds = isExtremelyLargeFile ? 10 * 60 : 15 * 60; // 10 ou 15 minutos
+      console.log(`Using chunk duration of ${chunkDurationSeconds} seconds`);
+      
+      // Split into chunks
       const chunks = await splitAudioIntoChunks(
         ffmpeg, 
         fileUint8Array, 
@@ -147,7 +156,10 @@ serve(async (req) => {
               index: i,
               total: chunks.length,
               path: chunkPath
-            }
+            },
+            isChunkedTranscription: true,
+            chunkIndex: i,
+            totalChunks: chunks.length
           }
         });
         
@@ -167,8 +179,8 @@ serve(async (req) => {
           .eq('id', noteId);
       }
     } else {
-      // For large but not extremely large files, use direct transcription
-      console.log('Processing large file with direct transcription');
+      // Para arquivos menores, usamos transcrição direta
+      console.log('Processing file with direct transcription');
       
       const { error: transcribeError } = await supabase.functions.invoke('transcribe-audio', {
         body: { 

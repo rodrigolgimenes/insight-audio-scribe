@@ -33,12 +33,42 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
     console.error('[process-recording] Error checking file size:', fileError);
   }
   
-  const { isLargeFile, isExtremelyLargeFile } = checkFileSize(fileData || []);
-  console.log('[process-recording] Is large file:', isLargeFile);
-  
-  if (isExtremelyLargeFile) {
-    console.log('[process-recording] This file is extremely large and may take longer to process');
+  // Verificar o tamanho real do arquivo
+  let realFileSize = 0;
+  try {
+    // Tente obter o tamanho real do arquivo fazendo uma solicitação HEAD
+    const { data: fileInfo } = await supabase.storage
+      .from('audio_recordings')
+      .getPublicUrl(recording.file_path || '');
+      
+    if (fileInfo?.publicUrl) {
+      const response = await fetch(fileInfo.publicUrl, { method: 'HEAD' });
+      const contentLength = response.headers.get('content-length');
+      if (contentLength) {
+        realFileSize = parseInt(contentLength, 10);
+        console.log('[process-recording] Real file size from HEAD request:', realFileSize, 'bytes', `(${Math.round(realFileSize/1024/1024*100)/100} MB)`);
+      }
+    }
+  } catch (headError) {
+    console.error('[process-recording] Error getting file size from HEAD request:', headError);
   }
+  
+  // Usar o tamanho real do arquivo se disponível, caso contrário, usar a verificação padrão
+  let fileSizeInfo;
+  if (realFileSize > 0) {
+    // Criar um objeto fileData simulado com o tamanho real
+    const simulatedFileData = [{
+      metadata: { size: realFileSize }
+    }];
+    fileSizeInfo = checkFileSize(simulatedFileData);
+  } else {
+    // Usar a verificação padrão
+    fileSizeInfo = checkFileSize(fileData || []);
+  }
+  
+  const { isLargeFile, isExtremelyLargeFile } = fileSizeInfo;
+  console.log('[process-recording] Is large file:', isLargeFile);
+  console.log('[process-recording] Is extremely large file:', isExtremelyLargeFile);
 
   // Update status to processing
   await updateRecordingStatus(supabase, recordingId, 'processing');
@@ -47,10 +77,14 @@ export async function processRecording(request: ProcessRecordingRequest): Promis
   const note = await createOrGetNote(supabase, recordingId, recording, noteId);
   console.log('[process-recording] Note:', note);
 
-  // For larger files, use a different strategy
-  const functionToInvoke = isLargeFile ? 
-    'process-large-recording' : // A function we would create for handling large files
+  // Para arquivos maiores, use uma estratégia diferente
+  // Se o tamanho for maior que 20MB (~20 minutos de áudio) ou se detectamos como arquivo grande,
+  // vamos usar o processo específico para arquivos grandes
+  const functionToInvoke = isLargeFile || realFileSize > 20 * 1024 * 1024 ? 
+    'process-large-recording' : 
     'transcribe-audio';
+
+  console.log(`[process-recording] Using function: ${functionToInvoke} for processing`);
 
   // Immediately update status to transcribing with higher progress
   // to indicate active processing has started

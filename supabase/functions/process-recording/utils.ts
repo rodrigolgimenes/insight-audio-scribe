@@ -164,14 +164,17 @@ export function checkFileSize(fileData: any[]): { fileSize: number, isLargeFile:
   
   if (fileData && fileData.length > 0) {
     fileSize = fileData[0].metadata?.size || 0;
-    console.log('[process-recording] File size:', fileSize, 'bytes');
+    console.log('[process-recording] File size:', fileSize, 'bytes', `(${Math.round(fileSize/1024/1024*100)/100} MB)`);
   }
   
-  // For OpenAI, we'll consider anything over 25 minutes as large for now
-  const isLargeFile = fileSize > 25 * 1024 * 1024; // More than 25MB
+  // Reduzindo os limites para garantir que arquivos grandes sejam processados corretamente
+  // OpenAI Whisper tem um limite de cerca de 25MB
+  const isLargeFile = fileSize > 20 * 1024 * 1024; // Mais de 20MB (era 25MB)
   
-  // Files over 60MB are extremely large
-  const isExtremelyLargeFile = fileSize > 60 * 1024 * 1024; // More than 60MB
+  // Arquivos que são SIGNIFICATIVAMENTE grandes precisam de chunking especial
+  const isExtremelyLargeFile = fileSize > 40 * 1024 * 1024; // Mais de 40MB (era 60MB)
+  
+  console.log(`[process-recording] File size classification: Large: ${isLargeFile}, Extremely large: ${isExtremelyLargeFile}`);
   
   return { fileSize, isLargeFile, isExtremelyLargeFile };
 }
