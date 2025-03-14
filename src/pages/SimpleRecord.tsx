@@ -17,6 +17,7 @@ import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
+import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -30,7 +31,6 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
   
-  // Create a wrapper for stopRecording that returns a Promise
   const handleWrappedStopRecording = async () => {
     try {
       await recordingHook.handleStopRecording();
@@ -41,7 +41,6 @@ const SimpleRecord = () => {
     }
   };
   
-  // Create a wrapper for refreshDevices that returns a Promise
   const handleWrappedRefreshDevices = async () => {
     try {
       if (recordingHook.refreshDevices) {
@@ -95,7 +94,8 @@ const SimpleRecord = () => {
     }
   }, [recordingHook.initError]);
 
-  // Handler to save the recording to the database and process it
+  const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+
   const saveRecording = async () => {
     if (!recordingHook.audioUrl) {
       toast.error("No recording to save");
@@ -104,18 +104,15 @@ const SimpleRecord = () => {
 
     setIsSaveProcessing(true);
     try {
-      // Get user information
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("You must be logged in to save recordings");
         return { success: false };
       }
 
-      // Get recording duration and blob
       let recordingBlob: Blob | null = null;
       let recordedDuration = 0;
 
-      // If we're still recording, stop it first
       if (recordingHook.isRecording) {
         const result = await recordingHook.handleStopRecording();
         if (result && 'blob' in result) {
@@ -123,7 +120,6 @@ const SimpleRecord = () => {
           recordedDuration = result.duration || 0;
         }
       } else {
-        // Get the blob from the audioUrl
         const response = await fetch(recordingHook.audioUrl);
         recordingBlob = await response.blob();
         recordedDuration = recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0;
@@ -135,23 +131,20 @@ const SimpleRecord = () => {
       
       console.log('Original recording format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
-      // Convert to MP3 before upload
       toast.info("Compressing audio...");
       const compressedBlob = await audioCompressor.compressAudio(recordingBlob);
       console.log('Compressed to MP3:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
 
-      // Generate a unique filename WITH MP3 EXTENSION
       const fileName = `${user.id}/${Date.now()}.mp3`;
       
       console.log('Creating recording with user ID:', user.id);
       console.log('Recording duration in seconds:', recordedDuration);
 
-      // Create the recording entry in the database
       const { error: dbError, data: recordingData } = await supabase
         .from('recordings')
         .insert({
           title: `Recording ${new Date().toLocaleString()}`,
-          duration: Math.round(recordedDuration * 1000), // Convert to milliseconds
+          duration: Math.round(recordedDuration * 1000),
           file_path: fileName,
           user_id: user.id,
           status: 'pending'
@@ -162,8 +155,9 @@ const SimpleRecord = () => {
       if (dbError) {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
+      
+      setCurrentProcessingId(recordingData.id);
 
-      // Upload the audio file - EXPLICITLY set contentType to MP3
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
         .upload(fileName, compressedBlob, {
@@ -172,13 +166,11 @@ const SimpleRecord = () => {
         });
 
       if (uploadError) {
-        // Clean up on failure
         await supabase.from('recordings').delete().eq('id', recordingData.id);
         throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
 
-      // Create a note for the recording
-      const { error: noteError } = await supabase
+      const { error: noteError, data: noteData } = await supabase
         .from('notes')
         .insert({
           title: recordingData.title,
@@ -187,16 +179,27 @@ const SimpleRecord = () => {
           status: 'pending',
           processing_progress: 0,
           duration: Math.round(recordedDuration * 1000)
-        });
+        })
+        .select()
+        .single();
 
       if (noteError) {
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
-      // Start the processing via the edge function
+      await supabase
+        .from('processing_logs')
+        .insert({
+          recording_id: recordingData.id,
+          note_id: noteData.id,
+          stage: 'upload_complete',
+          message: 'File uploaded successfully, starting processing',
+          status: 'success'
+        });
+
       const { error: processError } = await supabase.functions
         .invoke('process-recording', {
-          body: { recordingId: recordingData.id },
+          body: { recordingId: recordingData.id, noteId: noteData.id },
         });
 
       if (processError) {
@@ -205,7 +208,6 @@ const SimpleRecord = () => {
         toast.success("Recording saved and processing started!");
       }
 
-      // Navigate to the dashboard
       navigate("/app");
       return { success: true };
     } catch (error) {
@@ -276,7 +278,11 @@ const SimpleRecord = () => {
                     isLoading={isUploading || isSaveProcessing}
                   />
                   
-                  <FileUploadSection />
+                  <FileUploadSection isDisabled={isUploading || isSaveProcessing} />
+                  
+                  {currentProcessingId && (
+                    <ProcessingLogs recordingId={currentProcessingId} />
+                  )}
                 </div>
               </div>
               

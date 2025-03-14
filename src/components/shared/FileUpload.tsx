@@ -7,9 +7,10 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FileUploadProps {
-  onUploadComplete?: (noteId: string) => void;
+  onUploadComplete?: (noteId: string, recordingId: string) => void;
   label?: string;
   description?: string;
   buttonText?: string;
@@ -39,6 +40,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState<number>(0);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [currentRecordingId, setCurrentRecordingId] = useState<string | null>(null);
+  const [currentNoteId, setCurrentNoteId] = useState<string | null>(null);
 
   const handleClick = () => {
     if (inputRef.current) {
@@ -54,7 +57,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setProcessingProgress(0);
     setSelectedFileName(file.name);
     
-    // Validação do arquivo
+    // Validate file
     setProcessingState('validating');
     const validation = validateFile(file);
     if (!validation.isValid) {
@@ -87,7 +90,46 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setProcessingProgress(20);
       
       // Upload the original file directly to the server
-      const noteId = await handleFileUpload(e, initiateTranscription, file);
+      const { noteId, recordingId } = await handleFileUpload(e, initiateTranscription, file);
+      
+      if (noteId && recordingId) {
+        setCurrentNoteId(noteId);
+        setCurrentRecordingId(recordingId);
+        
+        // Create initial log entry
+        if (file.type.startsWith('video/')) {
+          await supabase
+            .from('processing_logs')
+            .insert({
+              recording_id: recordingId,
+              note_id: noteId,
+              stage: 'file_uploaded',
+              message: 'Video file uploaded successfully',
+              details: { 
+                fileName: file.name, 
+                fileType: file.type, 
+                fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB` 
+              },
+              status: 'success'
+            });
+        } else {
+          await supabase
+            .from('processing_logs')
+            .insert({
+              recording_id: recordingId,
+              note_id: noteId,
+              stage: 'file_uploaded',
+              message: 'Audio file uploaded successfully',
+              details: { 
+                fileName: file.name, 
+                fileType: file.type, 
+                fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB` 
+              },
+              status: 'success'
+            });
+        }
+      }
+      
       setProcessingState('idle');
       setProcessingProgress(100);
       
@@ -97,8 +139,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           description: "Your file has been uploaded and is being processed on our servers.",
         });
         
-        if (onUploadComplete) {
-          onUploadComplete(noteId);
+        if (onUploadComplete && recordingId) {
+          onUploadComplete(noteId, recordingId);
         } else {
           navigate(`/app/notes/${noteId}`);
         }
@@ -107,6 +149,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setProcessingState('idle');
       setProcessingProgress(0);
       console.error("File upload error:", error);
+      
+      // Log error to processing logs if we have a recording ID
+      if (currentRecordingId && currentNoteId) {
+        await supabase
+          .from('processing_logs')
+          .insert({
+            recording_id: currentRecordingId,
+            note_id: currentNoteId,
+            stage: 'upload_error',
+            message: 'Error during file upload',
+            details: { error: error instanceof Error ? error.message : String(error) },
+            status: 'error'
+          });
+      }
+      
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "Failed to upload file",
@@ -175,6 +232,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         <div className="mt-2 text-sm text-yellow-600 flex items-start">
           <AlertTriangle className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
           <span>{processingError}</span>
+        </div>
+      )}
+      
+      {/* Show processing logs for the current upload */}
+      {currentRecordingId && processingState === 'idle' && processingProgress === 100 && (
+        <div className="mt-4">
+          <ProcessingLogs recordingId={currentRecordingId} noteId={currentNoteId || undefined} />
         </div>
       )}
     </div>

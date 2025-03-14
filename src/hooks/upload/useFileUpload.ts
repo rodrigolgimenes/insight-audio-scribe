@@ -1,7 +1,8 @@
 
-import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { useFileUploadHandler } from "@/hooks/upload/useFileUploadHandler";
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useFileUploadHandler } from './useFileUploadHandler';
+import { toast as sonnerToast } from 'sonner';
 
 export const useFileUpload = () => {
   const [isUploading, setIsUploading] = useState(false);
@@ -9,41 +10,55 @@ export const useFileUpload = () => {
   const { processFileUpload } = useFileUploadHandler(setIsUploading, toast);
 
   const handleFileUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>, 
-    initiateTranscription: boolean = true,
-    processedFile?: File
-  ): Promise<string | undefined> => {
+    e?: React.ChangeEvent<HTMLInputElement>,
+    initiateTranscription = true,
+    providedFile?: File
+  ): Promise<{ noteId: string, recordingId: string }> => {
+    let file: File | null = null;
+
     try {
-      setIsUploading(true);
-      
-      let file: File;
-      
-      // Use the pre-processed file if provided, otherwise use the file from the input
-      if (processedFile) {
-        file = processedFile;
-        console.log("Using pre-processed file:", file.name, file.type, file.size);
-      } else if (e.target.files && e.target.files.length > 0) {
+      // Get file from input or provided file
+      if (providedFile) {
+        file = providedFile;
+      } else if (e?.target.files && e.target.files.length > 0) {
         file = e.target.files[0];
-        console.log("Using original file from input:", file.name, file.type, file.size);
-      } else {
-        throw new Error("No file selected");
       }
 
-      // Process the file upload with the selected file
-      const noteId = await processFileUpload(file, initiateTranscription);
-      return noteId;
+      if (!file) {
+        throw new Error('No file was selected');
+      }
+
+      setIsUploading(true);
+      
+      // Show a toast notification for larger files
+      const fileSizeMB = Math.round(file.size / 1024 / 1024 * 10) / 10;
+      if (fileSizeMB > 10) {
+        sonnerToast.info(`Large file detected (${fileSizeMB} MB)`, {
+          description: "Processing may take longer for large files."
+        });
+      }
+
+      const result = await processFileUpload(file, initiateTranscription);
+      
+      if (!result) {
+        throw new Error('File upload processed but no result returned');
+      }
+      
+      return result;
     } catch (error) {
-      console.error("Error in handleFileUpload:", error);
-      toast({
-        title: "Upload Error",
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
-        variant: "destructive",
-      });
-      return undefined;
+      console.error('File upload error:', error);
+      throw error;
     } finally {
       setIsUploading(false);
+      if (e?.target) {
+        // Reset the file input
+        e.target.value = '';
+      }
     }
   };
 
-  return { isUploading, handleFileUpload };
+  return {
+    isUploading,
+    handleFileUpload
+  };
 };

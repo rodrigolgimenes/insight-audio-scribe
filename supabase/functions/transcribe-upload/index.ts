@@ -14,6 +14,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to add processing logs
+async function addProcessingLog(
+  supabase: any,
+  recordingId: string,
+  noteId: string,
+  stage: string,
+  message: string,
+  details: any = null,
+  status: 'info' | 'warning' | 'error' | 'success' = 'info'
+): Promise<void> {
+  try {
+    await supabase
+      .from('processing_logs')
+      .insert({
+        recording_id: recordingId,
+        note_id: noteId,
+        stage: stage,
+        message: message,
+        details: details,
+        status: status,
+        timestamp: new Date().toISOString()
+      });
+    
+    console.log(`[${stage}] ${message}`);
+  } catch (error) {
+    console.error('Error adding processing log:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,6 +82,19 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Update recording status to processing
+    await addProcessingLog(
+      supabase,
+      recordingId,
+      "", // Note ID is not available yet
+      "processing_started",
+      "Starting file processing",
+      { 
+        fileType: file instanceof File ? file.type : 'unknown',
+        fileSize: file instanceof File ? file.size : 'unknown'
+      },
+      "info"
+    );
+    
     const { error: statusError } = await supabase
       .from('recordings')
       .update({ 
@@ -71,6 +113,16 @@ serve(async (req) => {
     let isVideoFile = fileToUpload.type.startsWith('video/');
     
     if (isVideoFile) {
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        "", // Note ID is not available yet
+        "file_type_detected",
+        "Video file detected",
+        { fileType: fileToUpload.type },
+        "info"
+      );
+      
       console.log('Video file detected. Server-side extraction will be performed later.');
       
       // For video files, we'll upload as is and then process on the server
@@ -82,11 +134,35 @@ serve(async (req) => {
           original_file_type: fileToUpload.type
         })
         .eq('id', recordingId);
+    } else {
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        "", // Note ID is not available yet
+        "file_type_detected",
+        "Audio file detected",
+        { fileType: fileToUpload.type },
+        "info"
+      );
     }
     
     // Upload the original file for now
     const baseFilePath = `${recordingId}/${crypto.randomUUID()}`;
     const originalFilePath = `${baseFilePath}_original${getExtensionFromMimeType(fileToUpload.type)}`;
+    
+    await addProcessingLog(
+      supabase,
+      recordingId,
+      "", // Note ID is not available yet
+      "upload_started",
+      "Uploading original file",
+      { 
+        filePath: originalFilePath,
+        size: fileToUpload.size,
+        type: fileToUpload.type 
+      },
+      "info"
+    );
     
     console.log('Uploading original file...', {
       filePath: originalFilePath,
@@ -101,10 +177,30 @@ serve(async (req) => {
     );
 
     if (uploadError) {
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        "", // Note ID is not available yet
+        "upload_error",
+        "Error uploading file",
+        { error: uploadError.message },
+        "error"
+      );
+      
       console.error('Upload error:', uploadError);
       throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
+    await addProcessingLog(
+      supabase,
+      recordingId,
+      "", // Note ID is not available yet
+      "upload_completed",
+      "Original file uploaded successfully",
+      { url: originalUrl },
+      "success"
+    );
+    
     console.log('Original file uploaded successfully:', { originalUrl });
     
     // Create audio path that will be used after processing
@@ -122,11 +218,31 @@ serve(async (req) => {
       .eq('id', recordingId);
 
     if (updateError) {
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        "", // Note ID is not available yet
+        "update_error",
+        "Error updating recording",
+        { error: updateError.message },
+        "error"
+      );
+      
       console.error('Error updating recording:', updateError);
       throw new Error(`Failed to update recording: ${updateError.message}`);
     }
 
     // Create note
+    await addProcessingLog(
+      supabase,
+      recordingId,
+      "", // Note ID is not available yet
+      "note_creation",
+      "Creating new note",
+      null,
+      "info"
+    );
+    
     const { data: note, error: noteError } = await supabase
       .from('notes')
       .insert({
@@ -139,17 +255,57 @@ serve(async (req) => {
       .single();
 
     if (noteError) {
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        "", // Note ID is not available yet
+        "note_creation_error",
+        "Error creating note",
+        { error: noteError.message },
+        "error"
+      );
+      
       console.error('Error creating note:', noteError);
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
+    await addProcessingLog(
+      supabase,
+      recordingId,
+      note.id,
+      "note_created",
+      "Note created successfully",
+      { noteId: note.id },
+      "success"
+    );
+
     // If this is a video file, queue it for audio extraction
     if (isVideoFile) {
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        note.id,
+        "extraction_queued",
+        "Queueing video file for audio extraction",
+        { originalFilePath, audioFilePath },
+        "info"
+      );
+      
       console.log('Queueing video file for audio extraction before transcription');
       // We'll process it in the background
       EdgeRuntime.waitUntil(processAudioExtraction(supabase, recordingId, originalFilePath, audioFilePath, note.id));
     } else {
       // For audio files, we can start transcription immediately
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        note.id,
+        "transcription_queued",
+        "Starting transcription process",
+        null,
+        "info"
+      );
+      
       // Start transcription process
       const { error: transcribeError } = await supabase.functions
         .invoke('transcribe-audio', {
@@ -160,8 +316,28 @@ serve(async (req) => {
         });
 
       if (transcribeError) {
+        await addProcessingLog(
+          supabase,
+          recordingId,
+          note.id,
+          "transcription_error",
+          "Error starting transcription",
+          { error: transcribeError.message },
+          "error"
+        );
+        
         throw new Error(`Failed to start transcription: ${transcribeError.message}`);
       }
+      
+      await addProcessingLog(
+        supabase,
+        recordingId,
+        note.id,
+        "transcription_started",
+        "Transcription process started successfully",
+        null,
+        "success"
+      );
     }
 
     console.log('Process started successfully');
@@ -170,7 +346,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         message: 'Recording uploaded and processing started',
-        noteId: note.id
+        noteId: note.id,
+        recordingId: recordingId
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -185,6 +362,17 @@ serve(async (req) => {
         
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
+          
+          await addProcessingLog(
+            supabase,
+            recordingId,
+            "",
+            "processing_error",
+            "Fatal error during processing",
+            { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
+            "error"
+          );
+          
           await supabase
             .from('recordings')
             .update({ 

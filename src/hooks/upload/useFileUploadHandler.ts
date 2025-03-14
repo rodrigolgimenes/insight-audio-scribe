@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { getMediaDuration } from "@/utils/mediaUtils";
@@ -11,7 +12,7 @@ export const useFileUploadHandler = (
   const processFileUpload = async (
     file: File,
     initiateTranscription: boolean
-  ): Promise<string | undefined> => {
+  ): Promise<{ noteId: string, recordingId: string } | undefined> => {
     // Validate file
     const validation = validateFile(file);
     if (!validation.isValid) {
@@ -122,7 +123,23 @@ export const useFileUploadHandler = (
         initiateTranscription
       );
       
-      return noteId;
+      // Add initial log entry
+      await supabase
+        .from('processing_logs')
+        .insert({
+          recording_id: recordingData.id,
+          note_id: noteId,
+          stage: 'initial_processing',
+          message: 'File uploaded successfully',
+          details: { 
+            fileName: originalFileName,
+            fileType: originalFileType,
+            fileSize: Math.round(file.size / 1024 / 1024 * 100) / 100 + ' MB'
+          },
+          status: 'success'
+        });
+      
+      return { noteId, recordingId: recordingData.id };
     } catch (error) {
       throw error;
     }
