@@ -105,17 +105,24 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           toast({
             title: "Processing Warning",
             description: "Could not process file for optimal audio. Using original file instead.",
-            // Fix the invalid variant "warning" to use "destructive" instead
-            variant: "destructive",
+            variant: "destructive", // Fix the invalid "warning" variant
           });
           
-          // Force mime type on original file if it's being used as fallback
-          const arrayBuffer = await file.arrayBuffer();
-          processedFile = new File(
-            [arrayBuffer], 
-            file.name.replace(/\.[^/.]+$/, '') + '.mp3', 
-            { type: 'audio/mp3' }
-          );
+          // Try to create a fallback MP3 file from the original
+          try {
+            // Create a simple container with the original content but MP3 mime type
+            const arrayBuffer = await file.arrayBuffer();
+            processedFile = new File(
+              [arrayBuffer], 
+              file.name.replace(/\.[^/.]+$/, '') + '.mp3', 
+              { type: 'audio/mp3' }
+            );
+            console.log("Created fallback MP3 file:", processedFile.name, processedFile.size);
+          } catch (fallbackError) {
+            console.error("Error creating fallback MP3:", fallbackError);
+            // Use original file as last resort
+            processedFile = file;
+          }
         }
       }
 

@@ -125,17 +125,35 @@ export class AudioProcessor {
       
       // Set up commands to extract audio and convert to MP3
       // Use more explicit and reliable command line parameters
-      const ffmpegCmd = [
-        '-i', inputFileName,
-        '-vn',                // Disable video
-        '-acodec', 'libmp3lame', // Use MP3 codec
-        '-ac', '1',           // Mono channel (helps with speech)
-        '-ar', '16000',       // 16kHz sample rate (good for speech)
-        '-b:a', '32k',        // 32kbps bitrate (sufficient for speech)
-        '-f', 'mp3',          // Force MP3 format output 
-        '-y',                 // Overwrite output files without asking
-        outputFileName
-      ];
+      // Use different command strategies based on input file type
+      let ffmpegCmd: string[];
+      
+      if (isVideo) {
+        // Video to MP3 conversion optimized for speech
+        ffmpegCmd = [
+          '-i', inputFileName,
+          '-vn',                 // Disable video
+          '-acodec', 'libmp3lame', // Use MP3 codec
+          '-ac', '1',            // Mono channel (helps with speech)
+          '-ar', '16000',        // 16kHz sample rate (good for speech)
+          '-b:a', '32k',         // 32kbps bitrate (sufficient for speech)
+          '-f', 'mp3',           // Force MP3 format output 
+          '-y',                  // Overwrite output files without asking
+          outputFileName
+        ];
+      } else {
+        // Audio to MP3 conversion with more compatible settings
+        ffmpegCmd = [
+          '-i', inputFileName,
+          '-acodec', 'libmp3lame', // Use MP3 codec
+          '-ac', '1',            // Mono channel
+          '-ar', '44100',        // 44.1kHz sample rate (standard for audio)
+          '-b:a', '64k',         // Higher bitrate for better quality
+          '-f', 'mp3',           // Force MP3 format output
+          '-y',                  // Overwrite output files without asking
+          outputFileName
+        ];
+      }
       
       // Execute FFmpeg command with timeout handling
       const executePromise = this.ffmpeg.exec(ffmpegCmd);
@@ -160,14 +178,28 @@ export class AudioProcessor {
       // Read the output file
       const outputData = await this.ffmpeg.readFile(outputFileName);
       
-      // Fix the byteLength check for both Uint8Array and string types
-      if (!outputData || (outputData instanceof Uint8Array ? outputData.byteLength === 0 : outputData.length === 0)) {
+      // Proper type checking to handle possible return types from FFmpeg readFile
+      if (!outputData) {
+        throw new Error('Failed to read converted audio file');
+      }
+      
+      let outputSize = 0;
+      
+      // Check the type of outputData and handle accordingly
+      if (outputData instanceof Uint8Array) {
+        outputSize = outputData.byteLength;
+      } else if (typeof outputData === 'string') {
+        outputSize = outputData.length;
+      } else {
+        throw new Error('Unexpected output type from FFmpeg');
+      }
+      
+      if (outputSize === 0) {
         console.error('[AudioProcessor] Output file is empty');
         throw new Error('FFmpeg produced an empty output file');
       }
       
-      // Fix the size logging for both types
-      console.log(`[AudioProcessor] Output file read, size: ${outputData instanceof Uint8Array ? outputData.byteLength : outputData.length} bytes`);
+      console.log(`[AudioProcessor] Output file read, size: ${outputSize} bytes`);
       
       // Clean up temporary files
       try {
@@ -187,6 +219,11 @@ export class AudioProcessor {
       );
       
       console.log(`[AudioProcessor] File processed successfully: ${outputFile.name} (${outputFile.size} bytes)`);
+      
+      // Verify the output file has content
+      if (outputFile.size === 0) {
+        throw new Error('Processed file is empty. Conversion failed.');
+      }
       
       return outputFile;
     } catch (error) {

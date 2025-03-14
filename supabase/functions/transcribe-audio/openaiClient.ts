@@ -24,6 +24,11 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
       console.log(`[transcribe-audio] New blob type: ${audioBlob.type}, size: ${audioBlob.size} bytes`);
     }
     
+    // Verify the audio content is not empty
+    if (audioBlob.size === 0) {
+      throw new Error('Audio content is empty (0 bytes). Cannot transcribe empty audio.');
+    }
+    
     // Log audio content details for debugging
     console.log(`[transcribe-audio] Audio content type: ${audioBlob.type}, size: ${(audioBlob.size / (1024 * 1024)).toFixed(2)} MB`);
     
@@ -38,13 +43,20 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
     
     console.log('[transcribe-audio] Sending request to OpenAI Whisper API...');
     
+    // Send the request with a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 minute timeout
+    
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`
       },
-      body: formData
+      body: formData,
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.text();
@@ -54,6 +66,10 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
 
     const result = await response.json();
     console.log('[transcribe-audio] Transcription successful');
+    
+    if (!result.text) {
+      console.warn('[transcribe-audio] Transcription returned empty text');
+    }
     
     return { text: result.text || '' };
   } catch (error) {

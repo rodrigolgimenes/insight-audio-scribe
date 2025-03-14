@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { getMediaDuration } from "@/utils/mediaUtils";
@@ -28,11 +29,11 @@ export const useFileUploadHandler = (
 
       // Ensure file has the correct MIME type
       let processedFile = file;
+      let originalFileType = file.type; // Store the original file type
       
       // Verify MIME type and fix if necessary
       if (!processedFile.type.includes('mp3') && !processedFile.type.includes('mpeg')) {
         console.log('Ensuring file has audio/mp3 MIME type...');
-        // Create a new File with proper MIME type
         try {
           const arrayBuffer = await processedFile.arrayBuffer();
           processedFile = new File(
@@ -75,6 +76,14 @@ export const useFileUploadHandler = (
         durationInMs
       );
       console.log('Recording entry created with ID:', recordingData.id);
+      
+      // Store original file type as metadata
+      await supabase
+        .from('recordings')
+        .update({
+          original_file_type: originalFileType // Store the original file type as metadata
+        })
+        .eq('id', recordingData.id);
 
       // Upload file to storage with retries and explicit content type
       const uploadResult = await uploadFileWithRetries(fileName, processedFile);
@@ -97,7 +106,6 @@ export const useFileUploadHandler = (
           .from('recordings')
           .update({
             status: 'uploaded',
-            original_file_type: file.type, // Store the original file type as metadata in status field
             updated_at: new Date().toISOString()
           })
           .eq('id', recordingData.id);
