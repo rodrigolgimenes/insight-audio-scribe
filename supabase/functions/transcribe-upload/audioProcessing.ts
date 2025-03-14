@@ -55,31 +55,28 @@ export async function processAudioExtraction(
     const videoBlob = await response.blob();
     console.log('Downloaded video file, size:', videoBlob.size);
     
-    // Here we would normally use FFmpeg to extract audio, but since we're in a Deno environment
-    // without FFmpeg, we'll simulate the process for now.
-    // In a real implementation, you would either:
-    // 1. Use a service like AWS Lambda with FFmpeg layer
-    // 2. Call an external API that handles audio extraction
-    // 3. Implement a minimal FFmpeg for Deno
+    // Call our audio extraction edge function
+    console.log('Calling audio-extract edge function...');
     
-    console.log('Extracting audio from video...');
-    
-    // For now, we'll just copy the original file and rename it
-    // In a real implementation, this would be replaced with actual FFmpeg processing
-    
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Upload the "processed" audio file
-    const { data: audioUploadData, error: audioUploadError } = await supabase.storage
-      .from('audio_recordings')
-      .upload(audioFilePath, videoBlob, {
-        contentType: 'audio/mp3' // Pretend it's been converted to MP3
+    const { data: extractionData, error: extractionError } = await supabase.functions
+      .invoke('audio-extract', {
+        body: { 
+          videoUrl: originalFileData.publicUrl,
+          outputPath: audioFilePath,
+          recordingId: recordingId,
+          noteId: noteId
+        }
       });
     
-    if (audioUploadError) {
-      throw new Error(`Failed to upload processed audio: ${audioUploadError.message}`);
+    if (extractionError) {
+      throw new Error(`Audio extraction failed: ${extractionError.message}`);
     }
+    
+    if (!extractionData || !extractionData.success) {
+      throw new Error('Audio extraction failed without specific error');
+    }
+    
+    console.log('Audio extraction completed successfully:', extractionData);
     
     // Get the audio file URL
     const { data: audioFileData } = await supabase.storage
