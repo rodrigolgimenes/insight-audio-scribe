@@ -41,7 +41,8 @@ export class ProgressTracker {
     try {
       const updateData: any = {
         status,
-        processing_progress: Math.max(0, Math.min(100, Math.round(progress)))
+        processing_progress: Math.max(0, Math.min(100, Math.round(progress))),
+        updated_at: new Date().toISOString() // Adicionar timestamp atualizado
       };
       
       if (errorMessage) {
@@ -57,6 +58,34 @@ export class ProgressTracker {
         
       if (error) {
         console.error('[ProgressTracker] Error updating note status:', error);
+      } else {
+        console.log(`[ProgressTracker] Successfully updated note status to ${status} with progress ${progress}%`);
+        
+        // Verificar se marcamos como concluído e atualizar também a gravação, se necessário
+        if (status === 'completed' && progress >= 95) {
+          try {
+            // Obter o ID da gravação
+            const { data: noteData } = await this.supabase
+              .from('notes')
+              .select('recording_id')
+              .eq('id', this.noteId)
+              .single();
+              
+            if (noteData?.recording_id) {
+              console.log(`[ProgressTracker] Updating recording ${noteData.recording_id} to completed`);
+              
+              await this.supabase
+                .from('recordings')
+                .update({ 
+                  status: 'completed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', noteData.recording_id);
+            }
+          } catch (recordingError) {
+            console.error('[ProgressTracker] Error updating recording:', recordingError);
+          }
+        }
       }
     } catch (error) {
       console.error('[ProgressTracker] Exception in updateStatus:', error);

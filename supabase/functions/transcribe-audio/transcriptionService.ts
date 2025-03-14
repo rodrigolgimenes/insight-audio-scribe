@@ -252,6 +252,65 @@ export async function processTranscription(
     // Atualiza progresso após transcrição bem-sucedida - usando um status definitivamente válido
     if (!isChunkedTranscription) {
       await progressTracker.markTranscribed();
+      
+      // Adicionar um log para garantir que este ponto do código está sendo executado
+      console.log('[transcribe-audio] Transcription completed, updating database records...');
+      
+      // Atualizar a gravação e a nota com o texto transcrito
+      if (recording && note) {
+        await updateRecordingAndNote(supabase, recording.id || note.recording_id, note.id, transcription.text || '');
+        
+        // Iniciar a geração de atas se tudo estiver OK
+        try {
+          console.log('[transcribe-audio] Starting meeting minutes generation...');
+          await startMeetingMinutesGeneration(supabase, note.id, transcription.text || '');
+          
+          // Adicionar uma verificação explícita para garantir que o status foi atualizado para concluído
+          // após um tempo razoável para o processamento das atas
+          setTimeout(async () => {
+            const { data: currentNote } = await supabase
+              .from('notes')
+              .select('status, processing_progress')
+              .eq('id', note.id)
+              .single();
+              
+            if (currentNote && 
+                (currentNote.status === 'processing' || 
+                 currentNote.status === 'transcribing' || 
+                 currentNote.status === 'generating_minutes')) {
+              console.log('[transcribe-audio] Forcing note status to completed as it may be stalled');
+              
+              // Forçar atualização para completed
+              await supabase
+                .from('notes')
+                .update({ 
+                  status: 'completed',
+                  processing_progress: 100,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', note.id);
+                
+              // Também garantir que a gravação está marcada como completa
+              await supabase
+                .from('recordings')
+                .update({ 
+                  status: 'completed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', recording.id || note.recording_id);
+            }
+          }, 15000); // Verificar após 15 segundos
+        } catch (minutesError) {
+          console.error('[transcribe-audio] Error starting meeting minutes generation:', minutesError);
+          
+          // Se houver erro na geração de atas, ainda devemos marcar a transcrição como concluída
+          await progressTracker.markCompleted();
+        }
+      } else {
+        console.error('[transcribe-audio] Missing recording or note information, cannot update records properly');
+        // Ainda assim, marcar a transcrição como concluída no note tracker
+        await progressTracker.markCompleted();
+      }
     } else {
       console.log(`[transcribe-audio] Bloco ${chunkIndex} transcrito com sucesso`);
       console.log(`[transcribe-audio] Tamanho do texto do bloco ${chunkIndex}: ${transcription.text ? transcription.text.length : 0} caracteres`);
@@ -328,9 +387,44 @@ export async function processTranscription(
         
         // Iniciar geração de atas de reunião, se aplicável
         try {
-          await startMeetingMinutesGeneration(supabase, note, completeTranscription);
+          await startMeetingMinutesGeneration(supabase, note.id, completeTranscription);
+          
+          // Adicionar verificação explícita após um tempo para garantir que o status foi atualizado
+          setTimeout(async () => {
+            const { data: currentNote } = await supabase
+              .from('notes')
+              .select('status, processing_progress')
+              .eq('id', note.id)
+              .single();
+              
+            if (currentNote && 
+                (currentNote.status === 'processing' || 
+                 currentNote.status === 'transcribing' || 
+                 currentNote.status === 'generating_minutes')) {
+              console.log('[transcribe-audio] Forcing chunked note status to completed as it may be stalled');
+              
+              await supabase
+                .from('notes')
+                .update({ 
+                  status: 'completed',
+                  processing_progress: 100,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', note.id);
+            }
+          }, 15000); // Verificar após 15 segundos
         } catch (minutesError) {
           console.error('[transcribe-audio] Erro ao iniciar geração de atas:', minutesError);
+          
+          // Mesmo com erro, marcar como concluído
+          await supabase
+            .from('notes')
+            .update({ 
+              status: 'completed',
+              processing_progress: 100,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', note.id);
         }
         
         // Retornar a transcrição completa

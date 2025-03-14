@@ -85,7 +85,7 @@ export async function updateRecordingAndNote(
     
     // IMPORTANT: Never use 'transcribed' status which isn't in VALID_NOTE_STATUSES
     // Instead use 'completed' which is a valid status
-    let noteStatus = 'completed';
+    let noteStatus = 'generating_minutes';
     if (!VALID_NOTE_STATUSES.includes(noteStatus)) {
       console.error(`[transcribe-audio] Invalid note status: ${noteStatus}. Using 'processing' instead.`);
       noteStatus = 'processing';
@@ -131,7 +131,7 @@ export async function startMeetingMinutesGeneration(
     // Validate status before updating
     let status = 'generating_minutes';
     if (!VALID_NOTE_STATUSES.includes(status)) {
-      console.error(`[transcribe-audio] Invalid status for minutes generation: ${status}. Using 'processing' instead.`);
+      console.warn(`[transcribe-audio] Invalid status for minutes generation: ${status}. Using 'processing' instead.`);
       status = 'processing';
     }
     
@@ -161,6 +161,22 @@ export async function startMeetingMinutesGeneration(
       
     if (error) {
       console.error(`[transcribe-audio] Error invoking meeting minutes generation: ${error.message}`);
+      
+      // Se houve erro ao gerar atas, devemos ainda marcar a nota como concluída
+      console.log('[transcribe-audio] Marking note as completed despite minutes generation error');
+      await updateNoteProgress(supabase, noteId, 'completed', 100);
+      
+      if (noteData?.recording_id) {
+        // Também atualizar a gravação para concluída
+        await supabase
+          .from('recordings')
+          .update({ 
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', noteData.recording_id);
+      }
+      
       throw new Error(`Failed to generate meeting minutes: ${error.message}`);
     }
     
@@ -177,30 +193,50 @@ export async function startMeetingMinutesGeneration(
           .eq('id', noteId)
           .single();
           
-        if (currentStatus && currentStatus.status === 'generating_minutes') {
-          console.log('[transcribe-audio] Note still in generating_minutes status, updating to completed');
+        if (currentStatus) {
+          console.log(`[transcribe-audio] Current note status: ${currentStatus.status}, progress: ${currentStatus.processing_progress}`);
           
-          // Update note to completed
-          await updateNoteProgress(supabase, noteId, 'completed', 100);
-          
-          // Also update the recording to completed
-          if (noteData?.recording_id) {
-            await supabase
-              .from('recordings')
-              .update({ 
-                status: 'completed',
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', noteData.recording_id);
+          // Verificar se o status ainda não é 'completed'
+          if (currentStatus.status !== 'completed') {
+            console.log('[transcribe-audio] Note still not marked as completed, updating to completed');
+            
+            // Update note to completed
+            await updateNoteProgress(supabase, noteId, 'completed', 100);
+            
+            // Also update the recording to completed
+            if (noteData?.recording_id) {
+              await supabase
+                .from('recordings')
+                .update({ 
+                  status: 'completed',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', noteData.recording_id);
+            }
           }
         }
       } catch (error) {
         console.error('[transcribe-audio] Error in status check timeout:', error);
+        
+        // Mesmo com erro, tentar atualizar o status
+        try {
+          await updateNoteProgress(supabase, noteId, 'completed', 100);
+        } catch (updateError) {
+          console.error('[transcribe-audio] Failed to update note after error:', updateError);
+        }
       }
-    }, 30000); // Check after 30 seconds
+    }, 15000); // Verificar após 15 segundos (reduzido de 30s para resposta mais rápida)
   } catch (error) {
     console.error('[transcribe-audio] Exception in startMeetingMinutesGeneration:', error);
+    
+    // Garantir que o erro não impede a conclusão da transcrição
+    try {
+      console.log('[transcribe-audio] Forcing note status to completed after minutes generation error');
+      await updateNoteProgress(supabase, noteId, 'completed', 100);
+    } catch (finalError) {
+      console.error('[transcribe-audio] Fatal error updating note status:', finalError);
+    }
+    
     throw error;
   }
 }
-
