@@ -10,39 +10,26 @@ export async function transcribeAudio(audioData: Blob): Promise<TranscriptionRes
   }
 
   // Check the content type and size of the blob
-  const contentType = audioData.type || 'audio/webm';
+  const originalContentType = audioData.type || 'audio/webm';
   const sizeInMB = audioData.size / (1024 * 1024);
   
-  console.log(`[transcribe-audio] Audio content type: ${contentType}, size: ${sizeInMB.toFixed(2)} MB`);
+  console.log(`[transcribe-audio] Original audio content type: ${originalContentType}, size: ${sizeInMB.toFixed(2)} MB`);
   
   // Check if the file is too large for OpenAI's API limit (currently 25MB)
   if (sizeInMB > 24) {
     throw new Error(`Audio file is too large (${sizeInMB.toFixed(2)} MB). Maximum allowed size is 24 MB.`);
   }
   
-  // Determine if we need to convert based on MIME type
-  // OpenAI accepts mp3, mp4, mpeg, mpga, m4a, wav, and webm
-  const acceptedMimeTypes = [
-    'audio/mp3', 'audio/mpeg', 'audio/mp4', 'audio/mpga', 
-    'audio/m4a', 'audio/wav', 'audio/webm'
-  ];
-  
-  const isAcceptedType = acceptedMimeTypes.some(type => 
-    contentType.includes(type.split('/')[1])
-  );
-  
-  // If not an accepted type, set a generic audio/mp3 type
-  const finalBlob = isAcceptedType 
-    ? audioData 
-    : new Blob([audioData], { type: 'audio/mp3' });
+  // IMPORTANT: Always force the content type to be audio/mp3 for Whisper API
+  // This ensures we're consistent regardless of the original file type
+  const finalBlob = new Blob([audioData], { type: 'audio/mp3' });
 
-  console.log(`[transcribe-audio] Using ${isAcceptedType ? 'original' : 'converted'} blob with type: ${finalBlob.type}`);
+  console.log(`[transcribe-audio] Sending to OpenAI with enforced type: ${finalBlob.type}`);
 
   const formData = new FormData();
   formData.append('file', finalBlob, 'audio.mp3');
   formData.append('model', 'whisper-1');
   formData.append('language', 'pt');
-  // Add response_format parameter to ensure we get the most reliable format
   formData.append('response_format', 'json');
 
   return await withRetry(

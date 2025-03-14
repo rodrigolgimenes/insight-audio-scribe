@@ -31,15 +31,16 @@ async function retryWithExponentialBackoff(
 
 export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
   console.log('Preparing audio file for transcription...', {
-    blobType: audioBlob.type,
-    blobSize: audioBlob.size
+    originalBlobType: audioBlob.type,
+    originalBlobSize: audioBlob.size
   });
 
   const openAIFormData = new FormData();
   
+  // ALWAYS create a new Blob with type audio/mp3 to ensure consistency
   const processedBlob = new Blob([audioBlob], { type: 'audio/mp3' });
   
-  console.log('Processed blob details:', {
+  console.log('Processed blob details for Whisper API:', {
     type: processedBlob.type,
     size: processedBlob.size
   });
@@ -48,7 +49,7 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
   openAIFormData.append('model', 'whisper-1');
   openAIFormData.append('language', 'pt');
 
-  console.log('Sending request to OpenAI Whisper API...');
+  console.log('Sending request to OpenAI Whisper API with MP3 format...');
   
   const makeRequest = async () => {
     const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
