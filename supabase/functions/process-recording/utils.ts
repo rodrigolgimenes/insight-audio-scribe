@@ -169,10 +169,10 @@ export function checkFileSize(fileData: any[]): { fileSize: number, isLargeFile:
   
   // Reducing the limits to ensure large files are processed correctly
   // OpenAI Whisper has a limit of about 25MB
-  const isLargeFile = fileSize > 15 * 1024 * 1024; // More than 15MB (previously 20MB)
+  const isLargeFile = fileSize > 10 * 1024 * 1024; // More than 10MB (previously 15MB)
   
   // Files that are SIGNIFICANTLY large need special chunking
-  const isExtremelyLargeFile = fileSize > 30 * 1024 * 1024; // More than 30MB (previously 40MB)
+  const isExtremelyLargeFile = fileSize > 20 * 1024 * 1024; // More than 20MB (previously 30MB)
   
   console.log(`[process-recording] File size classification: Large: ${isLargeFile}, Extremely large: ${isExtremelyLargeFile}`);
   

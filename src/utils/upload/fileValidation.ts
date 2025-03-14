@@ -20,11 +20,15 @@ export const validateFile = (file?: File): ValidationResult => {
     'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
     'audio/webm', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/x-m4a',
     // Formatos de vídeo
-    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg'
+    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg', 
+    'video/x-matroska', 'video/3gpp', 'video/x-flv', 'application/x-mpegURL', 'video/MP2T'
   ];
   
   // Extensões de arquivo suportadas para verificação secundária
-  const supportedExtensions = ['.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', '.mp4', '.mov', '.avi'];
+  const supportedExtensions = [
+    '.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', 
+    '.mp4', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.3gp', '.m4v'
+  ];
   
   // Verificação primária por MIME type
   const hasValidMimeType = allowedTypes.includes(file.type);
@@ -32,6 +36,9 @@ export const validateFile = (file?: File): ValidationResult => {
   // Verificação secundária por extensão de arquivo (caso o MIME type não seja reconhecido corretamente)
   const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
   const hasValidExtension = supportedExtensions.includes(fileExtension);
+  
+  // Log para depuração
+  console.log(`File validation: Type=${file.type}, Extension=${fileExtension}, ValidMime=${hasValidMimeType}, ValidExt=${hasValidExtension}`);
   
   if (!hasValidMimeType && !hasValidExtension) {
     return {
