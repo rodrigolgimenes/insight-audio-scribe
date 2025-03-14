@@ -16,7 +16,7 @@ export class AudioProcessor {
    * Initializes FFmpeg for audio processing
    */
   async initialize(): Promise<void> {
-    if (this.isInitialized) return;
+    if (this.isInitialized && this.ffmpeg) return;
     if (this.isInitializing) {
       return this.initPromise;
     }
@@ -32,7 +32,7 @@ export class AudioProcessor {
     } catch (error) {
       this.isInitializing = false;
       console.error('[AudioProcessor] FFmpeg initialization failed:', error);
-      throw new Error('Failed to initialize audio processing capabilities');
+      throw new Error(`Failed to initialize audio processing capabilities: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -44,11 +44,13 @@ export class AudioProcessor {
       const sources = [
         'https://unpkg.com/@ffmpeg/core@0.12.4/dist/umd',
         'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.4/dist/umd',
-        'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.4/umd'
+        'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.4/umd',
+        // Adicionar outras fontes alternativas se necessário
       ];
       
       let loaded = false;
       let lastError = null;
+      let loadingErrors = [];
       
       // Try each source until one works
       for (const baseURL of sources) {
@@ -65,17 +67,36 @@ export class AudioProcessor {
         } catch (error) {
           console.warn(`[AudioProcessor] Failed to load FFmpeg from ${baseURL}:`, error);
           lastError = error;
+          loadingErrors.push(`${baseURL}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
       
       if (!loaded) {
-        throw new Error('Failed to load FFmpeg from all sources: ' + 
-          (lastError instanceof Error ? lastError.message : String(lastError)));
+        const errorDetails = loadingErrors.join('; ');
+        throw new Error(`Failed to load FFmpeg from all sources: ${errorDetails}`);
       }
     } catch (error) {
       console.error('[AudioProcessor] Error loading FFmpeg:', error);
       throw error;
     }
+  }
+
+  /**
+   * Detects file type and determines if it's supported
+   * @param file File to check
+   * @returns Boolean indicating if file is supported
+   */
+  isSupportedFileType(file: File): boolean {
+    // Check MIME type first
+    if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+      return true;
+    }
+    
+    // If MIME type is not recognized, check file extension
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    const supportedExtensions = ['.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', '.mp4', '.mov', '.avi'];
+    
+    return supportedExtensions.includes(fileExtension);
   }
 
   /**
@@ -87,16 +108,14 @@ export class AudioProcessor {
   async processFile(file: File): Promise<File> {
     console.log(`[AudioProcessor] Processing file: ${file.name} (${file.type})`);
     
-    // If already an MP3 audio file, we still process it to ensure optimal transcription settings
-    const needsFullProcessing = !this.isOptimizedMp3(file);
-    
-    if (!needsFullProcessing) {
-      console.log('[AudioProcessor] File appears to be an optimized MP3, verifying...');
-      // We might add verification here in the future
+    // Verify file is supported
+    if (!this.isSupportedFileType(file)) {
+      console.error('[AudioProcessor] Unsupported file type:', file.type);
+      throw new Error(`Unsupported file format: ${file.type}`);
     }
     
     // Initialize FFmpeg if not already done
-    if (!this.isInitialized) {
+    if (!this.isInitialized || !this.ffmpeg) {
       try {
         await this.initialize();
       } catch (error) {
@@ -117,9 +136,11 @@ export class AudioProcessor {
       const arrayBuffer = await file.arrayBuffer();
       const inputBuffer = new Uint8Array(arrayBuffer);
       
-      // Set input filename based on type
+      // Determine if file is video or audio
       const isVideo = file.type.startsWith('video/');
       const isAudio = file.type.startsWith('audio/');
+      
+      // Get file extension (for input filename)
       const fileExtension = this.getFileExtension(file);
       
       // Choose appropriate input filename
@@ -129,6 +150,7 @@ export class AudioProcessor {
       } else if (isAudio) {
         inputFileName = `input${fileExtension || '.wav'}`;
       } else {
+        // If can't determine from MIME type, use extension from filename
         inputFileName = `input${fileExtension || '.bin'}`;
       }
       
@@ -254,16 +276,6 @@ export class AudioProcessor {
   }
   
   /**
-   * Check if the file appears to be an already optimized MP3
-   * Not a full verification, just a quick check
-   */
-  private isOptimizedMp3(file: File): boolean {
-    // We'll consider all MP3s as potentially needing processing to ensure consistent output
-    // In a more advanced implementation, we could check audio properties
-    return false;
-  }
-  
-  /**
    * Extract file extension from file name or type
    */
   private getFileExtension(file: File): string {
@@ -276,10 +288,14 @@ export class AudioProcessor {
     // If no extension in filename, derive from MIME type
     if (file.type.startsWith('video/mp4')) return '.mp4';
     if (file.type.startsWith('video/webm')) return '.webm';
+    if (file.type.startsWith('video/quicktime')) return '.mov';
     if (file.type.startsWith('video/')) return '.mp4'; // Default for other videos
     if (file.type === 'audio/mpeg' || file.type === 'audio/mp3') return '.mp3';
     if (file.type === 'audio/wav') return '.wav';
     if (file.type === 'audio/ogg') return '.ogg';
+    if (file.type === 'audio/aac') return '.aac';
+    if (file.type === 'audio/flac') return '.flac';
+    if (file.type === 'audio/x-m4a') return '.m4a';
     if (file.type.startsWith('audio/')) return '.wav'; // Default for other audio
     
     // Fallback

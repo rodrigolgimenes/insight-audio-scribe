@@ -14,8 +14,26 @@ export const validateFile = (file?: File): ValidationResult => {
     };
   }
 
-  const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/webm', 'video/mp4'];
-  if (!allowedTypes.includes(file.type)) {
+  // Lista expandida de tipos MIME suportados
+  const allowedTypes = [
+    // Formatos de áudio
+    'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
+    'audio/webm', 'audio/ogg', 'audio/aac', 'audio/flac', 'audio/x-m4a',
+    // Formatos de vídeo
+    'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg'
+  ];
+  
+  // Extensões de arquivo suportadas para verificação secundária
+  const supportedExtensions = ['.mp3', '.wav', '.webm', '.ogg', '.aac', '.m4a', '.flac', '.mp4', '.mov', '.avi'];
+  
+  // Verificação primária por MIME type
+  const hasValidMimeType = allowedTypes.includes(file.type);
+  
+  // Verificação secundária por extensão de arquivo (caso o MIME type não seja reconhecido corretamente)
+  const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  const hasValidExtension = supportedExtensions.includes(fileExtension);
+  
+  if (!hasValidMimeType && !hasValidExtension) {
     return {
       isValid: false,
       errorMessage: "Unsupported file format. Please use audio files (MP3, WAV, WebM) or video files (MP4)."

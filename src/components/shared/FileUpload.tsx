@@ -3,10 +3,11 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFileUpload } from "@/hooks/upload/useFileUpload";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { audioProcessor } from "@/utils/audio/processing/AudioProcessor";
+import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string) => void;
@@ -32,12 +33,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   hideDescription = false,
 }) => {
   const { isUploading, handleFileUpload } = useFileUpload();
-  const [processingState, setProcessingState] = useState<'idle' | 'processing' | 'uploading'>('idle');
+  const [processingState, setProcessingState] = useState<'idle' | 'validating' | 'processing' | 'uploading'>('idle');
   const { toast } = useToast();
   const navigate = useNavigate();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState<number>(0);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
 
   const handleClick = () => {
     if (inputRef.current) {
@@ -51,6 +53,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     const file = e.target.files[0];
     setProcessingError(null);
     setProcessingProgress(0);
+    setSelectedFileName(file.name);
+    
+    // Validação do arquivo
+    setProcessingState('validating');
+    const validation = validateFile(file);
+    if (!validation.isValid) {
+      showValidationError(validation.errorMessage || "Invalid file");
+      setProcessingError(validation.errorMessage || "Invalid file format");
+      setProcessingState('idle');
+      return;
+    }
     
     // Show appropriate message based on file type
     if (file.type.startsWith('video/')) {
@@ -66,11 +79,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         description: "Optimizing audio for transcription. This may take a moment...",
       });
     } else {
+      // Arquivo tem extensão suportada, mas MIME type não reconhecido
       setProcessingState('processing');
       toast({
         title: "Processing File",
-        description: "Attempting to process unknown file type. This may take a moment...",
-        variant: "destructive",
+        description: "Attempting to process file. This may take a moment...",
       });
     }
 
@@ -82,6 +95,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setProcessingProgress(10);
       
       try {
+        const isSupportedType = audioProcessor.isSupportedFileType(file);
+        if (!isSupportedType) {
+          throw new Error("Unsupported file format. Please use audio files (MP3, WAV, WebM) or video files (MP4).");
+        }
+        
         processedFile = await audioProcessor.processFile(file);
         console.log("File processed successfully:", 
           processedFile.type, processedFile.size, "bytes");
@@ -109,6 +127,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           processedFile.name, processedFile.type, processedFile.size);
       } catch (processingError) {
         console.error("Error processing file:", processingError);
+        
+        // Verificar se é um erro de formato não suportado
+        const errorMessage = processingError instanceof Error ? processingError.message : String(processingError);
+        if (errorMessage.includes("Unsupported file format")) {
+          setProcessingError(errorMessage);
+          setProcessingState('idle');
+          toast({
+            title: "Error",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Se for outro tipo de erro, tentar usar o original como fallback
         setProcessingError("Could not process file for optimal audio. Using original file as fallback.");
         
         toast({
@@ -119,6 +152,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         
         // Try to create a fallback MP3 file from the original
         try {
+          // Verificar novamente se o formato original é suportado
+          if (!file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
+            throw new Error("Unsupported file format. Please use audio files (MP3, WAV, WebM) or video files (MP4).");
+          }
+          
           // Create a simple container with the original content but MP3 mime type
           const arrayBuffer = await file.arrayBuffer();
           processedFile = new File(
@@ -129,8 +167,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           console.log("Created fallback MP3 file:", processedFile.name, processedFile.size);
         } catch (fallbackError) {
           console.error("Error creating fallback MP3:", fallbackError);
-          // Use original file as last resort
-          processedFile = file;
+          // Erro fatal - formato não suportado ou outro problema
+          const errorMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          setProcessingError(errorMessage);
+          setProcessingState('idle');
+          toast({
+            title: "Upload Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          return;
         }
       }
 
@@ -168,7 +214,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const getButtonText = () => {
-    if (processingState === 'processing') {
+    if (processingState === 'validating') {
+      return "Validating file...";
+    } else if (processingState === 'processing') {
       return "Processing Audio...";
     } else if (processingState === 'uploading' || isUploading) {
       return "Uploading...";
@@ -202,6 +250,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         {getButtonText()}
       </Button>
       
+      {selectedFileName && processingState !== 'idle' && (
+        <div className="mt-2 text-xs text-muted-foreground">
+          File: {selectedFileName}
+        </div>
+      )}
+      
       {processingState !== 'idle' && processingProgress > 0 && (
         <div className="w-full mt-2">
           <div className="bg-gray-200 h-1.5 rounded-full overflow-hidden">
@@ -211,13 +265,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {processingState === 'processing' ? 'Optimizing for transcription...' : 'Uploading...'}
+            {processingState === 'validating' && 'Validating file...'}
+            {processingState === 'processing' && 'Optimizing for transcription...'}
+            {processingState === 'uploading' && 'Uploading...'}
           </p>
         </div>
       )}
       
       {processingError && (
-        <p className="mt-2 text-sm text-yellow-600">{processingError}</p>
+        <div className="mt-2 text-sm text-yellow-600 flex items-start">
+          <AlertTriangle className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
+          <span>{processingError}</span>
+        </div>
       )}
     </div>
   );

@@ -20,23 +20,54 @@ export async function convertToMp3(
     await ffmpeg.writeFile(inputFileName, inputFile);
     console.log('File written to FFmpeg filesystem');
 
+    // Determine if input is audio or video based on file extension
+    const isVideo = inputFileName.match(/\.(mp4|avi|mov|webm|mkv|flv)$/i) !== null;
+    
     // Run FFmpeg command to convert to MP3 (optimized specifically for speech transcription)
-    await ffmpeg.exec([
-      '-i', inputFileName,
-      '-vn',                // Disable video if present
-      '-acodec', 'libmp3lame', // Use MP3 codec
-      '-ac', '1',           // Convert to mono (optimal for speech)
-      '-ar', '16000',       // Downsample to 16kHz (optimal for speech recognition)
-      '-b:a', '32k',        // Lower bitrate (sufficient for speech)
-      '-f', 'mp3',          // Force MP3 format
-      '-y',                 // Overwrite without asking
-      outputFileName
-    ]);
+    // Separate commands for video and audio inputs for better optimization
+    if (isVideo) {
+      console.log('Processing video input, extracting audio...');
+      await ffmpeg.exec([
+        '-i', inputFileName,
+        '-vn',                // Disable video
+        '-acodec', 'libmp3lame', // Use MP3 codec
+        '-ac', '1',           // Convert to mono (optimal for speech)
+        '-ar', '16000',       // Downsample to 16kHz (optimal for speech recognition)
+        '-b:a', '32k',        // Lower bitrate (sufficient for speech)
+        '-f', 'mp3',          // Force MP3 format
+        '-y',                 // Overwrite without asking
+        outputFileName
+      ]);
+    } else {
+      console.log('Processing audio input...');
+      await ffmpeg.exec([
+        '-i', inputFileName,
+        '-acodec', 'libmp3lame', // Use MP3 codec
+        '-ac', '1',           // Convert to mono (optimal for speech)
+        '-ar', '16000',       // Downsample to 16kHz (optimal for speech recognition)
+        '-b:a', '32k',        // Lower bitrate (sufficient for speech)
+        '-f', 'mp3',          // Force MP3 format
+        '-y',                 // Overwrite without asking
+        outputFileName
+      ]);
+    }
     console.log('FFmpeg conversion completed');
 
     // Read the converted file
     const data = await ffmpeg.readFile(outputFileName);
     console.log('Converted file read from FFmpeg filesystem');
+    
+    // Verify the output size
+    if (data instanceof Uint8Array) {
+      if (data.byteLength === 0) {
+        console.error('Converted file is empty (0 bytes)');
+        return inputFile; // Return original as fallback
+      }
+      console.log(`Converted file size: ${data.byteLength} bytes`);
+    } else {
+      console.error('Unexpected output format from FFmpeg');
+      return inputFile; // Return original as fallback
+    }
     
     // Cleanup temporary files
     try {
@@ -103,8 +134,12 @@ export async function splitAudioIntoChunks(
     const chunks: Uint8Array[] = [];
     for (const file of chunkFiles) {
       const data = await ffmpeg.readFile(file.name);
-      chunks.push(data);
-      console.log(`Read chunk ${file.name}, size: ${data.byteLength} bytes`);
+      if (data instanceof Uint8Array && data.byteLength > 0) {
+        chunks.push(data);
+        console.log(`Read chunk ${file.name}, size: ${data.byteLength} bytes`);
+      } else {
+        console.warn(`Skipping empty chunk: ${file.name}`);
+      }
       
       // Clean up each chunk after reading
       try {
