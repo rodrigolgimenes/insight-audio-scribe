@@ -1,9 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { getMediaDuration } from "@/utils/mediaUtils";
-import { uploadFileToSupabase } from "@/services/supabase/uploadService";
-import { createRecordingEntry, updateRecordingStatus } from "@/services/recording/recordingService";
 import { audioProcessor } from "@/utils/audio/processing/AudioProcessor";
 
 export const useFileUploadHandler = (
