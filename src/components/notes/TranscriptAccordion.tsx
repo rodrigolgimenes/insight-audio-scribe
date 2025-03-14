@@ -45,6 +45,55 @@ export const TranscriptAccordion = ({ transcript, noteId }: TranscriptAccordionP
     
     setIsRefreshing(true);
     try {
+      // First check if there are transcription chunks available
+      const { data: chunksData, error: chunksError } = await supabase
+        .from('transcription_chunks')
+        .select('count(*)', { count: 'exact' })
+        .eq('note_id', noteId);
+        
+      if (chunksError) {
+        console.error('Error checking for transcription chunks:', chunksError);
+      } else if (chunksData && typeof chunksData === 'object' && 'count' in chunksData && chunksData.count > 0) {
+        console.log(`Found ${chunksData.count} transcription chunks for note ${noteId}`);
+        
+        // Attempt to concatenate chunks
+        try {
+          const { data: noteTotalChunks } = await supabase
+            .from('notes')
+            .select('total_chunks')
+            .eq('id', noteId)
+            .single();
+            
+          if (noteTotalChunks?.total_chunks) {
+            // Invoke edge function to concatenate chunks
+            const { data: concatenatedData, error: concatenateError } = await supabase.functions
+              .invoke('process-recording', {
+                body: { 
+                  noteId: noteId,
+                  action: 'concatenate-chunks',
+                  totalChunks: noteTotalChunks.total_chunks
+                },
+              });
+              
+            if (concatenateError) {
+              throw concatenateError;
+            }
+            
+            if (concatenatedData?.transcript) {
+              setLocalTranscript(concatenatedData.transcript);
+              toast({
+                title: "Success",
+                description: "Transcription chunks have been combined successfully.",
+              });
+              queryClient.invalidateQueries({ queryKey: ['note', noteId] });
+              return;
+            }
+          }
+        } catch (concatenateError) {
+          console.error('Error concatenating transcription chunks:', concatenateError);
+        }
+      }
+      
       // First check if there's a meeting minutes for this note
       const { data: minutesData } = await supabase
         .from('meeting_minutes')

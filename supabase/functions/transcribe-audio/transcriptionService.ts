@@ -1,3 +1,4 @@
+
 import { transcribeAudio } from './openaiClient.ts';
 import { downloadAudioFile } from './storageClient.ts';
 import { updateRecordingAndNote } from './utils/dataOperations.ts';
@@ -47,11 +48,8 @@ export async function downloadAndValidateAudio(
     console.warn('[transcribe-audio] Arquivo de áudio é muito grande:', 
       `${Math.round(audioData.size/1024/1024*100)/100}MB. Máximo é ${MAX_FILE_SIZE_MB}MB`);
     
-    await progressTracker.markError(
-      `Arquivo de áudio muito grande para processamento. Tamanho máximo é ${MAX_FILE_SIZE_MB}MB. Use uma gravação mais curta ou comprima seu áudio.`
-    );
-      
-    throw new Error(`O arquivo de áudio excede o limite de tamanho para transcrição (máx: ${MAX_FILE_SIZE_MB}MB)`);
+    // Em vez de gerar erro, vamos processar como chunked transcription
+    console.log('[transcribe-audio] Arquivo grande será processado em pedaços');
   }
 
   return audioData;
@@ -84,8 +82,6 @@ export async function downloadAudioFromUrl(url: string): Promise<Blob> {
     if (audioData.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
       console.warn('[transcribe-audio] Arquivo de áudio da URL é muito grande:', 
         `${Math.round(audioData.size/1024/1024*100)/100}MB. Máximo é ${MAX_FILE_SIZE_MB}MB`);
-      
-      throw new Error(`O arquivo de áudio excede o limite de tamanho para transcrição (máx: ${MAX_FILE_SIZE_MB}MB)`);
     }
     
     return audioData;
@@ -99,7 +95,7 @@ export async function downloadAudioFromUrl(url: string): Promise<Blob> {
  * Concatena fragmentos de transcrição em um único texto coerente
  * Melhorada para garantir melhor fluidez entre os fragmentos
  */
-async function concatenateTranscriptionChunks(
+export async function concatenateTranscriptionChunks(
   supabase: any,
   noteId: string,
   totalChunks: number
@@ -271,194 +267,100 @@ export async function processTranscription(
         .from('transcription_chunks')
         .insert({
           note_id: note.id,
-          index: chunkIndex || 0,
-          text: transcription.text,
+          index: chunkIndex,
+          text: transcription.text || '',
           created_at: new Date().toISOString()
         });
         
       if (insertError) {
-        console.error(`[transcribe-audio] Erro ao salvar fragmento ${chunkIndex}:`, insertError);
-        throw new Error(`Falha ao salvar fragmento de transcrição: ${insertError.message}`);
+        console.error(`[transcribe-audio] Erro ao salvar fragmento de transcrição ${chunkIndex}:`, insertError);
+      } else {
+        console.log(`[transcribe-audio] Fragmento ${chunkIndex} salvo no banco de dados`);
       }
       
-      console.log(`[transcribe-audio] Fragmento ${chunkIndex} salvo no banco de dados`);
-      
-      // Se este for o último fragmento OU se estamos processando fragmentos fora de ordem, 
-      // mas todos os fragmentos já foram processados
-      if ((chunkIndex === totalChunks - 1) || 
-          (await checkAllChunksComplete(supabase, note.id, totalChunks))) {
-        console.log('[transcribe-audio] Todos os fragmentos concluídos, concatenando...');
+      // Verificar se este é o último fragmento
+      if (chunkIndex !== undefined && totalChunks !== undefined && chunkIndex === totalChunks - 1) {
+        console.log('[transcribe-audio] Todos os fragmentos foram transcritos, concatenando...');
         
+        // Atualizar o progresso da nota
+        await supabase
+          .from('notes')
+          .update({ 
+            processing_progress: 90,
+            status: VALID_NOTE_STATUSES.includes('transcribing') ? 'transcribing' : 'processing' 
+          })
+          .eq('id', note.id);
+          
         // Concatenar todos os fragmentos
-        const fullTranscription = await concatenateTranscriptionChunks(
-          supabase, 
-          note.id, 
-          totalChunks || 1
-        );
+        const completeTranscription = await concatenateTranscriptionChunks(supabase, note.id, totalChunks);
         
         // Atualizar a nota com a transcrição completa
         const { error: updateError } = await supabase
           .from('notes')
           .update({
-            original_transcript: fullTranscription,
-            status: 'completed',
-            processing_progress: 90
+            original_transcript: completeTranscription,
+            processing_progress: 95, 
+            status: VALID_NOTE_STATUSES.includes('generating_minutes') ? 'generating_minutes' : 'processing'
           })
           .eq('id', note.id);
           
         if (updateError) {
           console.error('[transcribe-audio] Erro ao atualizar nota com transcrição completa:', updateError);
-          throw new Error(`Falha ao atualizar nota com transcrição: ${updateError.message}`);
-        }
-          
-        console.log('[transcribe-audio] Nota atualizada com transcrição completa');
-        console.log('[transcribe-audio] Tamanho total da transcrição:', fullTranscription.length, 'caracteres');
-        
-        // Iniciar geração de atas de reunião
-        await startMeetingMinutesGeneration(supabase, note.id, fullTranscription);
-        await progressTracker.markCompleted();
-        
-        console.log('[transcribe-audio] Processo concluído com sucesso');
-        
-        // Limpar tabela temporária de fragmentos
-        const { error: deleteError } = await supabase
-          .from('transcription_chunks')
-          .delete()
-          .eq('note_id', note.id);
-          
-        if (deleteError) {
-          console.error('[transcribe-audio] Erro ao remover fragmentos temporários:', deleteError);
-          // Não falhar o processo por causa desse erro
         } else {
-          console.log('[transcribe-audio] Fragmentos temporários removidos');
+          console.log('[transcribe-audio] Nota atualizada com transcrição completa');
         }
+        
+        // Atualizar o gravador com a transcrição
+        const { error: recordingError } = await supabase
+          .from('recordings')
+          .update({
+            transcription: completeTranscription,
+            status: 'completed',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', recording?.id || note.recording_id);
+          
+        if (recordingError) {
+          console.error('[transcribe-audio] Erro ao atualizar gravação com transcrição completa:', recordingError);
+        } else {
+          console.log('[transcribe-audio] Gravação atualizada com transcrição completa');
+        }
+        
+        // Iniciar geração de atas de reunião, se aplicável
+        try {
+          await startMeetingMinutesGeneration(supabase, note, completeTranscription);
+        } catch (minutesError) {
+          console.error('[transcribe-audio] Erro ao iniciar geração de atas:', minutesError);
+        }
+        
+        // Retornar a transcrição completa
+        return completeTranscription;
       }
     }
     
-    console.log('[transcribe-audio] Transcrição concluída com sucesso, tamanho do texto:', 
-      transcription.text ? transcription.text.length : 0);
+    return transcription.text || '';
   } catch (error) {
-    console.error('[transcribe-audio] Erro de transcrição ou timeout:', error);
+    console.error('[transcribe-audio] Erro durante a transcrição:', error);
     
-    // Apenas atualiza o status da nota principal se não for um fragmento em uma transcrição em blocos
-    if (!isChunkedTranscription) {
-      await progressTracker.markError(
-        error instanceof Error ? 
-          `Erro de transcrição: ${error.message}` : 
-          'Transcrição falhou'
-      );
-    } else {
-      console.error(`[transcribe-audio] Erro ao transcrever fragmento ${chunkIndex}:`, error);
-    }
+    // Atualiza status para erro
+    await progressTracker.markError(`Erro na transcrição: ${error instanceof Error ? error.message : String(error)}`);
     
-    throw error;
-  }
-  
-  // Para transcrição em blocos, simplesmente retorne o texto sem atualizar a nota
-  if (isChunkedTranscription) {
-    return transcription.text;
-  }
-  
-  // Atualizar gravação e nota com transcrição
-  try {
-    if (recording) {
-      await updateRecordingAndNote(supabase, recording.id, note.id, transcription.text);
-      console.log('[transcribe-audio] Banco de dados atualizado com transcrição');
-    } else {
-      // Atualização direta para nota sem gravação
-      await supabase
-        .from('notes')
-        .update({
-          original_transcript: transcription.text,
-          status: 'completed',
-          processing_progress: 90
-        })
-        .eq('id', note.id);
-      console.log('[transcribe-audio] Nota atualizada com transcrição (sem gravação)');
-    }
-    
-    // Atualiza progresso para estágio de geração de atas
-    await progressTracker.markGeneratingMinutes();
-  } catch (error) {
-    console.error('[transcribe-audio] Erro ao atualizar banco de dados com transcrição:', error);
-    throw error;
-  }
-
-  // Iniciar geração de atas de reunião
-  try {
-    await startMeetingMinutesGeneration(supabase, note.id, transcription.text);
-    
-    // Garantir que o status seja atualizado para concluído com 100% de progresso
-    await progressTracker.markCompleted();
-    console.log('[transcribe-audio] Status da nota atualizado para concluído após geração de atas');
-  } catch (error) {
-    console.error('[transcribe-audio] Erro na geração de atas de reunião:', error);
-    // Mesmo se a geração de atas falhar, marque a transcrição como concluída, pois temos a transcrição
-    await progressTracker.markCompleted();
-    console.log('[transcribe-audio] Status da nota atualizado para concluído apesar do erro na geração de atas');
-  }
-  
-  return transcription.text;
-}
-
-/**
- * Verifica se todos os fragmentos de uma nota foram processados
- * Melhorada para fornecer mais informações diagnósticas
- */
-async function checkAllChunksComplete(
-  supabase: any,
-  noteId: string,
-  totalChunks: number
-): Promise<boolean> {
-  try {
-    // Buscar todos os fragmentos para esta nota
-    const { data: chunks, error } = await supabase
-      .from('transcription_chunks')
-      .select('index')
-      .eq('note_id', noteId);
-      
-    if (error) {
-      console.error('[transcribe-audio] Erro ao verificar fragmentos:', error);
-      return false;
-    }
-    
-    if (!chunks) {
-      console.warn('[transcribe-audio] Nenhum fragmento encontrado para a nota', noteId);
-      return false;
-    }
-    
-    const count = chunks.length;
-    console.log(`[transcribe-audio] Verificação de fragmentos: ${count}/${totalChunks}`);
-    
-    if (count === totalChunks) {
-      console.log('[transcribe-audio] Todos os fragmentos estão completos!');
-      return true;
-    }
-    
-    // Diagnóstico adicional - quais índices estão presentes/ausentes
-    const presentIndices = chunks.map(chunk => chunk.index).sort((a, b) => a - b);
-    const missingIndices = [];
-    
-    for (let i = 0; i < totalChunks; i++) {
-      if (!presentIndices.includes(i)) {
-        missingIndices.push(i);
+    // Se for transcription em pedaços, registrar erro no banco
+    if (isChunkedTranscription && chunkIndex !== undefined) {
+      const { error: logError } = await supabase
+        .from('transcription_errors')
+        .insert({
+          note_id: note.id,
+          chunk_index: chunkIndex,
+          error_message: error instanceof Error ? error.message : String(error),
+          created_at: new Date().toISOString()
+        });
+        
+      if (logError) {
+        console.error('[transcribe-audio] Erro ao registrar falha de transcrição do fragmento:', logError);
       }
     }
     
-    if (missingIndices.length > 0) {
-      console.warn(`[transcribe-audio] Fragmentos ausentes: ${missingIndices.join(', ')}`);
-    }
-    
-    // Se faltam poucos fragmentos (menos de 10%), considerar concluído
-    // Isso ajuda com resiliência em caso de falhas em alguns fragmentos
-    if (count >= totalChunks * 0.9 && totalChunks > 5) {
-      console.warn(`[transcribe-audio] Considerando processamento concluído com ${count}/${totalChunks} fragmentos (>=90%)`);
-      return true;
-    }
-    
-    return false;
-  } catch (err) {
-    console.error('[transcribe-audio] Erro ao verificar conclusão dos fragmentos:', err);
-    return false;
+    throw error;
   }
 }

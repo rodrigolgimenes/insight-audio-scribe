@@ -1,3 +1,4 @@
+
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
@@ -13,8 +14,8 @@ const OPTIMIZED_AUDIO_FORMAT = {
 const MAX_WHISPER_SIZE_BYTES = 24 * 1024 * 1024;
 // Target chunk size slightly below the limit (20MB)
 const TARGET_CHUNK_SIZE_BYTES = 20 * 1024 * 1024;
-// Maximum chunk duration in seconds (15 minutes)
-const MAX_CHUNK_DURATION_SECONDS = 15 * 60;
+// Maximum chunk duration in seconds (20 minutes)
+const MAX_CHUNK_DURATION_SECONDS = 20 * 60;
 
 export class AudioCompressor {
   private ffmpeg: FFmpeg | null = null;
@@ -199,6 +200,9 @@ export class AudioCompressor {
   
   /**
    * Split audio into chunks of specified maximum size/duration
+   * @param audioBlob The audio blob to split
+   * @param durationSeconds The total duration of the audio in seconds
+   * @returns An array of audio blob chunks
    */
   async chunkAudio(audioBlob: Blob, durationSeconds: number): Promise<Blob[]> {
     if (audioBlob.size <= MAX_WHISPER_SIZE_BYTES) {
@@ -211,7 +215,10 @@ export class AudioCompressor {
       const ffmpeg = await this.loadFFmpeg();
       
       // Determine input format
-      const inputFormat = audioBlob.type.split('/')[1] || 'mp3';
+      const mimeType = audioBlob.type.toLowerCase();
+      const inputFormat = mimeType.includes('webm') ? 'webm' : 
+                         mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
+                         mimeType.includes('wav') ? 'wav' : 'mp3';
       const inputFileName = `input.${inputFormat}`;
       
       // Write the input file to FFmpeg's file system
@@ -226,20 +233,24 @@ export class AudioCompressor {
       
       console.log(`[AudioCompressor] Splitting into approximately ${chunkCount} chunks of ${chunkDuration}s each`);
       
-      // Split audio into segments
+      // Split audio into segments using FFmpeg segment feature
       await ffmpeg.exec([
         '-i', inputFileName,
         '-f', 'segment',
         '-segment_time', chunkDuration.toString(),
-        '-c', 'copy',
-        'chunk_%03d.mp3'
+        '-c', 'copy',  // Copy codec to avoid re-encoding
+        'chunk_%03d.mp3'  // Output pattern with sequential numbering
       ]);
       
-      // Get the list of chunk files
+      // Get the list of chunk files created by FFmpeg
       const files = await ffmpeg.listDir('./');
       const chunkFiles = files
         .filter(file => file.name.startsWith('chunk_') && file.name.endsWith('.mp3'))
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .sort((a, b) => a.name.localeCompare(b.name));  // Ensure correct order
+      
+      if (chunkFiles.length === 0) {
+        throw new Error('No chunks were created during the splitting process');
+      }
       
       // Read chunks and convert to Blobs
       const chunks: Blob[] = [];
