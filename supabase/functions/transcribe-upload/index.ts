@@ -7,6 +7,7 @@ import {
   uploadToStorage, 
   updateRecordingWithTranscription
 } from './supabaseOperations.ts';
+import { processAudioExtraction } from './audioProcessing.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,58 +65,58 @@ serve(async (req) => {
       console.error('Error updating recording status:', statusError);
       throw new Error(`Failed to update recording status: ${statusError.message}`);
     }
-
-    // Verificar se o arquivo é MP3, caso contrário, forçar o tipo correto
-    let fileToUpload = file as File;
-    let fileType = fileToUpload.type;
     
-    // IMPORTANTE: Garantir que o arquivo tenha o tipo correto, independentemente do formato original
-    if (fileType !== 'audio/mp3' && fileType !== 'audio/mpeg' || 
-        !fileToUpload.name.toLowerCase().endsWith('.mp3')) {
-      console.log(`File type is ${fileType}, enforcing audio/mp3 for processing`);
+    // Check if we need to process video to extract audio
+    let fileToUpload = file as File;
+    let isVideoFile = fileToUpload.type.startsWith('video/');
+    
+    if (isVideoFile) {
+      console.log('Video file detected. Server-side extraction will be performed later.');
       
-      // Se o nome do arquivo não termina em .mp3, modificar o nome
-      let newFilename = fileToUpload.name;
-      if (!newFilename.toLowerCase().endsWith('.mp3')) {
-        newFilename = newFilename.replace(/\.[^/.]+$/, '') + '.mp3';
-      }
-      
-      // Criar um novo File com o tipo de conteúdo correto
-      const arrayBuffer = await fileToUpload.arrayBuffer();
-      fileToUpload = new File(
-        [arrayBuffer], 
-        newFilename,
-        { type: 'audio/mp3' }
-      );
-      
-      console.log('File type enforced to MP3:', fileToUpload.name, fileToUpload.type);
+      // For video files, we'll upload as is and then process on the server
+      // We'll mark it as requiring audio extraction for later processing
+      await supabase
+        .from('recordings')
+        .update({
+          needs_audio_extraction: true,
+          original_file_type: fileToUpload.type
+        })
+        .eq('id', recordingId);
     }
     
-    // Upload the audio file directly - SEMPRE com extensão .mp3
-    const filePath = `${recordingId}/${crypto.randomUUID()}.mp3`;
-    const fileBlob = new Blob([await fileToUpload.arrayBuffer()], { type: 'audio/mp3' });
+    // Upload the original file for now
+    const baseFilePath = `${recordingId}/${crypto.randomUUID()}`;
+    const originalFilePath = `${baseFilePath}_original${getExtensionFromMimeType(fileToUpload.type)}`;
     
-    console.log('Uploading audio file...', {
-      filePath,
-      size: fileBlob.size,
-      type: fileBlob.type
+    console.log('Uploading original file...', {
+      filePath: originalFilePath,
+      size: fileToUpload.size,
+      type: fileToUpload.type
     });
 
-    const { data: { publicUrl }, error: uploadError } = await uploadToStorage(supabase, filePath, fileBlob);
+    const { data: { publicUrl: originalUrl }, error: uploadError } = await uploadToStorage(
+      supabase, 
+      originalFilePath, 
+      new Blob([await fileToUpload.arrayBuffer()], { type: fileToUpload.type })
+    );
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      throw new Error(`Failed to upload audio: ${uploadError.message}`);
+      throw new Error(`Failed to upload file: ${uploadError.message}`);
     }
 
-    console.log('File uploaded successfully:', { publicUrl });
+    console.log('Original file uploaded successfully:', { originalUrl });
+    
+    // Create audio path that will be used after processing
+    const audioFilePath = `${baseFilePath}.mp3`;
 
-    // Update recording with file path
+    // Update recording with file paths
     const { error: updateError } = await supabase
       .from('recordings')
       .update({
-        file_path: filePath,
-        audio_url: publicUrl,
+        file_path: audioFilePath, // This will be the processed audio file
+        original_file_path: originalFilePath,
+        audio_url: originalUrl, // Temporarily use original URL, will be updated after processing
         status: 'transcribing'
       })
       .eq('id', recordingId);
@@ -142,25 +143,33 @@ serve(async (req) => {
       throw new Error(`Failed to create note: ${noteError.message}`);
     }
 
-    // Start transcription process
-    const { error: transcribeError } = await supabase.functions
-      .invoke('transcribe-audio', {
-        body: { 
-          noteId: note.id,
-          recordingId 
-        }
-      });
+    // If this is a video file, queue it for audio extraction
+    if (isVideoFile) {
+      console.log('Queueing video file for audio extraction before transcription');
+      // We'll process it in the background
+      EdgeRuntime.waitUntil(processAudioExtraction(supabase, recordingId, originalFilePath, audioFilePath, note.id));
+    } else {
+      // For audio files, we can start transcription immediately
+      // Start transcription process
+      const { error: transcribeError } = await supabase.functions
+        .invoke('transcribe-audio', {
+          body: { 
+            noteId: note.id,
+            recordingId 
+          }
+        });
 
-    if (transcribeError) {
-      throw new Error(`Failed to start transcription: ${transcribeError.message}`);
+      if (transcribeError) {
+        throw new Error(`Failed to start transcription: ${transcribeError.message}`);
+      }
     }
 
-    console.log('Transcription process started successfully');
+    console.log('Process started successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'Recording uploaded and transcription started',
+        message: 'Recording uploaded and processing started',
         noteId: note.id
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -201,3 +210,30 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to get file extension from MIME type
+function getExtensionFromMimeType(mimeType: string): string {
+  const mimeToExt: Record<string, string> = {
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/quicktime': '.mov',
+    'video/x-msvideo': '.avi',
+    'video/mpeg': '.mpeg',
+    'video/x-matroska': '.mkv',
+    'video/3gpp': '.3gp',
+    'video/x-flv': '.flv',
+    'audio/mpeg': '.mp3',
+    'audio/mp3': '.mp3',
+    'audio/wav': '.wav',
+    'audio/wave': '.wav',
+    'audio/x-wav': '.wav',
+    'audio/webm': '.webm',
+    'audio/ogg': '.ogg',
+    'audio/aac': '.aac',
+    'audio/flac': '.flac',
+    'audio/x-m4a': '.m4a',
+    'audio/mp4': '.m4a'
+  };
+  
+  return mimeToExt[mimeType] || '.bin';
+}

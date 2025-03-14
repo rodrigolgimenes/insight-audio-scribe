@@ -11,7 +11,7 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
       <FileUpload 
         buttonText="Upload File"
         description="Upload audio or video to transcribe"
-        accept="audio/*,video/mp4"
+        accept="audio/*,video/mp4,video/webm,video/quicktime"
         disabled={isDisabled}
         initiateTranscription={true}
         buttonClassName="w-full rounded-md"

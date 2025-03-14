@@ -6,7 +6,6 @@ import { useFileUpload } from "@/hooks/upload/useFileUpload";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
-import { audioProcessor } from "@/utils/audio/processing/AudioProcessor";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 
 interface FileUploadProps {
@@ -33,7 +32,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   hideDescription = false,
 }) => {
   const { isUploading, handleFileUpload } = useFileUpload();
-  const [processingState, setProcessingState] = useState<'idle' | 'validating' | 'processing' | 'uploading'>('idle');
+  const [processingState, setProcessingState] = useState<'idle' | 'validating' | 'uploading'>('idle');
   const { toast } = useToast();
   const navigate = useNavigate();
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -67,20 +66,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     
     // Show appropriate message based on file type
     if (file.type.startsWith('video/')) {
-      setProcessingState('processing');
       toast({
         title: "Processing Video",
-        description: "Extracting audio from video file and optimizing for transcription. This may take a moment...",
+        description: "Your video will be uploaded and processed by our server. This may take a moment...",
       });
     } else if (file.type.startsWith('audio/')) {
-      setProcessingState('processing');
       toast({
         title: "Processing Audio",
-        description: "Optimizing audio for transcription. This may take a moment...",
+        description: "Your audio will be uploaded and processed. This may take a moment...",
       });
     } else {
-      // Arquivo tem extensão suportada, mas MIME type não reconhecido
-      setProcessingState('processing');
       toast({
         title: "Processing File",
         description: "Attempting to process file. This may take a moment...",
@@ -88,111 +83,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     try {
-      let processedFile = file;
-      
-      // Process all files to ensure they're optimized for transcription
-      console.log("Processing file for optimal transcription:", file.type);
-      setProcessingProgress(10);
-      
-      try {
-        const isSupportedType = audioProcessor.isSupportedFileType(file);
-        if (!isSupportedType) {
-          throw new Error("Unsupported file format. Please use audio files (MP3, WAV, WebM) or video files (MP4).");
-        }
-        
-        processedFile = await audioProcessor.processFile(file);
-        console.log("File processed successfully:", 
-          processedFile.type, processedFile.size, "bytes");
-        setProcessingProgress(70);
-          
-        // Verify the processed file actually has MP3 mime type
-        if (!processedFile.type.includes("mp3") && !processedFile.type.includes("mpeg")) {
-          console.warn("Processed file doesn't have MP3 mime type:", processedFile.type);
-          // Force the correct MIME type
-          const arrayBuffer = await processedFile.arrayBuffer();
-          processedFile = new File(
-            [arrayBuffer], 
-            processedFile.name, 
-            { type: 'audio/mp3' }
-          );
-          console.log("File MIME type forced to audio/mp3");
-        }
-        
-        // Verify file has content
-        if (processedFile.size === 0) {
-          throw new Error("Processed file is empty (0 bytes)");
-        }
-        
-        console.log("Proceeding with processed file:", 
-          processedFile.name, processedFile.type, processedFile.size);
-      } catch (processingError) {
-        console.error("Error processing file:", processingError);
-        
-        // Verificar se é um erro de formato não suportado
-        const errorMessage = processingError instanceof Error ? processingError.message : String(processingError);
-        if (errorMessage.includes("Unsupported file format")) {
-          setProcessingError(errorMessage);
-          setProcessingState('idle');
-          toast({
-            title: "Error",
-            description: errorMessage,
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        // Se for outro tipo de erro, tentar usar o original como fallback
-        setProcessingError("Could not process file for optimal audio. Using original file as fallback.");
-        
-        toast({
-          title: "Processing Warning",
-          description: "Could not optimize audio for transcription. Using original file instead.",
-          variant: "destructive",
-        });
-        
-        // Try to create a fallback MP3 file from the original
-        try {
-          // Verificar novamente se o formato original é suportado
-          if (!file.type.startsWith('audio/') && !file.type.startsWith('video/')) {
-            throw new Error("Unsupported file format. Please use audio files (MP3, WAV, WebM) or video files (MP4).");
-          }
-          
-          // Create a simple container with the original content but MP3 mime type
-          const arrayBuffer = await file.arrayBuffer();
-          processedFile = new File(
-            [arrayBuffer], 
-            file.name.replace(/\.[^/.]+$/, '') + '.mp3', 
-            { type: 'audio/mp3' }
-          );
-          console.log("Created fallback MP3 file:", processedFile.name, processedFile.size);
-        } catch (fallbackError) {
-          console.error("Error creating fallback MP3:", fallbackError);
-          // Erro fatal - formato não suportado ou outro problema
-          const errorMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-          setProcessingError(errorMessage);
-          setProcessingState('idle');
-          toast({
-            title: "Upload Failed",
-            description: errorMessage,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
       setProcessingState('uploading');
-      setProcessingProgress(80);
+      setProcessingProgress(20);
       
-      const noteId = await handleFileUpload(e, initiateTranscription, processedFile);
+      // Upload the original file directly to the server
+      const noteId = await handleFileUpload(e, initiateTranscription, file);
       setProcessingState('idle');
       setProcessingProgress(100);
       
       if (noteId) {
         toast({
           title: "Upload Complete",
-          description: processingError ? 
-            "Your file has been uploaded and is being processed, but couldn't be fully optimized." :
-            "Your file has been uploaded and optimized for best transcription quality.",
+          description: "Your file has been uploaded and is being processed on our servers.",
         });
         
         if (onUploadComplete) {
@@ -216,8 +118,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const getButtonText = () => {
     if (processingState === 'validating') {
       return "Validating file...";
-    } else if (processingState === 'processing') {
-      return "Processing Audio...";
     } else if (processingState === 'uploading' || isUploading) {
       return "Uploading...";
     }
@@ -266,7 +166,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {processingState === 'validating' && 'Validating file...'}
-            {processingState === 'processing' && 'Optimizing for transcription...'}
             {processingState === 'uploading' && 'Uploading...'}
           </p>
         </div>
