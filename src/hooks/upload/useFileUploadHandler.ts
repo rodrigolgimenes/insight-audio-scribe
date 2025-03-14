@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { getMediaDuration } from "@/utils/mediaUtils";
@@ -30,22 +29,11 @@ export const useFileUploadHandler = (
       // Ensure file has the correct MIME type
       let processedFile = file;
       let originalFileType = file.type; // Store the original file type
+      let originalFileName = file.name; // Store the original file name
       
       // Verify MIME type and fix if necessary
       if (!processedFile.type.includes('mp3') && !processedFile.type.includes('mpeg')) {
-        console.log('Ensuring file has audio/mp3 MIME type...');
-        try {
-          const arrayBuffer = await processedFile.arrayBuffer();
-          processedFile = new File(
-            [arrayBuffer], 
-            processedFile.name.replace(/\.[^/.]+$/, '') + '.mp3',
-            { type: 'audio/mp3' }
-          );
-          console.log('File type set to audio/mp3:', processedFile.type);
-        } catch (typeError) {
-          console.error('Error setting file MIME type:', typeError);
-          // Continue with original file as last resort
-        }
+        console.log('File is not in MP3 format. Will be converted during processing.');
       }
 
       // Get file duration
@@ -67,28 +55,30 @@ export const useFileUploadHandler = (
       const fileName = `${user.id}/${timestamp}_${sanitizedFileName.replace(/\.[^/.]+$/, '')}.mp3`;
       console.log('Sanitized file name:', fileName);
 
-      // Create initial recording entry in database
+      // Create initial recording entry in database with original file info
       console.log('Creating recording entry...');
+      const fileTypeInfo = originalFileType !== 'audio/mp3' && originalFileType !== 'audio/mpeg' 
+        ? ` (Original: ${originalFileType})` 
+        : '';
+        
       const recordingData = await createRecordingEntry(
         user.id,
-        processedFile.name || `Recording ${new Date().toLocaleString()}`,
+        `${originalFileName}${fileTypeInfo}` || `Recording ${new Date().toLocaleString()}`,
         fileName,
         durationInMs
       );
       console.log('Recording entry created with ID:', recordingData.id);
       
-      // Store the original file type in the title or another existing field
-      // Since 'original_file_type' is not a valid field in the schema
+      // Store the original file type in processed_content if different from MP3
       if (originalFileType !== 'audio/mp3' && originalFileType !== 'audio/mpeg') {
         await supabase
           .from('recordings')
           .update({
-            // Store in title field or add a comment to processed_content
-            title: `${recordingData.title} (Original: ${originalFileType})`,
-            // Alternatively, you could append to processed_content
-            processed_content: `Original file type: ${originalFileType}`
+            processed_content: `Original file type: ${originalFileType}. Original filename: ${originalFileName}.`
           })
           .eq('id', recordingData.id);
+          
+        console.log('Stored original file metadata in recording entry');
       }
 
       // Upload file to storage with retries and explicit content type

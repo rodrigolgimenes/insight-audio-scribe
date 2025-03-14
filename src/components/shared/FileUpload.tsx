@@ -37,6 +37,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const navigate = useNavigate();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [processingProgress, setProcessingProgress] = useState<number>(0);
 
   const handleClick = () => {
     if (inputRef.current) {
@@ -49,94 +50,103 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
     const file = e.target.files[0];
     setProcessingError(null);
+    setProcessingProgress(0);
     
     // Show appropriate message based on file type
     if (file.type.startsWith('video/')) {
       setProcessingState('processing');
       toast({
         title: "Processing Video",
-        description: "Extracting audio from video file. This may take a moment...",
+        description: "Extracting audio from video file and optimizing for transcription. This may take a moment...",
       });
-    } else if (file.type.startsWith('audio/') && file.type !== 'audio/mp3' && file.type !== 'audio/mpeg') {
+    } else if (file.type.startsWith('audio/')) {
       setProcessingState('processing');
       toast({
         title: "Processing Audio",
-        description: "Converting audio to optimal format. This may take a moment...",
+        description: "Optimizing audio for transcription. This may take a moment...",
       });
     } else {
-      setProcessingState('uploading');
+      setProcessingState('processing');
+      toast({
+        title: "Processing File",
+        description: "Attempting to process unknown file type. This may take a moment...",
+        variant: "destructive",
+      });
     }
 
     try {
       let processedFile = file;
       
-      // Process video/audio files if needed
-      if (audioProcessor.needsProcessing(file)) {
-        console.log("File needs processing before upload:", file.type);
+      // Process all files to ensure they're optimized for transcription
+      console.log("Processing file for optimal transcription:", file.type);
+      setProcessingProgress(10);
+      
+      try {
+        processedFile = await audioProcessor.processFile(file);
+        console.log("File processed successfully:", 
+          processedFile.type, processedFile.size, "bytes");
+        setProcessingProgress(70);
+          
+        // Verify the processed file actually has MP3 mime type
+        if (!processedFile.type.includes("mp3") && !processedFile.type.includes("mpeg")) {
+          console.warn("Processed file doesn't have MP3 mime type:", processedFile.type);
+          // Force the correct MIME type
+          const arrayBuffer = await processedFile.arrayBuffer();
+          processedFile = new File(
+            [arrayBuffer], 
+            processedFile.name, 
+            { type: 'audio/mp3' }
+          );
+          console.log("File MIME type forced to audio/mp3");
+        }
+        
+        // Verify file has content
+        if (processedFile.size === 0) {
+          throw new Error("Processed file is empty (0 bytes)");
+        }
+        
+        console.log("Proceeding with processed file:", 
+          processedFile.name, processedFile.type, processedFile.size);
+      } catch (processingError) {
+        console.error("Error processing file:", processingError);
+        setProcessingError("Could not process file for optimal audio. Using original file as fallback.");
+        
+        toast({
+          title: "Processing Warning",
+          description: "Could not optimize audio for transcription. Using original file instead.",
+          variant: "destructive",
+        });
+        
+        // Try to create a fallback MP3 file from the original
         try {
-          processedFile = await audioProcessor.processFile(file);
-          console.log("File processed successfully:", 
-            processedFile.type, processedFile.size, "bytes");
-            
-          // Verify the processed file actually has MP3 mime type
-          if (!processedFile.type.includes("mp3") && !processedFile.type.includes("mpeg")) {
-            console.warn("Processed file doesn't have MP3 mime type:", processedFile.type);
-            // Force the correct MIME type
-            const arrayBuffer = await processedFile.arrayBuffer();
-            processedFile = new File(
-              [arrayBuffer], 
-              processedFile.name, 
-              { type: 'audio/mp3' }
-            );
-            console.log("File MIME type forced to audio/mp3");
-          }
-          
-          // Verify file has content
-          if (processedFile.size === 0) {
-            throw new Error("Processed file is empty (0 bytes)");
-          }
-          
-          console.log("Proceeding with processed file:", 
-            processedFile.name, processedFile.type, processedFile.size);
-        } catch (processingError) {
-          console.error("Error processing file:", processingError);
-          setProcessingError("Could not process file for optimal audio. Using original file instead.");
-          
-          toast({
-            title: "Processing Warning",
-            description: "Could not process file for optimal audio. Using original file instead.",
-            variant: "destructive", // Fix the invalid "warning" variant
-          });
-          
-          // Try to create a fallback MP3 file from the original
-          try {
-            // Create a simple container with the original content but MP3 mime type
-            const arrayBuffer = await file.arrayBuffer();
-            processedFile = new File(
-              [arrayBuffer], 
-              file.name.replace(/\.[^/.]+$/, '') + '.mp3', 
-              { type: 'audio/mp3' }
-            );
-            console.log("Created fallback MP3 file:", processedFile.name, processedFile.size);
-          } catch (fallbackError) {
-            console.error("Error creating fallback MP3:", fallbackError);
-            // Use original file as last resort
-            processedFile = file;
-          }
+          // Create a simple container with the original content but MP3 mime type
+          const arrayBuffer = await file.arrayBuffer();
+          processedFile = new File(
+            [arrayBuffer], 
+            file.name.replace(/\.[^/.]+$/, '') + '.mp3', 
+            { type: 'audio/mp3' }
+          );
+          console.log("Created fallback MP3 file:", processedFile.name, processedFile.size);
+        } catch (fallbackError) {
+          console.error("Error creating fallback MP3:", fallbackError);
+          // Use original file as last resort
+          processedFile = file;
         }
       }
 
       setProcessingState('uploading');
+      setProcessingProgress(80);
       
       const noteId = await handleFileUpload(e, initiateTranscription, processedFile);
       setProcessingState('idle');
+      setProcessingProgress(100);
       
       if (noteId) {
         toast({
           title: "Upload Complete",
           description: processingError ? 
-            "Your file has been uploaded with the original format and is being processed." :
-            "Your file has been uploaded and is being processed.",
+            "Your file has been uploaded and is being processed, but couldn't be fully optimized." :
+            "Your file has been uploaded and optimized for best transcription quality.",
         });
         
         if (onUploadComplete) {
@@ -147,6 +157,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       }
     } catch (error) {
       setProcessingState('idle');
+      setProcessingProgress(0);
       console.error("File upload error:", error);
       toast({
         title: "Upload Failed",
@@ -190,6 +201,21 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         )}
         {getButtonText()}
       </Button>
+      
+      {processingState !== 'idle' && processingProgress > 0 && (
+        <div className="w-full mt-2">
+          <div className="bg-gray-200 h-1.5 rounded-full overflow-hidden">
+            <div 
+              className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${processingProgress}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {processingState === 'processing' ? 'Optimizing for transcription...' : 'Uploading...'}
+          </p>
+        </div>
+      )}
+      
       {processingError && (
         <p className="mt-2 text-sm text-yellow-600">{processingError}</p>
       )}
