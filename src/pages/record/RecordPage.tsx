@@ -57,6 +57,19 @@ export default function RecordPage() {
     }
   };
 
+  // Create a wrapper for the onSave function that returns a Promise
+  const handleWrappedSaveRecording = async () => {
+    try {
+      if (handleSaveRecording) {
+        await handleSaveRecording();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error saving recording:", error);
+      return Promise.reject(error);
+    }
+  };
+
   return (
     <ShellLayout>
       <div className="container mx-auto p-4">
@@ -83,7 +96,7 @@ export default function RecordPage() {
               selectedDeviceId={selectedDeviceId}
               onDeviceSelect={setSelectedDeviceId}
               deviceSelectionReady={deviceSelectionReady}
-              onSave={handleSaveRecording}
+              onSave={handleWrappedSaveRecording}
               isSaving={isSaving}
               isLoading={false}  // Fixed isLoading property
               lastAction={lastAction}

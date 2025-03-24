@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -18,6 +17,7 @@ import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -95,6 +95,8 @@ const SimpleRecord = () => {
   }, [recordingHook.initError]);
 
   const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+  const [processingStage, setProcessingStage] = useState<string>("");
+  const [processingProgress, setProcessingProgress] = useState<number>(0);
 
   const saveRecording = async () => {
     if (!recordingHook.audioUrl) {
@@ -131,17 +133,33 @@ const SimpleRecord = () => {
       
       console.log('Original recording format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
-      toast.info("Compressing audio...");
-      const compressedBlob = await audioCompressor.compressAudio(recordingBlob, {
-        targetBitrate: 32,      // 32kbps for high compression
-        mono: true,             // Convert to mono
-        targetSampleRate: 16000 // 16kHz sample rate
-      });
+      setProcessingStage("Compressing audio...");
+      setProcessingProgress(15);
       
-      console.log('Compressed to MP3:', compressedBlob.type, 
-                  'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB',
-                  'Compression ratio:', Math.round((1 - compressedBlob.size / recordingBlob.size) * 100) + '%');
-
+      console.log('Original audio format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      let compressedBlob: Blob;
+      try {
+        compressedBlob = await audioCompressor.compressAudio(recordingBlob, {
+          targetBitrate: 32, // 32kbps for high compression
+          mono: true,        // Convert to mono
+          targetSampleRate: 16000 // 16kHz sample rate
+        });
+        
+        console.log('Compressed audio format:', compressedBlob.type, 
+                   'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB',
+                   'Compression ratio:', Math.round((1 - compressedBlob.size / recordingBlob.size) * 100) + '%');
+      } catch (compressionError) {
+        console.error('Audio compression failed, using original audio:', compressionError);
+        toast.warning("Audio compression failed, using original format", {
+          description: "Your recording will still be saved but may be larger in size",
+          duration: 3000,
+        });
+        
+        const rawData = await recordingBlob.arrayBuffer();
+        compressedBlob = new Blob([rawData], { type: 'audio/mp3' });
+      }
+      
       const fileName = `${user.id}/${Date.now()}.mp3`;
       
       console.log('Creating recording with user ID:', user.id);
@@ -261,7 +279,6 @@ const SimpleRecord = () => {
                       showPlayButton={false}
                       onSave={saveRecording}
                       isLoading={isSaveProcessing}
-                      // Passar false para showNoDevicesWarning impede que a mensagem seja exibida
                       showNoDevicesWarning={false}
                     />
                     
