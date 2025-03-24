@@ -5,7 +5,7 @@ import { convertAudioBufferToMp3 } from '@/lib/audioConverter';
 export async function convertFileToMp3(
   file: File, 
   onProgress?: (percentage: number) => void
-): Promise<Blob> {
+): Promise<File> {
   try {
     console.log('Converting file to MP3:', file.name, file.type, file.size);
     
@@ -58,13 +58,20 @@ export async function convertFileToMp3(
     // Create a Blob from the MP3 buffer
     const mp3Blob = new Blob([mp3Data.buffer], { type: 'audio/mp3' });
     
+    // Convert the Blob to a File object to maintain compatibility
+    const fileName = file.name.replace(/\.[^/.]+$/, "") + ".mp3";
+    const mp3File = new File([mp3Blob], fileName, { 
+      type: 'audio/mp3',
+      lastModified: Date.now()
+    });
+    
     if (onProgress) {
       onProgress(100);
     }
     
-    console.log('MP3 conversion complete, size:', Math.round(mp3Blob.size / 1024), 'KB');
+    console.log('MP3 conversion complete, size:', Math.round(mp3File.size / 1024), 'KB');
     
-    return mp3Blob;
+    return mp3File;
   } catch (error) {
     console.error('Error converting file to MP3:', error);
     throw error;
