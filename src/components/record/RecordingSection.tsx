@@ -1,7 +1,7 @@
 
 import React from "react";
-import { RecordingButtons } from "./RecordingButtons";
 import { RecordingOptions } from "./sections/RecordingOptions";
+import { RecordingButtons } from "./RecordingButtons";
 import { AudioPlayer } from "./AudioPlayer";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
@@ -24,7 +24,7 @@ interface RecordingSectionProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
-  lastAction?: string;
+  lastAction?: string | { action: string; timestamp: number; success: boolean; error?: string }; // Accept both types
   showPlayButton?: boolean;
   onSave?: () => Promise<{ success: boolean }>;
   onRefreshDevices?: () => Promise<void>;
