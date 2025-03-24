@@ -54,9 +54,10 @@ export const ModalRecordContent = ({
     }
   };
 
-  // Convert from one PermissionState type to another to fix the type mismatch
-  const permissionState: 'prompt' | 'granted' | 'denied' | 'unknown' = 
-    recordingPermissionState as 'prompt' | 'granted' | 'denied' | 'unknown';
+  // Get the type from RecordingSection props
+  const permissionStateForComponent = recordingPermissionState === 'unknown' 
+    ? 'prompt' // Map 'unknown' to 'prompt' which is acceptable by RecordingSection
+    : recordingPermissionState;
 
   return (
     <div className="space-y-8">
@@ -86,7 +87,7 @@ export const ModalRecordContent = ({
         onDeviceSelect={setSelectedDeviceId}
         deviceSelectionReady={deviceSelectionReady}
         lastAction={lastAction}
-        permissionState={permissionState}
+        permissionState={permissionStateForComponent}
         showPlayButton={false}
         onSave={isRecording ? undefined : handleSaveClick}
       />
