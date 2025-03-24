@@ -4,8 +4,17 @@
  */
 
 // Store logs in memory for debugging
-const memoryLogs: string[] = [];
+export const memoryLogs: string[] = [];
+export const logStorage: LogEntry[] = [];
 const MAX_LOG_LENGTH = 1000;
+
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  message: string;
+  category: 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS';
+  details?: string;
+}
 
 // Log types
 let enabledLogTypes: Record<string, boolean> = {
@@ -30,6 +39,15 @@ export function log(message: string, type: string = 'default'): void {
   if (memoryLogs.length > MAX_LOG_LENGTH) {
     memoryLogs.shift();
   }
+  
+  // Add to structured logs
+  logStorage.push({
+    id: crypto.randomUUID(),
+    timestamp: timestamp,
+    message: message,
+    category: 'INFO',
+    details: type
+  });
   
   // Only log to console if enabled
   if (enabledLogTypes[type] || type === 'default') {
@@ -60,6 +78,30 @@ export function logValidation(message: string): void {
   log(message, 'validation');
 }
 
+export function logSuccess(message: string): void {
+  const entry = {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    message: message,
+    category: 'SUCCESS' as const,
+    details: 'success'
+  };
+  logStorage.push(entry);
+  console.log(`[SUCCESS] ${message}`);
+}
+
+export function logError(message: string): void {
+  const entry = {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    message: message,
+    category: 'ERROR' as const,
+    details: 'error'
+  };
+  logStorage.push(entry);
+  console.error(`[ERROR] ${message}`);
+}
+
 /**
  * Get all logs
  */
@@ -72,6 +114,7 @@ export function getLogs(): string[] {
  */
 export function clearLogs(): void {
   memoryLogs.length = 0;
+  logStorage.length = 0;
 }
 
 /**

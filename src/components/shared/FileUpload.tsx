@@ -138,11 +138,20 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         
         try {
           if (isAudio) {
-            fileToUpload = await audioCompressor.compressAudio(originalFile, {
+            const compressedBlob = await audioCompressor.compressAudio(originalFile, {
               targetBitrate: 48,
               mono: false,
               targetSampleRate: 44100
             });
+            
+            fileToUpload = new File(
+              [compressedBlob], 
+              originalFile.name.replace(/\.[^/.]+$/, "") + ".mp3", 
+              { 
+                type: 'audio/mp3',
+                lastModified: Date.now()
+              }
+            );
           } else {
             fileToUpload = await convertFileToMp3(originalFile, (progress) => {
               setProcessingProgress(progress);
@@ -415,3 +424,4 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     </div>
   );
 }
+

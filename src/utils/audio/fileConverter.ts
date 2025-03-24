@@ -1,6 +1,6 @@
 
 import { convertAudioBufferToMp3 } from '@/lib/audioConverter';
-import { log, logLameJS, logWorker, logData, logFormat, logValidation, logSuccess, logError } from '@/lib/logger';
+import { log, logLameJS, logWorker, logData, logFormat, logValidation } from '@/lib/logger';
 
 // Function to convert a file to MP3 format
 export async function convertFileToMp3(
@@ -82,7 +82,7 @@ export async function convertFileToMp3(
     const newSizeMB = (mp3File.size / (1024 * 1024)).toFixed(2);
     const compressionRate = Math.round((1 - (mp3File.size / file.size)) * 100);
     
-    logSuccess(`MP3 conversion completed successfully.
+    log(`MP3 conversion completed successfully.
       Original: ${originalSizeMB} MB (${file.type})
       Converted: ${newSizeMB} MB (MP3)
       Compression rate: ${compressionRate}%`);
@@ -92,7 +92,7 @@ export async function convertFileToMp3(
     return mp3File;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logError('Error converting file to MP3: ' + errorMessage);
+    log('Error converting file to MP3: ' + errorMessage, 'error');
     throw error;
   }
 }

@@ -2,12 +2,18 @@
 /**
  * Utility class for compressing audio files to optimize storage and transmission
  */
-import { logFormat } from "@/lib/logger";
+import { logFormat, logError, logSuccess } from "@/lib/logger";
 
 interface AudioCompressionOptions {
   targetBitrate?: number;  // in kbps
   mono?: boolean;          // convert to mono
   targetSampleRate?: number; // in Hz
+}
+
+interface ProcessedAudioResult {
+  chunks: Blob[];
+  originalSize: number;
+  processedSize: number;
 }
 
 class AudioCompressor {
@@ -91,8 +97,10 @@ class AudioCompressor {
           }
         };
         
-        mediaRecorder.onerror = (event) => {
-          reject(new Error(`MediaRecorder error: ${event.error}`));
+        // Fix: Use type assertion to handle the error property
+        mediaRecorder.onerror = (event: Event) => {
+          const mediaRecorderErrorEvent = event as MediaRecorderErrorEvent;
+          reject(new Error(`MediaRecorder error: ${mediaRecorderErrorEvent.error}`));
         };
         
         // Start playing and recording
@@ -110,6 +118,60 @@ class AudioCompressor {
       logFormat(`Audio compression failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       throw error;
     }
+  }
+  
+  /**
+   * Process audio for transcription, potentially chunking large files
+   * 
+   * @param audioBlob Original audio blob
+   * @param durationInSeconds Duration of the audio
+   * @param onProgress Optional progress callback
+   * @returns Processed audio result with chunks
+   */
+  async processAudioForTranscription(
+    audioBlob: Blob,
+    durationInSeconds: number,
+    onProgress?: (progress: number) => void
+  ): Promise<ProcessedAudioResult> {
+    try {
+      // Report initial progress
+      if (onProgress) onProgress(10);
+      
+      // Compress the audio first
+      const compressedBlob = await this.compressAudio(audioBlob, {
+        targetBitrate: 32,
+        mono: true,
+        targetSampleRate: 16000
+      });
+      
+      if (onProgress) onProgress(50);
+      
+      // For large files, we might want to chunk them
+      // But for now, just return the compressed blob as a single chunk
+      return {
+        chunks: [compressedBlob],
+        originalSize: audioBlob.size,
+        processedSize: compressedBlob.size
+      };
+      
+    } catch (error) {
+      logError(`Error processing audio for transcription: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Return the original blob if compression fails
+      return {
+        chunks: [audioBlob],
+        originalSize: audioBlob.size,
+        processedSize: audioBlob.size
+      };
+    }
+  }
+  
+  /**
+   * Clean up any resources used by the audio compressor
+   */
+  terminate(): void {
+    // Nothing to terminate in the current implementation
+    // This is a placeholder for future implementations that might need cleanup
+    logFormat('AudioCompressor terminated');
   }
   
   /**
