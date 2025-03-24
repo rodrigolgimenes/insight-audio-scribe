@@ -43,7 +43,7 @@ export const useMicrophoneAccess = (
           return null;
         }
 
-        // Configure audio constraints
+        // Configure audio constraints with lower sample rate and sample size
         const constraints: MediaStreamConstraints = {
           audio: deviceId
             ? {
@@ -51,11 +51,15 @@ export const useMicrophoneAccess = (
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: false,
+                sampleRate: { ideal: 16000 }, // Reduced sample rate (16kHz)
+                sampleSize: { ideal: 8 }      // Reduced sample size (8 bits)
               }
             : {
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: false,
+                sampleRate: { ideal: 16000 }, // Reduced sample rate (16kHz)
+                sampleSize: { ideal: 8 }      // Reduced sample size (8 bits)
               },
           video: false,
         };
@@ -87,6 +91,12 @@ export const useMicrophoneAccess = (
         console.log(`[useMicrophoneAccess] Got ${tracks.length} audio tracks`);
         tracks.forEach((track, i) => {
           console.log(`[useMicrophoneAccess] Track ${i}: ${track.label}, enabled: ${track.enabled}`);
+          
+          // Log audio track settings to verify sample rate and sample size
+          const settings = track.getSettings();
+          console.log(`[useMicrophoneAccess] Track settings:`, settings);
+          console.log(`[useMicrophoneAccess] Sample rate: ${settings.sampleRate || 'unknown'}`);
+          console.log(`[useMicrophoneAccess] Sample size: ${settings.sampleSize || 'unknown'}`);
         });
 
         // If system audio capture is requested

@@ -1,6 +1,7 @@
 
 import { useCallback } from "react";
 import { RecordingStateType } from "../useRecordingState";
+import { MIC_CONSTRAINTS } from "../audioConfig"; // Import our updated constraints
 
 export function useStartRecording(
   recorder: React.RefObject<any>,
@@ -30,21 +31,39 @@ export function useStartRecording(
       // Increment attempt counter
       setRecordingAttemptsCount(prev => prev + 1);
 
-      // Get media stream
+      // Get media stream with optimized constraints for voice
       let stream;
       if (isSystemAudio) {
         // Request system audio stream (via user selection)
         stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: true,
+          audio: {
+            sampleRate: { ideal: 16000 }, // Use 16kHz sample rate
+            sampleSize: { ideal: 8 }      // Use 8-bit sample size
+          },
           video: false
         });
         
         // Also get microphone if available
         try {
-          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const micConstraints = {
+            audio: deviceId 
+              ? {
+                  deviceId: { exact: deviceId },
+                  sampleRate: { ideal: 16000 }, // 16kHz for voice
+                  sampleSize: { ideal: 8 }      // 8-bit sample size
+                }
+              : {
+                  sampleRate: { ideal: 16000 }, // 16kHz for voice
+                  sampleSize: { ideal: 8 }      // 8-bit sample size
+                }
+          };
+          
+          const micStream = await navigator.mediaDevices.getUserMedia(micConstraints);
           
           // Create a new stream that includes both sources
-          const ctx = new AudioContext();
+          const ctx = new AudioContext({
+            sampleRate: 16000 // Set AudioContext to 16kHz
+          });
           const dest = ctx.createMediaStreamDestination();
           
           // Connect system audio
@@ -64,9 +83,18 @@ export function useStartRecording(
           // Continue with just system audio
         }
       } else {
-        // Request microphone only
+        // Request microphone only with optimized constraints
         const constraints = {
-          audio: deviceId ? { deviceId: { exact: deviceId } } : true
+          audio: deviceId 
+            ? { 
+                deviceId: { exact: deviceId },
+                sampleRate: { ideal: 16000 }, // 16kHz for voice
+                sampleSize: { ideal: 8 }      // 8-bit sample size
+              } 
+            : {
+                sampleRate: { ideal: 16000 }, // 16kHz for voice
+                sampleSize: { ideal: 8 }      // 8-bit sample size
+              }
         };
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       }
@@ -77,6 +105,15 @@ export function useStartRecording(
       }
       
       console.log('[useStartRecording] Media stream obtained successfully');
+      
+      // Log audio track settings
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        const settings = audioTracks[0].getSettings();
+        console.log('[useStartRecording] Audio settings:', settings);
+        console.log('[useStartRecording] Sample rate:', settings.sampleRate || 'unknown');
+        console.log('[useStartRecording] Sample size:', settings.sampleSize || 'unknown');
+      }
       
       // Store media stream
       setMediaStream(stream);

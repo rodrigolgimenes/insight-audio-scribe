@@ -1,12 +1,11 @@
-
 export const MIC_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
     echoCancellation: { ideal: true },
     noiseSuppression: { ideal: true },
     autoGainControl: { ideal: true },
-    channelCount: { ideal: 2 },
-    sampleRate: { ideal: 48000 },
-    sampleSize: { ideal: 16 }
+    channelCount: { ideal: 1 },
+    sampleRate: { ideal: 16000 },
+    sampleSize: { ideal: 8 }
   },
   video: false
 };
@@ -16,12 +15,17 @@ export const SYSTEM_AUDIO_CONSTRAINTS = {
     echoCancellation: true,
     noiseSuppression: true,
     autoGainControl: true,
+    sampleRate: { ideal: 16000 },
+    sampleSize: { ideal: 8 }
   },
   video: false
 };
 
 export const MINIMAL_VIDEO_CONSTRAINTS = {
-  audio: true,
+  audio: {
+    sampleRate: { ideal: 16000 },
+    sampleSize: { ideal: 8 }
+  },
   video: { 
     width: 1,
     height: 1,
@@ -31,7 +35,7 @@ export const MINIMAL_VIDEO_CONSTRAINTS = {
 
 export const AUDIO_CONTEXT_OPTIONS = {
   latencyHint: 'interactive' as const,
-  sampleRate: 48000
+  sampleRate: 16000
 };
 
 export const GAIN_VALUES = {
