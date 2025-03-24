@@ -1,71 +1,50 @@
-
-import React, { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { useToast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
-import { RecordingSection } from "@/components/record/RecordingSection";
-import { Button } from "@/components/ui/button";
-import { Upload } from "lucide-react";
+import { useFileUpload } from "@/hooks";
+import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
+import { RecordPageError } from "@/components/record/RecordPageError";
+import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
+import { RecordingSection } from "@/components/record/RecordingSection";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useRecordingSave } from "@/hooks/record/useRecordingSave";
+import { Card, CardContent } from "@/components/ui/card";
+import { FileUploadSection } from "@/components/record/FileUploadSection";
+import { RecordTimer } from "@/components/record/RecordTimer";
+import { AudioVisualizer } from "@/components/record/AudioVisualizer";
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
+import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 
-export default function SimpleRecord() {
-  const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+const SimpleRecord = () => {
+  PageLoadTracker.init();
+  PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
   
-  const {
-    isRecording,
-    isPaused,
-    audioUrl,
-    mediaStream,
-    handleStartRecording,
-    handleStopRecording,
-    handlePauseRecording,
-    handleResumeRecording,
-    handleDelete,
-    isSystemAudio,
-    setIsSystemAudio,
-    audioDevices,
-    selectedDeviceId,
-    setSelectedDeviceId,
-    deviceSelectionReady,
-    refreshDevices,
-    devicesLoading,
-    permissionState,
-    recordedDuration,
-  } = useRecording();
+  const navigate = useNavigate();
+  const { toast: legacyToast } = useToast();
+  const [error, setError] = useState<string | null>(null);
+  const [isSaveProcessing, setIsSaveProcessing] = useState(false);
+  const { isUploading } = useFileUpload();
 
-  const {
-    saveRecording,
-    isProcessing,
-    processingProgress,
-    processingStage
-  } = useRecordingSave();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      setIsAuthenticated(!!data.session);
-    };
-    
-    checkAuth();
-  }, []);
-
-  const handleUploadClick = () => {
-    if (isAuthenticated) {
-      navigate("/app");
-    } else {
-      toast.error("Please sign in to upload files");
-      navigate("/login");
+  const recordingHook = useRecording();
+  
+  const handleWrappedStopRecording = async () => {
+    try {
+      await recordingHook.handleStopRecording();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      return Promise.reject(error);
     }
   };
-
-  // Wrap refreshDevices to ensure it returns Promise<void>
-  const handleRefreshDevices = async () => {
+  
+  const handleWrappedRefreshDevices = async () => {
     try {
-      if (refreshDevices) {
-        await refreshDevices();
+      if (recordingHook.refreshDevices) {
+        const result = await recordingHook.refreshDevices();
+        return Promise.resolve();
       }
       return Promise.resolve();
     } catch (error) {
@@ -73,68 +52,274 @@ export default function SimpleRecord() {
       return Promise.reject(error);
     }
   };
+  
+  useEffect(() => {
+    console.log("[SimpleRecord RENDER] Recording hook states:", {
+      compName: 'SimpleRecord',
+      deviceCount: recordingHook.audioDevices.length,
+      selectedDeviceId: recordingHook.selectedDeviceId,
+      deviceSelectionReady: recordingHook.deviceSelectionReady,
+      permissionState: recordingHook.permissionState,
+      devicesLoading: recordingHook.devicesLoading
+    });
+  }, [
+    recordingHook.audioDevices, 
+    recordingHook.selectedDeviceId, 
+    recordingHook.deviceSelectionReady,
+    recordingHook.permissionState,
+    recordingHook.devicesLoading
+  ]);
 
-  // Handle saving recording
-  const handleSaveRecording = () => {
-    if (!isAuthenticated) {
-      toast.error("Please sign in to save recordings");
-      navigate("/login");
-      return;
+  useEffect(() => {
+    if (
+      recordingHook.audioDevices.length > 0 && 
+      (!recordingHook.selectedDeviceId || 
+        !recordingHook.audioDevices.some(d => d.deviceId === recordingHook.selectedDeviceId))
+    ) {
+      console.log("[SimpleRecord] Auto-selecting first device:", recordingHook.audioDevices[0].deviceId);
+      recordingHook.setSelectedDeviceId(recordingHook.audioDevices[0].deviceId);
+    }
+  }, [recordingHook.audioDevices, recordingHook.selectedDeviceId, recordingHook.setSelectedDeviceId]);
+
+  useEffect(() => {
+    if (recordingHook.initError) {
+      PageLoadTracker.trackPhase('Initialization Error Detected', false, recordingHook.initError.message);
+      setError(recordingHook.initError.message);
+      toast.error("Recording initialization failed", {
+        description: recordingHook.initError.message
+      });
+    } else {
+      setError(null);
+    }
+  }, [recordingHook.initError]);
+
+  const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+
+  const saveRecording = async () => {
+    if (!recordingHook.audioUrl) {
+      toast.error("No recording to save");
+      return { success: false };
     }
 
-    saveRecording(
-      isRecording,
-      handleStopRecording,
-      mediaStream,
-      audioUrl,
-      recordedDuration
-    );
+    setIsSaveProcessing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("You must be logged in to save recordings");
+        return { success: false };
+      }
+
+      let recordingBlob: Blob | null = null;
+      let recordedDuration = 0;
+
+      if (recordingHook.isRecording) {
+        const result = await recordingHook.handleStopRecording();
+        if (result && 'blob' in result) {
+          recordingBlob = result.blob;
+          recordedDuration = result.duration || 0;
+        }
+      } else {
+        const response = await fetch(recordingHook.audioUrl);
+        recordingBlob = await response.blob();
+        recordedDuration = recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0;
+      }
+
+      if (!recordingBlob) {
+        throw new Error("Failed to get recording data");
+      }
+      
+      console.log('Original recording format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      
+      toast.info("Compressing audio...");
+      const compressedBlob = await audioCompressor.compressAudio(recordingBlob, {
+        targetBitrate: 32,      // 32kbps for high compression
+        mono: true,             // Convert to mono
+        targetSampleRate: 16000 // 16kHz sample rate
+      });
+      
+      console.log('Compressed to MP3:', compressedBlob.type, 
+                  'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB',
+                  'Compression ratio:', Math.round((1 - compressedBlob.size / recordingBlob.size) * 100) + '%');
+
+      const fileName = `${user.id}/${Date.now()}.mp3`;
+      
+      console.log('Creating recording with user ID:', user.id);
+      console.log('Recording duration in seconds:', recordedDuration);
+
+      const { error: dbError, data: recordingData } = await supabase
+        .from('recordings')
+        .insert({
+          title: `Recording ${new Date().toLocaleString()}`,
+          duration: Math.round(recordedDuration * 1000),
+          file_path: fileName,
+          user_id: user.id,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        throw new Error(`Failed to save recording: ${dbError.message}`);
+      }
+      
+      setCurrentProcessingId(recordingData.id);
+
+      const { error: uploadError } = await supabase.storage
+        .from('audio_recordings')
+        .upload(fileName, compressedBlob, {
+          contentType: 'audio/mp3',
+          upsert: true
+        });
+
+      if (uploadError) {
+        await supabase.from('recordings').delete().eq('id', recordingData.id);
+        throw new Error(`Failed to upload audio: ${uploadError.message}`);
+      }
+
+      const { error: noteError, data: noteData } = await supabase
+        .from('notes')
+        .insert({
+          title: recordingData.title,
+          recording_id: recordingData.id,
+          user_id: user.id,
+          status: 'pending',
+          processing_progress: 0,
+          duration: Math.round(recordedDuration * 1000)
+        })
+        .select()
+        .single();
+
+      if (noteError) {
+        throw new Error(`Failed to create note: ${noteError.message}`);
+      }
+
+      await supabase
+        .from('processing_logs')
+        .insert({
+          recording_id: recordingData.id,
+          note_id: noteData.id,
+          stage: 'upload_complete',
+          message: 'File uploaded successfully, starting processing',
+          status: 'success'
+        });
+
+      const { error: processError } = await supabase.functions
+        .invoke('process-recording', {
+          body: { recordingId: recordingData.id, noteId: noteData.id },
+        });
+
+      if (processError) {
+        toast.warning("Recording saved but processing failed to start. It will retry automatically.");
+      } else {
+        toast.success("Recording saved and processing started!");
+      }
+
+      navigate("/app");
+      return { success: true };
+    } catch (error) {
+      console.error('Error saving recording:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to save recording");
+      return { success: false };
+    } finally {
+      setIsSaveProcessing(false);
+    }
   };
 
+  PageLoadTracker.trackPhase('Render Main Content', true);
+  
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-start">
-          <h1 className="text-3xl font-bold mb-6">Record Audio</h1>
-          <Button 
-            variant="default" 
-            className="bg-palatinate-blue hover:bg-palatinate-blue/90 text-white"
-            onClick={handleUploadClick}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Audio
-          </Button>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-ghost-white">
+        <AppSidebar activePage="recorder" />
+        <div className="flex-1 bg-ghost-white">
+          <main className="container mx-auto px-4 py-8 space-y-8">
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardContent className="p-6">
+                    <RecordingSection
+                      isRecording={recordingHook.isRecording}
+                      isPaused={recordingHook.isPaused}
+                      audioUrl={recordingHook.audioUrl}
+                      mediaStream={recordingHook.mediaStream}
+                      isSystemAudio={recordingHook.isSystemAudio}
+                      handleStartRecording={recordingHook.handleStartRecording}
+                      handleStopRecording={handleWrappedStopRecording}
+                      handlePauseRecording={recordingHook.handlePauseRecording}
+                      handleResumeRecording={recordingHook.handleResumeRecording}
+                      handleDelete={recordingHook.handleDelete}
+                      onSystemAudioChange={recordingHook.setIsSystemAudio}
+                      audioDevices={recordingHook.audioDevices}
+                      selectedDeviceId={recordingHook.selectedDeviceId}
+                      onDeviceSelect={recordingHook.setSelectedDeviceId}
+                      deviceSelectionReady={recordingHook.deviceSelectionReady}
+                      lastAction={recordingHook.lastAction}
+                      onRefreshDevices={handleWrappedRefreshDevices}
+                      devicesLoading={recordingHook.devicesLoading}
+                      permissionState={recordingHook.permissionState as any}
+                    />
+                    
+                    {recordingHook.isRecording && (
+                      <div className="mt-6">
+                        <RecordTimer 
+                          isRecording={recordingHook.isRecording} 
+                          isPaused={recordingHook.isPaused} 
+                        />
+                        <div className="mt-4">
+                          <AudioVisualizer 
+                            mediaStream={recordingHook.mediaStream} 
+                            isRecording={recordingHook.isRecording} 
+                            isPaused={recordingHook.isPaused}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                
+                <div className="space-y-8">
+                  <FileUploadSection 
+                    isDisabled={isUploading || isSaveProcessing} 
+                    showDetailsPanel={true}
+                  />
+                  
+                  {currentProcessingId && (
+                    <ProcessingLogs recordingId={currentProcessingId} />
+                  )}
+                </div>
+              </div>
+              
+              {recordingHook.audioUrl && !recordingHook.isRecording && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    onClick={saveRecording}
+                    disabled={isSaveProcessing}
+                    className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white px-6 py-3 rounded-md font-medium flex items-center gap-2"
+                  >
+                    {isSaveProcessing ? (
+                      <>
+                        <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></span>
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                          <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        <span>Save & Transcribe</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </main>
         </div>
-        
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <RecordingSection
-              isRecording={isRecording}
-              isPaused={isPaused}
-              audioUrl={audioUrl}
-              mediaStream={mediaStream}
-              isSystemAudio={isSystemAudio}
-              handleStartRecording={handleStartRecording}
-              handleStopRecording={handleStopRecording}
-              handlePauseRecording={handlePauseRecording}
-              handleResumeRecording={handleResumeRecording}
-              handleDelete={handleDelete}
-              onSystemAudioChange={setIsSystemAudio}
-              audioDevices={audioDevices}
-              selectedDeviceId={selectedDeviceId}
-              onDeviceSelect={setSelectedDeviceId}
-              deviceSelectionReady={deviceSelectionReady}
-              onRefreshDevices={handleRefreshDevices}
-              devicesLoading={devicesLoading}
-              permissionState={permissionState as any}
-              onSave={handleSaveRecording}
-              isSaving={isProcessing}
-              processingProgress={processingProgress}
-              processingStage={processingStage}
-            />
-          </CardContent>
-        </Card>
       </div>
-    </div>
+    </SidebarProvider>
   );
-}
+};
+
+export default SimpleRecord;

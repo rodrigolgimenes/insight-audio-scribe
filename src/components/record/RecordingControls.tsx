@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Pause, StopCircle, Trash2, FileText } from "lucide-react";
+import { Mic, Pause, StopCircle, Trash2, Music } from "lucide-react";
 
 interface RecordingControlsProps {
   isRecording: boolean;
@@ -12,10 +12,9 @@ interface RecordingControlsProps {
   onPause: () => void;
   onResume: () => void;
   onDelete: () => void;
-  onSave?: () => void;
+  showPlayButton?: boolean;
   showDeleteButton?: boolean;
   isLoading?: boolean;
-  isSaving?: boolean;
 }
 
 export const RecordingControls = ({
@@ -27,10 +26,9 @@ export const RecordingControls = ({
   onPause,
   onResume,
   onDelete,
-  onSave,
+  showPlayButton = true,
   showDeleteButton = true,
-  isLoading = false,
-  isSaving = false
+  isLoading = false
 }: RecordingControlsProps) => {
   return (
     <div className="flex justify-center items-center gap-4 my-4">
@@ -89,31 +87,30 @@ export const RecordingControls = ({
         </>
       )}
       
-      {audioUrl && !isRecording && (
-        <div className="flex gap-2">
-          {showDeleteButton && (
-            <Button
-              onClick={onDelete}
-              variant="destructive"
-              className="rounded-full p-3 h-auto"
-              disabled={isLoading}
-            >
-              <Trash2 className="h-5 w-5" />
-              <span className="sr-only">Delete Recording</span>
-            </Button>
-          )}
-          
-          {onSave && (
-            <Button
-              className="bg-palatinate-blue hover:bg-palatinate-blue/90 text-white rounded-full px-6 py-4 h-auto"
-              onClick={onSave}
-              disabled={isLoading || isSaving}
-            >
-              <FileText className="h-5 w-5 mr-2" />
-              <span>Save & Transcribe</span>
-            </Button>
-          )}
-        </div>
+      {audioUrl && !isRecording && showDeleteButton && (
+        <Button
+          onClick={onDelete}
+          variant="destructive"
+          className="rounded-full p-3 h-auto"
+          disabled={isLoading}
+        >
+          <Trash2 className="h-5 w-5" />
+          <span className="sr-only">Delete Recording</span>
+        </Button>
+      )}
+
+      {audioUrl && !isRecording && showPlayButton && (
+        <Button
+          className="bg-palatinate-blue hover:bg-palatinate-blue/90 text-white rounded-full px-6 py-4 h-auto"
+          onClick={() => {
+            const audio = new Audio(audioUrl);
+            audio.play();
+          }}
+          disabled={isLoading}
+        >
+          <Music className="h-5 w-5 mr-2" />
+          <span>Play</span>
+        </Button>
       )}
     </div>
   );
