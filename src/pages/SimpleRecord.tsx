@@ -279,12 +279,6 @@ const SimpleRecord = () => {
                 </Card>
                 
                 <div className="space-y-8">
-                  <ProcessedContentSection
-                    audioUrl={recordingHook.audioUrl}
-                    isRecording={recordingHook.isRecording}
-                    isLoading={isUploading || isSaveProcessing}
-                  />
-                  
                   <FileUploadSection 
                     isDisabled={isUploading || isSaveProcessing} 
                     showDetailsPanel={true}
@@ -330,4 +324,3 @@ const SimpleRecord = () => {
 };
 
 export default SimpleRecord;
-
