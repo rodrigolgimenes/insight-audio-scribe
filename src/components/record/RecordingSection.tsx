@@ -14,7 +14,7 @@ interface RecordingSectionProps {
   mediaStream: MediaStream | null;
   isSystemAudio: boolean;
   handleStartRecording: () => void;
-  handleStopRecording: () => void;
+  handleStopRecording: () => Promise<any>;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
@@ -25,7 +25,7 @@ interface RecordingSectionProps {
   deviceSelectionReady: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
-  onSave?: () => void;
+  onSave?: () => Promise<any>;
   isSaving?: boolean;
   isLoading?: boolean;
   lastAction?: { action: string; timestamp: number; success: boolean };
@@ -122,19 +122,6 @@ export const RecordingSection = ({
           devicesLoading={devicesLoading}
           permissionState={permissionState}
         />
-        
-        {/* Recording actions (save/upload) */}
-        {onSave && !showPlayButton && (
-          <RecordingActions
-            onSave={onSave}
-            isSaving={isSaving}
-            isLoading={isLoading}
-            isRecording={isRecording}
-            hasRecording={Boolean(audioUrl)}
-            processingProgress={processingProgress}
-            processingStage={processingStage}
-          />
-        )}
       </div>
     </div>
   );

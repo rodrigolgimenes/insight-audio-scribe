@@ -81,6 +81,17 @@ export function RecordingSheet() {
     }
   };
 
+  // Create a wrapper for handleSaveRecording that returns a Promise
+  const wrappedSaveRecording = async () => {
+    try {
+      await handleSaveRecording();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error saving recording:", error);
+      return Promise.reject(error);
+    }
+  };
+
   // Create a wrapper for device selection that prevents toasts on dashboard
   const handleDeviceSelect = (deviceId: string) => {
     console.log('[RecordingSheet] Device selected:', deviceId);
@@ -211,16 +222,13 @@ export function RecordingSheet() {
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
               isRestrictedRoute={isRestrictedRoute}
-              onSave={handleSaveRecording}
+              onSave={wrappedSaveRecording}
               isSaving={isSaving}
             />
 
             <div className="mt-6 flex justify-center">
               <SaveRecordingButton
-                onSave={() => {
-                  console.log('[RecordingSheet] Save button clicked');
-                  handleSaveRecording();
-                }}
+                onSave={wrappedSaveRecording}
                 isSaving={isSaving}
                 isDisabled={!isRecording && !audioUrl}
               />

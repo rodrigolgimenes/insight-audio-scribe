@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -12,11 +13,10 @@ import { RecordingSection } from "@/components/record/RecordingSection";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 import { ProcessingLogs } from "@/components/record/ProcessingLogs";
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -281,11 +281,6 @@ const SimpleRecord = () => {
                 </Card>
                 
                 <div className="space-y-8">
-                  <FileUploadSection 
-                    isDisabled={isUploading || isSaveProcessing} 
-                    showDetailsPanel={true}
-                  />
-                  
                   {currentProcessingId && (
                     <ProcessingLogs recordingId={currentProcessingId} />
                   )}

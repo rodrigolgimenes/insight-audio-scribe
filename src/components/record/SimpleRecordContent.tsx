@@ -2,7 +2,6 @@
 import React from "react";
 import { RecordingSection } from "./RecordingSection";
 import { ProcessedContentSection } from "./ProcessedContentSection";
-import { FileUploadSection } from "./FileUploadSection";
 import { Button } from "@/components/ui/button";
 import { Save } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +12,7 @@ interface SimpleRecordContentProps {
   recordingHook: any;
   isLoading: boolean;
   error: string | null;
-  saveRecording: () => void;
+  saveRecording: () => Promise<any>;
   isSaveProcessing: boolean;
 }
 
@@ -24,6 +23,29 @@ export function SimpleRecordContent({
   saveRecording,
   isSaveProcessing
 }: SimpleRecordContentProps) {
+  // Create wrapper functions that return proper Promise types
+  const handleWrappedStopRecording = async () => {
+    try {
+      await recordingHook.handleStopRecording();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error stopping recording:", error);
+      return Promise.reject(error);
+    }
+  };
+  
+  const handleWrappedRefreshDevices = async () => {
+    try {
+      if (recordingHook.refreshDevices) {
+        await recordingHook.refreshDevices();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing devices:", error);
+      return Promise.reject(error);
+    }
+  };
+  
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -57,7 +79,7 @@ export function SimpleRecordContent({
               mediaStream={recordingHook.mediaStream}
               isSystemAudio={recordingHook.isSystemAudio}
               handleStartRecording={recordingHook.handleStartRecording}
-              handleStopRecording={recordingHook.handleStopRecording}
+              handleStopRecording={handleWrappedStopRecording}
               handlePauseRecording={recordingHook.handlePauseRecording}
               handleResumeRecording={recordingHook.handleResumeRecording}
               handleDelete={recordingHook.handleDelete}
@@ -67,7 +89,9 @@ export function SimpleRecordContent({
               onDeviceSelect={recordingHook.setSelectedDeviceId}
               deviceSelectionReady={recordingHook.deviceSelectionReady}
               lastAction={recordingHook.lastAction}
-              onRefreshDevices={recordingHook.refreshDevices}
+              onRefreshDevices={handleWrappedRefreshDevices}
+              devicesLoading={recordingHook.devicesLoading || false}
+              permissionState={recordingHook.permissionState}
             />
           </CardContent>
         </Card>
@@ -77,11 +101,6 @@ export function SimpleRecordContent({
             audioUrl={recordingHook.audioUrl}
             isRecording={recordingHook.isRecording}
             isLoading={isLoading}
-          />
-          
-          <FileUploadSection 
-            isDisabled={isLoading || isSaveProcessing} 
-            showDetailsPanel={true}
           />
         </div>
       </div>

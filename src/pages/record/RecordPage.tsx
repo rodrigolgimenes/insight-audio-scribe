@@ -45,6 +45,16 @@ export default function RecordPage() {
     }
   };
   
+  const handleWrappedSaveRecording = async () => {
+    try {
+      await handleSaveRecording();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error saving recording:", error);
+      return Promise.reject(error);
+    }
+  };
+  
   const handleWrappedRefreshDevices = async () => {
     try {
       if (refreshDevices) {
@@ -83,7 +93,7 @@ export default function RecordPage() {
               selectedDeviceId={selectedDeviceId}
               onDeviceSelect={setSelectedDeviceId}
               deviceSelectionReady={deviceSelectionReady}
-              onSave={handleSaveRecording}
+              onSave={handleWrappedSaveRecording}
               isSaving={isSaving}
               isLoading={false}  // Fixed isLoading property
               lastAction={lastAction}

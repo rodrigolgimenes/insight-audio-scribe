@@ -41,7 +41,9 @@ export const ModalRecordContent = ({
     deviceSelectionReady,
     lastAction,
     permissionState: recordingPermissionState,
-    handleSaveRecording
+    handleSaveRecording,
+    devicesLoading,
+    refreshDevices
   } = useRecording();
 
   const handleSaveClick = async () => {
@@ -49,8 +51,23 @@ export const ModalRecordContent = ({
       await handleSaveRecording();
       onSuccess?.();
       closeModal();
+      return Promise.resolve();
     } catch (err: any) {
       setError(err.message || "Failed to save recording");
+      return Promise.reject(err);
+    }
+  };
+
+  // Create wrapper for refreshDevices that returns a Promise
+  const handleRefreshDevices = async () => {
+    try {
+      if (refreshDevices) {
+        await refreshDevices();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing devices:", error);
+      return Promise.reject(error);
     }
   };
 
@@ -89,7 +106,9 @@ export const ModalRecordContent = ({
         lastAction={lastAction}
         permissionState={permissionStateForComponent}
         showPlayButton={false}
-        onSave={isRecording ? undefined : handleSaveClick}
+        onSave={handleSaveClick}
+        devicesLoading={devicesLoading}
+        onRefreshDevices={handleRefreshDevices}
       />
 
       <SheetFooter>
