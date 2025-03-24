@@ -8,6 +8,7 @@ import { Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useRecordingSave } from "@/hooks/record/useRecordingSave";
 
 export default function SimpleRecord() {
   const navigate = useNavigate();
@@ -32,7 +33,15 @@ export default function SimpleRecord() {
     refreshDevices,
     devicesLoading,
     permissionState,
+    recordedDuration,
   } = useRecording();
+
+  const {
+    saveRecording,
+    isProcessing,
+    processingProgress,
+    processingStage
+  } = useRecordingSave();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -50,6 +59,36 @@ export default function SimpleRecord() {
       toast.error("Please sign in to upload files");
       navigate("/login");
     }
+  };
+
+  // Wrap refreshDevices to ensure it returns Promise<void>
+  const handleRefreshDevices = async () => {
+    try {
+      if (refreshDevices) {
+        await refreshDevices();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error refreshing devices:", error);
+      return Promise.reject(error);
+    }
+  };
+
+  // Handle saving recording
+  const handleSaveRecording = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to save recordings");
+      navigate("/login");
+      return;
+    }
+
+    saveRecording(
+      isRecording,
+      handleStopRecording,
+      mediaStream,
+      audioUrl,
+      recordedDuration
+    );
   };
 
   return (
@@ -85,9 +124,13 @@ export default function SimpleRecord() {
               selectedDeviceId={selectedDeviceId}
               onDeviceSelect={setSelectedDeviceId}
               deviceSelectionReady={deviceSelectionReady}
-              onRefreshDevices={refreshDevices}
+              onRefreshDevices={handleRefreshDevices}
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
+              onSave={handleSaveRecording}
+              isSaving={isProcessing}
+              processingProgress={processingProgress}
+              processingStage={processingStage}
             />
           </CardContent>
         </Card>

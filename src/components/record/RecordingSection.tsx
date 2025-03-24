@@ -23,7 +23,6 @@ interface RecordingSectionProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
-  showPlayButton?: boolean;
   showDeleteButton?: boolean;
   onSave?: () => void;
   isSaving?: boolean;
@@ -53,7 +52,6 @@ export const RecordingSection = ({
   selectedDeviceId,
   onDeviceSelect,
   deviceSelectionReady,
-  showPlayButton = true,
   showDeleteButton = true,
   onSave,
   isSaving = false,
@@ -103,9 +101,10 @@ export const RecordingSection = ({
           onPause={handlePauseRecording}
           onResume={handleResumeRecording}
           onDelete={handleDelete}
-          showPlayButton={showPlayButton}
+          onSave={onSave}
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}
+          isSaving={isSaving}
         />
         
         {/* Device settings */}
@@ -122,18 +121,7 @@ export const RecordingSection = ({
           permissionState={permissionState}
         />
         
-        {/* Recording actions (save/upload) */}
-        {onSave && (
-          <RecordingActions
-            onSave={onSave}
-            isSaving={isSaving}
-            isLoading={isLoading}
-            isRecording={isRecording}
-            hasRecording={Boolean(audioUrl)}
-            processingProgress={processingProgress}
-            processingStage={processingStage}
-          />
-        )}
+        {/* We've removed the RecordingActions component from here since we're now showing the Save button in the controls */}
       </div>
     </div>
   );
