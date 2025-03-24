@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -30,7 +31,7 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
   
-  const handleWrappedStopRecording = async () => {
+  const handleWrappedStopRecording = async (): Promise<void> => {
     try {
       await recordingHook.handleStopRecording();
       return Promise.resolve();
@@ -40,11 +41,10 @@ const SimpleRecord = () => {
     }
   };
   
-  const handleWrappedRefreshDevices = async () => {
+  const handleWrappedRefreshDevices = async (): Promise<void> => {
     try {
       if (recordingHook.refreshDevices) {
-        const result = await recordingHook.refreshDevices();
-        return Promise.resolve();
+        await recordingHook.refreshDevices();
       }
       return Promise.resolve();
     } catch (error) {
@@ -85,9 +85,14 @@ const SimpleRecord = () => {
     if (recordingHook.initError) {
       PageLoadTracker.trackPhase('Initialization Error Detected', false, recordingHook.initError.message);
       setError(recordingHook.initError.message);
-      toast.error("Recording initialization failed", {
-        description: recordingHook.initError.message
-      });
+      // Do not show toast for microphone errors
+      if (!recordingHook.initError.message.toLowerCase().includes('microphone') && 
+          !recordingHook.initError.message.toLowerCase().includes('audio') &&
+          !recordingHook.initError.message.toLowerCase().includes('permission')) {
+        toast.error("Recording initialization failed", {
+          description: recordingHook.initError.message
+        });
+      }
     } else {
       setError(null);
     }
@@ -99,7 +104,7 @@ const SimpleRecord = () => {
     recordingId: string;
   } | null>(null);
 
-  const saveRecording = async () => {
+  const saveRecording = async (): Promise<{ success: boolean }> => {
     if (!recordingHook.audioUrl) {
       toast.error("No recording to save");
       return { success: false };

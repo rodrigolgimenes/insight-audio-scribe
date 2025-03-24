@@ -1,241 +1,166 @@
 
-import { useEffect, useState, useCallback } from "react";
-import { useRecording } from "@/hooks/useRecording";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { RecordingSection } from "@/components/record/RecordingSection";
-import { SaveRecordingButton } from "@/components/record/SaveRecordingButton";
-import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Mic, Loader2 } from "lucide-react";
+import { ModalRecordContent } from "@/components/record/ModalRecordContent";
+import { useNotes } from "@/hooks/useNotes";
+import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { RecentRecordings } from "@/components/dashboard/RecentRecordings";
+import { Toggle } from "@/components/ui/toggle";
+import { CircleWavyCheck, FileAudio } from "phosphor-react";
+import { UploadFileAction } from "./UploadFileAction";
+import { useFileUpload } from "@/hooks";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export function RecordingSheet() {
-  const { toast } = useToast();
-  const [isComponentReady, setIsComponentReady] = useState(false);
-  
-  const {
-    isRecording,
-    isPaused,
-    audioUrl,
-    mediaStream,
-    isSaving,
-    isTranscribing,
-    isSystemAudio,
-    handleStartRecording,
-    handleStopRecording,
-    handlePauseRecording,
-    handleResumeRecording,
-    setIsSystemAudio,
-    audioDevices,
-    selectedDeviceId,
-    setSelectedDeviceId,
-    handleSaveRecording,
-    handleDelete,
-    deviceSelectionReady,
-    recordingAttemptsCount,
-    initError,
-    lastAction,
-    refreshDevices,
-    devicesLoading,
-    permissionState,
-    isRestrictedRoute
-  } = useRecording();
+interface RecordingSheetProps {
+  onClose?: () => void;
+  onSuccess?: () => void;
+  buttonText?: string;
+  buttonVariant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
+  buttonSize?: "default" | "sm" | "lg" | "icon";
+  buttonClassName?: string;
+  triggerClassName?: string;
+  showRecentItems?: boolean;
+  isFloatingButton?: boolean;
+  defaultTab?: "record" | "upload";
+}
 
-  // Enhanced check for restricted routes - dashboard/index/app paths
-  const checkIsRestrictedRoute = useCallback((): boolean => {
-    const path = window.location.pathname.toLowerCase();
-    return path === '/' || 
-           path === '/index' || 
-           path === '/dashboard' || 
-           path === '/app' ||
-           path.startsWith('/app/');
-  }, []);
+export function RecordingSheet({
+  onClose,
+  onSuccess,
+  buttonText = "Record Audio",
+  buttonVariant = "default",
+  buttonSize = "default",
+  buttonClassName = "",
+  triggerClassName = "",
+  showRecentItems = false,
+  isFloatingButton = false,
+  defaultTab = "record",
+}: RecordingSheetProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [initialTab, setInitialTab] = useState<"record" | "upload">(defaultTab);
+  const { isUploading, uploadProgress } = useFileUpload();
+  const { 
+    isLoading: isLoadingNotes, 
+    notes, 
+    refetch: refetchNotes 
+  } = useNotes({ 
+    limit: 5, 
+    enabled: true, 
+    refetchOnMount: true 
+  });
 
-  // Create a wrapper for refreshDevices that returns a Promise and suppresses toasts
-  const handleRefreshDevices = async () => {
-    try {
-      if (refreshDevices) {
-        await refreshDevices();
-        
-        // Only show toast if not on restricted route
-        if (!checkIsRestrictedRoute()) {
-          toast({
-            title: "Devices refreshed",
-            variant: "default"
-          });
-        }
-      }
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error refreshing devices:", error);
-      
-      // Only show error toast if not on restricted route
-      if (!checkIsRestrictedRoute()) {
-        toast({
-          title: "Error refreshing devices",
-          variant: "destructive"
-        });
-      }
-      
-      return Promise.reject(error);
-    }
-  };
-
-  // Create a wrapper for handleSaveRecording that returns a Promise
-  const wrappedSaveRecording = async () => {
-    try {
-      await handleSaveRecording();
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error saving recording:", error);
-      return Promise.reject(error);
-    }
-  };
-
-  // Create a wrapper for device selection that prevents toasts on dashboard
-  const handleDeviceSelect = (deviceId: string) => {
-    console.log('[RecordingSheet] Device selected:', deviceId);
-    setSelectedDeviceId(deviceId);
+  // Create a typed function for handleClose
+  const handleClose = useCallback((): void => {
+    setIsOpen(false);
     
-    // Don't show toast on restricted routes
-    if (!checkIsRestrictedRoute()) {
-      toast({
-        title: "Microphone selected",
-        variant: "default"
-      });
-    } else {
-      console.log('[RecordingSheet] Toast suppressed on restricted route');
+    if (onClose) {
+      onClose();
     }
-  };
+  }, [onClose]);
 
-  // Create a wrapper for stopRecording that returns a Promise
-  const handleWrappedStopRecording = async () => {
-    try {
-      await handleStopRecording();
-      console.log('[RecordingSheet] Recording stopped manually');
-      
-      // Only show toast if not on restricted route
-      if (!checkIsRestrictedRoute()) {
-        toast({
-          title: "Recording stopped",
-          variant: "default"
-        });
-      }
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error stopping recording:", error);
-      return Promise.reject(error);
+  // Create a typed function for handleSuccess
+  const handleSuccess = useCallback((): Promise<{ success: boolean }> => {
+    if (onSuccess) {
+      onSuccess();
     }
+    
+    handleClose();
+    toast.success("Recording saved successfully!");
+    return Promise.resolve({ success: true });
+  }, [onSuccess, handleClose]);
+
+  useEffect(() => {
+    if (isOpen && showRecentItems) {
+      refetchNotes();
+    }
+  }, [isOpen, refetchNotes, showRecentItems]);
+
+  const handleChangeTab = (tab: string) => {
+    setInitialTab(tab as "record" | "upload");
   };
-
-  // Ensure component is mounted before rendering complex components
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsComponentReady(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Log component state for debugging
-  useEffect(() => {
-    console.log('[RecordingSheet] State updated:', { 
-      isRecording, 
-      isPaused, 
-      audioUrl: audioUrl ? 'exists' : 'null',
-      deviceSelectionReady,
-      selectedDeviceId,
-      audioDevices: audioDevices.length,
-      recordingAttemptsCount,
-      hasInitError: !!initError,
-      isComponentReady,
-      devicesLoading,
-      permissionState,
-      isRestrictedRoute: isRestrictedRoute
-    });
-  }, [isRecording, isPaused, audioUrl, deviceSelectionReady, selectedDeviceId, 
-      audioDevices.length, recordingAttemptsCount, initError, isComponentReady,
-      devicesLoading, permissionState, isRestrictedRoute]);
 
   return (
-    <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
-      <div className="space-y-8">
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Record Audio</h2>
-          <p className="text-sm text-gray-500">Record audio from your microphone or system audio.</p>
-        </div>
-
-        {initError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Error initializing recording: {initError.message}
-            </AlertDescription>
-          </Alert>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild className={triggerClassName}>
+        {isFloatingButton ? (
+          <Button
+            className={`rounded-full drop-shadow-md flex gap-2 fixed bottom-5 right-5 z-40 ${buttonClassName}`}
+            size={buttonSize}
+            variant={buttonVariant}
+          >
+            <Mic className="h-5 w-5" />
+            {buttonText}
+          </Button>
+        ) : (
+          <Button
+            className={`rounded-md flex gap-2 ${buttonClassName}`}
+            size={buttonSize}
+            variant={buttonVariant}
+          >
+            <Mic className="h-5 w-5" />
+            {buttonText}
+          </Button>
         )}
+      </SheetTrigger>
+      <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+        <SheetHeader className="mb-6">
+          <SheetTitle>Add New Recording</SheetTitle>
+          <SheetDescription>
+            Record audio directly or upload an existing file.
+          </SheetDescription>
+        </SheetHeader>
 
-        {recordingAttemptsCount > 0 && !isRecording && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Recording start attempts: {recordingAttemptsCount}
-              {lastAction && (
-                <div className="text-xs mt-1">
-                  Last action: {lastAction.action} - {new Date(lastAction.timestamp).toLocaleTimeString()} - 
-                  {lastAction.success ? 
-                    <span className="text-green-600"> Success</span> : 
-                    <span className="text-red-600"> Failed</span>}
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {isComponentReady && (
-          <>
-            <RecordingSection 
-              isRecording={isRecording}
-              isPaused={isPaused}
-              audioUrl={audioUrl}
-              mediaStream={mediaStream}
-              isSystemAudio={isSystemAudio}
-              handleStartRecording={() => {
-                console.log('[RecordingSheet] Start recording button clicked');
-                handleStartRecording();
-              }}
-              handleStopRecording={handleWrappedStopRecording}
-              handlePauseRecording={handlePauseRecording}
-              handleResumeRecording={handleResumeRecording}
-              handleDelete={handleDelete}
-              onSystemAudioChange={(value) => {
-                console.log('[RecordingSheet] System audio changed:', value);
-                setIsSystemAudio(value);
-              }}
-              audioDevices={audioDevices}
-              selectedDeviceId={selectedDeviceId}
-              onDeviceSelect={handleDeviceSelect}
-              deviceSelectionReady={deviceSelectionReady}
-              showPlayButton={false}
-              showDeleteButton={true}
-              lastAction={lastAction}
-              onRefreshDevices={handleRefreshDevices}
-              devicesLoading={devicesLoading}
-              permissionState={permissionState as any}
-              isRestrictedRoute={isRestrictedRoute}
-              onSave={wrappedSaveRecording}
-              isSaving={isSaving}
+        <Tabs defaultValue={initialTab} onValueChange={handleChangeTab}>
+          <TabsList className="w-full mb-6">
+            <TabsTrigger value="record" className="flex-1 flex items-center justify-center gap-2">
+              <Mic className="h-4 w-4" />
+              Record
+            </TabsTrigger>
+            <TabsTrigger value="upload" className="flex-1 flex items-center justify-center gap-2">
+              <FileAudio className="h-4 w-4" weight="fill" />
+              Upload
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="record" className="mt-0">
+            <ModalRecordContent
+              closeModal={handleClose}
+              onSuccess={onSuccess}
             />
+          </TabsContent>
+          
+          <TabsContent value="upload" className="mt-0">
+            <UploadFileAction onSuccess={handleSuccess} />
+          </TabsContent>
+        </Tabs>
 
-            <div className="mt-6 flex justify-center">
-              <SaveRecordingButton
-                onSave={wrappedSaveRecording}
-                isSaving={isSaving}
-                isDisabled={!isRecording && !audioUrl}
-              />
-            </div>
-          </>
+        {showRecentItems && (
+          <div className="mt-8">
+            <h3 className="text-base font-medium mb-3 flex items-center gap-2">
+              <CircleWavyCheck weight="fill" className="text-green-500" />
+              Recent Recordings
+            </h3>
+            
+            <RecentRecordings 
+              notes={notes || []} 
+              isLoading={isLoadingNotes} 
+              onClick={handleClose}
+            />
+          </div>
         )}
-      </div>
-    </SheetContent>
+      </SheetContent>
+    </Sheet>
   );
 }
