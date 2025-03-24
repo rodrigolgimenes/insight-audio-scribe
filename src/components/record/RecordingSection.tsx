@@ -23,7 +23,7 @@ interface RecordingSectionProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
-  showPlayButton?: boolean;
+  showPlayButton?: boolean; // Added this prop
   showDeleteButton?: boolean;
   onSave?: () => void;
   isSaving?: boolean;
