@@ -1,11 +1,5 @@
-
-import { RecordingControls } from "./RecordingControls";
-import { RecordingSettings } from "./RecordingSettings";
-import { RecordingVisualizer } from "./RecordingVisualizer";
-import { RecordingActions } from "./RecordingActions";
-import { Waveform } from "@/components/ui/waveform";
-import { useTimer } from "@/hooks/useTimer";
-import { AudioDevice } from "@/hooks/recording/capture/types";
+import React from "react";
+import { DeviceSelector } from "@/components/record/DeviceSelector";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -14,30 +8,29 @@ interface RecordingSectionProps {
   mediaStream: MediaStream | null;
   isSystemAudio: boolean;
   handleStartRecording: () => void;
-  handleStopRecording: () => void;
+  handleStopRecording: () => Promise<any>;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
   onSystemAudioChange: (value: boolean) => void;
-  audioDevices: AudioDevice[];
+  audioDevices: any[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
+  lastAction: any;
+  onRefreshDevices?: () => Promise<any>;
+  devicesLoading: boolean;
+  permissionState: 'prompt' | 'granted' | 'denied' | 'unknown';
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
-  onSave?: () => void;
-  isSaving?: boolean;
-  isLoading?: boolean;
-  lastAction?: { action: string; timestamp: number; success: boolean };
-  onRefreshDevices?: () => Promise<void>;
-  devicesLoading?: boolean;
-  permissionState?: PermissionState;
-  processingProgress?: number;
-  processingStage?: string;
   isRestrictedRoute?: boolean;
+  onSave?: () => Promise<any>;
+  isLoading?: boolean;
+  isSaving?: boolean;
+  showNoDevicesWarning?: boolean;
 }
 
-export const RecordingSection = ({
+export function RecordingSection({
   isRecording,
   isPaused,
   audioUrl,
@@ -53,89 +46,33 @@ export const RecordingSection = ({
   selectedDeviceId,
   onDeviceSelect,
   deviceSelectionReady,
-  showPlayButton = true,
-  showDeleteButton = true,
-  onSave,
-  isSaving = false,
-  isLoading = false,
   lastAction,
   onRefreshDevices,
-  devicesLoading = false,
+  devicesLoading,
   permissionState,
-  processingProgress = 0,
-  processingStage = "",
-  isRestrictedRoute = false
-}: RecordingSectionProps) => {
-  const { time, isRunning } = useTimer({
-    isRecording,
-    isPaused,
-  });
-
+  showPlayButton = true,
+  showDeleteButton = true,
+  isRestrictedRoute = false,
+  onSave,
+  isLoading,
+  isSaving,
+  showNoDevicesWarning = true
+}: RecordingSectionProps) {
   return (
-    <div className="flex flex-col w-full items-center">
-      <div className="w-full max-w-lg">
-        {/* Audio visualizer */}
-        <div className="my-8 h-32 w-full">
-          {isRecording ? (
-            <RecordingVisualizer
-              audioStream={mediaStream}
-              isRecording={isRecording}
-              isPaused={isPaused}
-            />
-          ) : audioUrl ? (
-            <Waveform src={audioUrl} />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
-              <p className="text-gray-400 text-sm">
-                Loading waveform...
-              </p>
-            </div>
-          )}
-        </div>
-        
-        {/* Recording controls */}
-        <RecordingControls
-          isRecording={isRecording}
-          isPaused={isPaused}
-          audioUrl={audioUrl}
-          onStart={handleStartRecording}
-          onStop={handleStopRecording}
-          onPause={handlePauseRecording}
-          onResume={handleResumeRecording}
-          onDelete={handleDelete}
-          showPlayButton={showPlayButton}
-          showDeleteButton={showDeleteButton}
-          isLoading={isLoading}
-          onSave={onSave}
-        />
-        
-        {/* Device settings */}
-        <RecordingSettings
-          isSystemAudio={isSystemAudio}
-          onSystemAudioChange={onSystemAudioChange}
-          audioDevices={audioDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          deviceSelectionReady={deviceSelectionReady}
-          isRecording={isRecording}
-          onRefreshDevices={onRefreshDevices}
-          devicesLoading={devicesLoading}
-          permissionState={permissionState}
-        />
-        
-        {/* Recording actions (save/upload) */}
-        {onSave && !showPlayButton && (
-          <RecordingActions
-            onSave={onSave}
-            isSaving={isSaving}
-            isLoading={isLoading}
-            isRecording={isRecording}
-            hasRecording={Boolean(audioUrl)}
-            processingProgress={processingProgress}
-            processingStage={processingStage}
-          />
-        )}
-      </div>
+    <div>
+      
+      <DeviceSelector 
+        audioDevices={audioDevices}
+        selectedDeviceId={selectedDeviceId}
+        onDeviceSelect={onDeviceSelect}
+        disabled={isRecording || devicesLoading}
+        isReady={deviceSelectionReady}
+        onRefreshDevices={onRefreshDevices}
+        devicesLoading={devicesLoading}
+        permissionState={permissionState}
+        showNoDevicesWarning={showNoDevicesWarning}
+      />
+      
     </div>
   );
-};
+}

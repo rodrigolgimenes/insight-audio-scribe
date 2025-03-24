@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff, Loader2 } from "lucide-react";
@@ -8,9 +7,14 @@ import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
 interface MicrophoneSelectorProps {
   disabled?: boolean;
   className?: string;
+  showNoDevicesWarning?: boolean;
 }
 
-export function MicrophoneSelector({ disabled = false, className = "" }: MicrophoneSelectorProps) {
+export function MicrophoneSelector({ 
+  disabled = false, 
+  className = "",
+  showNoDevicesWarning = true
+}: MicrophoneSelectorProps) {
   const {
     devices,
     selectedDeviceId,
@@ -21,13 +25,9 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   } = useDeviceManager();
   
   const [isOpen, setIsOpen] = useState(false);
-  // Track initial loading state separately to prevent premature warnings
   const [initialLoading, setInitialLoading] = useState(true);
-  
-  // Track mount time to ensure minimum loading period
   const [mountTime] = useState(Date.now());
   
-  // Check if we're on a restricted route (dashboard, index, app)
   const isRestrictedRoute = React.useMemo(() => {
     const path = window.location.pathname.toLowerCase();
     return path === '/' || 
@@ -39,9 +39,8 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
            path.includes('record');
   }, []);
   
-  // Ensure minimum loading time of 3 seconds
   useEffect(() => {
-    const minLoadingTime = 3000; // 3 seconds
+    const minLoadingTime = 3000;
     const timeElapsed = Date.now() - mountTime;
     
     if (timeElapsed < minLoadingTime) {
@@ -57,7 +56,6 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     }
   }, [mountTime]);
   
-  // Debug log for selector state on mount and updates
   React.useEffect(() => {
     console.log('[MicrophoneSelector] Component state:', {
       deviceCount: devices.length,
@@ -71,20 +69,17 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     });
   }, [devices.length, selectedDeviceId, permissionState, isLoading, initialLoading, mountTime, isRestrictedRoute]);
   
-  // Toggle dropdown
   const toggleDropdown = () => {
     if (!disabled && !isLoading) {
       setIsOpen(!isOpen);
     }
   };
 
-  // Handle device selection
   const handleSelect = (deviceId: string) => {
     console.log('[MicrophoneSelector] Selecting device:', deviceId);
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
     
-    // Only show toast on non-restricted routes
     if (!isRestrictedRoute) {
       toast.success("Microphone selected", {
         id: "mic-selected"
@@ -92,36 +87,28 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     }
   };
   
-  // Handle refresh
   const handleRefresh = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent dropdown toggle
+    e.stopPropagation();
     console.log('[MicrophoneSelector] Refreshing devices');
-    // Set loading state back to true during refresh
     setInitialLoading(true);
     await refreshDevices();
-    // Delay turning off loading to ensure UI doesn't flash
     setTimeout(() => {
       setInitialLoading(false);
     }, 1000);
   };
   
-  // Create a wrapper function for NoDevicesMessage that matches the expected signature
   const handleRefreshForNoDevices = () => {
     console.log('[MicrophoneSelector] Refresh triggered from NoDevicesMessage');
-    // Set loading state back to true during refresh from warning
     setInitialLoading(true);
     handleRefresh(new MouseEvent('click') as unknown as React.MouseEvent);
-    // Use a longer timeout when refreshing from the warning message
     setTimeout(() => {
       setInitialLoading(false);
     }, 2000);
   };
   
-  // Get selected device object
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
   const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
   
-  // Determine effective loading state (either system loading or our initial loading period)
   const effectiveLoading = isLoading || initialLoading;
 
   return (
@@ -148,7 +135,6 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         </div>
       </div>
       
-      {/* Microphone Selector Dropdown */}
       <div className="relative">
         <button
           type="button"
@@ -184,7 +170,6 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
           <ChevronDown className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
         
-        {/* Device List Dropdown */}
         {isOpen && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
             {effectiveLoading ? (
@@ -220,7 +205,6 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
               </>
             )}
             
-            {/* Refresh option at bottom of list */}
             <button
               type="button"
               className="w-full text-left p-3 hover:bg-gray-100 text-blue-600 flex items-center justify-center border-t border-gray-200"
@@ -243,7 +227,6 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         )}
       </div>
       
-      {/* Permission state and device info */}
       <div className="mt-1 text-xs text-gray-500 flex justify-between">
         <div>{effectiveLoading ? "Scanning..." : `Devices: ${devices.length}`}</div>
         <div className={`${permissionState === 'granted' ? 'text-green-600' : 
@@ -252,14 +235,15 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         </div>
       </div>
       
-      {/* No devices warning message */}
-      <NoDevicesMessage 
-        showWarning={devices.length === 0 && permissionState === 'granted'} 
-        onRefresh={handleRefreshForNoDevices}
-        permissionState={permissionState}
-        audioDevices={devices}
-        isLoading={effectiveLoading}
-      />
+      {showNoDevicesWarning && (
+        <NoDevicesMessage 
+          showWarning={devices.length === 0 && permissionState === 'granted'} 
+          onRefresh={handleRefreshForNoDevices}
+          permissionState={permissionState}
+          audioDevices={devices}
+          isLoading={effectiveLoading}
+        />
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -15,8 +16,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 import { ProcessingLogs } from "@/components/record/ProcessingLogs";
+import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -260,6 +261,8 @@ const SimpleRecord = () => {
                       showPlayButton={false}
                       onSave={saveRecording}
                       isLoading={isSaveProcessing}
+                      // Passar false para showNoDevicesWarning impede que a mensagem seja exibida
+                      showNoDevicesWarning={false}
                     />
                     
                     {recordingHook.isRecording && (

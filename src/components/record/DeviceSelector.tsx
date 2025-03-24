@@ -12,12 +12,14 @@ interface DeviceSelectorProps {
   onRefreshDevices?: () => void;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
+  showNoDevicesWarning?: boolean;
 }
 
 export function DeviceSelector({
-  disabled = false
+  disabled = false,
+  showNoDevicesWarning = true
 }: Partial<DeviceSelectorProps>) {
   // Just pass through to our centralized MicrophoneSelector component
   console.log("[DeviceSelector] Rendering unified MicrophoneSelector");
-  return <MicrophoneSelector disabled={disabled} />;
+  return <MicrophoneSelector disabled={disabled} showNoDevicesWarning={showNoDevicesWarning} />;
 }
