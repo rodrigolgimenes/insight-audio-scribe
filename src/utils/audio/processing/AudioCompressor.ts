@@ -135,39 +135,60 @@ export class AudioCompressor {
       
       // Determine input format from blob type or default to webm
       const mimeType = audioBlob.type.toLowerCase();
+      const isVideo = mimeType.includes('video/');
       const inputFormat = mimeType.includes('webm') ? 'webm' : 
+                         mimeType.includes('mp4') ? 'mp4' :
                          mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
                          mimeType.includes('wav') ? 'wav' : 'webm';
       
-      console.log(`[AudioCompressor] Detected input format: ${inputFormat}`);
+      console.log(`[AudioCompressor] Detected input format: ${inputFormat}, isVideo: ${isVideo}`);
       const inputFileName = `input.${inputFormat}`;
       const outputFileName = 'output.mp3'; // Always output as MP3
       
       // Write the input file to FFmpeg's file system
       ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
       
-      // Use ultra-aggressive compression settings
-      // Enhanced compression pipeline with multiple optimizations
-      const ffmpegCommand = [
-        '-i', inputFileName,
-        '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
-        '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
-        '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
-        '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
-        '-compression_level', '9',      // Maximum compression level
-        '-q:a', '9',                    // Highest quality setting for VBR mode
-        '-vbr', 'on',                   // Enable variable bitrate
-        '-application', 'voip',         // Optimize for voice
-        '-cutoff', '10000',             // Frequency cutoff for voice-optimized compression
-        '-af', 'silenceremove=1:0:-50dB:1:0.1:-50dB,volume=1.5',  // Remove silence and normalize volume
-        '-write_xing', '0',             // Disable Xing headers for smaller files
-        '-id3v2_version', '0',          // Remove ID3 metadata
-        '-map_metadata', '-1',          // Strip all metadata
-        '-f', 'mp3',                    // Force MP3 format
-        '-y',                           // Overwrite output files
-        '-loglevel', 'warning',         // Reduce log verbosity
-        outputFileName
-      ];
+      // Check if we have a video file and need to extract audio
+      const ffmpegCommand = isVideo ? 
+        [
+          '-i', inputFileName,
+          '-vn', // Skip video stream
+          '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
+          '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
+          '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
+          '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
+          '-compression_level', '9',      // Maximum compression level
+          '-q:a', '9',                    // Highest quality setting for VBR mode
+          '-vbr', 'on',                   // Enable variable bitrate
+          '-application', 'voip',         // Optimize for voice
+          '-cutoff', '10000',             // Frequency cutoff for voice-optimized compression
+          '-af', 'silenceremove=1:0:-50dB:1:0.1:-50dB,volume=1.5',  // Remove silence and normalize volume
+          '-write_xing', '0',             // Disable Xing headers for smaller files
+          '-id3v2_version', '0',          // Remove ID3 metadata
+          '-map_metadata', '-1',          // Strip all metadata
+          '-f', 'mp3',                    // Force MP3 format
+          '-y',                           // Overwrite output files
+          outputFileName
+        ] : 
+        [
+          '-i', inputFileName,
+          '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
+          '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
+          '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
+          '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
+          '-compression_level', '9',      // Maximum compression level
+          '-q:a', '9',                    // Highest quality setting for VBR mode
+          '-vbr', 'on',                   // Enable variable bitrate
+          '-application', 'voip',         // Optimize for voice
+          '-cutoff', '10000',             // Frequency cutoff for voice-optimized compression
+          '-af', 'silenceremove=1:0:-50dB:1:0.1:-50dB,volume=1.5',  // Remove silence and normalize volume
+          '-write_xing', '0',             // Disable Xing headers for smaller files
+          '-id3v2_version', '0',          // Remove ID3 metadata
+          '-map_metadata', '-1',          // Strip all metadata
+          '-f', 'mp3',                    // Force MP3 format
+          '-y',                           // Overwrite output files
+          outputFileName
+        ];
       
       console.log('[AudioCompressor] Running FFmpeg command:', ffmpegCommand.join(' '));
       
@@ -190,24 +211,105 @@ export class AudioCompressor {
       
       console.log(`[AudioCompressor] Compression completed: ${(compressedBlob.size / 1024 / 1024).toFixed(2)}MB, type: ${compressedBlob.type}`);
       
-      // Verify the blob has the right MIME type
-      if (!compressedBlob.type.includes('mp3') && !compressedBlob.type.includes('mpeg')) {
-        console.warn('[AudioCompressor] Warning: Compressed blob has incorrect MIME type:', compressedBlob.type);
+      // Verify the MP3 file has a valid header
+      const validateMp3 = await this.validateMp3Header(compressedBlob);
+      if (!validateMp3.valid) {
+        console.warn('[AudioCompressor] MP3 validation warning:', validateMp3.message);
       }
       
       return compressedBlob;
     } catch (error) {
       console.error('[AudioCompressor] Compression error:', error);
       
-      // Fallback if compression fails: just change the MIME type
-      console.warn('[AudioCompressor] Compression failed, using fallback method');
+      // Fallback if compression fails: try a more basic approach
+      console.warn('[AudioCompressor] Compression failed, trying simple audio extraction');
       try {
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        return new Blob([arrayBuffer], { type: 'audio/mp3' });
+        return await this.simpleAudioExtraction(audioBlob);
       } catch (fallbackError) {
         console.error('[AudioCompressor] Fallback method also failed:', fallbackError);
         throw new Error('Failed to compress audio: ' + (error instanceof Error ? error.message : String(error)));
       }
+    }
+  }
+  
+  /**
+   * Simple audio extraction using basic FFmpeg command
+   * Used as a fallback if more advanced compression fails
+   */
+  private async simpleAudioExtraction(audioBlob: Blob): Promise<Blob> {
+    try {
+      console.log('[AudioCompressor] Attempting simple audio extraction');
+      
+      const ffmpeg = await this.loadFFmpeg();
+      
+      // Determine if video or audio
+      const mimeType = audioBlob.type.toLowerCase();
+      const isVideo = mimeType.includes('video/');
+      const inputFormat = mimeType.includes('webm') ? 'webm' : 
+                         mimeType.includes('mp4') ? 'mp4' :
+                         mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
+                         mimeType.includes('wav') ? 'wav' : 'webm';
+      
+      const inputFileName = `simple_input.${inputFormat}`;
+      const outputFileName = 'simple_output.mp3';
+      
+      // Write the input file to FFmpeg's file system
+      ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
+      
+      // Use a simpler command with less options
+      const ffmpegCommand = isVideo ?
+        ['-i', inputFileName, '-vn', '-c:a', 'libmp3lame', '-b:a', '64k', '-f', 'mp3', '-y', outputFileName] :
+        ['-i', inputFileName, '-c:a', 'libmp3lame', '-b:a', '64k', '-f', 'mp3', '-y', outputFileName];
+      
+      console.log('[AudioCompressor] Running simple FFmpeg command:', ffmpegCommand.join(' '));
+      
+      await ffmpeg.exec(ffmpegCommand);
+      
+      // Check if the output was created
+      const files = await ffmpeg.listDir('./');
+      console.log('[AudioCompressor] Files after simple extraction:', files.map(f => f.name).join(', '));
+      
+      if (!files.some(f => f.name === outputFileName)) {
+        throw new Error('Simple extraction failed to create output file');
+      }
+      
+      // Read the output file
+      const data = await ffmpeg.readFile(outputFileName);
+      
+      // Create a blob with the correct MIME type
+      return new Blob([data], { type: 'audio/mp3' });
+    } catch (error) {
+      console.error('[AudioCompressor] Simple extraction failed:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Validate that an MP3 file has a proper header
+   */
+  private async validateMp3Header(mp3Blob: Blob): Promise<{valid: boolean, message: string}> {
+    try {
+      // Check at least the first few bytes for MP3 sync word (0xFF 0xEx)
+      const headerBytes = await mp3Blob.slice(0, 4).arrayBuffer();
+      const header = new Uint8Array(headerBytes);
+      
+      if (header.length < 2) {
+        return {valid: false, message: 'MP3 file too small, no header present'};
+      }
+      
+      // MP3 frames start with a sync word (0xFF followed by 0xEx)
+      const hasMp3SyncWord = (header[0] === 0xFF) && ((header[1] & 0xE0) === 0xE0);
+      
+      if (!hasMp3SyncWord) {
+        console.warn('[AudioCompressor] MP3 validation: No sync word found in header', 
+          Array.from(header).map(b => b.toString(16).padStart(2, '0')).join(' '));
+        return {valid: false, message: 'MP3 file header invalid, no sync word found'};
+      }
+      
+      return {valid: true, message: 'MP3 header validation passed'};
+    } catch (error) {
+      console.error('[AudioCompressor] Error validating MP3 header:', error);
+      return {valid: false, message: 'Error validating MP3 header: ' + String(error)};
     }
   }
   
