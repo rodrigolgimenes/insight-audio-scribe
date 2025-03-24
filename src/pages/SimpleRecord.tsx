@@ -26,7 +26,13 @@ type LastActionType = string | {
   error?: string 
 };
 
-const SimpleRecord = () => {
+interface SimpleRecordProps {
+  lastAction?: LastActionType;
+}
+
+const SimpleRecord = ({
+  lastAction,
+}: SimpleRecordProps) => {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
   
@@ -273,7 +279,7 @@ const SimpleRecord = () => {
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={true}
-                      lastAction={recordingHook.lastAction as LastActionType}
+                      lastAction={lastAction}
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
                       permissionState="granted"

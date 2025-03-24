@@ -1,39 +1,34 @@
 
 import React from "react";
 import { Switch } from "@/components/ui/switch";
-import { Laptop } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 export interface SystemAudioToggleProps {
   isSystemAudio: boolean;
-  onChange: (value: boolean) => void;
+  onChange: (enabled: boolean) => void;
+  onSystemAudioChange?: (enabled: boolean) => void; // Make this optional for backward compatibility
   disabled?: boolean;
-  onSystemAudioChange?: (enabled: boolean) => void; // Add this for backward compatibility
 }
 
 export function SystemAudioToggle({
   isSystemAudio,
   onChange,
-  onSystemAudioChange, // Add this prop
+  onSystemAudioChange,
   disabled = false,
 }: SystemAudioToggleProps) {
-  // Create a handler that calls both callbacks if they exist
+  // Use a handler that calls both callbacks for backward compatibility
   const handleChange = (value: boolean) => {
     onChange(value);
-    if (onSystemAudioChange) {
-      onSystemAudioChange(value);
-    }
+    if (onSystemAudioChange) onSystemAudioChange(value);
   };
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Laptop className="h-4 w-4" />
-        <label className="text-sm font-medium">
-          Include system audio
-        </label>
-      </div>
-      
+      <Label htmlFor="system-audio" className="text-sm font-medium">
+        Record system audio
+      </Label>
       <Switch
+        id="system-audio"
         checked={isSystemAudio}
         onCheckedChange={handleChange}
         disabled={disabled}
