@@ -2,12 +2,12 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
-// Configuration for the optimized audio format
+// Enhanced configuration for ultra-optimized audio format
 const OPTIMIZED_AUDIO_FORMAT = {
   codec: 'libmp3lame',
   channels: 1, // mono
   sampleRate: 16000, // 16kHz
-  bitRate: 64, // 64kbps - this provides better compression ratio despite higher number
+  bitRate: 64, // 64kbps - optimized for voice with aggressive compression
 };
 
 // Maximum size for OpenAI Whisper API in bytes (24MB)
@@ -113,7 +113,7 @@ export class AudioCompressor {
   
   /**
    * Compress audio to reduce file size (mono, optimized bitrate)
-   * This method ensures proper conversion to MP3 format with maximum compression
+   * Enhanced implementation with ultra-aggressive compression
    */
   async compressAudio(audioBlob: Blob): Promise<Blob> {
     try {
@@ -146,27 +146,32 @@ export class AudioCompressor {
       // Write the input file to FFmpeg's file system
       ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
       
-      // Use aggressive compression settings
-      // First pass: using highly optimized settings for maximum compression
+      // Use ultra-aggressive compression settings
+      // Enhanced compression pipeline with multiple optimizations
       const ffmpegCommand = [
         '-i', inputFileName,
         '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
         '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
         '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
         '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
-        '-compression_level', '9',  // Maximum compression level
-        '-vbr', '4',               // Variable bit rate for efficient size
-        '-cutoff', '10000',        // Frequency cutoff for voice-optimized compression
-        '-filter:a', 'volume=1.5', // Normalize audio volume for better signal
-        '-f', 'mp3',               // Force MP3 format
-        '-y',                      // Overwrite output files
-        '-loglevel', 'warning',    // Reduce log verbosity
+        '-compression_level', '9',      // Maximum compression level
+        '-q:a', '9',                    // Highest quality setting for VBR mode
+        '-vbr', 'on',                   // Enable variable bitrate
+        '-application', 'voip',         // Optimize for voice
+        '-cutoff', '10000',             // Frequency cutoff for voice-optimized compression
+        '-af', 'silenceremove=1:0:-50dB:1:0.1:-50dB,volume=1.5',  // Remove silence and normalize volume
+        '-write_xing', '0',             // Disable Xing headers for smaller files
+        '-id3v2_version', '0',          // Remove ID3 metadata
+        '-map_metadata', '-1',          // Strip all metadata
+        '-f', 'mp3',                    // Force MP3 format
+        '-y',                           // Overwrite output files
+        '-loglevel', 'warning',         // Reduce log verbosity
         outputFileName
       ];
       
       console.log('[AudioCompressor] Running FFmpeg command:', ffmpegCommand.join(' '));
       
-      // Compress audio with optimized settings
+      // Compress audio with ultra-optimized settings
       await ffmpeg.exec(ffmpegCommand);
       
       // Verify the output file exists
@@ -208,9 +213,6 @@ export class AudioCompressor {
   
   /**
    * Split audio into chunks of specified maximum size/duration
-   * @param audioBlob The audio blob to split
-   * @param durationSeconds The total duration of the audio in seconds
-   * @returns An array of audio blob chunks
    */
   async chunkAudio(audioBlob: Blob, durationSeconds: number): Promise<Blob[]> {
     if (audioBlob.size <= MAX_WHISPER_SIZE_BYTES) {
