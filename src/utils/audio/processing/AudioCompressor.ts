@@ -97,10 +97,11 @@ class AudioCompressor {
           }
         };
         
-        // Fix: Use type assertion to handle the error property
+        // Fix: Use type assertion for error handling
         mediaRecorder.onerror = (event: Event) => {
-          const mediaRecorderErrorEvent = event as MediaRecorderErrorEvent;
-          reject(new Error(`MediaRecorder error: ${mediaRecorderErrorEvent.error}`));
+          // Use a more generic approach since MediaRecorderErrorEvent may not be available
+          const error = (event as any).error || new Error('Unknown MediaRecorder error');
+          reject(error);
         };
         
         // Start playing and recording
