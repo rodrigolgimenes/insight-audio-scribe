@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { validateFile, showValidationError } from "@/utils/upload/fileValidation";
 import { supabase } from "@/integrations/supabase/client";
 import { ProcessingLogs } from "@/components/record/ProcessingLogs";
+import { convertFileToMp3 } from "@/utils/audio/fileConverter";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string, recordingId: string) => void;
@@ -34,7 +35,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   hideDescription = false,
 }) => {
   const { isUploading, handleFileUpload } = useFileUpload();
-  const [processingState, setProcessingState] = useState<'idle' | 'validating' | 'uploading'>('idle');
+  const [processingState, setProcessingState] = useState<'idle' | 'validating' | 'converting' | 'uploading'>('idle');
   const { toast } = useToast();
   const navigate = useNavigate();
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -53,14 +54,14 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return;
 
-    const file = e.target.files[0];
+    const originalFile = e.target.files[0];
     setProcessingError(null);
     setProcessingProgress(0);
-    setSelectedFileName(file.name);
+    setSelectedFileName(originalFile.name);
     
     // Validate file
     setProcessingState('validating');
-    const validation = validateFile(file);
+    const validation = validateFile(originalFile);
     if (!validation.isValid) {
       showValidationError(validation.errorMessage || "Invalid file");
       setProcessingError(validation.errorMessage || "Invalid file format");
@@ -69,8 +70,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
     
     // Determine file type
-    const isVideo = file.type.startsWith('video/');
-    const isAudio = file.type.startsWith('audio/');
+    const isVideo = originalFile.type.startsWith('video/');
+    const isAudio = originalFile.type.startsWith('audio/');
     const fileType = isVideo ? 'video' : isAudio ? 'audio' : 'file';
     
     // Show appropriate message based on file type
@@ -82,7 +83,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     } else if (isAudio) {
       toast({
         title: "Processing Audio",
-        description: "Your audio will be uploaded and processed. This may take a moment...",
+        description: "Your audio will be converted to MP3 and processed. This may take a moment...",
       });
     } else {
       toast({
@@ -92,11 +93,42 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
 
     try {
+      // Convert audio file to MP3 if it's an audio file
+      let fileToUpload = originalFile;
+      
+      if (isAudio && !originalFile.type.includes('mp3')) {
+        setProcessingState('converting');
+        toast({
+          title: "Converting Audio",
+          description: "Converting your audio to MP3 format for better compatibility...",
+        });
+        
+        try {
+          fileToUpload = await convertFileToMp3(originalFile, (progress) => {
+            setProcessingProgress(progress);
+          });
+          
+          toast({
+            title: "Conversion Complete",
+            description: "Audio successfully converted to MP3 format.",
+          });
+        } catch (conversionError) {
+          console.error("Audio conversion error:", conversionError);
+          toast({
+            title: "Conversion Failed",
+            description: "Failed to convert audio to MP3. Using original format.",
+            variant: "destructive",
+          });
+          // Continue with original file if conversion fails
+          fileToUpload = originalFile;
+        }
+      }
+      
       setProcessingState('uploading');
       setProcessingProgress(20);
       
       // Upload the original file directly to the server
-      const { noteId, recordingId } = await handleFileUpload(e, initiateTranscription, file);
+      const { noteId, recordingId } = await handleFileUpload(e, initiateTranscription, fileToUpload);
       
       if (noteId && recordingId) {
         setCurrentNoteId(noteId);
@@ -111,9 +143,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             stage: 'file_uploaded',
             message: `${fileType.charAt(0).toUpperCase() + fileType.slice(1)} file uploaded successfully`,
             details: { 
-              fileName: file.name, 
-              fileType: file.type, 
-              fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB`,
+              fileName: fileToUpload.name, 
+              fileType: fileToUpload.type, 
+              fileSize: `${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100} MB`,
               needsAudioExtraction: isVideo
             },
             status: 'success'
@@ -129,8 +161,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               stage: 'extraction_started',
               message: 'Video detected, audio extraction required',
               details: { 
-                fileName: file.name, 
-                fileType: file.type
+                fileName: fileToUpload.name, 
+                fileType: fileToUpload.type
               },
               status: 'info'
             });
@@ -140,8 +172,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             .from('recordings')
             .update({ 
               needs_audio_extraction: true,
-              original_file_type: file.type,
-              original_file_path: file.name
+              original_file_type: fileToUpload.type,
+              original_file_path: fileToUpload.name
             })
             .eq('id', recordingId);
         }
@@ -192,6 +224,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const getButtonText = () => {
     if (processingState === 'validating') {
       return "Validating file...";
+    } else if (processingState === 'converting') {
+      return "Converting audio...";
     } else if (processingState === 'uploading' || isUploading) {
       return "Uploading...";
     }
@@ -216,7 +250,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       <Button
         onClick={handleClick}
         disabled={disabled || isUploading || processingState !== 'idle'}
-        className={buttonClassName}
+        className={`bg-primary hover:bg-primary/90 text-white ${buttonClassName}`}
       >
         {(isUploading || processingState !== 'idle') && (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -240,6 +274,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {processingState === 'validating' && 'Validating file...'}
+            {processingState === 'converting' && `Converting to MP3: ${processingProgress}%`}
             {processingState === 'uploading' && 'Uploading...'}
           </p>
         </div>
@@ -260,4 +295,4 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       )}
     </div>
   );
-};
+}

@@ -1,12 +1,11 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useToast as useUIToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export const useFileUploadHandler = (
   setIsUploading: React.Dispatch<React.SetStateAction<boolean>>,
-  toast: ReturnType<typeof useUIToast>['toast']
+  toast: ReturnType<typeof useToast>['toast']
 ) => {
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -33,14 +32,20 @@ export const useFileUploadHandler = (
       // For progress tracking
       let fetchController: AbortController | null = null;
 
-      // Check if file is video (needs audio extraction)
+      // Check file type
       const isVideoFile = file.type.startsWith('video/');
       const isAudioFile = file.type.startsWith('audio/');
+      const isMp3File = file.type === 'audio/mp3' || file.type === 'audio/mpeg';
       const fileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      
+      // Add MP3 extension if it's been converted but doesn't have the extension
+      const fileNameWithExt = isMp3File && !fileName.toLowerCase().endsWith('.mp3') 
+        ? `${fileName}.mp3` 
+        : fileName;
 
       // Create a unique path for the file
       const timestamp = Date.now();
-      const filePath = `${user.id}/${timestamp}_${fileName}`;
+      const filePath = `${user.id}/${timestamp}_${fileNameWithExt}`;
       
       console.log(`File path for upload: ${filePath}`);
       console.log(`File type: ${file.type}`);
@@ -103,19 +108,22 @@ export const useFileUploadHandler = (
             fileType: file.type, 
             fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB`,
             isVideo: isVideoFile,
-            isAudio: isAudioFile
+            isAudio: isAudioFile,
+            isMp3: isMp3File
           },
           status: 'success'
         });
 
       setUploadProgress(40);
 
-      // Upload file to Supabase Storage
+      // Upload file to Supabase Storage with proper content type
+      const contentType = isMp3File ? 'audio/mp3' : file.type;
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
+          contentType
         });
 
       if (uploadError) {
@@ -147,7 +155,8 @@ export const useFileUploadHandler = (
           details: { 
             filePath,
             fileType: file.type, 
-            fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB` 
+            fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100} MB`,
+            convertedToMp3: isMp3File && !file.type.includes('mp3')
           },
           status: 'success'
         });
