@@ -13,7 +13,7 @@ interface RecordingOptionsProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
-  onRefreshDevices?: () => void;
+  onRefreshDevices?: () => void | Promise<void>;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
   suppressMessages?: boolean;
@@ -32,6 +32,15 @@ export function RecordingOptions({
   permissionState = 'unknown',
   suppressMessages = true // Default to true
 }: RecordingOptionsProps) {
+  // Wrap the refresh callback to ensure it returns a Promise
+  const handleRefreshDevices = onRefreshDevices ? async () => {
+    const result = onRefreshDevices();
+    if (result instanceof Promise) {
+      return result;
+    }
+    return Promise.resolve();
+  } : undefined;
+
   return (
     <div className="space-y-6">
       <DeviceSelector
@@ -40,7 +49,7 @@ export function RecordingOptions({
         onDeviceSelect={onDeviceSelect}
         disabled={isRecording}
         isReady={deviceSelectionReady}
-        onRefreshDevices={onRefreshDevices}
+        onRefreshDevices={handleRefreshDevices}
         devicesLoading={devicesLoading}
         permissionState={permissionState}
         suppressMessages={suppressMessages}
@@ -54,6 +63,7 @@ export function RecordingOptions({
 
       <SystemAudioToggle
         isSystemAudio={isSystemAudio}
+        onChange={onSystemAudioChange}
         onSystemAudioChange={onSystemAudioChange}
         disabled={isRecording}
       />

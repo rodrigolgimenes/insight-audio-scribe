@@ -7,13 +7,23 @@ export interface SystemAudioToggleProps {
   isSystemAudio: boolean;
   onChange: (value: boolean) => void;
   disabled?: boolean;
+  onSystemAudioChange?: (enabled: boolean) => void; // Add this for backward compatibility
 }
 
 export function SystemAudioToggle({
   isSystemAudio,
   onChange,
+  onSystemAudioChange, // Add this prop
   disabled = false,
 }: SystemAudioToggleProps) {
+  // Create a handler that calls both callbacks if they exist
+  const handleChange = (value: boolean) => {
+    onChange(value);
+    if (onSystemAudioChange) {
+      onSystemAudioChange(value);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -25,7 +35,7 @@ export function SystemAudioToggle({
       
       <Switch
         checked={isSystemAudio}
-        onCheckedChange={onChange}
+        onCheckedChange={handleChange}
         disabled={disabled}
       />
     </div>

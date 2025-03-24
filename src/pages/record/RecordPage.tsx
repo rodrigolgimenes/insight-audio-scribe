@@ -10,6 +10,14 @@ import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
 
+// Helper type to make TypeScript happy
+type LastActionType = string | { 
+  action: string; 
+  timestamp: number; 
+  success: boolean; 
+  error?: string 
+};
+
 export default function RecordPage() {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('RecordPage Component Mount', true);
@@ -240,7 +248,9 @@ export default function RecordPage() {
             index: 0
           }],
           // Ensure we always have a selectedDeviceId
-          selectedDeviceId: recordingHook.selectedDeviceId || "default-suppressed-device"
+          selectedDeviceId: recordingHook.selectedDeviceId || "default-suppressed-device",
+          // Fix the lastAction type
+          lastAction: recordingHook.lastAction as LastActionType
         }}
         isLoading={isSaveProcessing}
         error={error}

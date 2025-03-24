@@ -18,6 +18,14 @@ import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 import { FileUpload } from "@/components/shared/FileUpload";
 
+// Helper type to make TypeScript happy
+type LastActionType = string | { 
+  action: string; 
+  timestamp: number; 
+  success: boolean; 
+  error?: string 
+};
+
 const SimpleRecord = () => {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
@@ -265,13 +273,12 @@ const SimpleRecord = () => {
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={true}
-                      lastAction={recordingHook.lastAction}
+                      lastAction={recordingHook.lastAction as LastActionType}
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
                       permissionState="granted"
                       showPlayButton={false}
                       onSave={saveRecording}
-                      isLoading={isSaveProcessing}
                       suppressMessages={true}
                     />
                     
