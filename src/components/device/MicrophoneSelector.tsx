@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
-import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff } from "lucide-react";
+import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
 
 interface MicrophoneSelectorProps {
   disabled?: boolean;
@@ -28,7 +29,9 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
-           path.startsWith('/app/');
+           path.startsWith('/app/') ||
+           path.includes('simple-record') ||
+           path.includes('record');
   }, []);
   
   // Debug log for selector state on mount and updates
@@ -79,7 +82,14 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       <div className="text-sm font-medium mb-2 text-gray-700 flex items-center justify-between">
         <span>Select Microphone</span>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-blue-600">{devices.length} found</span>
+          {isLoading ? (
+            <span className="text-xs text-blue-600 flex items-center">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              Scanning...
+            </span>
+          ) : (
+            <span className="text-xs text-blue-600">{devices.length} found</span>
+          )}
           <button 
             onClick={handleRefresh}
             disabled={isLoading}
@@ -101,7 +111,12 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
           aria-expanded={isOpen}
           aria-haspopup="listbox"
         >
-          {selectedDevice ? (
+          {isLoading ? (
+            <span className="truncate flex items-center text-gray-500">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Scanning for microphones...
+            </span>
+          ) : selectedDevice ? (
             <span className="truncate flex items-center">
               <Mic className="h-4 w-4 mr-2 text-blue-500" />
               {selectedDevice.label || `Microphone ${devices.indexOf(selectedDevice) + 1}`}
@@ -125,7 +140,12 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         {/* Device List Dropdown */}
         {isOpen && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-            {devices.length === 0 ? (
+            {isLoading ? (
+              <div className="p-3 text-gray-500 flex items-center justify-center">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Scanning for microphones...
+              </div>
+            ) : devices.length === 0 ? (
               <div className="p-3 text-amber-500 flex items-center">
                 <AlertCircle className="h-4 w-4 mr-2" />
                 {needsPermission ? 'Allow microphone access' : 'No microphones found'}
@@ -160,8 +180,17 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
               onClick={handleRefresh}
               disabled={isLoading}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh Microphone List
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Microphone List
+                </>
+              )}
             </button>
           </div>
         )}
@@ -169,12 +198,21 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       
       {/* Permission state and device info */}
       <div className="mt-1 text-xs text-gray-500 flex justify-between">
-        <div>Devices: {devices.length}</div>
+        <div>{isLoading ? "Scanning..." : `Devices: ${devices.length}`}</div>
         <div className={`${permissionState === 'granted' ? 'text-green-600' : 
                        permissionState === 'denied' ? 'text-red-600' : 'text-amber-600'}`}>
           Permission: {permissionState}
         </div>
       </div>
+      
+      {/* No devices warning message */}
+      <NoDevicesMessage 
+        showWarning={devices.length === 0 && permissionState === 'granted'} 
+        onRefresh={handleRefresh}
+        permissionState={permissionState}
+        audioDevices={devices}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

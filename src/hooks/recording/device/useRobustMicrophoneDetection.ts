@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AudioDevice, toAudioDevice, PermissionState } from "@/hooks/recording/capture/types";
 import { toast } from "sonner";
@@ -8,7 +7,7 @@ import { toast } from "sonner";
  */
 export function useRobustMicrophoneDetection() {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [refreshAttempts, setRefreshAttempts] = useState(0);
 
@@ -17,21 +16,40 @@ export function useRobustMicrophoneDetection() {
   const mountedRef = useRef(true);
   const hasPermissionsAPI = useRef(!!navigator.permissions);
   const isDashboardPage = useRef(false);
+  const initialLoadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clean up on unmount
   const cleanup = useCallback(() => {
     mountedRef.current = false;
+    if (initialLoadingTimeoutRef.current) {
+      clearTimeout(initialLoadingTimeoutRef.current);
+    }
   }, []);
 
   useEffect(() => {
     mountedRef.current = true;
+    // Set a minimum loading time to avoid flashing UI
+    initialLoadingTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        // Only stop loading if we have devices or we've tried multiple times
+        if (devices.length > 0 || refreshAttempts > 2) {
+          setIsLoading(false);
+        }
+      }
+    }, 1500);
+    
     return cleanup;
-  }, [cleanup]);
+  }, [cleanup, devices.length, refreshAttempts]);
 
   // Check if we're on a restricted route
   const isRestrictedRoute = useCallback((): boolean => {
     const path = window.location.pathname.toLowerCase();
-    return path === '/' || path === '/index' || path.includes('/app') || path === '/dashboard';
+    return path === '/' || 
+           path === '/index' || 
+           path.includes('/app') || 
+           path === '/dashboard' || 
+           path.includes('simple-record') || 
+           path.includes('record');
   }, []);
 
   /**
@@ -101,6 +119,7 @@ export function useRobustMicrophoneDetection() {
         });
       }
       
+      // Don't set isLoading to false here, we'll do that after device detection
       return true;
     } catch (err) {
       console.error("[useRobustMicrophoneDetection] Microphone access denied:", err);
@@ -129,11 +148,16 @@ export function useRobustMicrophoneDetection() {
         }
       }
       
-      return false;
-    } finally {
       if (mountedRef.current) {
-        setIsLoading(false);
+        // Keep isLoading false after error to allow UI to update
+        setTimeout(() => {
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
+        }, 1000);
       }
+      
+      return false;
     }
   }, [isRestrictedRoute]);
 
@@ -204,18 +228,31 @@ export function useRobustMicrophoneDetection() {
 
       setDevices(audioInputDevices);
       
+      // Set isLoading to false after a short delay to ensure UI doesn't flash
+      setTimeout(() => {
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
+      }, audioInputDevices.length > 0 ? 500 : 1500);
+      
       return { devices: audioInputDevices, defaultId };
     } catch (err) {
       console.error("[useRobustMicrophoneDetection] Error detecting devices:", err);
       
       if (mountedRef.current) {
         setDevices([]);
+        
+        // Set isLoading to false after a delay
+        setTimeout(() => {
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
+        }, 1000);
       }
       
       return { devices: [], defaultId: null };
     } finally {
       if (mountedRef.current) {
-        setIsLoading(false);
         detectionInProgressRef.current = false;
       }
     }
@@ -236,7 +273,15 @@ export function useRobustMicrophoneDetection() {
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
 
     // Initial device detection
-    detectDevices().catch(console.error);
+    detectDevices().catch(err => {
+      console.error("[useRobustMicrophoneDetection] Initial detection failed:", err);
+      // Ensure loading state is cleared after error
+      if (mountedRef.current) {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 1500);
+      }
+    });
 
     // Cleanup
     return () => {

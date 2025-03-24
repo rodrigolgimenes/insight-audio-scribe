@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Mic, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -8,26 +8,51 @@ interface NoDevicesMessageProps {
   onRefresh?: () => void;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
   audioDevices?: Array<any>; // For debugging purposes
+  isLoading?: boolean; // New prop to check if devices are still loading
 }
 
 export function NoDevicesMessage({ 
   showWarning,
   onRefresh,
   permissionState = 'unknown',
-  audioDevices = []
+  audioDevices = [],
+  isLoading = false
 }: NoDevicesMessageProps) {
-  // Enhanced check for dashboard/index/app routes where we should hide the warnings
-  const isRestrictedRoute = React.useMemo(() => {
+  // State to delay showing the warning during initial load
+  const [shouldShowWarning, setShouldShowWarning] = useState(false);
+  
+  // Enhanced check for routes where we should hide the warnings
+  const isRestrictedRoute = React.useMemo((): boolean => {
     const path = window.location.pathname.toLowerCase();
     return path === '/' || 
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
-           path.startsWith('/app/');
+           path.startsWith('/app/') ||
+           path.includes('simple-record') || // Add simple-record to restricted routes
+           path.includes('record');
   }, []);
 
+  // Delay showing warnings to avoid flashing during loading
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (showWarning && !isLoading && audioDevices.length === 0) {
+      // Only show warning after a delay and if still no devices
+      timeoutId = setTimeout(() => {
+        setShouldShowWarning(true);
+      }, 2000); // 2 second delay
+    } else {
+      setShouldShowWarning(false);
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [showWarning, isLoading, audioDevices.length]);
+  
   // Debug log info but don't show UI on restricted routes
-  React.useEffect(() => {
+  useEffect(() => {
     if (showWarning) {
       console.log('[NoDevicesMessage] Warning display check:', {
         isRestrictedRoute,
@@ -35,14 +60,20 @@ export function NoDevicesMessage({
         permissionState,
         showWarning,
         audioDevicesCount: audioDevices.length,
+        isLoading,
+        shouldShowWarning,
         timestamp: new Date().toISOString(),
-        willDisplay: !isRestrictedRoute && showWarning
+        willDisplay: !isRestrictedRoute && shouldShowWarning && !isLoading
       });
     }
-  }, [showWarning, permissionState, audioDevices, isRestrictedRoute]);
+  }, [showWarning, permissionState, audioDevices, isRestrictedRoute, isLoading, shouldShowWarning]);
   
-  // Don't show warning on restricted routes or when not explicitly told to show
-  if (isRestrictedRoute || !showWarning) {
+  // Don't show warning in these cases:
+  // 1. On restricted routes
+  // 2. If we're not explicitly told to show warning
+  // 3. If devices are still loading
+  // 4. During initial timeout period
+  if (isRestrictedRoute || !showWarning || isLoading || !shouldShowWarning) {
     return null;
   }
   

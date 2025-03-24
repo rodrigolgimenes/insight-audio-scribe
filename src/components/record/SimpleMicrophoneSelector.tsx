@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRobustMicrophoneDetection } from "@/hooks/recording/device/useRobustMicrophoneDetection";
-import { ChevronDown, Mic, AlertCircle, RefreshCw } from "lucide-react";
+import { ChevronDown, Mic, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function SimpleMicrophoneSelector() {
@@ -22,7 +22,9 @@ export function SimpleMicrophoneSelector() {
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
-           path.startsWith('/app/');
+           path.startsWith('/app/') ||
+           path.includes('simple-record') ||
+           path.includes('record');
   }, []);
   
   // Log details on render and when state changes
@@ -109,7 +111,16 @@ export function SimpleMicrophoneSelector() {
     <div className="w-full">
       <div className="text-sm font-medium mb-2 text-gray-700 flex items-center justify-between">
         <span>Select Microphone</span>
-        <span className="text-xs text-blue-600">{devices.length} found</span>
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <span className="text-xs text-blue-600 flex items-center">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              Scanning...
+            </span>
+          ) : (
+            <span className="text-xs text-blue-600">{devices.length} found</span>
+          )}
+        </div>
       </div>
       
       {/* Permission Request Button */}
@@ -119,8 +130,17 @@ export function SimpleMicrophoneSelector() {
           disabled={isLoading}
           className="w-full p-3 flex items-center justify-center gap-2 bg-blue-50 border border-blue-300 rounded-md text-blue-700 hover:bg-blue-100"
         >
-          <Mic className="h-4 w-4" />
-          {isLoading ? 'Requesting access...' : 'Allow microphone access'}
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Requesting access...
+            </>
+          ) : (
+            <>
+              <Mic className="h-4 w-4" />
+              Allow microphone access
+            </>
+          )}
         </button>
       )}
       
@@ -133,7 +153,12 @@ export function SimpleMicrophoneSelector() {
             disabled={isLoading}
             className="flex items-center justify-between w-full p-3 bg-white border border-gray-300 rounded-md text-left text-gray-700 shadow-sm hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           >
-            {selectedDevice ? (
+            {isLoading ? (
+              <span className="truncate flex items-center text-gray-500">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Scanning for microphones...
+              </span>
+            ) : selectedDevice ? (
               <span className="truncate flex items-center">
                 <Mic className="h-4 w-4 mr-2 text-blue-500" />
                 {selectedDevice.label}
@@ -167,7 +192,12 @@ export function SimpleMicrophoneSelector() {
                   </button>
                 ))}
                 
-                {devices.length === 0 && (
+                {isLoading ? (
+                  <div className="p-3 text-gray-500 flex items-center justify-center">
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Scanning for microphones...
+                  </div>
+                ) : devices.length === 0 && (
                   <div className="p-3 text-amber-500 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-2" />
                     No microphones found
@@ -181,8 +211,17 @@ export function SimpleMicrophoneSelector() {
                   onClick={handleRefresh}
                   disabled={isLoading}
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh Microphone List
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Scanning...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh Microphone List
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -192,7 +231,7 @@ export function SimpleMicrophoneSelector() {
       
       {/* Permission state and device count */}
       <div className="mt-1 text-xs text-gray-500 flex justify-between">
-        <span>Devices: {devices.length}</span>
+        <span>{isLoading ? "Scanning..." : `Devices: ${devices.length}`}</span>
         <span>Permission: {permissionState}</span>
       </div>
     </div>
