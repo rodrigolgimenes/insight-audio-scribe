@@ -133,6 +133,11 @@ export function AudioVisualizer({ mediaStream, isRecording, isPaused }: AudioVis
     };
   }, []);
 
+  // Only render if recording is active
+  if (!isRecording) {
+    return null;
+  }
+
   return (
     <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
       {hasError ? (
