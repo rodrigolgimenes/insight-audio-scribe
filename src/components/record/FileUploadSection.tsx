@@ -6,9 +6,10 @@ import { ConversionLogsPanel } from "@/components/shared/ConversionLogsPanel";
 
 interface FileUploadSectionProps {
   isDisabled?: boolean;
+  showDetailsPanel?: boolean;
 }
 
-export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
+export const FileUploadSection = ({ isDisabled, showDetailsPanel = false }: FileUploadSectionProps) => {
   const [currentUploadInfo, setCurrentUploadInfo] = useState<{
     noteId: string;
     recordingId: string;
@@ -51,20 +52,22 @@ export const FileUploadSection = ({ isDisabled }: FileUploadSectionProps) => {
   };
   
   return (
-    <div className="w-full max-w-[220px]">
-      <FileUpload 
-        buttonText="Upload File"
-        description="Upload audio or video to transcribe"
-        accept="audio/*,video/mp4,video/webm,video/quicktime"
-        disabled={isDisabled}
-        initiateTranscription={true}
-        buttonClassName="w-full rounded-md"
-        hideDescription={true}
-        onUploadComplete={handleUploadComplete}
-        onConversionUpdate={handleConversionUpdate}
-      />
+    <div className="w-full">
+      <div className="mb-4">
+        <FileUpload 
+          buttonText="Upload File"
+          description="Upload audio or video to transcribe"
+          accept="audio/*,video/mp4,video/webm,video/quicktime"
+          disabled={isDisabled}
+          initiateTranscription={true}
+          buttonClassName="w-full rounded-md"
+          hideDescription={true}
+          onUploadComplete={handleUploadComplete}
+          onConversionUpdate={handleConversionUpdate}
+        />
+      </div>
       
-      {showConversionLogs && (
+      {showDetailsPanel && showConversionLogs && (
         <div className="mt-4">
           <ConversionLogsPanel
             originalFile={originalFile}

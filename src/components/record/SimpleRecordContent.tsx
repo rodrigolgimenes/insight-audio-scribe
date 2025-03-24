@@ -79,7 +79,10 @@ export function SimpleRecordContent({
             isLoading={isLoading}
           />
           
-          <FileUploadSection />
+          <FileUploadSection 
+            isDisabled={isLoading || isSaveProcessing} 
+            showDetailsPanel={true}
+          />
         </div>
       </div>
     </div>

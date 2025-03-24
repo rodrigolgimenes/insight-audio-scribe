@@ -278,7 +278,10 @@ const SimpleRecord = () => {
                     isLoading={isUploading || isSaveProcessing}
                   />
                   
-                  <FileUploadSection isDisabled={isUploading || isSaveProcessing} />
+                  <FileUploadSection 
+                    isDisabled={isUploading || isSaveProcessing} 
+                    showDetailsPanel={true}
+                  />
                   
                   {currentProcessingId && (
                     <ProcessingLogs recordingId={currentProcessingId} />
