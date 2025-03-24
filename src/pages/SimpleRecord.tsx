@@ -17,6 +17,7 @@ import { RecordTimer } from "@/components/record/RecordTimer";
 import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
+import { FileUpload } from "@/components/shared/FileUpload";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -94,6 +95,10 @@ const SimpleRecord = () => {
   }, [recordingHook.initError]);
 
   const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+  const [currentUploadInfo, setCurrentUploadInfo] = useState<{
+    noteId: string;
+    recordingId: string;
+  } | null>(null);
 
   const saveRecording = async () => {
     if (!recordingHook.audioUrl) {
@@ -225,6 +230,10 @@ const SimpleRecord = () => {
     }
   };
 
+  const handleUploadComplete = (noteId: string, recordingId: string) => {
+    setCurrentUploadInfo({ noteId, recordingId });
+  };
+
   PageLoadTracker.trackPhase('Render Main Content', true);
   
   return (
@@ -281,8 +290,31 @@ const SimpleRecord = () => {
                 </Card>
                 
                 <div className="space-y-8">
-                  {currentProcessingId && (
-                    <ProcessingLogs recordingId={currentProcessingId} />
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-medium mb-4">Already have a recording?</h3>
+                      <FileUpload 
+                        buttonText="Upload File"
+                        description="Upload audio or video to transcribe"
+                        accept="audio/*,video/mp4,video/webm,video/quicktime"
+                        initiateTranscription={true}
+                        buttonClassName="w-full rounded-md"
+                        onUploadComplete={handleUploadComplete}
+                        disabled={recordingHook.isRecording}
+                      />
+                    </CardContent>
+                  </Card>
+                  
+                  {(currentProcessingId || (currentUploadInfo && currentUploadInfo.recordingId)) && (
+                    <Card>
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-medium mb-4">Processing Status</h3>
+                        <ProcessingLogs 
+                          recordingId={currentProcessingId || (currentUploadInfo ? currentUploadInfo.recordingId : null)} 
+                          noteId={currentUploadInfo ? currentUploadInfo.noteId : undefined}
+                        />
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
               </div>

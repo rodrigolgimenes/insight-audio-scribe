@@ -2,7 +2,6 @@
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
-import { RecordingActions } from "./RecordingActions";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
@@ -35,6 +34,7 @@ interface RecordingSectionProps {
   processingProgress?: number;
   processingStage?: string;
   isRestrictedRoute?: boolean;
+  showRecordingActions?: boolean;
 }
 
 export const RecordingSection = ({
@@ -64,7 +64,8 @@ export const RecordingSection = ({
   permissionState,
   processingProgress = 0,
   processingStage = "",
-  isRestrictedRoute = false
+  isRestrictedRoute = false,
+  showRecordingActions = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,
