@@ -1,437 +1,470 @@
+import { log } from '@/lib/logger';
 
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
-
-// Enhanced configuration for ultra-optimized audio format
-const OPTIMIZED_AUDIO_FORMAT = {
-  codec: 'libmp3lame',
-  channels: 1, // mono
-  sampleRate: 16000, // 16kHz
-  bitRate: 64, // 64kbps - optimized for voice with aggressive compression
-};
-
-// Maximum size for OpenAI Whisper API in bytes (24MB)
-const MAX_WHISPER_SIZE_BYTES = 24 * 1024 * 1024;
-// Target chunk size slightly below the limit (20MB)
-const TARGET_CHUNK_SIZE_BYTES = 20 * 1024 * 1024;
-// Maximum chunk duration in seconds (20 minutes)
-const MAX_CHUNK_DURATION_SECONDS = 20 * 60;
-
-export class AudioCompressor {
-  private ffmpeg: FFmpeg | null = null;
-  private isLoaded = false;
-  private isLoading = false;
-  
+class AudioCompressor {
   /**
-   * Initialize and load FFmpeg
+   * Compresses audio from any source to MP3 format with optimized settings for voice
+   * @param sourceBlob - The source audio blob (any format)
+   * @param options - Compression options
+   * @returns Promise with compressed MP3 blob
    */
-  async loadFFmpeg(): Promise<FFmpeg> {
-    if (this.isLoaded && this.ffmpeg) {
-      return this.ffmpeg;
-    }
+  async compressAudio(
+    sourceBlob: Blob,
+    options: {
+      targetBitrate?: number; // kbps
+      mono?: boolean;
+      targetSampleRate?: number;
+    } = {}
+  ): Promise<Blob> {
+    const start = performance.now();
+    log('AudioCompressor: Starting compression');
     
-    if (this.isLoading) {
-      // Wait for the loading to complete
-      while (this.isLoading) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      if (this.ffmpeg) return this.ffmpeg;
-    }
-    
-    this.isLoading = true;
+    // Default options optimized for voice recordings
+    const bitrate = options.targetBitrate || 32; // 32kbps is good for voice
+    const mono = options.mono !== undefined ? options.mono : true; // Default to mono for voice
+    const targetSampleRate = options.targetSampleRate || 16000; // 16kHz is sufficient for voice
     
     try {
-      console.log('[AudioCompressor] Loading FFmpeg...');
-      const ffmpeg = new FFmpeg();
+      // Track original size for reporting compression ratio
+      const originalSize = sourceBlob.size;
+      log(`AudioCompressor: Original size: ${(originalSize / 1024 / 1024).toFixed(2)}MB`);
       
-      // Load FFmpeg core - using CDN URLs that are more reliable
-      // Try multiple CDN sources to improve reliability
-      let loaded = false;
-      let lastError = null;
+      // 1. Convert source blob to AudioBuffer for processing
+      const audioBuffer = await this.blobToAudioBuffer(sourceBlob);
       
-      // Attempt with unpkg (primary source)
-      try {
-        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        });
-        loaded = true;
-        console.log('[AudioCompressor] FFmpeg loaded successfully from unpkg');
-      } catch (error) {
-        console.warn('[AudioCompressor] Failed to load FFmpeg from unpkg:', error);
-        lastError = error;
-      }
+      // 2. Apply audio processing (convert to mono, resample if needed)
+      const processedBuffer = await this.processAudioBuffer(audioBuffer, {
+        mono,
+        targetSampleRate,
+      });
       
-      // Fallback to jsDelivr if unpkg failed
-      if (!loaded) {
+      // 3. Convert processed buffer to MP3 with specified bitrate
+      const mp3Blob = await this.convertToMp3(processedBuffer, bitrate);
+      
+      // Report compression results
+      const compressedSize = mp3Blob.size;
+      const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(2);
+      const duration = (performance.now() - start).toFixed(2);
+      
+      log(`AudioCompressor: Compression complete in ${duration}ms`);
+      log(`AudioCompressor: Compressed size: ${(compressedSize / 1024 / 1024).toFixed(2)}MB (${compressionRatio}% reduction)`);
+      
+      return mp3Blob;
+    } catch (error) {
+      log(`AudioCompressor: Compression failed: ${error instanceof Error ? error.message : String(error)}`);
+      // Return original blob if compression fails
+      return sourceBlob;
+    }
+  }
+  
+  /**
+   * Converts a blob to an AudioBuffer for processing
+   */
+  private async blobToAudioBuffer(blob: Blob): Promise<AudioBuffer> {
+    log('AudioCompressor: Converting blob to AudioBuffer');
+    
+    return new Promise((resolve, reject) => {
+      // Create file reader to get array buffer from blob
+      const fileReader = new FileReader();
+      
+      fileReader.onload = async () => {
         try {
-          const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
-          await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          });
-          loaded = true;
-          console.log('[AudioCompressor] FFmpeg loaded successfully from jsDelivr');
+          // Create audio context
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          const audioContext = new AudioContext();
+          
+          // Decode audio data
+          const arrayBuffer = fileReader.result as ArrayBuffer;
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          
+          log(`AudioCompressor: Decoded audio - ${audioBuffer.numberOfChannels} channels, ` +
+              `${audioBuffer.sampleRate}Hz, ${audioBuffer.length} samples ` +
+              `(${(audioBuffer.duration).toFixed(2)} seconds)`);
+          
+          resolve(audioBuffer);
         } catch (error) {
-          console.warn('[AudioCompressor] Failed to load FFmpeg from jsDelivr:', error);
-          lastError = error;
+          reject(new Error(`Failed to decode audio data: ${error instanceof Error ? error.message : String(error)}`));
         }
-      }
-      
-      // Final fallback to Cloudflare
-      if (!loaded) {
-        try {
-          const baseURL = 'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.6/umd';
-          await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          });
-          loaded = true;
-          console.log('[AudioCompressor] FFmpeg loaded successfully from Cloudflare');
-        } catch (error) {
-          console.warn('[AudioCompressor] Failed to load FFmpeg from Cloudflare:', error);
-          lastError = error;
-        }
-      }
-      
-      if (!loaded) {
-        throw new Error('Failed to load FFmpeg from all sources: ' + 
-          (lastError instanceof Error ? lastError.message : String(lastError)));
-      }
-      
-      this.ffmpeg = ffmpeg;
-      this.isLoaded = true;
-      return ffmpeg;
-    } catch (error) {
-      console.error('[AudioCompressor] Error loading FFmpeg:', error);
-      throw new Error('Failed to load audio processing tools: ' + (error instanceof Error ? error.message : String(error)));
-    } finally {
-      this.isLoading = false;
-    }
-  }
-  
-  /**
-   * Compress audio to reduce file size (mono, optimized bitrate)
-   * Enhanced implementation with ultra-aggressive compression
-   */
-  async compressAudio(audioBlob: Blob): Promise<Blob> {
-    try {
-      console.log(`[AudioCompressor] Compressing audio file: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB, type: ${audioBlob.type}`);
-      
-      // Check if FFmpeg is available
-      let ffmpeg;
-      try {
-        ffmpeg = await this.loadFFmpeg();
-      } catch (ffmpegError) {
-        console.error('[AudioCompressor] FFmpeg loading failed, falling back to direct format change:', ffmpegError);
-        
-        // Simple fallback: just change the MIME type without actual compression
-        // This is better than nothing if FFmpeg fails to load
-        console.warn('[AudioCompressor] Using fallback method (no actual compression)');
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        return new Blob([arrayBuffer], { type: 'audio/mp3' });
-      }
-      
-      // Determine input format from blob type or default to webm
-      const mimeType = audioBlob.type.toLowerCase();
-      const isVideo = mimeType.includes('video/');
-      const inputFormat = mimeType.includes('webm') ? 'webm' : 
-                         mimeType.includes('mp4') ? 'mp4' :
-                         mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
-                         mimeType.includes('wav') ? 'wav' : 'webm';
-      
-      console.log(`[AudioCompressor] Detected input format: ${inputFormat}, isVideo: ${isVideo}`);
-      const inputFileName = `input.${inputFormat}`;
-      const outputFileName = 'output.mp3'; // Always output as MP3
-      
-      // Write the input file to FFmpeg's file system
-      ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
-      
-      // Check if we have a video file and need to extract audio
-      const ffmpegCommand = isVideo ? 
-        [
-          '-i', inputFileName,
-          '-vn', // Skip video stream
-          '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
-          '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
-          '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
-          '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
-          '-compression_level', '9',      // Maximum compression level
-          '-q:a', '9',                    // Highest quality setting for VBR mode
-          '-vbr', 'on',                   // Enable variable bitrate
-          '-application', 'voip',         // Optimize for voice
-          '-cutoff', '10000',             // Frequency cutoff for voice-optimized compression
-          '-af', 'silenceremove=1:0:-50dB:1:0.1:-50dB,volume=1.5',  // Remove silence and normalize volume
-          '-write_xing', '0',             // Disable Xing headers for smaller files
-          '-id3v2_version', '0',          // Remove ID3 metadata
-          '-map_metadata', '-1',          // Strip all metadata
-          '-f', 'mp3',                    // Force MP3 format
-          '-y',                           // Overwrite output files
-          outputFileName
-        ] : 
-        [
-          '-i', inputFileName,
-          '-c:a', OPTIMIZED_AUDIO_FORMAT.codec,
-          '-ac', OPTIMIZED_AUDIO_FORMAT.channels.toString(),
-          '-ar', OPTIMIZED_AUDIO_FORMAT.sampleRate.toString(),
-          '-b:a', `${OPTIMIZED_AUDIO_FORMAT.bitRate}k`,
-          '-compression_level', '9',      // Maximum compression level
-          '-q:a', '9',                    // Highest quality setting for VBR mode
-          '-vbr', 'on',                   // Enable variable bitrate
-          '-application', 'voip',         // Optimize for voice
-          '-cutoff', '10000',             // Frequency cutoff for voice-optimized compression
-          '-af', 'silenceremove=1:0:-50dB:1:0.1:-50dB,volume=1.5',  // Remove silence and normalize volume
-          '-write_xing', '0',             // Disable Xing headers for smaller files
-          '-id3v2_version', '0',          // Remove ID3 metadata
-          '-map_metadata', '-1',          // Strip all metadata
-          '-f', 'mp3',                    // Force MP3 format
-          '-y',                           // Overwrite output files
-          outputFileName
-        ];
-      
-      console.log('[AudioCompressor] Running FFmpeg command:', ffmpegCommand.join(' '));
-      
-      // Compress audio with ultra-optimized settings
-      await ffmpeg.exec(ffmpegCommand);
-      
-      // Verify the output file exists
-      const files = await ffmpeg.listDir('./');
-      console.log('[AudioCompressor] Files after compression:', files.map(f => f.name).join(', '));
-      
-      if (!files.some(f => f.name === outputFileName)) {
-        throw new Error('Output file not created by FFmpeg');
-      }
-      
-      // Read the compressed file
-      const data = await ffmpeg.readFile(outputFileName);
-      
-      // Ensure proper MIME type is set
-      const compressedBlob = new Blob([data], { type: 'audio/mp3' });
-      
-      console.log(`[AudioCompressor] Compression completed: ${(compressedBlob.size / 1024 / 1024).toFixed(2)}MB, type: ${compressedBlob.type}`);
-      
-      // Verify the MP3 file has a valid header
-      const validateMp3 = await this.validateMp3Header(compressedBlob);
-      if (!validateMp3.valid) {
-        console.warn('[AudioCompressor] MP3 validation warning:', validateMp3.message);
-      }
-      
-      return compressedBlob;
-    } catch (error) {
-      console.error('[AudioCompressor] Compression error:', error);
-      
-      // Fallback if compression fails: try a more basic approach
-      console.warn('[AudioCompressor] Compression failed, trying simple audio extraction');
-      try {
-        return await this.simpleAudioExtraction(audioBlob);
-      } catch (fallbackError) {
-        console.error('[AudioCompressor] Fallback method also failed:', fallbackError);
-        throw new Error('Failed to compress audio: ' + (error instanceof Error ? error.message : String(error)));
-      }
-    }
-  }
-  
-  /**
-   * Simple audio extraction using basic FFmpeg command
-   * Used as a fallback if more advanced compression fails
-   */
-  private async simpleAudioExtraction(audioBlob: Blob): Promise<Blob> {
-    try {
-      console.log('[AudioCompressor] Attempting simple audio extraction');
-      
-      const ffmpeg = await this.loadFFmpeg();
-      
-      // Determine if video or audio
-      const mimeType = audioBlob.type.toLowerCase();
-      const isVideo = mimeType.includes('video/');
-      const inputFormat = mimeType.includes('webm') ? 'webm' : 
-                         mimeType.includes('mp4') ? 'mp4' :
-                         mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
-                         mimeType.includes('wav') ? 'wav' : 'webm';
-      
-      const inputFileName = `simple_input.${inputFormat}`;
-      const outputFileName = 'simple_output.mp3';
-      
-      // Write the input file to FFmpeg's file system
-      ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
-      
-      // Use a simpler command with less options
-      const ffmpegCommand = isVideo ?
-        ['-i', inputFileName, '-vn', '-c:a', 'libmp3lame', '-b:a', '64k', '-f', 'mp3', '-y', outputFileName] :
-        ['-i', inputFileName, '-c:a', 'libmp3lame', '-b:a', '64k', '-f', 'mp3', '-y', outputFileName];
-      
-      console.log('[AudioCompressor] Running simple FFmpeg command:', ffmpegCommand.join(' '));
-      
-      await ffmpeg.exec(ffmpegCommand);
-      
-      // Check if the output was created
-      const files = await ffmpeg.listDir('./');
-      console.log('[AudioCompressor] Files after simple extraction:', files.map(f => f.name).join(', '));
-      
-      if (!files.some(f => f.name === outputFileName)) {
-        throw new Error('Simple extraction failed to create output file');
-      }
-      
-      // Read the output file
-      const data = await ffmpeg.readFile(outputFileName);
-      
-      // Create a blob with the correct MIME type
-      return new Blob([data], { type: 'audio/mp3' });
-    } catch (error) {
-      console.error('[AudioCompressor] Simple extraction failed:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Validate that an MP3 file has a proper header
-   */
-  private async validateMp3Header(mp3Blob: Blob): Promise<{valid: boolean, message: string}> {
-    try {
-      // Check at least the first few bytes for MP3 sync word (0xFF 0xEx)
-      const headerBytes = await mp3Blob.slice(0, 4).arrayBuffer();
-      const header = new Uint8Array(headerBytes);
-      
-      if (header.length < 2) {
-        return {valid: false, message: 'MP3 file too small, no header present'};
-      }
-      
-      // MP3 frames start with a sync word (0xFF followed by 0xEx)
-      const hasMp3SyncWord = (header[0] === 0xFF) && ((header[1] & 0xE0) === 0xE0);
-      
-      if (!hasMp3SyncWord) {
-        console.warn('[AudioCompressor] MP3 validation: No sync word found in header', 
-          Array.from(header).map(b => b.toString(16).padStart(2, '0')).join(' '));
-        return {valid: false, message: 'MP3 file header invalid, no sync word found'};
-      }
-      
-      return {valid: true, message: 'MP3 header validation passed'};
-    } catch (error) {
-      console.error('[AudioCompressor] Error validating MP3 header:', error);
-      return {valid: false, message: 'Error validating MP3 header: ' + String(error)};
-    }
-  }
-  
-  /**
-   * Split audio into chunks of specified maximum size/duration
-   */
-  async chunkAudio(audioBlob: Blob, durationSeconds: number): Promise<Blob[]> {
-    if (audioBlob.size <= MAX_WHISPER_SIZE_BYTES) {
-      console.log('[AudioCompressor] Audio size is within limits, no chunking needed');
-      return [audioBlob];
-    }
-    
-    try {
-      console.log(`[AudioCompressor] Chunking audio file: ${(audioBlob.size / 1024 / 1024).toFixed(2)}MB, duration: ${durationSeconds}s`);
-      const ffmpeg = await this.loadFFmpeg();
-      
-      // Determine input format
-      const mimeType = audioBlob.type.toLowerCase();
-      const inputFormat = mimeType.includes('webm') ? 'webm' : 
-                         mimeType.includes('mp3') || mimeType.includes('mpeg') ? 'mp3' : 
-                         mimeType.includes('wav') ? 'wav' : 'mp3';
-      const inputFileName = `input.${inputFormat}`;
-      
-      // Write the input file to FFmpeg's file system
-      ffmpeg.writeFile(inputFileName, await fetchFile(audioBlob));
-      
-      // Calculate optimal chunk duration based on file size and total duration
-      const chunkCount = Math.ceil(audioBlob.size / TARGET_CHUNK_SIZE_BYTES);
-      const chunkDuration = Math.min(
-        Math.ceil(durationSeconds / chunkCount),
-        MAX_CHUNK_DURATION_SECONDS
-      );
-      
-      console.log(`[AudioCompressor] Splitting into approximately ${chunkCount} chunks of ${chunkDuration}s each`);
-      
-      // Split audio into segments using FFmpeg segment feature
-      await ffmpeg.exec([
-        '-i', inputFileName,
-        '-f', 'segment',
-        '-segment_time', chunkDuration.toString(),
-        '-c', 'copy',  // Copy codec to avoid re-encoding
-        'chunk_%03d.mp3'  // Output pattern with sequential numbering
-      ]);
-      
-      // Get the list of chunk files created by FFmpeg
-      const files = await ffmpeg.listDir('./');
-      const chunkFiles = files
-        .filter(file => file.name.startsWith('chunk_') && file.name.endsWith('.mp3'))
-        .sort((a, b) => a.name.localeCompare(b.name));  // Ensure correct order
-      
-      if (chunkFiles.length === 0) {
-        throw new Error('No chunks were created during the splitting process');
-      }
-      
-      // Read chunks and convert to Blobs
-      const chunks: Blob[] = [];
-      for (const file of chunkFiles) {
-        const data = await ffmpeg.readFile(file.name);
-        const chunkBlob = new Blob([data], { type: 'audio/mp3' });
-        chunks.push(chunkBlob);
-        console.log(`[AudioCompressor] Chunk ${file.name}: ${(chunkBlob.size / 1024 / 1024).toFixed(2)}MB`);
-      }
-      
-      return chunks;
-    } catch (error) {
-      console.error('[AudioCompressor] Chunking error:', error);
-      throw new Error('Failed to split audio into chunks: ' + (error instanceof Error ? error.message : String(error)));
-    }
-  }
-  
-  /**
-   * Process audio for transcription - compress and chunk if needed
-   */
-  async processAudioForTranscription(
-    audioBlob: Blob, 
-    durationSeconds: number,
-    onProgress?: (progress: number) => void
-  ): Promise<{ 
-    chunks: Blob[], 
-    originalSize: number, 
-    processedSize: number,
-    durationSeconds: number
-  }> {
-    try {
-      onProgress?.(5);
-      const originalSize = audioBlob.size;
-      
-      // Step 1: Compress audio to reduce size
-      const compressedBlob = await this.compressAudio(audioBlob);
-      onProgress?.(40);
-      
-      // Step 2: Split into chunks if still too large
-      const chunks = await this.chunkAudio(compressedBlob, durationSeconds);
-      onProgress?.(80);
-      
-      // Step 3: Return processing results
-      const totalProcessedSize = chunks.reduce((sum, chunk) => sum + chunk.size, 0);
-      
-      onProgress?.(100);
-      return {
-        chunks,
-        originalSize,
-        processedSize: totalProcessedSize,
-        durationSeconds
       };
-    } catch (error) {
-      console.error('[AudioCompressor] Processing error:', error);
-      throw new Error('Failed to process audio: ' + (error instanceof Error ? error.message : String(error)));
-    }
+      
+      fileReader.onerror = () => {
+        reject(new Error('Failed to read audio file'));
+      };
+      
+      // Read blob as array buffer
+      fileReader.readAsArrayBuffer(blob);
+    });
   }
   
   /**
-   * Clean up FFmpeg instance when done
+   * Process AudioBuffer (convert to mono, resample)
    */
-  terminate() {
-    if (this.ffmpeg) {
-      this.ffmpeg.terminate();
-      this.ffmpeg = null;
-      this.isLoaded = false;
+  private async processAudioBuffer(
+    audioBuffer: AudioBuffer, 
+    options: {
+      mono?: boolean;
+      targetSampleRate?: number;
+    }
+  ): Promise<AudioBuffer> {
+    const { mono = true, targetSampleRate } = options;
+    log(`AudioCompressor: Processing audio buffer - ${mono ? 'converting to mono' : 'keeping channels'}, ` +
+        `${targetSampleRate ? `resampling to ${targetSampleRate}Hz` : 'keeping original sample rate'}`);
+    
+    // Create output context with target sample rate if specified
+    const outputSampleRate = targetSampleRate || audioBuffer.sampleRate;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const outputContext = new AudioContext({ sampleRate: outputSampleRate });
+    
+    // Get the number of channels to process
+    const numChannels = mono ? 1 : audioBuffer.numberOfChannels;
+    
+    // Calculate output length (accounting for potential sample rate change)
+    const outputLength = Math.floor(audioBuffer.length * outputSampleRate / audioBuffer.sampleRate);
+    
+    // Create output buffer
+    const outputBuffer = outputContext.createBuffer(numChannels, outputLength, outputSampleRate);
+    
+    if (mono && audioBuffer.numberOfChannels > 1) {
+      // Convert to mono by averaging all channels
+      const outputData = outputBuffer.getChannelData(0);
+      
+      // Mix down all channels
+      for (let sample = 0; sample < outputLength; sample++) {
+        // Calculate the corresponding position in the source buffer
+        const srcPos = Math.floor(sample * audioBuffer.sampleRate / outputSampleRate);
+        
+        // Initialize accumulator for averaging
+        let sum = 0;
+        
+        // Sum all channels
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+          const channelData = audioBuffer.getChannelData(channel);
+          if (srcPos < channelData.length) {
+            sum += channelData[srcPos];
+          }
+        }
+        
+        // Average and assign to mono output
+        outputData[sample] = sum / audioBuffer.numberOfChannels;
+      }
+    } else {
+      // Keep multi-channel or already mono, but handle resampling if needed
+      const channelCount = Math.min(numChannels, audioBuffer.numberOfChannels);
+      
+      for (let channel = 0; channel < channelCount; channel++) {
+        const outputData = outputBuffer.getChannelData(channel);
+        const inputData = audioBuffer.getChannelData(channel);
+        
+        // Simple resampling by linear interpolation
+        for (let sample = 0; sample < outputLength; sample++) {
+          const srcPos = sample * audioBuffer.sampleRate / outputSampleRate;
+          const srcIndex = Math.floor(srcPos);
+          const fraction = srcPos - srcIndex;
+          
+          // Linear interpolation between samples
+          if (srcIndex + 1 < inputData.length) {
+            outputData[sample] = inputData[srcIndex] * (1 - fraction) + inputData[srcIndex + 1] * fraction;
+          } else if (srcIndex < inputData.length) {
+            outputData[sample] = inputData[srcIndex];
+          }
+        }
+      }
+    }
+    
+    log(`AudioCompressor: Processed to ${outputBuffer.numberOfChannels} channels, ` +
+        `${outputBuffer.sampleRate}Hz, ${outputBuffer.length} samples`);
+    
+    return outputBuffer;
+  }
+  
+  /**
+   * Convert AudioBuffer to MP3
+   */
+  private async convertToMp3(audioBuffer: AudioBuffer, bitrate: number = 32): Promise<Blob> {
+    log(`AudioCompressor: Converting to MP3 at ${bitrate}kbps`);
+    
+    // First, convert to WAV as an intermediate format
+    const wavBlob = await this.audioBufferToWav(audioBuffer);
+    log(`AudioCompressor: Intermediate WAV size: ${(wavBlob.size / 1024 / 1024).toFixed(2)}MB`);
+    
+    // Create a worker to handle MP3 encoding
+    const workerCode = `
+      // Import lamejs library
+      importScripts('/libs/lamejs/lame.all.js');
+      
+      self.onmessage = async function(e) {
+        try {
+          const { wavArrayBuffer, channels, sampleRate, bitrate } = e.data;
+          
+          // Parse WAV data
+          const wavDataView = new DataView(wavArrayBuffer);
+          
+          // Extract WAV format information
+          const numChannels = wavDataView.getUint16(22, true);
+          const sampleRate = wavDataView.getUint32(24, true);
+          const bitsPerSample = wavDataView.getUint16(34, true);
+          
+          // Find the data chunk
+          let dataStart = 0;
+          for (let i = 44; i < wavDataView.byteLength - 4; i++) {
+            if (wavDataView.getUint32(i, false) === 0x64617461) { // "data" in ASCII
+              dataStart = i + 8; // skip "data" + size
+              break;
+            }
+          }
+          
+          if (dataStart === 0) {
+            throw new Error("Could not find WAV data chunk");
+          }
+          
+          // Create MP3 encoder
+          const mp3encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, bitrate);
+          
+          // Extract PCM samples
+          const dataLength = wavDataView.byteLength - dataStart;
+          const samplesPerChannel = dataLength / (numChannels * (bitsPerSample / 8));
+          
+          // Create sample buffers
+          const left = new Int16Array(samplesPerChannel);
+          const right = numChannels > 1 ? new Int16Array(samplesPerChannel) : null;
+          
+          // Extract samples from WAV
+          for (let i = 0; i < samplesPerChannel; i++) {
+            const sampleOffset = dataStart + i * numChannels * (bitsPerSample / 8);
+            
+            // Get left/mono channel
+            left[i] = wavDataView.getInt16(sampleOffset, true);
+            
+            // Get right channel if stereo
+            if (numChannels > 1 && right) {
+              right[i] = wavDataView.getInt16(sampleOffset + 2, true);
+            }
+          }
+          
+          // Process in chunks for better memory usage
+          const mp3Data = [];
+          const blockSize = 1152; // MP3 frame size
+          const numBlocks = Math.ceil(samplesPerChannel / blockSize);
+          
+          // Encode each block
+          for (let block = 0; block < numBlocks; block++) {
+            // Report progress
+            if (block % 10 === 0) {
+              self.postMessage({ 
+                type: 'progress', 
+                progress: Math.round((block / numBlocks) * 100) 
+              });
+            }
+            
+            const offset = block * blockSize;
+            const count = Math.min(blockSize, samplesPerChannel - offset);
+            
+            // Create block buffers
+            const blockLeft = new Int16Array(blockSize);
+            const blockRight = numChannels > 1 ? new Int16Array(blockSize) : null;
+            
+            // Fill with zeros first
+            blockLeft.fill(0);
+            if (blockRight) blockRight.fill(0);
+            
+            // Copy actual samples
+            for (let i = 0; i < count; i++) {
+              if (offset + i < left.length) {
+                blockLeft[i] = left[offset + i];
+              }
+              
+              if (numChannels > 1 && blockRight && offset + i < right.length) {
+                blockRight[i] = right[offset + i];
+              }
+            }
+            
+            // Encode block
+            let mp3Block;
+            if (numChannels > 1 && blockRight) {
+              mp3Block = mp3encoder.encodeBuffer(blockLeft, blockRight);
+            } else {
+              mp3Block = mp3encoder.encodeBuffer(blockLeft);
+            }
+            
+            if (mp3Block && mp3Block.length > 0) {
+              mp3Data.push(mp3Block);
+            }
+          }
+          
+          // Finalize encoding
+          const finalMp3 = mp3encoder.flush();
+          if (finalMp3 && finalMp3.length > 0) {
+            mp3Data.push(finalMp3);
+          }
+          
+          // Combine all MP3 data chunks
+          let totalLength = 0;
+          mp3Data.forEach(buffer => {
+            totalLength += buffer.length;
+          });
+          
+          const mp3Buffer = new Uint8Array(totalLength);
+          let offset = 0;
+          
+          mp3Data.forEach(buffer => {
+            mp3Buffer.set(buffer, offset);
+            offset += buffer.length;
+          });
+          
+          // Send back the result
+          self.postMessage({ 
+            type: 'complete', 
+            mp3Buffer: mp3Buffer.buffer
+          }, [mp3Buffer.buffer]);
+        } catch (error) {
+          self.postMessage({ 
+            type: 'error', 
+            message: error.message || 'MP3 encoding failed'
+          });
+        }
+      };
+    `;
+    
+    // Create worker from blob
+    const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(workerBlob);
+    const worker = new Worker(workerUrl);
+    
+    // Convert WAV blob to array buffer
+    const wavArrayBuffer = await wavBlob.arrayBuffer();
+    
+    return new Promise((resolve, reject) => {
+      // Set timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        worker.terminate();
+        URL.revokeObjectURL(workerUrl);
+        reject(new Error('MP3 encoding timed out after 60 seconds'));
+      }, 60000);
+      
+      // Handle messages from worker
+      worker.onmessage = (e) => {
+        const data = e.data;
+        
+        if (data.type === 'progress') {
+          log(`AudioCompressor: MP3 encoding progress: ${data.progress}%`);
+        } 
+        else if (data.type === 'complete') {
+          // Clear timeout and clean up
+          clearTimeout(timeout);
+          worker.terminate();
+          URL.revokeObjectURL(workerUrl);
+          
+          // Create MP3 blob from buffer
+          const mp3Blob = new Blob([data.mp3Buffer], { type: 'audio/mp3' });
+          log(`AudioCompressor: MP3 encoding complete, size: ${(mp3Blob.size / 1024 / 1024).toFixed(2)}MB`);
+          
+          resolve(mp3Blob);
+        } 
+        else if (data.type === 'error') {
+          // Clear timeout and clean up
+          clearTimeout(timeout);
+          worker.terminate();
+          URL.revokeObjectURL(workerUrl);
+          
+          reject(new Error(`MP3 encoding failed: ${data.message}`));
+        }
+      };
+      
+      // Handle worker errors
+      worker.onerror = (error) => {
+        clearTimeout(timeout);
+        worker.terminate();
+        URL.revokeObjectURL(workerUrl);
+        
+        reject(new Error(`Worker error: ${error.message}`));
+      };
+      
+      // Send WAV data to worker for MP3 encoding
+      worker.postMessage({
+        wavArrayBuffer,
+        channels: audioBuffer.numberOfChannels,
+        sampleRate: audioBuffer.sampleRate,
+        bitrate
+      }, [wavArrayBuffer]);
+    });
+  }
+  
+  /**
+   * Convert AudioBuffer to WAV blob (intermediate step)
+   */
+  private async audioBufferToWav(audioBuffer: AudioBuffer): Promise<Blob> {
+    const numChannels = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const length = audioBuffer.length;
+    
+    // Create buffer with WAV header
+    const buffer = new ArrayBuffer(44 + length * numChannels * 2);
+    const view = new DataView(buffer);
+    
+    // Write WAV header
+    // RIFF identifier
+    this.writeString(view, 0, 'RIFF');
+    // RIFF chunk length
+    view.setUint32(4, 36 + length * numChannels * 2, true);
+    // RIFF type
+    this.writeString(view, 8, 'WAVE');
+    // Format chunk identifier
+    this.writeString(view, 12, 'fmt ');
+    // Format chunk length
+    view.setUint32(16, 16, true);
+    // Sample format (raw)
+    view.setUint16(20, 1, true);
+    // Channel count
+    view.setUint16(22, numChannels, true);
+    // Sample rate
+    view.setUint32(24, sampleRate, true);
+    // Byte rate (sample rate * block align)
+    view.setUint32(28, sampleRate * numChannels * 2, true);
+    // Block align (channel count * bytes per sample)
+    view.setUint16(32, numChannels * 2, true);
+    // Bits per sample
+    view.setUint16(34, 16, true);
+    // Data chunk identifier
+    this.writeString(view, 36, 'data');
+    // Data chunk length
+    view.setUint32(40, length * numChannels * 2, true);
+    
+    // Write interleaved audio data
+    const offset = 44;
+    
+    if (numChannels === 1) {
+      // Mono - simpler encoding
+      const channel = audioBuffer.getChannelData(0);
+      for (let i = 0; i < length; i++) {
+        // Convert float to 16-bit and write
+        const sample = Math.max(-1, Math.min(1, channel[i]));
+        const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        view.setInt16(offset + i * 2, value, true);
+      }
+    } else {
+      // Multi-channel - interleaving required
+      for (let i = 0; i < length; i++) {
+        for (let channel = 0; channel < numChannels; channel++) {
+          const data = audioBuffer.getChannelData(channel);
+          const sample = Math.max(-1, Math.min(1, data[i]));
+          const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+          view.setInt16(offset + (i * numChannels + channel) * 2, value, true);
+        }
+      }
+    }
+    
+    // Return WAV as blob
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+  
+  /**
+   * Utility function to write a string to a DataView
+   */
+  private writeString(view: DataView, offset: number, string: string): void {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
     }
   }
 }
 
-// Export singleton instance
+// Create and export a singleton instance
 export const audioCompressor = new AudioCompressor();

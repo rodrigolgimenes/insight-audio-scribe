@@ -132,8 +132,15 @@ const SimpleRecord = () => {
       console.log('Original recording format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
       toast.info("Compressing audio...");
-      const compressedBlob = await audioCompressor.compressAudio(recordingBlob);
-      console.log('Compressed to MP3:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+      const compressedBlob = await audioCompressor.compressAudio(recordingBlob, {
+        targetBitrate: 32,      // 32kbps for high compression
+        mono: true,             // Convert to mono
+        targetSampleRate: 16000 // 16kHz sample rate
+      });
+      
+      console.log('Compressed to MP3:', compressedBlob.type, 
+                  'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB',
+                  'Compression ratio:', Math.round((1 - compressedBlob.size / recordingBlob.size) * 100) + '%');
 
       const fileName = `${user.id}/${Date.now()}.mp3`;
       
@@ -323,3 +330,4 @@ const SimpleRecord = () => {
 };
 
 export default SimpleRecord;
+

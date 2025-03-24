@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 import { convertFileToMp3 } from "@/utils/audio/fileConverter";
 import { ConversionLogsPanel } from './ConversionLogsPanel';
 import { clearLogs } from '@/lib/logger';
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string, recordingId: string) => void;
@@ -137,14 +137,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         });
         
         try {
-          fileToUpload = await convertFileToMp3(originalFile, (progress) => {
-            setProcessingProgress(progress);
-            setConversionProgress(progress);
-            
-            if (onConversionUpdate) {
-              onConversionUpdate('converting', progress, originalFile, null);
-            }
-          });
+          if (isAudio) {
+            fileToUpload = await audioCompressor.compressAudio(originalFile, {
+              targetBitrate: 48,
+              mono: false,
+              targetSampleRate: 44100
+            });
+          } else {
+            fileToUpload = await convertFileToMp3(originalFile, (progress) => {
+              setProcessingProgress(progress);
+              setConversionProgress(progress);
+              
+              if (onConversionUpdate) {
+                onConversionUpdate('converting', progress, originalFile, null);
+              }
+            });
+          }
           
           setConvertedFile(fileToUpload);
           setConversionStatus('success');

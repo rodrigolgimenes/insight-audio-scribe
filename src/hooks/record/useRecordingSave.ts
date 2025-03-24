@@ -102,11 +102,18 @@ export const useRecordingSave = () => {
       // Debug log the original audio blob details
       console.log('Original audio format:', audioBlob.type, 'Size:', Math.round(audioBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
-      // Attempt to compress the audio, but continue even if it fails
+      // Use our new audio compressor
       let compressedBlob: Blob;
       try {
-        compressedBlob = await audioCompressor.compressAudio(audioBlob);
-        console.log('Compressed audio format:', compressedBlob.type, 'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB');
+        compressedBlob = await audioCompressor.compressAudio(audioBlob, {
+          targetBitrate: 32, // 32kbps for high compression
+          mono: true,        // Convert to mono
+          targetSampleRate: 16000 // 16kHz sample rate
+        });
+        
+        console.log('Compressed audio format:', compressedBlob.type, 
+                   'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB',
+                   'Compression ratio:', Math.round((1 - compressedBlob.size / audioBlob.size) * 100) + '%');
       } catch (compressionError) {
         console.error('Audio compression failed, using original audio:', compressionError);
         sonnerToast.warning("Audio compression failed, using original format", {

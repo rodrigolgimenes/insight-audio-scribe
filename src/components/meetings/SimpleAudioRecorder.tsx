@@ -1,10 +1,10 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
+import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
 interface SimpleAudioRecorderProps {
   onNewTranscription: (text: string) => void;
@@ -197,10 +197,40 @@ export const SimpleAudioRecorder = ({
       
       // Buscar dados de áudio
       const response = await fetch(audioUrl);
-      const blob = await response.blob();
+      const originalBlob = await response.blob();
+      
+      // Compress the audio before transcription
+      setTranscriptionProgress(20);
+      toast.info("Comprimindo áudio...");
+      
+      // Use our new audio compressor for voice optimization
+      let audioBlob: Blob;
+      try {
+        audioBlob = await audioCompressor.compressAudio(originalBlob, {
+          targetBitrate: 32,    // 32kbps for high compression
+          mono: true,           // Convert to mono
+          targetSampleRate: 16000 // 16kHz sample rate optimal for speech recognition
+        });
+        
+        const originalSize = originalBlob.size;
+        const compressedSize = audioBlob.size;
+        const compressionRatio = Math.round((1 - compressedSize / originalSize) * 100);
+        
+        console.log(`Audio compressed from ${(originalSize / (1024 * 1024)).toFixed(2)}MB to ${(compressedSize / (1024 * 1024)).toFixed(2)}MB (${compressionRatio}% reduction)`);
+        
+        if (compressionRatio > 10) {
+          toast.success(`Áudio comprimido em ${compressionRatio}%`, {
+            description: "Isso vai acelerar a transcrição"
+          });
+        }
+      } catch (compressionError) {
+        console.error("Erro na compressão:", compressionError);
+        toast.warning("Falha na compressão, usando áudio original");
+        audioBlob = originalBlob;
+      }
       
       // Mostrar feedback sobre o tamanho do arquivo
-      const fileSizeMB = blob.size / (1024 * 1024);
+      const fileSizeMB = audioBlob.size / (1024 * 1024);
       console.log(`Tamanho do arquivo de áudio: ${fileSizeMB.toFixed(2)} MB`);
       
       if (fileSizeMB > 25) {
@@ -211,7 +241,7 @@ export const SimpleAudioRecorder = ({
       
       // Converter blob para base64
       const reader = new FileReader();
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(audioBlob);
       
       reader.onloadend = async () => {
         const base64data = reader.result as string;
@@ -256,7 +286,6 @@ export const SimpleAudioRecorder = ({
     }
   };
   
-  // Formatar segundos para MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -266,14 +295,12 @@ export const SimpleAudioRecorder = ({
   return (
     <div className="space-y-4 w-full max-w-md mx-auto">
       <div className="flex flex-col gap-2">
-        {/* Exibição do timer */}
         {(isRecording || elapsedTime > 0) && (
           <div className="text-center font-mono text-xl">
             {formatTime(elapsedTime)}
           </div>
         )}
         
-        {/* Botões de Gravação/Parar */}
         <div className="flex justify-center">
           {!isRecording ? (
             <Button
@@ -307,7 +334,6 @@ export const SimpleAudioRecorder = ({
           </div>
         )}
         
-        {/* Prévia de áudio */}
         {audioUrl && (
           <div className="mt-4">
             <audio src={audioUrl} controls className="w-full rounded-md shadow-sm" />

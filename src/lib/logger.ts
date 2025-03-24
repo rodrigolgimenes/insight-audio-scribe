@@ -1,118 +1,82 @@
-// Basic logging utility for the audio converter
-const DEBUG = true;
 
-// Format timestamp for logs
-const getTimestamp = () => {
-  const now = new Date();
-  return now.toLocaleTimeString('pt-BR');
+/**
+ * Simple logger utility for the application
+ */
+
+// Store logs in memory for debugging
+const memoryLogs: string[] = [];
+const MAX_LOG_LENGTH = 1000;
+
+// Log types
+let enabledLogTypes: Record<string, boolean> = {
+  'default': true,
+  'audio': true,
+  'worker': true,
+  'lamejs': true,
+  'format': true,
+  'data': true,
+  'validation': true,
 };
 
-// Log storage for UI display
-export type LogEntry = {
-  id: string;
-  timestamp: string;
-  category: 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS' | 'DEBUG';
-  message: string;
-  details?: string;
-};
-
-// Log collection to be accessed by UI components
-export const logStorage: LogEntry[] = [];
-
-const createLog = (
-  category: 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS' | 'DEBUG',
-  message: string,
-  details?: string
-): LogEntry => {
-  const entry: LogEntry = {
-    id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
-    timestamp: getTimestamp(),
-    category,
-    message,
-    details
-  };
+/**
+ * Global log function
+ */
+export function log(message: string, type: string = 'default'): void {
+  const timestamp = new Date().toISOString();
+  const formattedMessage = `[${timestamp}] ${message}`;
   
-  logStorage.push(entry);
-  
-  // Keep only the most recent 500 logs
-  if (logStorage.length > 500) {
-    logStorage.shift();
+  // Add to memory logs, limiting size
+  memoryLogs.push(formattedMessage);
+  if (memoryLogs.length > MAX_LOG_LENGTH) {
+    memoryLogs.shift();
   }
   
-  return entry;
-};
-
-export const log = (message: string): void => {
-  if (DEBUG) {
-    console.log(`[AudioConverter] ${message}`);
-    createLog('INFO', message);
+  // Only log to console if enabled
+  if (enabledLogTypes[type] || type === 'default') {
+    console.log(`[${type}] ${message}`);
   }
-};
+}
 
-export const logLameJS = (message: string): void => {
-  if (DEBUG) {
-    console.log(`[LameJS] ${message}`);
-    createLog('INFO', message, 'LameJS');
-  }
-};
+/**
+ * Specialized log functions
+ */
+export function logLameJS(message: string): void {
+  log(message, 'lamejs');
+}
 
-export const logWorker = (message: string): void => {
-  if (DEBUG) {
-    console.log(`[Worker] ${message}`);
-    createLog('INFO', message, 'Worker');
-  }
-};
+export function logWorker(message: string): void {
+  log(message, 'worker');
+}
 
-export const logData = (message: string): void => {
-  if (DEBUG) {
-    console.log(`[Data] ${message}`);
-    createLog('INFO', message, 'Data Processing');
-  }
-};
+export function logData(message: string): void {
+  log(message, 'data');
+}
 
-export const logFormat = (message: string): void => {
-  if (DEBUG) {
-    console.log(`[Format] ${message}`);
-    createLog('INFO', message, 'Format');
-  }
-};
+export function logFormat(message: string): void {
+  log(message, 'format');
+}
 
-export const logValidation = (message: string): void => {
-  if (DEBUG) {
-    console.log(`[Validation] ${message}`);
-    createLog('INFO', message, 'Validation');
-  }
-};
+export function logValidation(message: string): void {
+  log(message, 'validation');
+}
 
-export const logSuccess = (message: string, details?: string): void => {
-  console.log(`[Success] ${message}`);
-  createLog('SUCCESS', message, details);
-};
+/**
+ * Get all logs
+ */
+export function getLogs(): string[] {
+  return [...memoryLogs];
+}
 
-export const logError = (message: string, details?: string): void => {
-  console.error(`[Error] ${message}`);
-  createLog('ERROR', message, details);
-};
+/**
+ * Clear all logs
+ */
+export function clearLogs(): void {
+  memoryLogs.length = 0;
+}
 
-export const logWarning = (message: string, details?: string): void => {
-  console.warn(`[Warning] ${message}`);
-  createLog('WARN', message, details);
-};
-
-export const clearLogs = (): void => {
-  logStorage.length = 0;
-};
-
-export const getLogsByCategory = (category: string): LogEntry[] => {
-  return logStorage.filter(entry => entry.details === category);
-};
-
-// Log groups for UI display
-export const logGroups = {
-  lameJS: () => getLogsByCategory('LameJS'),
-  worker: () => getLogsByCategory('Worker'),
-  dataProcessing: () => getLogsByCategory('Data Processing'),
-  format: () => getLogsByCategory('Format'),
-  validation: () => getLogsByCategory('Validation'),
-  all: () => [...logStorage]
-};
+/**
+ * Configure which log types are output to console
+ */
+export function configureLogTypes(types: Record<string, boolean>): void {
+  enabledLogTypes = {...enabledLogTypes, ...types};
+}
