@@ -1,5 +1,6 @@
 
 import { convertAudioBufferToMp3 } from '@/lib/audioConverter';
+import { log, logLameJS, logWorker, logData, logFormat, logValidation, logSuccess, logError } from '@/lib/logger';
 
 // Function to convert a file to MP3 format
 export async function convertFileToMp3(
@@ -7,11 +8,11 @@ export async function convertFileToMp3(
   onProgress?: (percentage: number) => void
 ): Promise<File> {
   try {
-    console.log('Converting file to MP3:', file.name, file.type, file.size);
+    log('Converting file to MP3: ' + file.name + ', type: ' + file.type + ', size: ' + (file.size / (1024 * 1024)).toFixed(2) + ' MB');
     
     // Skip conversion if already MP3
     if (file.type === 'audio/mp3' || file.type === 'audio/mpeg') {
-      console.log('File is already MP3, returning original');
+      log('File is already MP3, returning original');
       return file;
     }
     
@@ -20,6 +21,7 @@ export async function convertFileToMp3(
     
     // Read file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
+    log('File read as ArrayBuffer successfully, size: ' + (arrayBuffer.byteLength / (1024 * 1024)).toFixed(2) + ' MB');
     
     // Show progress for decoding
     if (onProgress) {
@@ -27,19 +29,21 @@ export async function convertFileToMp3(
     }
     
     // Decode audio data
+    log('Starting audio decoding...');
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     
     if (onProgress) {
       onProgress(30);
     }
     
-    console.log('Audio decoded successfully:', 
-      audioBuffer.numberOfChannels, 'channels,', 
-      audioBuffer.sampleRate, 'Hz,',
-      audioBuffer.length, 'samples,',
-      audioBuffer.duration.toFixed(2), 'seconds');
+    logFormat(`Audio decoded successfully: 
+      ${audioBuffer.numberOfChannels} channels, 
+      ${audioBuffer.sampleRate} Hz, 
+      ${audioBuffer.length} samples, 
+      ${audioBuffer.duration.toFixed(2)} seconds`);
     
     // Convert to MP3 with progress updates
+    logLameJS('Starting MP3 conversion process with quality 32kbps');
     const mp3Data = await convertAudioBufferToMp3(
       audioBuffer,
       32, // 32kbps quality for maximum compression
@@ -47,6 +51,11 @@ export async function convertFileToMp3(
         if (onProgress) {
           // Scale progress from 30-90% (reserving beginning and end for other operations)
           onProgress(30 + Math.floor(progress * 0.6));
+          
+          // Add detailed logging at important progress points
+          if (progress % 20 === 0) {
+            logWorker(`MP3 encoding progress: ${progress}%`);
+          }
         }
       }
     );
@@ -69,11 +78,21 @@ export async function convertFileToMp3(
       onProgress(100);
     }
     
-    console.log('MP3 conversion complete, size:', Math.round(mp3File.size / 1024), 'KB');
+    const originalSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    const newSizeMB = (mp3File.size / (1024 * 1024)).toFixed(2);
+    const compressionRate = Math.round((1 - (mp3File.size / file.size)) * 100);
+    
+    logSuccess(`MP3 conversion completed successfully.
+      Original: ${originalSizeMB} MB (${file.type})
+      Converted: ${newSizeMB} MB (MP3)
+      Compression rate: ${compressionRate}%`);
+    
+    log(`Encoded MP3 file details: size: ${Math.round(mp3File.size / 1024)} KB, name: ${fileName}`);
     
     return mp3File;
   } catch (error) {
-    console.error('Error converting file to MP3:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    logError('Error converting file to MP3: ' + errorMessage);
     throw error;
   }
 }
