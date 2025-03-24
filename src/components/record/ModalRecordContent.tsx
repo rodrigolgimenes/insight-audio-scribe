@@ -1,61 +1,97 @@
-
-import React from "react";
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { RecordingSection } from "./RecordingSection";
+import { useEffect, useState } from "react";
+import { useRecording } from "@/hooks/useRecording";
+import {
+  SheetClose,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { RecordingSection } from "@/components/record/RecordingSection";
 
 interface ModalRecordContentProps {
-  recordingHook: any;
-  error: string | null;
-  errorDetails: string | null;
+  closeModal: () => void;
+  onSuccess?: () => void;
 }
 
-export function ModalRecordContent({ recordingHook, error, errorDetails }: ModalRecordContentProps) {
-  // Create a wrapper for refreshDevices that doesn't return anything
-  const handleRefreshDevices = async () => {
-    if (recordingHook.refreshDevices) {
-      await recordingHook.refreshDevices();
+export const ModalRecordContent = ({ 
+  closeModal, 
+  onSuccess
+}: ModalRecordContentProps) => {
+  const [error, setError] = useState<string | null>(null);
+  const {
+    isRecording,
+    isPaused,
+    audioUrl,
+    mediaStream,
+    isSystemAudio,
+    handleStartRecording,
+    handleStopRecording,
+    handlePauseRecording,
+    handleResumeRecording,
+    handleDelete,
+    setIsSystemAudio,
+    audioDevices,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    deviceSelectionReady,
+    lastAction,
+    permissionState,
+    handleSaveRecording
+  } = useRecording();
+
+  const handleSaveClick = async () => {
+    try {
+      await handleSaveRecording();
+      onSuccess?.();
+      closeModal();
+    } catch (err: any) {
+      setError(err.message || "Failed to save recording");
     }
   };
 
-  if (error) {
-    return (
-      <div className="text-red-500 p-4">
-        <p>{error}</p>
-        {errorDetails && <pre className="mt-2 text-xs">{errorDetails}</pre>}
-      </div>
-    );
-  }
-
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Record Audio</DialogTitle>
-      </DialogHeader>
+    <div className="space-y-8">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <RecordingSection 
-        // Pass all recording hook properties as props
-        isRecording={recordingHook.isRecording}
-        isPaused={recordingHook.isPaused}
-        audioUrl={recordingHook.audioUrl}
-        mediaStream={recordingHook.mediaStream}
-        isSystemAudio={recordingHook.isSystemAudio}
-        handleStartRecording={recordingHook.handleStartRecording}
-        handleStopRecording={recordingHook.handleStopRecording}
-        handlePauseRecording={recordingHook.handlePauseRecording}
-        handleResumeRecording={recordingHook.handleResumeRecording}
-        handleDelete={recordingHook.handleDelete}
-        onSystemAudioChange={recordingHook.setIsSystemAudio}
-        audioDevices={recordingHook.audioDevices || []}
-        selectedDeviceId={recordingHook.selectedDeviceId}
-        onDeviceSelect={recordingHook.setSelectedDeviceId}
-        deviceSelectionReady={recordingHook.deviceSelectionReady}
-        showPlayButton={true}
-        showDeleteButton={true}
-        lastAction={recordingHook.lastAction}
-        onRefreshDevices={handleRefreshDevices}
-        devicesLoading={recordingHook.devicesLoading}
-        permissionState={recordingHook.permissionState}
+        isRecording={isRecording}
+        isPaused={isPaused}
+        audioUrl={audioUrl}
+        mediaStream={mediaStream}
+        isSystemAudio={isSystemAudio}
+        handleStartRecording={handleStartRecording}
+        handleStopRecording={handleStopRecording}
+        handlePauseRecording={handlePauseRecording}
+        handleResumeRecording={handleResumeRecording}
+        handleDelete={handleDelete}
+        onSystemAudioChange={setIsSystemAudio}
+        audioDevices={audioDevices}
+        selectedDeviceId={selectedDeviceId}
+        onDeviceSelect={setSelectedDeviceId}
+        deviceSelectionReady={deviceSelectionReady}
+        lastAction={lastAction}
+        permissionState={permissionState}
+        showPlayButton={false}
+        onSave={isRecording ? undefined : handleSaveClick}
       />
-    </>
+
+      <SheetFooter>
+        <SheetClose asChild>
+          <Button type="button" variant="secondary">
+            Cancel
+          </Button>
+        </SheetClose>
+      </SheetFooter>
+    </div>
   );
-}
+};

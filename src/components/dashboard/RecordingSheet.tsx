@@ -211,6 +211,8 @@ export function RecordingSheet() {
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
               isRestrictedRoute={isRestrictedRoute}
+              onSave={handleSaveRecording}
+              isSaving={isSaving}
             />
 
             <div className="mt-6 flex justify-center">

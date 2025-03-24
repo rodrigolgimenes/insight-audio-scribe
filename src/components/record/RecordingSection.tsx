@@ -106,6 +106,7 @@ export const RecordingSection = ({
           showPlayButton={showPlayButton}
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}
+          onSave={onSave}
         />
         
         {/* Device settings */}
@@ -123,7 +124,7 @@ export const RecordingSection = ({
         />
         
         {/* Recording actions (save/upload) */}
-        {onSave && (
+        {onSave && !showPlayButton && (
           <RecordingActions
             onSave={onSave}
             isSaving={isSaving}

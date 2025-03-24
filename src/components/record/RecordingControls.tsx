@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Pause, StopCircle, Trash2, Music } from "lucide-react";
+import { Mic, Pause, StopCircle, Trash2, FileText } from "lucide-react";
 
 interface RecordingControlsProps {
   isRecording: boolean;
@@ -15,6 +15,7 @@ interface RecordingControlsProps {
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
   isLoading?: boolean;
+  onSave?: () => void;
 }
 
 export const RecordingControls = ({
@@ -28,7 +29,8 @@ export const RecordingControls = ({
   onDelete,
   showPlayButton = true,
   showDeleteButton = true,
-  isLoading = false
+  isLoading = false,
+  onSave
 }: RecordingControlsProps) => {
   return (
     <div className="flex justify-center items-center gap-4 my-4">
@@ -99,17 +101,14 @@ export const RecordingControls = ({
         </Button>
       )}
 
-      {audioUrl && !isRecording && showPlayButton && (
+      {audioUrl && !isRecording && showPlayButton && onSave && (
         <Button
           className="bg-palatinate-blue hover:bg-palatinate-blue/90 text-white rounded-full px-6 py-4 h-auto"
-          onClick={() => {
-            const audio = new Audio(audioUrl);
-            audio.play();
-          }}
+          onClick={onSave}
           disabled={isLoading}
         >
-          <Music className="h-5 w-5 mr-2" />
-          <span>Play</span>
+          <FileText className="h-5 w-5 mr-2" />
+          <span>Save & Transcribe</span>
         </Button>
       )}
     </div>
