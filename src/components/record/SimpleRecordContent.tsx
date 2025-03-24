@@ -68,10 +68,6 @@ export function SimpleRecordContent({
               deviceSelectionReady={recordingHook.deviceSelectionReady}
               lastAction={recordingHook.lastAction}
               onRefreshDevices={recordingHook.refreshDevices}
-              // Add missing required props
-              devicesLoading={recordingHook.devicesLoading || false}
-              permissionState={recordingHook.permissionState || 'unknown'}
-              showNoDevicesWarning={true}
             />
           </CardContent>
         </Card>

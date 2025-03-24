@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { useRecording } from "@/hooks/useRecording";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -40,6 +41,7 @@ export function RecordingSheet() {
     isRestrictedRoute
   } = useRecording();
 
+  // Enhanced check for restricted routes - dashboard/index/app paths
   const checkIsRestrictedRoute = useCallback((): boolean => {
     const path = window.location.pathname.toLowerCase();
     return path === '/' || 
@@ -49,11 +51,13 @@ export function RecordingSheet() {
            path.startsWith('/app/');
   }, []);
 
+  // Create a wrapper for refreshDevices that returns a Promise and suppresses toasts
   const handleRefreshDevices = async () => {
     try {
       if (refreshDevices) {
         await refreshDevices();
         
+        // Only show toast if not on restricted route
         if (!checkIsRestrictedRoute()) {
           toast({
             title: "Devices refreshed",
@@ -65,6 +69,7 @@ export function RecordingSheet() {
     } catch (error) {
       console.error("Error refreshing devices:", error);
       
+      // Only show error toast if not on restricted route
       if (!checkIsRestrictedRoute()) {
         toast({
           title: "Error refreshing devices",
@@ -76,10 +81,12 @@ export function RecordingSheet() {
     }
   };
 
+  // Create a wrapper for device selection that prevents toasts on dashboard
   const handleDeviceSelect = (deviceId: string) => {
     console.log('[RecordingSheet] Device selected:', deviceId);
     setSelectedDeviceId(deviceId);
     
+    // Don't show toast on restricted routes
     if (!checkIsRestrictedRoute()) {
       toast({
         title: "Microphone selected",
@@ -90,11 +97,13 @@ export function RecordingSheet() {
     }
   };
 
+  // Create a wrapper for stopRecording that returns a Promise
   const handleWrappedStopRecording = async () => {
     try {
       await handleStopRecording();
       console.log('[RecordingSheet] Recording stopped manually');
       
+      // Only show toast if not on restricted route
       if (!checkIsRestrictedRoute()) {
         toast({
           title: "Recording stopped",
@@ -109,17 +118,7 @@ export function RecordingSheet() {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      console.log('[RecordingSheet] Save button clicked');
-      await handleSaveRecording();
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Error saving recording:", error);
-      return Promise.reject(error);
-    }
-  };
-
+  // Ensure component is mounted before rendering complex components
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsComponentReady(true);
@@ -127,6 +126,7 @@ export function RecordingSheet() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Log component state for debugging
   useEffect(() => {
     console.log('[RecordingSheet] State updated:', { 
       isRecording, 
@@ -211,13 +211,16 @@ export function RecordingSheet() {
               devicesLoading={devicesLoading}
               permissionState={permissionState as any}
               isRestrictedRoute={isRestrictedRoute}
-              onSave={handleSave}
+              onSave={handleSaveRecording}
               isSaving={isSaving}
             />
 
             <div className="mt-6 flex justify-center">
               <SaveRecordingButton
-                onSave={handleSave}
+                onSave={() => {
+                  console.log('[RecordingSheet] Save button clicked');
+                  handleSaveRecording();
+                }}
                 isSaving={isSaving}
                 isDisabled={!isRecording && !audioUrl}
               />

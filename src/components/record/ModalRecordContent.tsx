@@ -90,9 +90,6 @@ export const ModalRecordContent = ({
         permissionState={permissionStateForComponent}
         showPlayButton={false}
         onSave={isRecording ? undefined : handleSaveClick}
-        // Add missing required props
-        devicesLoading={false}
-        showNoDevicesWarning={true}
       />
 
       <SheetFooter>

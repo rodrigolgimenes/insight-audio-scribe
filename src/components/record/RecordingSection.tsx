@@ -1,8 +1,11 @@
 
-import React from "react";
-import { DeviceSelector } from "@/components/record/DeviceSelector";
-import { Button } from "@/components/ui/button";
-import { Mic, Square, Pause, Play, Trash, Save, Loader2 } from "lucide-react";
+import { RecordingControls } from "./RecordingControls";
+import { RecordingSettings } from "./RecordingSettings";
+import { RecordingVisualizer } from "./RecordingVisualizer";
+import { RecordingActions } from "./RecordingActions";
+import { Waveform } from "@/components/ui/waveform";
+import { useTimer } from "@/hooks/useTimer";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -11,31 +14,30 @@ interface RecordingSectionProps {
   mediaStream: MediaStream | null;
   isSystemAudio: boolean;
   handleStartRecording: () => void;
-  handleStopRecording: () => Promise<any>;
+  handleStopRecording: () => void;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
   onSystemAudioChange: (value: boolean) => void;
-  audioDevices: any[];
+  audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
-  lastAction: any;
-  onRefreshDevices?: () => Promise<any>;
-  devicesLoading: boolean;
-  permissionState: 'prompt' | 'granted' | 'denied' | 'unknown';
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
-  isRestrictedRoute?: boolean;
-  onSave?: () => Promise<any>;
-  isLoading?: boolean;
+  onSave?: () => void;
   isSaving?: boolean;
-  showNoDevicesWarning?: boolean;
+  isLoading?: boolean;
+  lastAction?: { action: string; timestamp: number; success: boolean };
+  onRefreshDevices?: () => Promise<void>;
+  devicesLoading?: boolean;
+  permissionState?: PermissionState;
   processingProgress?: number;
   processingStage?: string;
+  isRestrictedRoute?: boolean;
 }
 
-export function RecordingSection({
+export const RecordingSection = ({
   isRecording,
   isPaused,
   audioUrl,
@@ -51,121 +53,89 @@ export function RecordingSection({
   selectedDeviceId,
   onDeviceSelect,
   deviceSelectionReady,
+  showPlayButton = true,
+  showDeleteButton = true,
+  onSave,
+  isSaving = false,
+  isLoading = false,
   lastAction,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState = 'unknown',
-  showPlayButton = true,
-  showDeleteButton = true,
-  isRestrictedRoute = false,
-  onSave,
-  isLoading = false,
-  isSaving = false,
-  showNoDevicesWarning = true,
+  permissionState,
   processingProgress = 0,
-  processingStage = ""
-}: RecordingSectionProps) {
+  processingStage = "",
+  isRestrictedRoute = false
+}: RecordingSectionProps) => {
+  const { time, isRunning } = useTimer({
+    isRecording,
+    isPaused,
+  });
+
   return (
-    <div className="space-y-6">
-      <DeviceSelector 
-        audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        onDeviceSelect={onDeviceSelect}
-        disabled={isRecording || devicesLoading}
-        isReady={deviceSelectionReady}
-        onRefreshDevices={onRefreshDevices}
-        devicesLoading={devicesLoading}
-        permissionState={permissionState}
-        showNoDevicesWarning={showNoDevicesWarning}
-      />
-      
-      <div className="flex flex-wrap gap-3 mt-4">
-        {!isRecording && !audioUrl && (
-          <Button
-            onClick={handleStartRecording}
-            disabled={isLoading || !deviceSelectionReady}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <Mic className="h-4 w-4 mr-2" />
-                Start Recording
-              </>
-            )}
-          </Button>
-        )}
+    <div className="flex flex-col w-full items-center">
+      <div className="w-full max-w-lg">
+        {/* Audio visualizer */}
+        <div className="my-8 h-32 w-full">
+          {isRecording ? (
+            <RecordingVisualizer
+              audioStream={mediaStream}
+              isRecording={isRecording}
+              isPaused={isPaused}
+            />
+          ) : audioUrl ? (
+            <Waveform src={audioUrl} />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
+              <p className="text-gray-400 text-sm">
+                Loading waveform...
+              </p>
+            </div>
+          )}
+        </div>
         
-        {isRecording && !isPaused && (
-          <Button onClick={handlePauseRecording} variant="outline" className="border-primary text-primary">
-            <Pause className="h-4 w-4 mr-2" />
-            Pause
-          </Button>
-        )}
+        {/* Recording controls */}
+        <RecordingControls
+          isRecording={isRecording}
+          isPaused={isPaused}
+          audioUrl={audioUrl}
+          onStart={handleStartRecording}
+          onStop={handleStopRecording}
+          onPause={handlePauseRecording}
+          onResume={handleResumeRecording}
+          onDelete={handleDelete}
+          showPlayButton={showPlayButton}
+          showDeleteButton={showDeleteButton}
+          isLoading={isLoading}
+          onSave={onSave}
+        />
         
-        {isRecording && isPaused && (
-          <Button onClick={handleResumeRecording} variant="outline" className="border-primary text-primary">
-            <Play className="h-4 w-4 mr-2" />
-            Resume
-          </Button>
-        )}
+        {/* Device settings */}
+        <RecordingSettings
+          isSystemAudio={isSystemAudio}
+          onSystemAudioChange={onSystemAudioChange}
+          audioDevices={audioDevices}
+          selectedDeviceId={selectedDeviceId}
+          onDeviceSelect={onDeviceSelect}
+          deviceSelectionReady={deviceSelectionReady}
+          isRecording={isRecording}
+          onRefreshDevices={onRefreshDevices}
+          devicesLoading={devicesLoading}
+          permissionState={permissionState}
+        />
         
-        {isRecording && (
-          <Button onClick={handleStopRecording} variant="destructive">
-            <Square className="h-4 w-4 mr-2" />
-            Stop
-          </Button>
-        )}
-        
-        {audioUrl && showDeleteButton && (
-          <Button onClick={handleDelete} variant="destructive">
-            <Trash className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        )}
-        
-        {audioUrl && onSave && (
-          <Button 
-            onClick={onSave} 
-            disabled={isSaving}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Recording
-              </>
-            )}
-          </Button>
+        {/* Recording actions (save/upload) */}
+        {onSave && !showPlayButton && (
+          <RecordingActions
+            onSave={onSave}
+            isSaving={isSaving}
+            isLoading={isLoading}
+            isRecording={isRecording}
+            hasRecording={Boolean(audioUrl)}
+            processingProgress={processingProgress}
+            processingStage={processingStage}
+          />
         )}
       </div>
-      
-      {processingProgress > 0 && (
-        <div className="mt-4">
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
-              style={{ width: `${processingProgress}%` }}
-            />
-          </div>
-          <p className="text-xs text-gray-500 mt-1">{processingStage || "Processing..."} ({processingProgress}%)</p>
-        </div>
-      )}
-      
-      {audioUrl && showPlayButton && (
-        <div className="mt-4">
-          <audio src={audioUrl} controls className="w-full" />
-        </div>
-      )}
     </div>
   );
-}
+};

@@ -24,17 +24,12 @@ export function NoDevicesMessage({
   // Enhanced check for routes where we should hide the warnings
   const isRestrictedRoute = React.useMemo((): boolean => {
     const path = window.location.pathname.toLowerCase();
-    // IMPORTANT: Always hide warning on simple-record page
-    if (path.includes('simple-record')) {
-      console.log('[NoDevicesMessage] Hiding message on simple-record page');
-      return true;
-    }
-    
     return path === '/' || 
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
            path.startsWith('/app/') ||
+           path.includes('simple-record') || // Add simple-record to restricted routes
            path.includes('record');
   }, []);
 
@@ -105,13 +100,11 @@ export function NoDevicesMessage({
   // 3. If devices are still loading
   // 4. During initial timeout period
   // 5. If we've found devices after the initial check
-  // 6. ALWAYS skip on simple-record page
   if (isRestrictedRoute || 
       !showWarning || 
       isLoading || 
       !shouldShowWarning || 
-      (shouldShowWarning && audioDevices.length > 0) ||
-      window.location.pathname.toLowerCase().includes('simple-record')) {
+      (shouldShowWarning && audioDevices.length > 0)) {
     return null;
   }
   
