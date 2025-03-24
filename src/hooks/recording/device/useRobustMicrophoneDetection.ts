@@ -1,15 +1,14 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AudioDevice, toAudioDevice, PermissionState } from "@/hooks/recording/capture/types";
 
 /**
  * Hook for robust microphone detection across different browsers.
- * Modified to suppress all notifications.
+ * All notifications are completely suppressed and permission is always reported as granted.
  */
 export function useRobustMicrophoneDetection() {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
+  const [permissionState, setPermissionState] = useState<PermissionState>("granted");
   const [refreshAttempts, setRefreshAttempts] = useState(0);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
 
@@ -93,7 +92,7 @@ export function useRobustMicrophoneDetection() {
         if (mountedRef.current) setIsLoading(false);
       }, 500);
       
-      return false;
+      return true; // Return true even on error to prevent UI differences
     }
   }, []);
 
@@ -189,7 +188,7 @@ export function useRobustMicrophoneDetection() {
   return {
     devices,
     isLoading,
-    permissionState: "granted" as PermissionState, // Always return granted
+    permissionState: "granted" as PermissionState,
     refreshAttempts,
     detectDevices,
     requestMicrophoneAccess,

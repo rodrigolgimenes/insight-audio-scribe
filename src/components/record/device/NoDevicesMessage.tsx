@@ -10,6 +10,6 @@ interface NoDevicesMessageProps {
 }
 
 export function NoDevicesMessage() {
-  // This component has been disabled to remove microphone notifications
+  // This component has been completely disabled to remove all microphone notifications
   return null;
 }

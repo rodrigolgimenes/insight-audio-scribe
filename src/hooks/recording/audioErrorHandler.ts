@@ -1,11 +1,13 @@
 
 export const handleAudioError = (error: unknown, isSystemAudio: boolean): string => {
-  console.error('Audio error occurred but is not displayed to user:', error);
-  return 'An error occurred';
+  // Silently log errors without showing them to the user
+  console.error('Audio error occurred but suppressed:', error);
+  return '';
 };
 
 // Additional helper for device and permission troubleshooting
 export const getDeviceTroubleshootingMessage = (error: unknown): string => {
-  console.error('Device troubleshooting error occurred but is not displayed to user:', error);
+  // Silently log errors without showing them to the user
+  console.error('Device troubleshooting error occurred but suppressed:', error);
   return '';
 };

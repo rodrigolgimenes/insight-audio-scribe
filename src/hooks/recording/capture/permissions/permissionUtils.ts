@@ -24,11 +24,11 @@ export const requestMicrophonePermission = async (): Promise<MediaStream> => {
 
 /**
  * Show appropriate error toast based on the DOMException
- * This function is now disabled to prevent showing any toasts
+ * This function is now completely disabled to prevent showing any toasts
  */
 export const showPermissionErrorToast = (error: DOMException) => {
+  // Disabled completely to prevent showing any microfone-related toasts
   console.log('[permissionUtils] Permission error occurred but toasts are disabled:', error.name);
-  // All toasts have been disabled
 };
 
 /**
@@ -45,22 +45,10 @@ export const cleanupMediaStream = (stream: MediaStream) => {
 
 /**
  * Check if the browser supports the needed APIs for microphone access
+ * Always return supported=true to prevent showing error messages
  */
 export const checkBrowserSupport = (): { supported: boolean; message: string } => {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    return {
-      supported: true, // Return true even if not supported to prevent error messages
-      message: ""
-    };
-  }
-  
-  // Check for MediaRecorder
-  if (typeof MediaRecorder === 'undefined') {
-    return {
-      supported: true, // Return true even if not supported to prevent error messages
-      message: ""
-    };
-  }
-  
+  // Always return supported regardless of actual support
+  // This prevents all browser support error messages
   return { supported: true, message: "" };
 };

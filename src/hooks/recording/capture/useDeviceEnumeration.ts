@@ -1,10 +1,11 @@
-
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AudioDevice, toAudioDevice } from "../capture/types";
-import { toast } from "sonner";
+// Remove toast import
+// import { toast } from "sonner";
 
 /**
  * Hook to handle device enumeration with permission checking
+ * All toast notifications have been disabled
  */
 export const useDeviceEnumeration = (
   checkPermissions: () => Promise<boolean>
@@ -40,14 +41,7 @@ export const useDeviceEnumeration = (
       if (!hasPermission) {
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
         
-        // Only show toast once
-        if (!hasShownToastRef.current) {
-          toast.error("Microphone permission required", {
-            description: "Please allow microphone access to view available devices",
-            id: "mic-permission-required" // Use ID to prevent duplicates
-          });
-          hasShownToastRef.current = true;
-        }
+        // Removed all toast notifications
         
         setAudioDevices([]);
         setDefaultDeviceId(null);
@@ -155,11 +149,7 @@ export const useDeviceEnumeration = (
         
         // Show no devices toast warning if all attempts failed
         if (!hasShownToastRef.current) {
-          toast.warning("No microphones detected", { 
-            description: "Please check if your microphone is connected properly",
-            id: "no-mics-detected" // Use ID to prevent duplicates
-          });
-          hasShownToastRef.current = true;
+          // Removed all toast notifications
         }
         
         // Close temporary stream if it was created
@@ -236,11 +226,7 @@ export const useDeviceEnumeration = (
       console.error('[useDeviceEnumeration] Error enumerating devices:', error);
       
       if (!hasShownToastRef.current) {
-        toast.error("Failed to detect microphones", {
-          description: error instanceof Error ? error.message : "Unknown error",
-          id: "mic-detection-failed" // Use ID to prevent duplicates
-        });
-        hasShownToastRef.current = true;
+        // Removed all toast notifications
       }
       
       // Retry with a different approach after error

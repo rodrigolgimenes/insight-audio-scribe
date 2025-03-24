@@ -1,13 +1,14 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { useMicrophoneAccess } from "./recording/capture/useMicrophoneAccess";
 import { usePermissions } from "./recording/capture/usePermissions";
 import { useDeviceEnumeration } from "./recording/capture/useDeviceEnumeration";
 import { AudioDevice } from "./recording/capture/types";
-import { toast } from "sonner";
+// Remove toast import
+// import { toast } from "sonner";
 
 /**
  * Hook for accessing and managing audio devices
+ * All notifications have been disabled
  */
 export const useAudioCapture = () => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
@@ -81,12 +82,7 @@ export const useAudioCapture = () => {
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
       
-      // Only show toast if not on a restricted route
-      if (devices.length === 0 && !isRestrictedRoute()) {
-        toast.error("No microphones found", {
-          description: "Please connect a microphone and try again"
-        });
-      }
+      // All toast notifications removed
       
       setAudioDevices(devices);
       setDefaultDeviceId(defaultId);
@@ -95,16 +91,11 @@ export const useAudioCapture = () => {
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       
-      // Only show error toast if not on a restricted route
-      if (!isRestrictedRoute()) {
-        toast.error("Failed to detect microphones", {
-          description: error instanceof Error ? error.message : "Unknown error"
-        });
-      }
+      // All toast notifications removed
       
       return { devices: [] as AudioDevice[], defaultId: null };
     }
-  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime, isRestrictedRoute]);
+  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime]);
   
   // Initial device enumeration
   useEffect(() => {
