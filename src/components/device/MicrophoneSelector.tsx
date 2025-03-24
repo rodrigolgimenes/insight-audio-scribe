@@ -73,6 +73,12 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     await refreshDevices();
   };
   
+  // Create a wrapper function for NoDevicesMessage that matches the expected signature
+  const handleRefreshForNoDevices = () => {
+    console.log('[MicrophoneSelector] Refresh triggered from NoDevicesMessage');
+    handleRefresh(new MouseEvent('click') as unknown as React.MouseEvent);
+  };
+  
   // Get selected device object
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
   const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
@@ -208,7 +214,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       {/* No devices warning message */}
       <NoDevicesMessage 
         showWarning={devices.length === 0 && permissionState === 'granted'} 
-        onRefresh={handleRefresh}
+        onRefresh={handleRefreshForNoDevices}
         permissionState={permissionState}
         audioDevices={devices}
         isLoading={isLoading}
