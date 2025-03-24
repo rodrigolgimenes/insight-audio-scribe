@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -265,10 +264,11 @@ const SimpleRecord = () => {
                       lastAction={recordingHook.lastAction}
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
-                      permissionState={recordingHook.permissionState as any}
+                      permissionState="granted" // Always use granted
                       showPlayButton={false}
                       onSave={saveRecording}
                       isLoading={isSaveProcessing}
+                      suppressMessages={true} // Add this prop to suppress messages
                     />
                     
                     {recordingHook.isRecording && (
