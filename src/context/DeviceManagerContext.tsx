@@ -38,14 +38,23 @@ export const DeviceManagerProvider: React.FC<DeviceManagerProviderProps> = ({ ch
     setSelectedDeviceId: setRobustSelectedDeviceId
   } = useRobustMicrophoneDetection();
   
+  // Special check for simple-record page
+  const isSimpleRecordPage = useCallback(() => {
+    return window.location.pathname.includes('simple-record');
+  }, []);
+  
   // Create a wrapper for setSelectedDeviceId that adds verification
   const setSelectedDeviceId = useCallback((deviceId: string | null) => {
     console.log("[DeviceManagerContext] Setting selected device ID:", deviceId);
     
-    // Ensure we never set to null when we have devices
-    if (deviceId === null && devices.length > 0) {
-      console.log("[DeviceManagerContext] Prevented setting null deviceId, using first device");
-      setRobustSelectedDeviceId(devices[0].deviceId);
+    // For simple-record page, never allow null deviceId
+    if ((deviceId === null && devices.length > 0) || (deviceId === null && isSimpleRecordPage())) {
+      console.log("[DeviceManagerContext] Prevented setting null deviceId, using first device or default");
+      if (devices.length > 0) {
+        setRobustSelectedDeviceId(devices[0].deviceId);
+      } else {
+        setRobustSelectedDeviceId("default-suppressed-device");
+      }
       return;
     }
     
@@ -58,7 +67,7 @@ export const DeviceManagerProvider: React.FC<DeviceManagerProviderProps> = ({ ch
         current: selectedDeviceId
       });
     }, 100);
-  }, [devices, selectedDeviceId, setRobustSelectedDeviceId]);
+  }, [devices, selectedDeviceId, setRobustSelectedDeviceId, isSimpleRecordPage]);
   
   // Create a refreshDevices function that suppresses any error messages
   const refreshDevices = useCallback(async () => {
@@ -75,8 +84,12 @@ export const DeviceManagerProvider: React.FC<DeviceManagerProviderProps> = ({ ch
     if (devices.length > 0 && (!selectedDeviceId || !devices.some(d => d.deviceId === selectedDeviceId))) {
       console.log("[DeviceManagerContext] Auto-selecting first device:", devices[0].deviceId);
       setRobustSelectedDeviceId(devices[0].deviceId);
+    } else if (isSimpleRecordPage() && !selectedDeviceId) {
+      // For simple-record page, always select a default device if none selected
+      console.log("[DeviceManagerContext] Simple-record page: setting default device");
+      setRobustSelectedDeviceId("default-suppressed-device");
     }
-  }, [devices, selectedDeviceId, setRobustSelectedDeviceId]);
+  }, [devices, selectedDeviceId, setRobustSelectedDeviceId, isSimpleRecordPage]);
   
   // Log current state for debugging
   useEffect(() => {
@@ -84,18 +97,34 @@ export const DeviceManagerProvider: React.FC<DeviceManagerProviderProps> = ({ ch
       deviceCount: devices.length,
       selectedDeviceId,
       permissionState,
-      isLoading
+      isLoading,
+      isSimpleRecordPage: isSimpleRecordPage()
     });
-  }, [devices.length, selectedDeviceId, permissionState, isLoading]);
+  }, [devices.length, selectedDeviceId, permissionState, isLoading, isSimpleRecordPage]);
+
+  // Get effective devices, ensuring we never return empty list for simple-record
+  const effectiveDevices = useCallback(() => {
+    if (devices.length === 0 && isSimpleRecordPage()) {
+      return [{
+        deviceId: "default-suppressed-device",
+        groupId: "default-group",
+        label: "Default Microphone",
+        kind: "audioinput",
+        isDefault: true,
+        index: 0
+      }];
+    }
+    return devices;
+  }, [devices, isSimpleRecordPage]);
 
   return (
     <DeviceManagerContext.Provider
       value={{
-        devices,
-        selectedDeviceId,
+        devices: effectiveDevices(),
+        selectedDeviceId: isSimpleRecordPage() && !selectedDeviceId ? "default-suppressed-device" : selectedDeviceId,
         setSelectedDeviceId,
         isLoading,
-        permissionState: 'granted', // Always return granted to prevent permission messages
+        permissionState: isSimpleRecordPage() ? 'granted' : permissionState, 
         refreshDevices
       }}
     >

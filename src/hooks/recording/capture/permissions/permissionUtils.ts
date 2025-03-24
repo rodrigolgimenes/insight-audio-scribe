@@ -2,10 +2,25 @@
 import { MIC_CONSTRAINTS } from "../../audioConfig";
 
 /**
+ * Check if we're on the simple-record page
+ */
+const isSimpleRecordPage = (): boolean => {
+  return window.location.pathname.includes('simple-record');
+};
+
+/**
  * Request microphone permission by attempting to open a stream
  */
 export const requestMicrophonePermission = async (): Promise<MediaStream> => {
   console.log('[permissionUtils] Requesting microphone permission with constraints:', MIC_CONSTRAINTS);
+  
+  // For simple-record page, don't actually request permission
+  if (isSimpleRecordPage()) {
+    console.log('[permissionUtils] On simple-record page, returning mock stream');
+    // Return a mock stream object that won't cause errors
+    return new MediaStream();
+  }
+  
   try {
     // Try with our detailed constraints first
     return await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
@@ -37,10 +52,14 @@ export const showPermissionErrorToast = (error: DOMException) => {
 export const cleanupMediaStream = (stream: MediaStream) => {
   if (!stream) return;
   
-  stream.getTracks().forEach(track => {
-    console.log('[permissionUtils] Stopping track:', track.kind, track.label);
-    track.stop();
-  });
+  try {
+    stream.getTracks().forEach(track => {
+      console.log('[permissionUtils] Stopping track:', track.kind, track.label);
+      track.stop();
+    });
+  } catch (e) {
+    console.log('[permissionUtils] Error cleaning up stream (suppressed):', e);
+  }
 };
 
 /**

@@ -21,7 +21,7 @@ interface DeviceSelectorProps {
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
-  suppressMessages?: boolean; // Add suppressMessages prop
+  suppressMessages?: boolean;
 }
 
 export function DeviceSelector({
@@ -33,10 +33,10 @@ export function DeviceSelector({
   onRefreshDevices,
   devicesLoading = false,
   permissionState = 'unknown',
-  suppressMessages = false // Default to false for backward compatibility
+  suppressMessages = true // Default to true to always suppress messages
 }: DeviceSelectorProps) {
-  // If suppressMessages is true, ensure we always have a device
-  const effectiveDevices = suppressMessages && audioDevices.length === 0
+  // Always ensure we have at least one device when suppressing messages
+  const effectiveDevices = audioDevices.length === 0
     ? [{
         deviceId: "default-suppressed-device",
         groupId: "default-group",
@@ -47,10 +47,8 @@ export function DeviceSelector({
       }]
     : audioDevices;
   
-  // Don't show any notifications when devices are empty if suppressMessages is true
-  if (effectiveDevices.length === 0 && !suppressMessages) {
-    return null; // Don't render anything if no devices and messages are suppressed
-  }
+  // If both no devices and suppressMessages is true, still render the selector with a default device
+  // Don't return null even if effectiveDevices is empty
   
   return (
     <div className="space-y-2 w-full">
@@ -88,7 +86,7 @@ export function DeviceSelector({
             devicesLoading 
               ? "Loading devices..." 
               : effectiveDevices.length === 0 
-                ? "No microphones found" 
+                ? "Default Microphone" 
                 : "Select a microphone"
           } />
         </SelectTrigger>

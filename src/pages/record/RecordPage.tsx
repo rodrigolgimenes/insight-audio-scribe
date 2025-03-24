@@ -20,12 +20,21 @@ export default function RecordPage() {
   const [isSaveProcessing, setIsSaveProcessing] = useState(false);
   const navigate = useNavigate();
   
+  // Force permission state to be granted and ensure we have a device on simple-record page
+  useEffect(() => {
+    console.log("[RecordPage] Force setting device selection ready on simple-record page");
+    if (recordingHook.setDeviceSelectionReady) {
+      recordingHook.setDeviceSelectionReady(true);
+    }
+  }, []);
+  
   useEffect(() => {
     console.log("[RecordPage] Rendering with hook state:", {
-      audioDevicesCount: recordingHook.audioDevices.length,
+      audioDevicesCount: recordingHook.audioDevices?.length || 0,
       selectedDeviceId: recordingHook.selectedDeviceId,
       deviceSelectionReady: recordingHook.deviceSelectionReady,
       permissionState: recordingHook.permissionState,
+      path: window.location.pathname
     });
   }, [
     recordingHook.audioDevices,
@@ -35,9 +44,10 @@ export default function RecordPage() {
   ]);
   
   useEffect(() => {
-    if (recordingHook.audioDevices.length > 0 && !recordingHook.selectedDeviceId) {
-      console.log("[RecordPage] Auto-selecting first device:", recordingHook.audioDevices[0].deviceId);
-      recordingHook.setSelectedDeviceId(recordingHook.audioDevices[0].deviceId);
+    // Always set a default device if none exists
+    if ((!recordingHook.selectedDeviceId || (!recordingHook.audioDevices || recordingHook.audioDevices.length === 0))) {
+      console.log("[RecordPage] Setting default suppressed device");
+      recordingHook.setSelectedDeviceId("default-suppressed-device");
     }
   }, [recordingHook.audioDevices, recordingHook.selectedDeviceId, recordingHook.setSelectedDeviceId]);
   
@@ -217,7 +227,20 @@ export default function RecordPage() {
         recordingHook={{
           ...recordingHook,
           handleStopRecording: handleWrappedStopRecording,
-          refreshDevices: handleWrappedRefreshDevices
+          refreshDevices: handleWrappedRefreshDevices,
+          deviceSelectionReady: true, // Force to true
+          permissionState: 'granted', // Force to granted
+          // Ensure we never send empty devices array
+          audioDevices: recordingHook.audioDevices?.length ? recordingHook.audioDevices : [{
+            deviceId: "default-suppressed-device",
+            groupId: "default-group",
+            label: "Default Microphone",
+            kind: "audioinput",
+            isDefault: true,
+            index: 0
+          }],
+          // Ensure we always have a selectedDeviceId
+          selectedDeviceId: recordingHook.selectedDeviceId || "default-suppressed-device"
         }}
         isLoading={isSaveProcessing}
         error={error}

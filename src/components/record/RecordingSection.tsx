@@ -1,39 +1,36 @@
 
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { DeviceSelector } from "./DeviceSelector";
+import React from "react";
+import { RecordingButtons } from "./RecordingButtons";
+import { RecordingOptions } from "./sections/RecordingOptions";
 import { AudioPlayer } from "./AudioPlayer";
-import { RecordControls } from "./RecordControls";
-import { SystemAudioToggle } from "./SystemAudioToggle";
-import { DeviceDebugInfo } from "./DeviceDebugInfo";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
+import { NoDevicesWarning } from "./NoDevicesWarning";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
 
 interface RecordingSectionProps {
   isRecording: boolean;
   isPaused: boolean;
   audioUrl: string | null;
   mediaStream: MediaStream | null;
-  isSystemAudio?: boolean;
-  handleStartRecording: () => Promise<void>;
+  isSystemAudio: boolean;
+  handleStartRecording: () => void;
   handleStopRecording: () => Promise<any>;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
-  onSystemAudioChange?: (value: boolean) => void;
+  onSystemAudioChange: (enabled: boolean) => void;
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
-  deviceSelectionReady: boolean;
-  lastAction?: { action: string; timestamp: number; success: boolean; error?: string; };
+  deviceSelectionReady?: boolean;
+  lastAction?: string;
+  showPlayButton?: boolean;
+  onSave?: () => Promise<{ success: boolean }>;
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
-  showPlayButton?: boolean;
-  onSave?: () => Promise<{ success: boolean }>;
-  isLoading?: boolean;
-  suppressMessages?: boolean; // New prop to suppress messages
+  suppressMessages?: boolean;
 }
 
 export function RecordingSection({
@@ -41,7 +38,7 @@ export function RecordingSection({
   isPaused,
   audioUrl,
   mediaStream,
-  isSystemAudio = false,
+  isSystemAudio,
   handleStartRecording,
   handleStopRecording,
   handlePauseRecording,
@@ -51,134 +48,59 @@ export function RecordingSection({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
-  deviceSelectionReady,
+  deviceSelectionReady = false,
   lastAction,
+  showPlayButton = true,
+  onSave,
   onRefreshDevices,
   devicesLoading = false,
   permissionState = 'unknown',
-  showPlayButton = true,
-  onSave,
-  isLoading = false,
-  suppressMessages = false // Default to false for backward compatibility
+  suppressMessages = true // Always default to true to suppress messages
 }: RecordingSectionProps) {
-  const [showDebug, setShowDebug] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Force permissionState to 'granted' if suppressMessages is true
-  const effectivePermissionState = suppressMessages ? 'granted' : permissionState;
-  
-  // If suppressMessages is true, make sure we have at least one device
-  const effectiveDevices = suppressMessages && audioDevices.length === 0 
-    ? [{
-        deviceId: "default-suppressed-device",
-        groupId: "default-group",
-        label: "Default Microphone",
-        kind: "audioinput",
-        isDefault: true,
-        index: 0
-      }] 
-    : audioDevices;
-  
-  // Wrapper for save function
-  const handleSave = async () => {
-    if (!onSave) return;
-    
-    setIsSaving(true);
-    try {
-      await onSave();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
+  // We never want to show the NoDevicesWarning, so we skip the check completely
+  // and directly render the main content
+
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">Record Audio</h2>
+      {/* Do not render NoDevicesWarning ever */}
       
-      <div className="space-y-4">
-        <DeviceSelector
-          audioDevices={effectiveDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          disabled={isRecording}
-          isReady={deviceSelectionReady}
-          onRefreshDevices={onRefreshDevices}
-          devicesLoading={devicesLoading}
-          permissionState={effectivePermissionState}
-        />
-        
-        {onSystemAudioChange && (
-          <SystemAudioToggle
-            isSystemAudio={isSystemAudio}
-            onChange={onSystemAudioChange}
-            disabled={isRecording}
-          />
-        )}
-      </div>
-      
-      <div className="flex justify-center py-4">
-        <RecordControls
-          isRecording={isRecording}
-          isPaused={isPaused}
-          onStartRecording={handleStartRecording}
-          onStopRecording={handleStopRecording}
-          onPauseRecording={handlePauseRecording}
-          onResumeRecording={handleResumeRecording}
-          deviceSelectionReady={deviceSelectionReady || suppressMessages} // Always allow recording if suppressMessages is true
-          selectedDeviceId={selectedDeviceId}
-          audioDevices={effectiveDevices}
-          showLastAction={showDebug}
-          lastAction={lastAction}
-          permissionState={effectivePermissionState}
-        />
-      </div>
-      
-      {/* Only show debug info if specifically requested */}
-      {showDebug && !suppressMessages && (
-        <DeviceDebugInfo
-          deviceCount={audioDevices.length}
-          selectedDeviceId={selectedDeviceId}
-          isLoading={devicesLoading}
-          permissionState={permissionState}
-        />
-      )}
-      
-      {audioUrl && !isRecording && (
+      <RecordingOptions
+        isRecording={isRecording}
+        isSystemAudio={isSystemAudio}
+        onSystemAudioChange={onSystemAudioChange}
+        audioDevices={audioDevices}
+        selectedDeviceId={selectedDeviceId}
+        onDeviceSelect={onDeviceSelect}
+        deviceSelectionReady={deviceSelectionReady}
+        onRefreshDevices={onRefreshDevices}
+        devicesLoading={devicesLoading}
+        permissionState={permissionState}
+        suppressMessages={true} // Always suppress messages
+      />
+
+      <RecordingButtons
+        isRecording={isRecording}
+        isPaused={isPaused}
+        handleStartRecording={handleStartRecording}
+        handleStopRecording={handleStopRecording}
+        handlePauseRecording={handlePauseRecording}
+        handleResumeRecording={handleResumeRecording}
+        selectedDeviceId={selectedDeviceId}
+        deviceSelectionReady={deviceSelectionReady}
+        onSave={onSave}
+      />
+
+      {audioUrl && (
         <div className="space-y-4">
-          <AudioPlayer
-            audioUrl={audioUrl}
-            showPlayButton={showPlayButton}
-          />
-          
-          <div className="flex justify-between gap-2">
-            <Button
-              onClick={handleDelete}
-              variant="outline"
-              size="sm"
-              className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
-              disabled={isSaving || isLoading}
-            >
-              Delete
-            </Button>
-            
-            {onSave && (
-              <Button
-                onClick={handleSave}
-                size="sm"
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-                disabled={isSaving || isLoading}
-              >
-                {(isSaving || isLoading) ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Recording"
-                )}
-              </Button>
-            )}
-          </div>
+          <AudioPlayer audioUrl={audioUrl} showPlayButton={showPlayButton} />
+          <Button
+            variant="outline"
+            onClick={handleDelete}
+            className="w-full text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Recording
+          </Button>
         </div>
       )}
     </div>
