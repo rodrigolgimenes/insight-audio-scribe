@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useRecording } from "@/hooks/useRecording";
 import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
@@ -63,9 +63,11 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px]">
           <ModalRecordContent
-            recordingHook={recordingHook}
-            error={error}
-            errorDetails={errorDetails}
+            closeModal={() => onOpenChange(false)}
+            onSuccess={() => {
+              toast.success("Recording saved successfully");
+              onOpenChange(false);
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -80,10 +82,12 @@ export function RecordingModal({ isOpen, onOpenChange }: RecordingModalProps) {
     
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <ModalRecordError 
-          errorMessage={`A critical error occurred while loading the recorder: ${errorMessage}`}
-          details={errorDetails}
-        />
+        <DialogContent>
+          <ModalRecordError 
+            errorMessage={`A critical error occurred while loading the recorder: ${errorMessage}`}
+            details={errorDetails}
+          />
+        </DialogContent>
       </Dialog>
     );
   }

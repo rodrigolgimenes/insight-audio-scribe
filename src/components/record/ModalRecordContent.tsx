@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useState } from "react";
 import { useRecording } from "@/hooks/useRecording";
 import {
   SheetClose,
@@ -38,7 +39,7 @@ export const ModalRecordContent = ({
     setSelectedDeviceId,
     deviceSelectionReady,
     lastAction,
-    permissionState,
+    permissionState: recordingPermissionState,
     handleSaveRecording
   } = useRecording();
 
@@ -80,7 +81,7 @@ export const ModalRecordContent = ({
         onDeviceSelect={setSelectedDeviceId}
         deviceSelectionReady={deviceSelectionReady}
         lastAction={lastAction}
-        permissionState={permissionState}
+        permissionState={recordingPermissionState}
         showPlayButton={false}
         onSave={isRecording ? undefined : handleSaveClick}
       />
