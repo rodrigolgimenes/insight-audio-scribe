@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,12 @@ import { clearLogs } from '@/lib/logger';
 
 interface FileUploadProps {
   onUploadComplete?: (noteId: string, recordingId: string) => void;
+  onConversionUpdate?: (
+    status: 'idle' | 'converting' | 'success' | 'error',
+    progress: number,
+    originalFile: File | null,
+    convertedFile: File | null
+  ) => void;
   label?: string;
   description?: string;
   buttonText?: string;
@@ -26,6 +33,7 @@ interface FileUploadProps {
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   onUploadComplete,
+  onConversionUpdate,
   label = "Upload Audio",
   description = "Upload your audio file",
   buttonText = "Upload File",
@@ -72,6 +80,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setConvertedFile(null);
     setShowConversionLogs(true);
     
+    if (onConversionUpdate) {
+      onConversionUpdate('idle', 0, originalFile, null);
+    }
+    
     setProcessingState('validating');
     const validation = validateFile(originalFile);
     if (!validation.isValid) {
@@ -79,6 +91,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setProcessingError(validation.errorMessage || "Invalid file format");
       setProcessingState('idle');
       setConversionStatus('error');
+      
+      if (onConversionUpdate) {
+        onConversionUpdate('error', 0, originalFile, null);
+      }
+      
       return;
     }
     
@@ -109,6 +126,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       if ((isAudio || isVideo) && !originalFile.type.includes('mp3')) {
         setProcessingState('converting');
         setConversionStatus('converting');
+        
+        if (onConversionUpdate) {
+          onConversionUpdate('converting', 0, originalFile, null);
+        }
+        
         toast({
           title: "Converting Audio",
           description: "Converting your audio to MP3 format for better compatibility...",
@@ -118,10 +140,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           fileToUpload = await convertFileToMp3(originalFile, (progress) => {
             setProcessingProgress(progress);
             setConversionProgress(progress);
+            
+            if (onConversionUpdate) {
+              onConversionUpdate('converting', progress, originalFile, null);
+            }
           });
           
           setConvertedFile(fileToUpload);
           setConversionStatus('success');
+          
+          if (onConversionUpdate) {
+            onConversionUpdate('success', 100, originalFile, fileToUpload);
+          }
           
           toast({
             title: "Conversion Complete",
@@ -130,6 +160,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         } catch (conversionError) {
           console.error("Audio conversion error:", conversionError);
           setConversionStatus('error');
+          
+          if (onConversionUpdate) {
+            onConversionUpdate('error', 0, originalFile, null);
+          }
+          
           toast({
             title: "Conversion Failed",
             description: "Failed to convert audio to MP3. Using original format.",
@@ -209,6 +244,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setProcessingState('idle');
       setProcessingProgress(0);
       setConversionStatus('error');
+      
+      if (onConversionUpdate) {
+        onConversionUpdate('error', 0, originalFile, null);
+      }
+      
       console.error("File upload error:", error);
       
       if (currentRecordingId && currentNoteId) {
@@ -282,16 +322,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         {getButtonText()}
       </Button>
       
-      {showConversionLogs && (
-        <ConversionLogsPanel
-          originalFile={originalFile}
-          convertedFile={convertedFile}
-          conversionStatus={conversionStatus}
-          conversionProgress={conversionProgress}
-          onDownload={convertedFile ? handleDownloadConvertedFile : undefined}
-          onTranscribe={undefined}
-        />
-      )}
+      {/* O painel de logs de conversão agora é controlado pelo componente pai */}
       
       {selectedFileName && processingState !== 'idle' && (
         <div className="mt-2 text-xs text-muted-foreground">
