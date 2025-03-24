@@ -28,8 +28,10 @@ export const getMediaRecorderOptions = (): MediaRecorderOptions => {
 
   console.log('[AudioRecorder] Selected MIME type:', selectedMimeType);
 
+  // Reduced bitrate for better compression (optimized for voice recording)
+  // Using 32kbps which is sufficient for voice while maintaining quality
   return {
     mimeType: selectedMimeType,
-    audioBitsPerSecond: 128000
+    audioBitsPerSecond: 32000  // 32kbps instead of 128kbps
   };
 };
