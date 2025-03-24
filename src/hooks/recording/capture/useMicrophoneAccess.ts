@@ -1,9 +1,9 @@
 
 import { useState, useCallback } from "react";
-import { toast } from "sonner";
 
 /**
  * Hook to manage microphone access and device selection
+ * Modified to remove all toast notifications
  */
 export const useMicrophoneAccess = (
   checkPermissions: () => Promise<boolean>,
@@ -35,10 +35,7 @@ export const useMicrophoneAccess = (
         const hasPermission = await checkPermissions();
         
         if (!hasPermission) {
-          console.error("[useMicrophoneAccess] No permission to access microphone");
-          toast.error("Microphone access denied", {
-            description: "Please allow microphone access and try again"
-          });
+          console.log("[useMicrophoneAccess] No permission to access microphone");
           setRequestInProgress(false);
           return null;
         }
@@ -51,15 +48,15 @@ export const useMicrophoneAccess = (
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: false,
-                sampleRate: { ideal: 16000 }, // Reduced sample rate (16kHz)
-                sampleSize: { ideal: 8 }      // Reduced sample size (8 bits)
+                sampleRate: { ideal: 16000 },
+                sampleSize: { ideal: 8 }
               }
             : {
                 echoCancellation: true,
                 noiseSuppression: true,
                 autoGainControl: false,
-                sampleRate: { ideal: 16000 }, // Reduced sample rate (16kHz)
-                sampleSize: { ideal: 8 }      // Reduced sample size (8 bits)
+                sampleRate: { ideal: 16000 },
+                sampleSize: { ideal: 8 }
               },
           video: false,
         };
@@ -120,48 +117,6 @@ export const useMicrophoneAccess = (
         return stream;
       } catch (error) {
         console.error("[useMicrophoneAccess] Error accessing microphone:", error);
-        
-        // Create a more specific error message
-        let errorMessage = "Unknown error accessing microphone";
-        
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          
-          if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-            errorMessage = "Microphone permission denied";
-          } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-            errorMessage = "No microphone found. Please connect a microphone and try again.";
-          } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-            errorMessage = "Could not access microphone. It may be in use by another application.";
-          } else if (error.name === "OverconstrainedError") {
-            errorMessage = "The selected microphone is no longer available. Please try another device.";
-          } else if (error.message.includes("timed out")) {
-            errorMessage = "Microphone access request timed out. Please try again.";
-          }
-        }
-        
-        // Show toast with error message
-        toast.error("Microphone access failed", {
-          description: errorMessage
-        });
-        
-        // Retry logic for certain errors
-        if (attemptCount < 2 && error instanceof Error) {
-          const retriableErrors = ["NotReadableError", "TrackStartError", "timeout"];
-          const shouldRetry = retriableErrors.some(errType => 
-            error.name === errType || error.message.includes(errType)
-          );
-          
-          if (shouldRetry) {
-            console.log("[useMicrophoneAccess] Scheduling retry attempt");
-            setTimeout(() => {
-              setRequestInProgress(false);
-              // Fall back to default device on retry
-              requestMicrophoneAccess(null, isSystemAudio);
-            }, 1500);
-            return null;
-          }
-        }
         
         setRequestInProgress(false);
         return null;

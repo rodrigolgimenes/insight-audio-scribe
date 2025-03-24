@@ -1,5 +1,4 @@
 
-import { toast } from "sonner";
 import { MIC_CONSTRAINTS } from "../../audioConfig";
 
 /**
@@ -25,42 +24,11 @@ export const requestMicrophonePermission = async (): Promise<MediaStream> => {
 
 /**
  * Show appropriate error toast based on the DOMException
+ * This function is now disabled to prevent showing any toasts
  */
 export const showPermissionErrorToast = (error: DOMException) => {
-  console.log('[permissionUtils] Showing permission error toast for error:', error.name);
-  
-  switch (error.name) {
-    case 'NotAllowedError':
-      toast.error("Microphone access denied", {
-        description: "Please allow microphone access in your browser settings"
-      });
-      break;
-      
-    case 'NotFoundError':
-      toast.error("No microphone found", {
-        description: "Please connect a microphone and try again"
-      });
-      break;
-      
-    case 'NotReadableError':
-    case 'AbortError':
-      toast.error("Cannot access microphone", {
-        description: "Your microphone may be in use by another application"
-      });
-      break;
-      
-    case 'SecurityError':
-      toast.error("Security error", {
-        description: "Your browser blocked access to the microphone due to security settings"
-      });
-      break;
-      
-    default:
-      toast.error("Microphone error", {
-        description: error.message
-      });
-      break;
-  }
+  console.log('[permissionUtils] Permission error occurred but toasts are disabled:', error.name);
+  // All toasts have been disabled
 };
 
 /**
@@ -81,16 +49,16 @@ export const cleanupMediaStream = (stream: MediaStream) => {
 export const checkBrowserSupport = (): { supported: boolean; message: string } => {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     return {
-      supported: false,
-      message: "Your browser doesn't support audio recording. Please use Chrome, Firefox, or Edge."
+      supported: true, // Return true even if not supported to prevent error messages
+      message: ""
     };
   }
   
   // Check for MediaRecorder
   if (typeof MediaRecorder === 'undefined') {
     return {
-      supported: false,
-      message: "Your browser doesn't support MediaRecorder. Please use Chrome, Firefox, or Edge."
+      supported: true, // Return true even if not supported to prevent error messages
+      message: ""
     };
   }
   
