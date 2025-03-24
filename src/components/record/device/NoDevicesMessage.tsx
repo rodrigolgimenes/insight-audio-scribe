@@ -38,18 +38,35 @@ export function NoDevicesMessage({
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (showWarning && !isLoading && audioDevices.length === 0) {
-      // Only show warning after a delay and if still no devices
+      // Increased delay from 2 seconds to 5 seconds to ensure all detection processes complete
       timeoutId = setTimeout(() => {
+        console.log('[NoDevicesMessage] Delayed warning timer completed. Setting shouldShowWarning to true.');
         setShouldShowWarning(true);
-      }, 2000); // 2 second delay
+      }, 5000); // 5 second delay instead of 2
+      
+      console.log('[NoDevicesMessage] Started warning delay timer for 5s, current state:', {
+        showWarning,
+        isLoading,
+        devicesCount: audioDevices.length,
+        permissionState,
+        path: window.location.pathname
+      });
     } else {
+      console.log('[NoDevicesMessage] Resetting shouldShowWarning to false due to condition change:', {
+        showWarning,
+        isLoading,
+        devicesCount: audioDevices.length
+      });
       setShouldShowWarning(false);
     }
     
     return () => {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {
+        console.log('[NoDevicesMessage] Clearing warning delay timer');
+        clearTimeout(timeoutId);
+      }
     };
-  }, [showWarning, isLoading, audioDevices.length]);
+  }, [showWarning, isLoading, audioDevices.length, permissionState]);
   
   // Debug log info but don't show UI on restricted routes
   useEffect(() => {
@@ -68,12 +85,26 @@ export function NoDevicesMessage({
     }
   }, [showWarning, permissionState, audioDevices, isRestrictedRoute, isLoading, shouldShowWarning]);
   
+  // Additional check to prevent display during PageLoadTracker's initial phases
+  useEffect(() => {
+    const pageLoadPhase = window.sessionStorage.getItem('pageLoadPhase');
+    if (pageLoadPhase && ['mount', 'init', 'loading'].includes(pageLoadPhase)) {
+      console.log('[NoDevicesMessage] Suppressing display during page load phase:', pageLoadPhase);
+      setShouldShowWarning(false);
+    }
+  }, []);
+  
   // Don't show warning in these cases:
   // 1. On restricted routes
   // 2. If we're not explicitly told to show warning
   // 3. If devices are still loading
   // 4. During initial timeout period
-  if (isRestrictedRoute || !showWarning || isLoading || !shouldShowWarning) {
+  // 5. If we've found devices after the initial check
+  if (isRestrictedRoute || 
+      !showWarning || 
+      isLoading || 
+      !shouldShowWarning || 
+      (shouldShowWarning && audioDevices.length > 0)) {
     return null;
   }
   
@@ -104,6 +135,8 @@ export function NoDevicesMessage({
               audioDevicesCount: audioDevices.length
             });
             onRefresh();
+            // Immediately hide the warning when user refreshes
+            setShouldShowWarning(false);
           }}
           className="bg-white border-amber-300 text-amber-700 hover:bg-amber-100"
         >

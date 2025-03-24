@@ -21,6 +21,11 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   } = useDeviceManager();
   
   const [isOpen, setIsOpen] = useState(false);
+  // Track initial loading state separately to prevent premature warnings
+  const [initialLoading, setInitialLoading] = useState(true);
+  
+  // Track mount time to ensure minimum loading period
+  const [mountTime] = useState(Date.now());
   
   // Check if we're on a restricted route (dashboard, index, app)
   const isRestrictedRoute = React.useMemo(() => {
@@ -34,6 +39,24 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
            path.includes('record');
   }, []);
   
+  // Ensure minimum loading time of 3 seconds
+  useEffect(() => {
+    const minLoadingTime = 3000; // 3 seconds
+    const timeElapsed = Date.now() - mountTime;
+    
+    if (timeElapsed < minLoadingTime) {
+      const remainingTime = minLoadingTime - timeElapsed;
+      const timer = setTimeout(() => {
+        setInitialLoading(false);
+        console.log('[MicrophoneSelector] Initial loading period completed after:', minLoadingTime, 'ms');
+      }, remainingTime);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setInitialLoading(false);
+    }
+  }, [mountTime]);
+  
   // Debug log for selector state on mount and updates
   React.useEffect(() => {
     console.log('[MicrophoneSelector] Component state:', {
@@ -41,9 +64,12 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       selectedDeviceId,
       permissionState,
       isLoading,
+      initialLoading,
+      mountTime,
+      timeElapsed: Date.now() - mountTime,
       isRestrictedRoute: isRestrictedRoute
     });
-  }, [devices.length, selectedDeviceId, permissionState, isLoading, isRestrictedRoute]);
+  }, [devices.length, selectedDeviceId, permissionState, isLoading, initialLoading, mountTime, isRestrictedRoute]);
   
   // Toggle dropdown
   const toggleDropdown = () => {
@@ -70,25 +96,40 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   const handleRefresh = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent dropdown toggle
     console.log('[MicrophoneSelector] Refreshing devices');
+    // Set loading state back to true during refresh
+    setInitialLoading(true);
     await refreshDevices();
+    // Delay turning off loading to ensure UI doesn't flash
+    setTimeout(() => {
+      setInitialLoading(false);
+    }, 1000);
   };
   
   // Create a wrapper function for NoDevicesMessage that matches the expected signature
   const handleRefreshForNoDevices = () => {
     console.log('[MicrophoneSelector] Refresh triggered from NoDevicesMessage');
+    // Set loading state back to true during refresh from warning
+    setInitialLoading(true);
     handleRefresh(new MouseEvent('click') as unknown as React.MouseEvent);
+    // Use a longer timeout when refreshing from the warning message
+    setTimeout(() => {
+      setInitialLoading(false);
+    }, 2000);
   };
   
   // Get selected device object
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
   const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
+  
+  // Determine effective loading state (either system loading or our initial loading period)
+  const effectiveLoading = isLoading || initialLoading;
 
   return (
     <div className={`w-full ${className}`}>
       <div className="text-sm font-medium mb-2 text-gray-700 flex items-center justify-between">
         <span>Select Microphone</span>
         <div className="flex items-center gap-2">
-          {isLoading ? (
+          {effectiveLoading ? (
             <span className="text-xs text-blue-600 flex items-center">
               <Loader2 className="h-3 w-3 animate-spin mr-1" />
               Scanning...
@@ -102,7 +143,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
             className="p-1 rounded-full hover:bg-blue-100 text-blue-600"
             title="Refresh microphone list"
           >
-            <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3 w-3 ${effectiveLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -112,12 +153,12 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         <button
           type="button"
           onClick={toggleDropdown}
-          disabled={disabled || isLoading}
+          disabled={disabled || effectiveLoading}
           className={`flex items-center justify-between w-full p-3 bg-white border ${isOpen ? 'border-blue-300 ring-2 ring-blue-500' : 'border-gray-300'} rounded-md text-left text-gray-700 shadow-sm hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
         >
-          {isLoading ? (
+          {effectiveLoading ? (
             <span className="truncate flex items-center text-gray-500">
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Scanning for microphones...
@@ -146,7 +187,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         {/* Device List Dropdown */}
         {isOpen && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-            {isLoading ? (
+            {effectiveLoading ? (
               <div className="p-3 text-gray-500 flex items-center justify-center">
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Scanning for microphones...
@@ -186,7 +227,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
               onClick={handleRefresh}
               disabled={isLoading}
             >
-              {isLoading ? (
+              {effectiveLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Scanning...
@@ -204,7 +245,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
       
       {/* Permission state and device info */}
       <div className="mt-1 text-xs text-gray-500 flex justify-between">
-        <div>{isLoading ? "Scanning..." : `Devices: ${devices.length}`}</div>
+        <div>{effectiveLoading ? "Scanning..." : `Devices: ${devices.length}`}</div>
         <div className={`${permissionState === 'granted' ? 'text-green-600' : 
                        permissionState === 'denied' ? 'text-red-600' : 'text-amber-600'}`}>
           Permission: {permissionState}
@@ -217,7 +258,7 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
         onRefresh={handleRefreshForNoDevices}
         permissionState={permissionState}
         audioDevices={devices}
-        isLoading={isLoading}
+        isLoading={effectiveLoading}
       />
     </div>
   );
