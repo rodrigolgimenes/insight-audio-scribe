@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { RecordingSection } from "@/components/record/RecordingSection";
+import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/permissions/types";
 
 interface ModalRecordContentProps {
   closeModal: () => void;
@@ -53,6 +54,10 @@ export const ModalRecordContent = ({
     }
   };
 
+  // Convert from one PermissionState type to another to fix the type mismatch
+  const permissionState: 'prompt' | 'granted' | 'denied' | 'unknown' = 
+    recordingPermissionState as 'prompt' | 'granted' | 'denied' | 'unknown';
+
   return (
     <div className="space-y-8">
       {error && (
@@ -81,7 +86,7 @@ export const ModalRecordContent = ({
         onDeviceSelect={setSelectedDeviceId}
         deviceSelectionReady={deviceSelectionReady}
         lastAction={lastAction}
-        permissionState={recordingPermissionState}
+        permissionState={permissionState}
         showPlayButton={false}
         onSave={isRecording ? undefined : handleSaveClick}
       />
