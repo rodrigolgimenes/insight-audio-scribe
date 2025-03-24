@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { useMicrophoneAccess } from "./recording/capture/useMicrophoneAccess";
 import { usePermissions } from "./recording/capture/usePermissions";
@@ -45,7 +46,8 @@ export const useAudioCapture = () => {
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
-           path.startsWith('/app/');
+           path.startsWith('/app/') ||
+           path.includes('simple-record'); // Added simple-record to restricted routes
   }, []);
   
   // Check if we're on the dashboard or index page

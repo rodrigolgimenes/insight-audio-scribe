@@ -1,3 +1,4 @@
+
 import React from "react";
 import { DeviceSelector } from "../DeviceSelector";
 import { LanguageSelector } from "../LanguageSelector";
@@ -15,6 +16,7 @@ interface RecordingOptionsProps {
   onRefreshDevices?: () => void;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
+  suppressMessages?: boolean;
 }
 
 export function RecordingOptions({
@@ -27,7 +29,8 @@ export function RecordingOptions({
   deviceSelectionReady = false,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState = 'unknown'
+  permissionState = 'unknown',
+  suppressMessages = true // Default to true
 }: RecordingOptionsProps) {
   return (
     <div className="space-y-6">
@@ -40,6 +43,7 @@ export function RecordingOptions({
         onRefreshDevices={onRefreshDevices}
         devicesLoading={devicesLoading}
         permissionState={permissionState}
+        suppressMessages={suppressMessages}
       />
 
       <LanguageSelector
