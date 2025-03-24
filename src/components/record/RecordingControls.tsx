@@ -89,27 +89,31 @@ export const RecordingControls = ({
         </>
       )}
       
-      {audioUrl && !isRecording && showDeleteButton && (
-        <Button
-          onClick={onDelete}
-          variant="destructive"
-          className="rounded-full p-3 h-auto"
-          disabled={isLoading}
-        >
-          <Trash2 className="h-5 w-5" />
-          <span className="sr-only">Delete Recording</span>
-        </Button>
-      )}
+      {audioUrl && !isRecording && (
+        <div className="flex gap-4 justify-center w-full">
+          {showDeleteButton && (
+            <Button
+              onClick={onDelete}
+              variant="destructive"
+              className="rounded-full w-12 h-12 flex items-center justify-center"
+              disabled={isLoading}
+            >
+              <Trash2 className="h-5 w-5" />
+              <span className="sr-only">Delete Recording</span>
+            </Button>
+          )}
 
-      {audioUrl && !isRecording && showPlayButton && onSave && (
-        <Button
-          className="bg-palatinate-blue hover:bg-palatinate-blue/90 text-white rounded-full px-6 py-4 h-auto"
-          onClick={onSave}
-          disabled={isLoading}
-        >
-          <FileText className="h-5 w-5 mr-2" />
-          <span>Save & Transcribe</span>
-        </Button>
+          {onSave && (
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-md w-48"
+              onClick={onSave}
+              disabled={isLoading}
+            >
+              <FileText className="h-5 w-5 mr-2" />
+              <span>Transcribe Now</span>
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

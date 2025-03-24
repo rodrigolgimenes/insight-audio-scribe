@@ -23,7 +23,7 @@ interface RecordingSectionProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady: boolean;
-  showPlayButton?: boolean; // Added this prop
+  showPlayButton?: boolean;
   showDeleteButton?: boolean;
   onSave?: () => void;
   isSaving?: boolean;
@@ -87,7 +87,7 @@ export const RecordingSection = ({
           ) : (
             <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
               <p className="text-gray-400 text-sm">
-                Audio visualization will appear here
+                Loading waveform...
               </p>
             </div>
           )}

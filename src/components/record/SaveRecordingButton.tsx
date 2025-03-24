@@ -55,7 +55,7 @@ export const SaveRecordingButton = ({
   return (
     <div className="w-full max-w-[220px]">
       <Button 
-        className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white gap-2 w-full rounded-md"
+        className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 w-full rounded-md"
         onClick={handleClick}
         disabled={isDisabled || isSaving}
       >
