@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,7 +136,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         });
         
         try {
-          // Always ensure we pass true for forceDownloadFormat to improve reliability
           fileToUpload = await convertFileToMp3(originalFile, (progress) => {
             setProcessingProgress(progress);
             setConversionProgress(progress);
@@ -145,18 +143,17 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             if (onConversionUpdate) {
               onConversionUpdate('converting', progress, originalFile, null);
             }
-          }, true); // Force download format to avoid corruption
+          });
           
           setConvertedFile(fileToUpload);
           setConversionStatus('success');
           
-          // Validate MP3 file structure
           const isValidMp3 = await validateMp3File(fileToUpload);
           if (!isValidMp3) {
             toast({
               title: "Warning",
               description: "MP3 conversion completed but the file structure might not be optimal. Proceeding anyway.",
-              variant: "warning",
+              variant: "destructive",
             });
           }
           
@@ -188,7 +185,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       setProcessingState('uploading');
       setProcessingProgress(20);
       
-      // Add a proper extension if it doesn't have one
       if (fileToUpload.name.indexOf('.') === -1) {
         const extension = isVideo ? '.mp4' : isAudio ? '.mp3' : '.bin';
         const newFileName = fileToUpload.name + extension;
@@ -290,10 +286,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
-  // Simple validation for MP3 file structure
   const validateMp3File = async (file: File): Promise<boolean> => {
     try {
-      // Check for MP3 header in the first few bytes
       const reader = new FileReader();
       return await new Promise((resolve) => {
         reader.onload = (e) => {
@@ -309,11 +303,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             return;
           }
           
-          // MP3 files should start with 0xFF 0xFB (MPEG-1 Layer 3)
-          // or other valid MP3 headers
           const isValidHeader = 
-            (arr[0] === 0xFF && (arr[1] & 0xE0) === 0xE0) || // Valid MP3 sync word
-            (arr[0] === 0x49 && arr[1] === 0x44 && arr[2] === 0x33); // ID3 tag
+            (arr[0] === 0xFF && (arr[1] & 0xE0) === 0xE0) || 
+            (arr[0] === 0x49 && arr[1] === 0x44 && arr[2] === 0x33);
             
           resolve(isValidHeader);
         };
@@ -376,8 +368,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         )}
         {getButtonText()}
       </Button>
-      
-      {/* O painel de logs de conversão agora é controlado pelo componente pai */}
       
       {selectedFileName && processingState !== 'idle' && (
         <div className="mt-2 text-xs text-muted-foreground">
