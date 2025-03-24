@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Pause, Play } from "lucide-react";
+import { Mic, Square, Pause } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RecordingValidator } from "@/utils/audio/recordingValidator";
 
@@ -166,7 +166,7 @@ export function RecordControls({
                 )}
                 aria-label="Resume Recording"
               >
-                <Play className="h-5 w-5" />
+                <Mic className="h-5 w-5" />
               </Button>
             )}
           </div>

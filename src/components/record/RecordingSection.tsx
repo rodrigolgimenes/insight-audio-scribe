@@ -1,7 +1,7 @@
+
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
-import { RecordingTimer } from "./RecordingTimer";
 import { RecordingActions } from "./RecordingActions";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
@@ -74,9 +74,6 @@ export const RecordingSection = ({
   return (
     <div className="flex flex-col w-full items-center">
       <div className="w-full max-w-lg">
-        {/* Timer display */}
-        <RecordingTimer time={time} isRecording={isRecording} isPaused={isPaused} />
-
         {/* Audio visualizer */}
         <div className="my-8 h-32 w-full">
           {isRecording ? (

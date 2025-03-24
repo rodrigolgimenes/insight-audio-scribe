@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, StopCircle, Trash2, Music } from "lucide-react";
+import { Mic, Pause, StopCircle, Trash2, Music } from "lucide-react";
 
 interface RecordingControlsProps {
   isRecording: boolean;
@@ -38,7 +38,7 @@ export const RecordingControls = ({
           className="bg-palatinate-blue hover:bg-palatinate-blue/90 active:bg-palatinate-blue/80 text-white rounded-full px-8 py-6 h-auto"
           disabled={isLoading}
         >
-          <Play className="h-6 w-6" />
+          <Mic className="h-6 w-6" />
           <span className="sr-only">Start Recording</span>
         </Button>
       )}
@@ -72,7 +72,7 @@ export const RecordingControls = ({
             className="bg-palatinate-blue hover:bg-palatinate-blue/90 text-white rounded-full p-4 h-auto"
             disabled={isLoading}
           >
-            <Play className="h-6 w-6" />
+            <Mic className="h-6 w-6" />
             <span className="sr-only">Resume Recording</span>
           </Button>
           
