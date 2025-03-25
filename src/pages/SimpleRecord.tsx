@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -244,11 +243,10 @@ const SimpleRecord = () => {
     setCurrentUploadInfo({ noteId, recordingId });
   };
 
-  // Show a login prompt if not logged in
   const renderAuthAlert = () => {
     if (!session) {
       return (
-        <Alert variant="warning" className="mb-6">
+        <Alert variant="default" className="mb-6">
           <InfoIcon className="h-5 w-5" />
           <AlertTitle>Authentication Required</AlertTitle>
           <AlertDescription>

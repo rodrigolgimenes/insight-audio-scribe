@@ -4,21 +4,43 @@ import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, AlertCircle, MicOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { NoDevicesMessage } from "@/components/record/device/NoDevicesMessage";
+import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface MicrophoneSelectorProps {
   disabled?: boolean;
   className?: string;
+  // Add the missing props that are being passed from DeviceSelector
+  audioDevices?: AudioDevice[];
+  selectedDeviceId?: string | null;
+  onDeviceSelect?: (deviceId: string) => void;
+  isReady?: boolean;
+  onRefreshDevices?: () => Promise<void>;
+  devicesLoading?: boolean;
 }
 
-export function MicrophoneSelector({ disabled = false, className = "" }: MicrophoneSelectorProps) {
+export function MicrophoneSelector({ 
+  disabled = false, 
+  className = "",
+  audioDevices: propAudioDevices,
+  selectedDeviceId: propSelectedDeviceId,
+  onDeviceSelect: propOnDeviceSelect,
+  isReady,
+  onRefreshDevices: propOnRefreshDevices,
+  devicesLoading: propDevicesLoading
+}: MicrophoneSelectorProps) {
   const {
-    devices,
-    selectedDeviceId,
-    setSelectedDeviceId,
+    devices: contextDevices,
+    selectedDeviceId: contextSelectedDeviceId,
+    setSelectedDeviceId: contextSetSelectedDeviceId,
     permissionState,
-    isLoading,
-    refreshDevices
+    isLoading: contextIsLoading,
+    refreshDevices: contextRefreshDevices
   } = useDeviceManager();
+  
+  // Use props if provided, otherwise fall back to context values
+  const devices = propAudioDevices || contextDevices;
+  const selectedDeviceId = propSelectedDeviceId !== undefined ? propSelectedDeviceId : contextSelectedDeviceId;
+  const isLoading = propDevicesLoading !== undefined ? propDevicesLoading : contextIsLoading;
   
   const [isOpen, setIsOpen] = useState(false);
   // Track initial loading state separately to prevent premature warnings
@@ -81,7 +103,11 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
   // Handle device selection
   const handleSelect = (deviceId: string) => {
     console.log('[MicrophoneSelector] Selecting device:', deviceId);
-    setSelectedDeviceId(deviceId);
+    if (propOnDeviceSelect) {
+      propOnDeviceSelect(deviceId);
+    } else {
+      contextSetSelectedDeviceId(deviceId);
+    }
     setIsOpen(false);
     
     // Only show toast on non-restricted routes
@@ -98,7 +124,13 @@ export function MicrophoneSelector({ disabled = false, className = "" }: Microph
     console.log('[MicrophoneSelector] Refreshing devices');
     // Set loading state back to true during refresh
     setInitialLoading(true);
-    await refreshDevices();
+    
+    if (propOnRefreshDevices) {
+      await propOnRefreshDevices();
+    } else {
+      await contextRefreshDevices();
+    }
+    
     // Delay turning off loading to ensure UI doesn't flash
     setTimeout(() => {
       setInitialLoading(false);
