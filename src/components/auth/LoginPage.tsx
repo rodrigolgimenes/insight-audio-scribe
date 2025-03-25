@@ -8,13 +8,27 @@ import { useEffect } from "react";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { session, loading } = useAuth();
 
   useEffect(() => {
-    if (session) {
+    if (session && !loading) {
+      console.log("User already authenticated, redirecting to app");
       navigate("/app");
     }
-  }, [session, navigate]);
+  }, [session, loading, navigate]);
+
+  // Don't render the auth UI if we're loading or already have a session
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (session) {
+    return null; // Will redirect in the useEffect
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

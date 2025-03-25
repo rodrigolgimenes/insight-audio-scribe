@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 export const useRecordingAuth = () => {
-  const { session } = useAuth();
+  const { session, loading: authLoading, error: authContextError } = useAuth();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -12,16 +12,25 @@ export const useRecordingAuth = () => {
     const checkAuth = async () => {
       setIsCheckingAuth(true);
       try {
+        // If AuthProvider has already done the check, use that result
+        if (!authLoading) {
+          setAuthError(authContextError);
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        // Only do a separate check if the AuthProvider is still loading
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error("Auth error:", error);
+          console.error("Recording auth check error:", error);
           setAuthError(error.message);
         } else {
+          console.log("Recording auth check result:", !!data.session);
           setAuthError(null);
         }
       } catch (err) {
-        console.error("Failed to check auth:", err);
+        console.error("Failed to check recording auth:", err);
         setAuthError("Failed to verify authentication status");
       } finally {
         setIsCheckingAuth(false);
@@ -29,12 +38,12 @@ export const useRecordingAuth = () => {
     };
 
     checkAuth();
-  }, []);
+  }, [authLoading, authContextError]);
 
   return {
     isAuthenticated: !!session,
-    isCheckingAuth,
-    authError,
+    isCheckingAuth: isCheckingAuth || authLoading,
+    authError: authError || authContextError,
     user: session?.user || null
   };
 };
