@@ -78,6 +78,18 @@ export function logValidation(message: string): void {
   log(message, 'validation');
 }
 
+export function logWarning(message: string): void {
+  const entry = {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    message: message,
+    category: 'WARN' as const,
+    details: 'warning'
+  };
+  logStorage.push(entry);
+  console.warn(`[WARNING] ${message}`);
+}
+
 export function logSuccess(message: string): void {
   const entry = {
     id: crypto.randomUUID(),

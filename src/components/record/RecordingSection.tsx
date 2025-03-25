@@ -1,10 +1,11 @@
-
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+
+type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -35,6 +36,7 @@ interface RecordingSectionProps {
   processingStage?: string;
   isRestrictedRoute?: boolean;
   showRecordingActions?: boolean;
+  disabled?: boolean;
 }
 
 export const RecordingSection = ({
@@ -65,7 +67,8 @@ export const RecordingSection = ({
   processingProgress = 0,
   processingStage = "",
   isRestrictedRoute = false,
-  showRecordingActions = false
+  showRecordingActions = false,
+  disabled = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,
@@ -108,6 +111,7 @@ export const RecordingSection = ({
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}
           onSave={onSave}
+          disabled={disabled}
         />
         
         {/* Device settings */}
@@ -122,6 +126,7 @@ export const RecordingSection = ({
           onRefreshDevices={onRefreshDevices}
           devicesLoading={devicesLoading}
           permissionState={permissionState}
+          disabled={disabled}
         />
       </div>
     </div>

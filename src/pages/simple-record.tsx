@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRecording } from "@/hooks/useRecording";
 import { RecordingSection } from "@/components/record/RecordingSection";
@@ -28,12 +28,15 @@ export default function SimpleRecord() {
 
   const handleSave = async () => {
     try {
+      // Get the current duration from the recording hook if available
+      const currentDuration = recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0;
+      
       await saveRecording(
         recordingHook.isRecording,
         recordingHook.handleStopRecording,
         recordingHook.mediaStream,
         recordingHook.audioUrl,
-        recordingHook.recordedDuration
+        currentDuration // Use the current duration instead of recordedDuration
       );
     } catch (error) {
       console.error('Error saving recording:', error);
@@ -45,6 +48,17 @@ export default function SimpleRecord() {
   };
 
   const isDisabled = !session;
+  
+  // Create a wrapper for refreshDevices that returns Promise<void>
+  const handleRefreshDevices = async (): Promise<void> => {
+    if (recordingHook.refreshDevices) {
+      try {
+        await recordingHook.refreshDevices();
+      } catch (error) {
+        console.error("Error refreshing devices:", error);
+      }
+    }
+  };
 
   return (
     <div className="container py-8 max-w-5xl">
@@ -80,9 +94,9 @@ export default function SimpleRecord() {
               onDeviceSelect={recordingHook.setSelectedDeviceId}
               deviceSelectionReady={recordingHook.deviceSelectionReady}
               showPlayButton={true}
-              onRefreshDevices={recordingHook.refreshDevices}
+              onRefreshDevices={handleRefreshDevices}
               devicesLoading={recordingHook.devicesLoading}
-              permissionState={recordingHook.permissionState}
+              permissionState={recordingHook.permissionState || 'unknown'}
               isRestrictedRoute={false}
               lastAction={recordingHook.lastAction}
               disabled={isDisabled}
@@ -105,10 +119,9 @@ export default function SimpleRecord() {
         <Card>
           <CardContent className="p-6">
             <h3 className="text-lg font-medium mb-4">Already have a recording?</h3>
-            {/* Substitui o FileUpload pelo FileUploadSection que já implementa corretamente os logs */}
             <FileUploadSection 
               isDisabled={recordingHook.isRecording || !session}
-              showDetailsPanel={true} // Ativa a exibição do painel de logs de conversão
+              showDetailsPanel={true}
             />
           </CardContent>
         </Card>
