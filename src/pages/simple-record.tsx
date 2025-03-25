@@ -100,6 +100,9 @@ export default function SimpleRecord() {
               isRestrictedRoute={false}
               lastAction={recordingHook.lastAction}
               disabled={isDisabled}
+              isSaving={isProcessing}
+              processingProgress={processingProgress}
+              processingStage={processingStage}
             />
 
             <div className="mt-4">
