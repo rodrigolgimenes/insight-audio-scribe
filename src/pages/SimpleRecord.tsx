@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -21,6 +22,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConversionLogsPanel } from "@/components/shared/ConversionLogsPanel";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -34,6 +36,13 @@ const SimpleRecord = () => {
   const { session } = useAuth();
 
   const recordingHook = useRecording();
+
+  // Estados para gerenciar a conversão de arquivos
+  const [showConversionLogs, setShowConversionLogs] = useState<boolean>(false);
+  const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'success' | 'error'>('idle');
+  const [conversionProgress, setConversionProgress] = useState<number>(0);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [convertedFile, setConvertedFile] = useState<File | null>(null);
   
   const handleWrappedStopRecording = async () => {
     try {
@@ -242,6 +251,33 @@ const SimpleRecord = () => {
   const handleUploadComplete = (noteId: string, recordingId: string) => {
     setCurrentUploadInfo({ noteId, recordingId });
   };
+  
+  // Novo handler para atualização de conversão
+  const handleConversionUpdate = (
+    status: 'idle' | 'converting' | 'success' | 'error', 
+    progress: number,
+    origFile: File | null,
+    convFile: File | null
+  ) => {
+    setConversionStatus(status);
+    setConversionProgress(progress);
+    setOriginalFile(origFile);
+    setConvertedFile(convFile);
+    setShowConversionLogs(true);
+  };
+  
+  const handleDownloadConvertedFile = () => {
+    if (convertedFile) {
+      const url = URL.createObjectURL(convertedFile);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = convertedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
 
   const renderAuthAlert = () => {
     if (!session) {
@@ -337,8 +373,22 @@ const SimpleRecord = () => {
                         initiateTranscription={true}
                         buttonClassName="w-full rounded-md"
                         onUploadComplete={handleUploadComplete}
+                        onConversionUpdate={handleConversionUpdate}
                         disabled={recordingHook.isRecording || !session}
                       />
+                      
+                      {showConversionLogs && (
+                        <div className="mt-4">
+                          <ConversionLogsPanel
+                            originalFile={originalFile}
+                            convertedFile={convertedFile}
+                            conversionStatus={conversionStatus}
+                            conversionProgress={conversionProgress}
+                            onDownload={convertedFile ? handleDownloadConvertedFile : undefined}
+                            onTranscribe={undefined}
+                          />
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                   
