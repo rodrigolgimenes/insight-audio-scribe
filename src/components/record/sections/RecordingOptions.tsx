@@ -1,3 +1,4 @@
+
 import React from "react";
 import { DeviceSelector } from "../DeviceSelector";
 import { LanguageSelector } from "../LanguageSelector";
@@ -51,6 +52,7 @@ export function RecordingOptions({
       <SystemAudioToggle
         isSystemAudio={isSystemAudio}
         onSystemAudioChange={onSystemAudioChange}
+        onChange={onSystemAudioChange} // Add this line to fix the type error
         disabled={isRecording}
       />
     </div>

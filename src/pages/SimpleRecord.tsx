@@ -18,6 +18,10 @@ import { AudioVisualizer } from "@/components/record/AudioVisualizer";
 import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 import { FileUpload } from "@/components/shared/FileUpload";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -28,6 +32,7 @@ const SimpleRecord = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSaveProcessing, setIsSaveProcessing] = useState(false);
   const { isUploading } = useFileUpload();
+  const { session } = useAuth();
 
   const recordingHook = useRecording();
   
@@ -101,6 +106,11 @@ const SimpleRecord = () => {
   } | null>(null);
 
   const saveRecording = async () => {
+    if (!session) {
+      toast.error("You must be logged in to save recordings");
+      return { success: false };
+    }
+    
     if (!recordingHook.audioUrl) {
       toast.error("No recording to save");
       return { success: false };
@@ -234,6 +244,34 @@ const SimpleRecord = () => {
     setCurrentUploadInfo({ noteId, recordingId });
   };
 
+  // Show a login prompt if not logged in
+  const renderAuthAlert = () => {
+    if (!session) {
+      return (
+        <Alert variant="warning" className="mb-6">
+          <InfoIcon className="h-5 w-5" />
+          <AlertTitle>Authentication Required</AlertTitle>
+          <AlertDescription>
+            You must be logged in to save recordings to your account.
+            <div className="mt-2">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/login')}
+                className="mr-2"
+              >
+                Login
+              </Button>
+              <Button onClick={() => navigate('/signup')}>
+                Sign Up
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    return null;
+  };
+
   PageLoadTracker.trackPhase('Render Main Content', true);
   
   return (
@@ -242,6 +280,7 @@ const SimpleRecord = () => {
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-ghost-white">
           <main className="container mx-auto px-4 py-8 space-y-8">
+            {renderAuthAlert()}
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
@@ -262,7 +301,7 @@ const SimpleRecord = () => {
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={recordingHook.deviceSelectionReady}
-                      lastAction={recordingHook.lastAction}
+                      lastAction={recordingHook.lastAction as any} // Type assertion to fix the error
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
                       permissionState={recordingHook.permissionState as any}
@@ -300,7 +339,7 @@ const SimpleRecord = () => {
                         initiateTranscription={true}
                         buttonClassName="w-full rounded-md"
                         onUploadComplete={handleUploadComplete}
-                        disabled={recordingHook.isRecording}
+                        disabled={recordingHook.isRecording || !session}
                       />
                     </CardContent>
                   </Card>
