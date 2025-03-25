@@ -1,3 +1,4 @@
+
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
@@ -5,6 +6,7 @@ import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
+// Define a unified PermissionState type that works across components
 type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
 interface RecordingSectionProps {
@@ -63,7 +65,7 @@ export const RecordingSection = ({
   lastAction,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState,
+  permissionState = 'unknown',
   processingProgress = 0,
   processingStage = "",
   isRestrictedRoute = false,
@@ -111,6 +113,9 @@ export const RecordingSection = ({
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}
           onSave={onSave}
+          isSaving={isSaving}
+          processingProgress={processingProgress}
+          processingStage={processingStage}
           disabled={disabled}
         />
         

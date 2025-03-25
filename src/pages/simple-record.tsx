@@ -36,7 +36,7 @@ export default function SimpleRecord() {
         recordingHook.handleStopRecording,
         recordingHook.mediaStream,
         recordingHook.audioUrl,
-        currentDuration // Use the current duration instead of recordedDuration
+        currentDuration // Use the current duration 
       );
     } catch (error) {
       console.error('Error saving recording:', error);
