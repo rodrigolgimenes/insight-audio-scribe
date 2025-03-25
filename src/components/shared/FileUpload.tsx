@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,8 +102,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     
     const isVideo = originalFile.type.startsWith('video/');
     const isAudio = originalFile.type.startsWith('audio/');
+    const isMp3 = originalFile.type === 'audio/mp3' || 
+                 originalFile.type === 'audio/mpeg' || 
+                 originalFile.name.toLowerCase().endsWith('.mp3');
     const fileType = isVideo ? 'video' : isAudio ? 'audio' : 'file';
     
+    console.log(`Processing file: ${originalFile.name}, type: ${originalFile.type}, isMp3: ${isMp3}`);
+
     if (isVideo) {
       toast({
         title: "Processing Video",
@@ -111,7 +117,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     } else if (isAudio) {
       toast({
         title: "Processing Audio",
-        description: "Your audio will be converted to MP3 and processed. This may take a moment...",
+        description: isMp3 ? "Your MP3 will be processed directly." : "Your audio will be converted to MP3 and processed. This may take a moment...",
       });
     } else {
       toast({
@@ -123,7 +129,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     try {
       let fileToUpload = originalFile;
       
-      if ((isAudio || isVideo) && !originalFile.type.includes('mp3')) {
+      // Only convert non-MP3 audio files or video files
+      if ((isAudio && !isMp3) || isVideo) {
         setProcessingState('converting');
         setConversionStatus('converting');
         
@@ -137,7 +144,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         });
         
         try {
-          if (isAudio) {
+          if (isAudio && !isMp3) {
             const compressedBlob = await audioCompressor.compressAudio(originalFile, {
               targetBitrate: 48,
               mono: false,
@@ -152,7 +159,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 lastModified: Date.now()
               }
             );
-          } else {
+            
+            console.log(`Converted ${originalFile.name} to MP3. New size: ${Math.round(fileToUpload.size / 1024)}KB`);
+          } else if (isVideo) {
             fileToUpload = await convertFileToMp3(originalFile, (progress) => {
               setProcessingProgress(progress);
               setConversionProgress(progress);
@@ -161,6 +170,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 onConversionUpdate('converting', progress, originalFile, null);
               }
             });
+            
+            console.log(`Extracted audio from video ${originalFile.name} to MP3. Size: ${Math.round(fileToUpload.size / 1024)}KB`);
           }
           
           setConvertedFile(fileToUpload);
@@ -198,6 +209,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           });
           fileToUpload = originalFile;
         }
+      } else if (isMp3) {
+        // If it's already an MP3, mark conversion as successful without actually converting
+        console.log(`File ${originalFile.name} is already MP3. Skipping conversion.`);
+        setConversionStatus('success');
+        setConversionProgress(100);
+        setConvertedFile(originalFile);
+        setProcessingProgress(20);
+        
+        if (onConversionUpdate) {
+          onConversionUpdate('success', 100, originalFile, originalFile);
+        }
+        
+        toast({
+          title: "Processing MP3",
+          description: "Your MP3 file will be processed directly.",
+        });
       }
       
       setProcessingState('uploading');
@@ -208,6 +235,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         const newFileName = fileToUpload.name + extension;
         fileToUpload = new File([fileToUpload], newFileName, { type: fileToUpload.type });
       }
+      
+      console.log(`Uploading file: ${fileToUpload.name}, type: ${fileToUpload.type}, size: ${Math.round(fileToUpload.size / 1024)}KB`);
       
       const result = await handleFileUpload(e, initiateTranscription, fileToUpload);
       
@@ -226,7 +255,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               fileName: fileToUpload.name, 
               fileType: fileToUpload.type, 
               fileSize: `${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100} MB`,
-              needsAudioExtraction: isVideo
+              needsAudioExtraction: isVideo,
+              isMp3: isMp3
             },
             status: 'success'
           });
@@ -322,8 +352,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           }
           
           const isValidHeader = 
-            (arr[0] === 0xFF && (arr[1] & 0xE0) === 0xE0) || 
-            (arr[0] === 0x49 && arr[1] === 0x44 && arr[2] === 0x33);
+            (arr[0] === 0xFF && (arr[1] & 0xE0) === 0xE0) || // MPEG frame sync
+            (arr[0] === 0x49 && arr[1] === 0x44 && arr[2] === 0x33); // ID3v2 tag
             
           resolve(isValidHeader);
         };
@@ -424,4 +454,3 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     </div>
   );
 }
-
