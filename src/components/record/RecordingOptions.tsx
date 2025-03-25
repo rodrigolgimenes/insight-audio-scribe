@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { MicrophoneSelector } from "@/components/microphone/MicrophoneSelector";
 import { LanguageSelector } from "./LanguageSelector";
 import { SystemAudioToggle } from "./SystemAudioToggle";
@@ -45,7 +45,6 @@ export function RecordingOptions({
       {onSystemAudioChange && (
         <SystemAudioToggle
           isSystemAudio={isSystemAudio}
-          onChange={onSystemAudioChange}
           onSystemAudioChange={onSystemAudioChange}
           disabled={isRecording}
         />

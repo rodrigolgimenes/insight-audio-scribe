@@ -51,7 +51,6 @@ export const RecordingSettings = ({
               <SystemAudioToggle 
                 isSystemAudio={isSystemAudio}
                 onChange={onSystemAudioChange}
-                onSystemAudioChange={onSystemAudioChange}
                 disabled={isRecording}
               />
             </div>
