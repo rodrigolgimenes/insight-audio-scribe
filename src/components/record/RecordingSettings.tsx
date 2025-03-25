@@ -5,6 +5,9 @@ import { SystemAudioToggle } from "./SystemAudioToggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
+// Import the PermissionState type from the capture module
+import { PermissionState } from "@/hooks/recording/capture/types";
+
 interface RecordingSettingsProps {
   isSystemAudio: boolean;
   onSystemAudioChange: (value: boolean) => void;
@@ -16,6 +19,7 @@ interface RecordingSettingsProps {
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
   permissionState?: PermissionState;
+  disabled?: boolean;
 }
 
 export const RecordingSettings = ({
@@ -28,7 +32,8 @@ export const RecordingSettings = ({
   isRecording,
   onRefreshDevices,
   devicesLoading,
-  permissionState
+  permissionState,
+  disabled = false
 }: RecordingSettingsProps) => {
   return (
     <Card className="mt-6 shadow-sm">
@@ -41,7 +46,7 @@ export const RecordingSettings = ({
                 audioDevices={audioDevices}
                 selectedDeviceId={selectedDeviceId}
                 onDeviceSelect={onDeviceSelect}
-                disabled={isRecording}
+                disabled={isRecording || disabled}
                 isReady={deviceSelectionReady}
                 onRefreshDevices={onRefreshDevices}
                 devicesLoading={devicesLoading}
@@ -51,7 +56,7 @@ export const RecordingSettings = ({
               <SystemAudioToggle 
                 isSystemAudio={isSystemAudio}
                 onSystemAudioChange={onSystemAudioChange}
-                disabled={isRecording}
+                disabled={isRecording || disabled}
               />
             </div>
           </div>

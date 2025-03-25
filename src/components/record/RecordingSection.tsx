@@ -4,7 +4,10 @@ import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
-import { AudioDevice } from "@/hooks/recording/capture/types";
+import { AudioDevice, PermissionState as CapturePermissionState } from "@/hooks/recording/capture/types";
+
+// Define a unified PermissionState type that works across components
+type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -35,6 +38,7 @@ interface RecordingSectionProps {
   processingStage?: string;
   isRestrictedRoute?: boolean;
   showRecordingActions?: boolean;
+  disabled?: boolean;
 }
 
 export const RecordingSection = ({
@@ -61,11 +65,12 @@ export const RecordingSection = ({
   lastAction,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState,
+  permissionState = 'unknown',
   processingProgress = 0,
   processingStage = "",
   isRestrictedRoute = false,
-  showRecordingActions = false
+  showRecordingActions = false,
+  disabled = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,
@@ -108,6 +113,10 @@ export const RecordingSection = ({
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}
           onSave={onSave}
+          isSaving={isSaving}
+          processingProgress={processingProgress}
+          processingStage={processingStage}
+          disabled={disabled}
         />
         
         {/* Device settings */}
@@ -121,7 +130,8 @@ export const RecordingSection = ({
           isRecording={isRecording}
           onRefreshDevices={onRefreshDevices}
           devicesLoading={devicesLoading}
-          permissionState={permissionState}
+          permissionState={permissionState as CapturePermissionState}
+          disabled={disabled}
         />
       </div>
     </div>

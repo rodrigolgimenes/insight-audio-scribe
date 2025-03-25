@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Pause } from "lucide-react";
@@ -23,6 +22,7 @@ interface RecordControlsProps {
     error?: string;
   };
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
+  disabled?: boolean;
 }
 
 export function RecordControls({
@@ -37,14 +37,14 @@ export function RecordControls({
   audioDevices = [],
   showLastAction = false,
   lastAction,
-  permissionState = 'unknown'
+  permissionState = 'unknown',
+  disabled = false
 }: RecordControlsProps) {
   const [buttonPressed, setButtonPressed] = useState<string | null>(null);
   const [canStart, setCanStart] = useState(false);
   
-  // Validate recording prerequisites when dependencies change
   useEffect(() => {
-    if (isRecording) return; // No need to validate if already recording
+    if (isRecording) return;
     
     const diagnostics = RecordingValidator.validatePrerequisites({
       selectedDeviceId,
@@ -80,8 +80,11 @@ export function RecordControls({
     };
   }, [buttonPressed]);
 
-  // Determine the specific reason why recording can't start
   const getStatusMessage = () => {
+    if (disabled) {
+      return "Recording is disabled - please login first";
+    }
+
     if (canStart) {
       return "Microphone selected and ready";
     }
@@ -118,12 +121,12 @@ export function RecordControls({
         {!isRecording ? (
           <Button
             onClick={() => handleButtonClick('start', onStartRecording)}
-            disabled={!canStart}
+            disabled={!canStart || disabled}
             size="lg"
             className={cn(
               "rounded-full w-16 h-16 bg-red-500 hover:bg-red-600 text-white",
               buttonPressed === 'start' && "animate-pulse",
-              !canStart && "opacity-50 cursor-not-allowed"
+              (!canStart || disabled) && "opacity-50 cursor-not-allowed"
             )}
             aria-label="Start Recording"
             data-test-id="start-recording-button"
@@ -134,10 +137,12 @@ export function RecordControls({
           <div className="flex items-center gap-2">
             <Button
               onClick={() => handleButtonClick('stop', onStopRecording)}
+              disabled={disabled}
               size="lg"
               className={cn(
                 "rounded-full w-14 h-14 bg-red-500 hover:bg-red-600 text-white",
-                buttonPressed === 'stop' && "animate-pulse"
+                buttonPressed === 'stop' && "animate-pulse",
+                disabled && "opacity-50 cursor-not-allowed"
               )}
               aria-label="Stop Recording"
             >
@@ -147,10 +152,12 @@ export function RecordControls({
             {!isPaused ? (
               <Button
                 onClick={() => handleButtonClick('pause', onPauseRecording)}
+                disabled={disabled}
                 size="lg"
                 className={cn(
                   "rounded-full w-12 h-12 bg-amber-500 hover:bg-amber-600 text-white",
-                  buttonPressed === 'pause' && "animate-pulse"
+                  buttonPressed === 'pause' && "animate-pulse",
+                  disabled && "opacity-50 cursor-not-allowed"
                 )}
                 aria-label="Pause Recording"
               >
@@ -159,10 +166,12 @@ export function RecordControls({
             ) : (
               <Button
                 onClick={() => handleButtonClick('resume', onResumeRecording)}
+                disabled={disabled}
                 size="lg"
                 className={cn(
                   "rounded-full w-12 h-12 bg-green-500 hover:bg-green-600 text-white",
-                  buttonPressed === 'resume' && "animate-pulse"
+                  buttonPressed === 'resume' && "animate-pulse",
+                  disabled && "opacity-50 cursor-not-allowed"
                 )}
                 aria-label="Resume Recording"
               >
@@ -173,10 +182,9 @@ export function RecordControls({
         )}
       </div>
       
-      {/* Status Message */}
       <div className="text-sm text-gray-500 mt-2">
         <div>Status: {isRecording ? (isPaused ? "Paused" : "Recording") : "Ready"}</div>
-        <div className={canStart ? "text-green-500" : "text-amber-500"}>
+        <div className={canStart && !disabled ? "text-green-500" : "text-amber-500"}>
           {getStatusMessage()}
         </div>
       </div>
