@@ -45,19 +45,31 @@ export default function Index() {
         
         <Card className="max-w-md mx-auto">
           <CardHeader>
-            <CardTitle>Test File Upload</CardTitle>
+            <CardTitle>Audio File Upload</CardTitle>
           </CardHeader>
           <CardContent>
             <FileUpload 
               onConversionUpdate={handleConversionUpdate}
               buttonText="Upload Audio File"
-              description="Test MP3 upload functionality"
+              description="Upload MP3 files directly or convert other audio formats"
               buttonClassName="w-full"
             />
             
             {conversionStatus === 'success' && (
               <p className="text-green-600 mt-4">
-                Conversion successful! MP3 files should be processed directly.
+                Conversion successful! Your file is ready.
+              </p>
+            )}
+            
+            {conversionStatus === 'error' && (
+              <p className="text-red-600 mt-4">
+                There was an error processing your file. Please try again.
+              </p>
+            )}
+            
+            {conversionStatus === 'converting' && (
+              <p className="text-blue-600 mt-4">
+                Processing your audio file...
               </p>
             )}
           </CardContent>

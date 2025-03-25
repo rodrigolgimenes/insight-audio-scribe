@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -20,8 +19,8 @@ import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
 import Settings from "./pages/Settings";
 import UncategorizedFolder from "./pages/UncategorizedFolder";
+import NotFound from "./pages/NotFound";
 
-// Route logger component to help with debugging route changes
 const RouteLogger = () => {
   const location = useLocation();
   
@@ -36,12 +35,10 @@ const RouteLogger = () => {
   return null;
 };
 
-// Proper implementation of ProtectedRoute that checks authentication
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading } = useAuth();
   const location = useLocation();
   
-  // Show loading spinner while checking auth
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-ghost-white">
@@ -50,23 +47,19 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Redirect to login if not authenticated
   if (!session) {
     console.log("[ProtectedRoute] No session, redirecting to login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // User is authenticated, render children
   return <>{children}</>;
 };
 
-// Create the query client instance outside the component
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
       retry: 1,
-      // Updated error handling to use the new API
       meta: {
         onError: (error: Error) => {
           console.error("Query error:", error);
@@ -77,17 +70,14 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  // Catch any rendering errors at the top level
   const [hasError, setHasError] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState("");
 
-  // Error boundary component
   React.useEffect(() => {
     const handleError = (event: ErrorEvent) => {
       console.error("Global error caught:", event.error);
       setHasError(true);
       setErrorMessage(event.error?.message || "Unknown error occurred");
-      // Prevent the default error handler
       event.preventDefault();
     };
 
@@ -95,7 +85,6 @@ const App = () => {
     return () => window.removeEventListener('error', handleError);
   }, []);
 
-  // Show a simple error page if there's a fatal error
   if (hasError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-ghost-white p-4">
@@ -118,7 +107,6 @@ const App = () => {
       <BrowserRouter>
         <AuthProvider>
           <TooltipProvider>
-            {/* IMPORTANT: Single DeviceManagerProvider for global access */}
             <DeviceManagerProvider>
               <AudioDeviceProvider>
                 <RouteLogger />
@@ -198,8 +186,9 @@ const App = () => {
                   />
                   <Route 
                     path="/index" 
-                    element={<Navigate to="/simple-record" replace />} 
+                    element={<Navigate to="/" replace />} 
                   />
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </AudioDeviceProvider>
             </DeviceManagerProvider>
