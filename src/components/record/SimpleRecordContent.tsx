@@ -84,15 +84,14 @@ export function SimpleRecordContent({
               handleResumeRecording={recordingHook.handleResumeRecording}
               handleDelete={recordingHook.handleDelete}
               onSystemAudioChange={recordingHook.setIsSystemAudio}
-              audioDevices={recordingHook.audioDevices || []}
-              selectedDeviceId={recordingHook.selectedDeviceId || "default-suppressed-device"}
+              audioDevices={recordingHook.audioDevices}
+              selectedDeviceId={recordingHook.selectedDeviceId}
               onDeviceSelect={recordingHook.setSelectedDeviceId}
-              deviceSelectionReady={true} // Force to true
+              deviceSelectionReady={recordingHook.deviceSelectionReady}
               lastAction={recordingHook.lastAction}
               onRefreshDevices={handleWrappedRefreshDevices}
               devicesLoading={recordingHook.devicesLoading || false}
-              permissionState="granted" // Force to granted
-              suppressMessages={true} // Always suppress messages
+              permissionState={recordingHook.permissionState}
             />
           </CardContent>
         </Card>

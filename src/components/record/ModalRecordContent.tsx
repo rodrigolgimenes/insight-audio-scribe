@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { RecordingSection } from "@/components/record/RecordingSection";
-import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/types";
+import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/permissions/types";
 
 interface ModalRecordContentProps {
   closeModal: () => void;
@@ -46,21 +46,20 @@ export const ModalRecordContent = ({
     refreshDevices
   } = useRecording();
 
-  // Wrap the saveRecording function to return the expected type
-  const handleSaveClick = async (): Promise<{ success: boolean }> => {
+  const handleSaveClick = async () => {
     try {
       await handleSaveRecording();
       onSuccess?.();
       closeModal();
-      return { success: true };
+      return Promise.resolve();
     } catch (err: any) {
       setError(err.message || "Failed to save recording");
-      return { success: false };
+      return Promise.reject(err);
     }
   };
 
   // Create wrapper for refreshDevices that returns a Promise
-  const handleRefreshDevices = async (): Promise<void> => {
+  const handleRefreshDevices = async () => {
     try {
       if (refreshDevices) {
         await refreshDevices();
@@ -110,7 +109,6 @@ export const ModalRecordContent = ({
         onSave={handleSaveClick}
         devicesLoading={devicesLoading}
         onRefreshDevices={handleRefreshDevices}
-        suppressMessages={true} // Always suppress microphone messages
       />
 
       <SheetFooter>

@@ -1,41 +1,30 @@
 
 import React from "react";
 import { Switch } from "@/components/ui/switch";
-import { Laptop } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Volume2 } from "lucide-react";
 
 export interface SystemAudioToggleProps {
   isSystemAudio: boolean;
-  onChange: (value: boolean) => void;
+  onSystemAudioChange: (enabled: boolean) => void;
   disabled?: boolean;
-  onSystemAudioChange?: (enabled: boolean) => void; // Add this for backward compatibility
 }
 
 export function SystemAudioToggle({
   isSystemAudio,
-  onChange,
-  onSystemAudioChange, // Add this prop
-  disabled = false,
+  onSystemAudioChange,
+  disabled = false
 }: SystemAudioToggleProps) {
-  // Create a handler that calls both callbacks if they exist
-  const handleChange = (value: boolean) => {
-    onChange(value);
-    if (onSystemAudioChange) {
-      onSystemAudioChange(value);
-    }
-  };
-
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Laptop className="h-4 w-4" />
-        <label className="text-sm font-medium">
-          Include system audio
-        </label>
-      </div>
-      
+    <div className="flex items-center space-x-2 p-2 rounded border border-gray-200 bg-slate-50 dark:bg-slate-900 dark:border-slate-800">
+      <Volume2 className="h-5 w-5 text-blue-500" />
+      <Label htmlFor="system-audio" className="flex-1">
+        Record system audio (includes sound from your computer)
+      </Label>
       <Switch
+        id="system-audio"
         checked={isSystemAudio}
-        onCheckedChange={handleChange}
+        onCheckedChange={onSystemAudioChange}
         disabled={disabled}
       />
     </div>

@@ -1,26 +1,12 @@
 
+import { toast } from "sonner";
 import { MIC_CONSTRAINTS } from "../../audioConfig";
-
-/**
- * Check if we're on the simple-record page
- */
-const isSimpleRecordPage = (): boolean => {
-  return window.location.pathname.includes('simple-record');
-};
 
 /**
  * Request microphone permission by attempting to open a stream
  */
 export const requestMicrophonePermission = async (): Promise<MediaStream> => {
   console.log('[permissionUtils] Requesting microphone permission with constraints:', MIC_CONSTRAINTS);
-  
-  // For simple-record page, don't actually request permission
-  if (isSimpleRecordPage()) {
-    console.log('[permissionUtils] On simple-record page, returning mock stream');
-    // Return a mock stream object that won't cause errors
-    return new MediaStream();
-  }
-  
   try {
     // Try with our detailed constraints first
     return await navigator.mediaDevices.getUserMedia(MIC_CONSTRAINTS);
@@ -39,11 +25,42 @@ export const requestMicrophonePermission = async (): Promise<MediaStream> => {
 
 /**
  * Show appropriate error toast based on the DOMException
- * This function is now completely disabled to prevent showing any toasts
  */
 export const showPermissionErrorToast = (error: DOMException) => {
-  // Disabled completely to prevent showing any microfone-related toasts
-  console.log('[permissionUtils] Permission error occurred but toasts are disabled:', error.name);
+  console.log('[permissionUtils] Showing permission error toast for error:', error.name);
+  
+  switch (error.name) {
+    case 'NotAllowedError':
+      toast.error("Microphone access denied", {
+        description: "Please allow microphone access in your browser settings"
+      });
+      break;
+      
+    case 'NotFoundError':
+      toast.error("No microphone found", {
+        description: "Please connect a microphone and try again"
+      });
+      break;
+      
+    case 'NotReadableError':
+    case 'AbortError':
+      toast.error("Cannot access microphone", {
+        description: "Your microphone may be in use by another application"
+      });
+      break;
+      
+    case 'SecurityError':
+      toast.error("Security error", {
+        description: "Your browser blocked access to the microphone due to security settings"
+      });
+      break;
+      
+    default:
+      toast.error("Microphone error", {
+        description: error.message
+      });
+      break;
+  }
 };
 
 /**
@@ -52,22 +69,30 @@ export const showPermissionErrorToast = (error: DOMException) => {
 export const cleanupMediaStream = (stream: MediaStream) => {
   if (!stream) return;
   
-  try {
-    stream.getTracks().forEach(track => {
-      console.log('[permissionUtils] Stopping track:', track.kind, track.label);
-      track.stop();
-    });
-  } catch (e) {
-    console.log('[permissionUtils] Error cleaning up stream (suppressed):', e);
-  }
+  stream.getTracks().forEach(track => {
+    console.log('[permissionUtils] Stopping track:', track.kind, track.label);
+    track.stop();
+  });
 };
 
 /**
  * Check if the browser supports the needed APIs for microphone access
- * Always return supported=true to prevent showing error messages
  */
 export const checkBrowserSupport = (): { supported: boolean; message: string } => {
-  // Always return supported regardless of actual support
-  // This prevents all browser support error messages
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return {
+      supported: false,
+      message: "Your browser doesn't support audio recording. Please use Chrome, Firefox, or Edge."
+    };
+  }
+  
+  // Check for MediaRecorder
+  if (typeof MediaRecorder === 'undefined') {
+    return {
+      supported: false,
+      message: "Your browser doesn't support MediaRecorder. Please use Chrome, Firefox, or Edge."
+    };
+  }
+  
   return { supported: true, message: "" };
 };

@@ -15,7 +15,7 @@ interface RecordingSettingsProps {
   isRecording: boolean;
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
-  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
+  permissionState?: PermissionState;
 }
 
 export const RecordingSettings = ({
@@ -50,7 +50,7 @@ export const RecordingSettings = ({
               
               <SystemAudioToggle 
                 isSystemAudio={isSystemAudio}
-                onChange={onSystemAudioChange}
+                onSystemAudioChange={onSystemAudioChange}
                 disabled={isRecording}
               />
             </div>

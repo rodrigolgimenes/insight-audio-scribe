@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useAudioCapture } from "./useAudioCapture";
 import { useDeviceState } from "./device/useDeviceState";
@@ -86,11 +87,6 @@ export const useDeviceSelection = () => {
       console.log('[useDeviceSelection] Updating selectedDeviceId from robustDeviceDetection:', robustSelectedDeviceId);
       setSelectedDeviceId(robustSelectedDeviceId);
     }
-    
-    // CRITICAL: Always ensure deviceSelectionReady is true on simple-record page
-    if (window.location.pathname.includes('simple-record')) {
-      setDeviceSelectionReady(true);
-    }
   }, [robustSelectedDeviceId, selectedDeviceId, setSelectedDeviceId]);
   
   // Use device validation hook
@@ -117,24 +113,17 @@ export const useDeviceSelection = () => {
       const devices = result.devices;
       const defaultId = result.defaultId;
       
-      // If we have no devices, show a message ONLY on non-simple-record pages
+      // If we have no devices, show a message
       if (devices.length === 0) {
-        // Explicitly check we're not on simple-record page before showing toast
-        if (!isRestrictedRoute() && !window.location.pathname.includes('simple-record')) {
+        // Only show toast on non-restricted routes
+        if (!isRestrictedRoute()) {
           toast.warning("No microphones found", {
             description: "Please check your microphone connection",
             id: "no-mics-found",
             duration: 5000
           });
         }
-        
-        // For simple-record page, always set deviceSelectionReady to true
-        if (window.location.pathname.includes('simple-record')) {
-          setDeviceSelectionReady(true);
-        } else {
-          setDeviceSelectionReady(false);
-        }
-        
+        setDeviceSelectionReady(false);
         return { devices: [], defaultId: null };
       }
       
@@ -166,11 +155,6 @@ export const useDeviceSelection = () => {
       setDeviceSelectionReady(hasValidSelection);
       
       return { devices, defaultId };
-    }
-    
-    // Even if no permission, still ensure simple-record page has deviceSelectionReady=true
-    if (window.location.pathname.includes('simple-record')) {
-      setDeviceSelectionReady(true);
     }
     
     return { devices: [] as AudioDevice[], defaultId: null };
@@ -271,29 +255,13 @@ export const useDeviceSelection = () => {
   }, [permissionState, audioDevices.length, selectedDeviceId, deviceSelectionReady]);
 
   return {
-    // If we're on simple-record page, always ensure at least a dummy device
-    audioDevices: window.location.pathname.includes('simple-record') && audioDevices.length === 0 
-      ? [{
-          deviceId: "default-suppressed-device",
-          groupId: "default-group",
-          label: "Default Microphone",
-          kind: "audioinput",
-          isDefault: true,
-          index: 0
-        }] 
-      : audioDevices,
-    selectedDeviceId: window.location.pathname.includes('simple-record') && !selectedDeviceId 
-      ? "default-suppressed-device" 
-      : selectedDeviceId,
+    audioDevices,
+    selectedDeviceId,
     setSelectedDeviceId: enhancedSetSelectedDeviceId,
-    deviceSelectionReady: window.location.pathname.includes('simple-record') 
-      ? true 
-      : deviceSelectionReady,
+    deviceSelectionReady,
     refreshDevices,
     permissionGranted,
     devicesLoading,
-    permissionState: window.location.pathname.includes('simple-record') 
-      ? 'granted' 
-      : permissionState
+    permissionState
   };
 };

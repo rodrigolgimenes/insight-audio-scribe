@@ -1,11 +1,9 @@
 
-import React from "react";
-import { RecordingButtons } from "./RecordingButtons";
-import { RecordingOptions } from "./sections/RecordingOptions";
-import { AudioPlayer } from "./AudioPlayer";
-import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { NoDevicesWarning } from "./NoDevicesWarning";
+import { RecordingControls } from "./RecordingControls";
+import { RecordingSettings } from "./RecordingSettings";
+import { RecordingVisualizer } from "./RecordingVisualizer";
+import { Waveform } from "@/components/ui/waveform";
+import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingSectionProps {
@@ -19,21 +17,27 @@ interface RecordingSectionProps {
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
-  onSystemAudioChange: (enabled: boolean) => void;
+  onSystemAudioChange: (value: boolean) => void;
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
-  deviceSelectionReady?: boolean;
-  lastAction?: string;
+  deviceSelectionReady: boolean;
   showPlayButton?: boolean;
-  onSave?: () => Promise<{ success: boolean }>;
+  showDeleteButton?: boolean;
+  onSave?: () => Promise<any>;
+  isSaving?: boolean;
+  isLoading?: boolean;
+  lastAction?: { action: string; timestamp: number; success: boolean };
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
-  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
-  suppressMessages?: boolean;
+  permissionState?: PermissionState;
+  processingProgress?: number;
+  processingStage?: string;
+  isRestrictedRoute?: boolean;
+  showRecordingActions?: boolean;
 }
 
-export function RecordingSection({
+export const RecordingSection = ({
   isRecording,
   isPaused,
   audioUrl,
@@ -48,61 +52,78 @@ export function RecordingSection({
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
-  deviceSelectionReady = false,
-  lastAction,
+  deviceSelectionReady,
   showPlayButton = true,
+  showDeleteButton = true,
   onSave,
+  isSaving = false,
+  isLoading = false,
+  lastAction,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState = 'unknown',
-  suppressMessages = true // Always default to true to suppress messages
-}: RecordingSectionProps) {
-  // We never want to show the NoDevicesWarning, so we skip the check completely
-  // and directly render the main content
+  permissionState,
+  processingProgress = 0,
+  processingStage = "",
+  isRestrictedRoute = false,
+  showRecordingActions = false
+}: RecordingSectionProps) => {
+  const { time, isRunning } = useTimer({
+    isRecording,
+    isPaused,
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Do not render NoDevicesWarning ever */}
-      
-      <RecordingOptions
-        isRecording={isRecording}
-        isSystemAudio={isSystemAudio}
-        onSystemAudioChange={onSystemAudioChange}
-        audioDevices={audioDevices}
-        selectedDeviceId={selectedDeviceId}
-        onDeviceSelect={onDeviceSelect}
-        deviceSelectionReady={deviceSelectionReady}
-        onRefreshDevices={onRefreshDevices}
-        devicesLoading={devicesLoading}
-        permissionState={permissionState}
-        suppressMessages={true} // Always suppress messages
-      />
-
-      <RecordingButtons
-        isRecording={isRecording}
-        isPaused={isPaused}
-        handleStartRecording={handleStartRecording}
-        handleStopRecording={handleStopRecording}
-        handlePauseRecording={handlePauseRecording}
-        handleResumeRecording={handleResumeRecording}
-        selectedDeviceId={selectedDeviceId}
-        deviceSelectionReady={deviceSelectionReady}
-        onSave={onSave}
-      />
-
-      {audioUrl && (
-        <div className="space-y-4">
-          <AudioPlayer audioUrl={audioUrl} showPlayButton={showPlayButton} />
-          <Button
-            variant="outline"
-            onClick={handleDelete}
-            className="w-full text-destructive hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete Recording
-          </Button>
+    <div className="flex flex-col w-full items-center">
+      <div className="w-full max-w-lg">
+        {/* Audio visualizer */}
+        <div className="my-8 h-32 w-full">
+          {isRecording ? (
+            <RecordingVisualizer
+              audioStream={mediaStream}
+              isRecording={isRecording}
+              isPaused={isPaused}
+            />
+          ) : audioUrl ? (
+            <Waveform src={audioUrl} />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
+              <p className="text-gray-400 text-sm">
+                Loading waveform...
+              </p>
+            </div>
+          )}
         </div>
-      )}
+        
+        {/* Recording controls */}
+        <RecordingControls
+          isRecording={isRecording}
+          isPaused={isPaused}
+          audioUrl={audioUrl}
+          onStart={handleStartRecording}
+          onStop={handleStopRecording}
+          onPause={handlePauseRecording}
+          onResume={handleResumeRecording}
+          onDelete={handleDelete}
+          showPlayButton={showPlayButton}
+          showDeleteButton={showDeleteButton}
+          isLoading={isLoading}
+          onSave={onSave}
+        />
+        
+        {/* Device settings */}
+        <RecordingSettings
+          isSystemAudio={isSystemAudio}
+          onSystemAudioChange={onSystemAudioChange}
+          audioDevices={audioDevices}
+          selectedDeviceId={selectedDeviceId}
+          onDeviceSelect={onDeviceSelect}
+          deviceSelectionReady={deviceSelectionReady}
+          isRecording={isRecording}
+          onRefreshDevices={onRefreshDevices}
+          devicesLoading={devicesLoading}
+          permissionState={permissionState}
+        />
+      </div>
     </div>
   );
-}
+};

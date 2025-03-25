@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -18,14 +19,6 @@ import { ProcessingLogs } from "@/components/record/ProcessingLogs";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 import { FileUpload } from "@/components/shared/FileUpload";
 
-// Helper type to make TypeScript happy
-type LastActionType = string | { 
-  action: string; 
-  timestamp: number; 
-  success: boolean; 
-  error?: string 
-};
-
 const SimpleRecord = () => {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
@@ -38,7 +31,7 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
   
-  const handleWrappedStopRecording = async (): Promise<void> => {
+  const handleWrappedStopRecording = async () => {
     try {
       await recordingHook.handleStopRecording();
       return Promise.resolve();
@@ -48,10 +41,11 @@ const SimpleRecord = () => {
     }
   };
   
-  const handleWrappedRefreshDevices = async (): Promise<void> => {
+  const handleWrappedRefreshDevices = async () => {
     try {
       if (recordingHook.refreshDevices) {
-        await recordingHook.refreshDevices();
+        const result = await recordingHook.refreshDevices();
+        return Promise.resolve();
       }
       return Promise.resolve();
     } catch (error) {
@@ -92,14 +86,9 @@ const SimpleRecord = () => {
     if (recordingHook.initError) {
       PageLoadTracker.trackPhase('Initialization Error Detected', false, recordingHook.initError.message);
       setError(recordingHook.initError.message);
-      // Do not show toast for microphone errors
-      if (!recordingHook.initError.message.toLowerCase().includes('microphone') && 
-          !recordingHook.initError.message.toLowerCase().includes('audio') &&
-          !recordingHook.initError.message.toLowerCase().includes('permission')) {
-        toast.error("Recording initialization failed", {
-          description: recordingHook.initError.message
-        });
-      }
+      toast.error("Recording initialization failed", {
+        description: recordingHook.initError.message
+      });
     } else {
       setError(null);
     }
@@ -111,7 +100,7 @@ const SimpleRecord = () => {
     recordingId: string;
   } | null>(null);
 
-  const saveRecording = async (): Promise<{ success: boolean }> => {
+  const saveRecording = async () => {
     if (!recordingHook.audioUrl) {
       toast.error("No recording to save");
       return { success: false };
@@ -272,14 +261,14 @@ const SimpleRecord = () => {
                       audioDevices={recordingHook.audioDevices}
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
-                      deviceSelectionReady={true}
-                      lastAction={recordingHook.lastAction as LastActionType}
+                      deviceSelectionReady={recordingHook.deviceSelectionReady}
+                      lastAction={recordingHook.lastAction}
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
-                      permissionState="granted"
+                      permissionState={recordingHook.permissionState as any}
                       showPlayButton={false}
                       onSave={saveRecording}
-                      suppressMessages={true}
+                      isLoading={isSaveProcessing}
                     />
                     
                     {recordingHook.isRecording && (

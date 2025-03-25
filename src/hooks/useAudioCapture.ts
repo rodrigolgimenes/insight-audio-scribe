@@ -4,12 +4,10 @@ import { useMicrophoneAccess } from "./recording/capture/useMicrophoneAccess";
 import { usePermissions } from "./recording/capture/usePermissions";
 import { useDeviceEnumeration } from "./recording/capture/useDeviceEnumeration";
 import { AudioDevice } from "./recording/capture/types";
-// Remove toast import
-// import { toast } from "sonner";
+import { toast } from "sonner";
 
 /**
  * Hook for accessing and managing audio devices
- * All notifications have been disabled
  */
 export const useAudioCapture = () => {
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
@@ -46,8 +44,7 @@ export const useAudioCapture = () => {
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
-           path.startsWith('/app/') ||
-           path.includes('simple-record'); // Added simple-record to restricted routes
+           path.startsWith('/app/');
   }, []);
   
   // Check if we're on the dashboard or index page
@@ -84,7 +81,12 @@ export const useAudioCapture = () => {
       console.log('[useAudioCapture] Found audio devices:', devices.length);
       console.log('[useAudioCapture] Default device ID:', defaultId);
       
-      // All toast notifications removed
+      // Only show toast if not on a restricted route
+      if (devices.length === 0 && !isRestrictedRoute()) {
+        toast.error("No microphones found", {
+          description: "Please connect a microphone and try again"
+        });
+      }
       
       setAudioDevices(devices);
       setDefaultDeviceId(defaultId);
@@ -93,11 +95,16 @@ export const useAudioCapture = () => {
     } catch (error) {
       console.error('[useAudioCapture] Error getting audio devices:', error);
       
-      // All toast notifications removed
+      // Only show error toast if not on a restricted route
+      if (!isRestrictedRoute()) {
+        toast.error("Failed to detect microphones", {
+          description: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
       
       return { devices: [] as AudioDevice[], defaultId: null };
     }
-  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime]);
+  }, [getAudioDevices, audioDevices, defaultDeviceId, lastRefreshTime, isRestrictedRoute]);
   
   // Initial device enumeration
   useEffect(() => {

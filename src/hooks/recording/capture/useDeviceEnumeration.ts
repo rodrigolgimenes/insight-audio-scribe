@@ -1,11 +1,10 @@
+
 import { useState, useCallback, useEffect, useRef } from "react";
 import { AudioDevice, toAudioDevice } from "../capture/types";
-// Remove toast import
-// import { toast } from "sonner";
+import { toast } from "sonner";
 
 /**
  * Hook to handle device enumeration with permission checking
- * All toast notifications have been disabled
  */
 export const useDeviceEnumeration = (
   checkPermissions: () => Promise<boolean>
@@ -41,7 +40,14 @@ export const useDeviceEnumeration = (
       if (!hasPermission) {
         console.warn('[useDeviceEnumeration] No microphone permission, cannot enumerate devices');
         
-        // Removed all toast notifications
+        // Only show toast once
+        if (!hasShownToastRef.current) {
+          toast.error("Microphone permission required", {
+            description: "Please allow microphone access to view available devices",
+            id: "mic-permission-required" // Use ID to prevent duplicates
+          });
+          hasShownToastRef.current = true;
+        }
         
         setAudioDevices([]);
         setDefaultDeviceId(null);
@@ -149,7 +155,11 @@ export const useDeviceEnumeration = (
         
         // Show no devices toast warning if all attempts failed
         if (!hasShownToastRef.current) {
-          // Removed all toast notifications
+          toast.warning("No microphones detected", { 
+            description: "Please check if your microphone is connected properly",
+            id: "no-mics-detected" // Use ID to prevent duplicates
+          });
+          hasShownToastRef.current = true;
         }
         
         // Close temporary stream if it was created
@@ -226,7 +236,11 @@ export const useDeviceEnumeration = (
       console.error('[useDeviceEnumeration] Error enumerating devices:', error);
       
       if (!hasShownToastRef.current) {
-        // Removed all toast notifications
+        toast.error("Failed to detect microphones", {
+          description: error instanceof Error ? error.message : "Unknown error",
+          id: "mic-detection-failed" // Use ID to prevent duplicates
+        });
+        hasShownToastRef.current = true;
       }
       
       // Retry with a different approach after error

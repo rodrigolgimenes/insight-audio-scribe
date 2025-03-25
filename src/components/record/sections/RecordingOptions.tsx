@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DeviceSelector } from "../DeviceSelector";
 import { LanguageSelector } from "../LanguageSelector";
@@ -13,10 +12,9 @@ interface RecordingOptionsProps {
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
-  onRefreshDevices?: () => void | Promise<void>;
+  onRefreshDevices?: () => void;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
-  suppressMessages?: boolean;
 }
 
 export function RecordingOptions({
@@ -29,18 +27,8 @@ export function RecordingOptions({
   deviceSelectionReady = false,
   onRefreshDevices,
   devicesLoading = false,
-  permissionState = 'unknown',
-  suppressMessages = true // Default to true
+  permissionState = 'unknown'
 }: RecordingOptionsProps) {
-  // Wrap the refresh callback to ensure it returns a Promise
-  const handleRefreshDevices = onRefreshDevices ? async () => {
-    const result = onRefreshDevices();
-    if (result instanceof Promise) {
-      return result;
-    }
-    return Promise.resolve();
-  } : undefined;
-
   return (
     <div className="space-y-6">
       <DeviceSelector
@@ -49,10 +37,9 @@ export function RecordingOptions({
         onDeviceSelect={onDeviceSelect}
         disabled={isRecording}
         isReady={deviceSelectionReady}
-        onRefreshDevices={handleRefreshDevices}
+        onRefreshDevices={onRefreshDevices}
         devicesLoading={devicesLoading}
         permissionState={permissionState}
-        suppressMessages={suppressMessages}
       />
 
       <LanguageSelector
@@ -63,7 +50,6 @@ export function RecordingOptions({
 
       <SystemAudioToggle
         isSystemAudio={isSystemAudio}
-        onChange={onSystemAudioChange}
         onSystemAudioChange={onSystemAudioChange}
         disabled={isRecording}
       />

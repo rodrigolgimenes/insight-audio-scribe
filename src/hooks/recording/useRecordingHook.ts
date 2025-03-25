@@ -1,3 +1,4 @@
+
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -28,8 +29,7 @@ export const useRecording = () => {
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
-           path.startsWith('/app/') ||
-           path.includes('simple-record');
+           path.startsWith('/app/');
   }, []);
   
   // Main state
@@ -233,12 +233,12 @@ export const useRecording = () => {
     handleSaveRecording,
     setIsSystemAudio: handleSystemAudioChange,
     audioDevices,
-    deviceSelectionReady: isRestrictedRoute() ? true : recordingState.deviceSelectionReady,
+    deviceSelectionReady: recordingState.deviceSelectionReady,
     getCurrentDuration,
     initError,
     refreshDevices,
     devicesLoading,
-    permissionState: isRestrictedRoute() ? 'granted' : permissionState,
+    permissionState,
     processingProgress,
     processingStage,
     isLoading: recordingSaveHook?.isProcessing || false,
