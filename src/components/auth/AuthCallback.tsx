@@ -12,6 +12,8 @@ export const AuthCallback = () => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        console.log("AuthCallback: Processing authentication callback");
+        
         // Handle the OAuth callback explicitly and establish the session
         const { data: authData, error: authError } = await supabase.auth.getSession();
         
@@ -27,8 +29,19 @@ export const AuthCallback = () => {
         
         if (authData.session) {
           console.log("Auth successful, session established:", !!authData.session);
+          
+          // Store session in localStorage for persistence
+          localStorage.setItem('supabase.auth.session', JSON.stringify(authData.session));
+          
+          // Explicitly set the auth state
+          await supabase.auth.setSession(authData.session);
+          
           toast.success("Authentication successful");
-          navigate('/app');
+          
+          // Wait a moment to ensure session is properly set
+          setTimeout(() => {
+            navigate('/app');
+          }, 500);
         } else {
           console.error("No session found after redirect");
           setError("No session found after login. Please try again.");

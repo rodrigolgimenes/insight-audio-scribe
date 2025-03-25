@@ -27,6 +27,13 @@ export const useRecordingAuth = () => {
           setAuthError(error.message);
         } else {
           console.log("Recording auth check result:", !!data.session);
+          
+          // If we found a session but AuthProvider doesn't have one yet,
+          // store it in localStorage for AuthProvider to find
+          if (data.session && !session) {
+            localStorage.setItem('supabase.auth.session', JSON.stringify(data.session));
+          }
+          
           setAuthError(null);
         }
       } catch (err) {
@@ -38,7 +45,7 @@ export const useRecordingAuth = () => {
     };
 
     checkAuth();
-  }, [authLoading, authContextError]);
+  }, [authLoading, authContextError, session]);
 
   return {
     isAuthenticated: !!session,

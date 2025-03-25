@@ -2,20 +2,33 @@
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useEffect } from "react";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session, loading } = useAuth();
+  const from = (location.state as any)?.from?.pathname || "/app";
 
   useEffect(() => {
-    if (session && !loading) {
+    // Check for stored session in localStorage as a backup
+    const storedSession = localStorage.getItem('supabase.auth.session');
+    const hasStoredSession = !!storedSession;
+    
+    console.log("LoginPage: Auth check", { 
+      loading, 
+      hasSession: !!session, 
+      hasStoredSession
+    });
+
+    // Redirect if we have a session from the context or localStorage
+    if ((session || hasStoredSession) && !loading) {
       console.log("User already authenticated, redirecting to app");
-      navigate("/app");
+      navigate(from);
     }
-  }, [session, loading, navigate]);
+  }, [session, loading, navigate, from]);
 
   // Don't render the auth UI if we're loading or already have a session
   if (loading) {
