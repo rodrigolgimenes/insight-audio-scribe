@@ -10,7 +10,7 @@ interface DeviceSelectorProps {
   onDeviceSelect: (deviceId: string) => void;
   disabled?: boolean;
   isReady?: boolean;
-  onRefreshDevices?: () => void;
+  onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
 }
@@ -30,6 +30,14 @@ export function DeviceSelector({
     return <DevicePermissionError />;
   }
 
+  // Define a wrapper function that ensures we return a Promise
+  const handleRefreshDevices = async () => {
+    if (onRefreshDevices) {
+      return onRefreshDevices();
+    }
+    return Promise.resolve();
+  };
+
   // Just pass through to our centralized MicrophoneSelector component
   console.log("[DeviceSelector] Rendering unified MicrophoneSelector");
   return <MicrophoneSelector 
@@ -38,7 +46,7 @@ export function DeviceSelector({
     selectedDeviceId={selectedDeviceId}
     onDeviceSelect={onDeviceSelect}
     isReady={isReady}
-    onRefreshDevices={onRefreshDevices}
+    onRefreshDevices={handleRefreshDevices}
     devicesLoading={devicesLoading}
   />;
 }
