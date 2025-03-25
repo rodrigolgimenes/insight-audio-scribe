@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useRecording } from "@/hooks/useRecording";
 import {
@@ -12,24 +13,15 @@ import { AlertCircle } from "lucide-react";
 import { RecordingSection } from "@/components/record/RecordingSection";
 import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/types";
 
-type LastActionType = string | { 
-  action: string; 
-  timestamp: number; 
-  success: boolean; 
-  error?: string 
-};
-
 interface ModalRecordContentProps {
   closeModal: () => void;
   onSuccess?: () => void;
-  lastAction?: LastActionType;
 }
 
-export function ModalRecordContent({
+export const ModalRecordContent = ({ 
   closeModal, 
-  onSuccess,
-  lastAction
-}: ModalRecordContentProps) {
+  onSuccess
+}: ModalRecordContentProps) => {
   const [error, setError] = useState<string | null>(null);
   const {
     isRecording,
@@ -47,13 +39,14 @@ export function ModalRecordContent({
     selectedDeviceId,
     setSelectedDeviceId,
     deviceSelectionReady,
-    lastAction: lastActionState,
+    lastAction,
     permissionState: recordingPermissionState,
     handleSaveRecording,
     devicesLoading,
     refreshDevices
   } = useRecording();
 
+  // Wrap the saveRecording function to return the expected type
   const handleSaveClick = async (): Promise<{ success: boolean }> => {
     try {
       await handleSaveRecording();
@@ -66,6 +59,7 @@ export function ModalRecordContent({
     }
   };
 
+  // Create wrapper for refreshDevices that returns a Promise
   const handleRefreshDevices = async (): Promise<void> => {
     try {
       if (refreshDevices) {
@@ -78,6 +72,7 @@ export function ModalRecordContent({
     }
   };
 
+  // Get the type from RecordingSection props
   const permissionStateForComponent = recordingPermissionState === 'unknown' 
     ? 'prompt' // Map 'unknown' to 'prompt' which is acceptable by RecordingSection
     : recordingPermissionState;
@@ -109,7 +104,7 @@ export function ModalRecordContent({
         selectedDeviceId={selectedDeviceId}
         onDeviceSelect={setSelectedDeviceId}
         deviceSelectionReady={deviceSelectionReady}
-        lastAction={lastActionState}
+        lastAction={lastAction}
         permissionState={permissionStateForComponent}
         showPlayButton={false}
         onSave={handleSaveClick}
