@@ -40,7 +40,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         .eq("note_id", note.id)
         .maybeSingle();
       
-      // Ensure we return an object with the correct shape
+      // Ensure we return an object with the correct shape, not an array
       return data?.folder ? {
         id: data.folder.id as string,
         name: data.folder.name as string
