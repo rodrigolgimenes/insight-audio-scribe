@@ -1,11 +1,10 @@
 
-import React, { useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Pause, Save, Trash2, Play } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Mic, MicOff, Pause, Play, Save, StopCircle, Trash } from "lucide-react";
+import AudioPlayer from "./AudioPlayer";
 import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
-import { RecordControls } from "@/components/record/RecordControls";
+import { RecordingValidator } from "@/utils/audio/recordingValidator";
 
 interface RecordingControlsProps {
   isRecording: boolean;
@@ -18,15 +17,15 @@ interface RecordingControlsProps {
   onDelete: () => void;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
-  isLoading?: boolean;
   onSave?: () => Promise<any>;
   isSaving?: boolean;
+  isLoading?: boolean;
   processingProgress?: number;
   processingStage?: string;
-  disabled?: boolean; // Add disabled prop
+  disabled?: boolean;
 }
 
-export const RecordingControls = ({
+export function RecordingControls({
   isRecording,
   isPaused,
   audioUrl,
@@ -37,106 +36,141 @@ export const RecordingControls = ({
   onDelete,
   showPlayButton = true,
   showDeleteButton = true,
-  isLoading = false,
   onSave,
   isSaving = false,
+  isLoading = false,
   processingProgress = 0,
   processingStage = "",
-  disabled = false // Add default value
-}: RecordingControlsProps) => {
-  const [isPlaying, setIsPlaying] = useState(false);
+  disabled = false
+}: RecordingControlsProps) {
+  
+  // Check if we have a valid recording or playable audio
+  const hasRecording = audioUrl !== null;
+  
+  // Determine appropriate button to display
+  const renderRecordingButton = () => {
+    if (isLoading) {
+      // Show a loading state
+      return (
+        <Button
+          onClick={() => {}}
+          disabled={true}
+          variant="outline"
+          className="w-full h-12 bg-gray-100"
+        >
+          <div className="animate-spin h-5 w-5 mr-2 border-2 border-b-transparent rounded-full"></div>
+          Loading...
+        </Button>
+      );
+    }
 
-  // Handle playback
-  const handlePlay = () => {
-    if (!audioUrl) return;
-    
-    const audio = new Audio(audioUrl);
-    audio.onplay = () => setIsPlaying(true);
-    audio.onended = () => setIsPlaying(false);
-    audio.onpause = () => setIsPlaying(false);
-    audio.play().catch(err => {
-      console.error("Error playing audio:", err);
-      setIsPlaying(false);
-    });
+    if (!isRecording) {
+      // Show the Start Recording button
+      return (
+        <Button
+          onClick={onStart}
+          disabled={disabled}
+          className="w-full h-12 bg-green-500 hover:bg-green-600 text-white"
+        >
+          <Mic className="h-5 w-5 mr-2" />
+          Start Recording
+        </Button>
+      );
+    }
+
+    if (isPaused) {
+      // Show the Resume button
+      return (
+        <Button
+          onClick={onResume}
+          className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white"
+        >
+          <Play className="h-5 w-5 mr-2" />
+          Resume
+        </Button>
+      );
+    }
+
+    // Show the Pause/Stop controls when recording
+    return (
+      <div className="flex gap-2 w-full">
+        <Button
+          onClick={onPause}
+          variant="outline"
+          className="flex-1 h-12 border-amber-500 text-amber-500 hover:bg-amber-50"
+        >
+          <Pause className="h-5 w-5 mr-2" />
+          Pause
+        </Button>
+        <Button
+          onClick={onStop}
+          className="flex-1 h-12 bg-red-500 hover:bg-red-600 text-white"
+        >
+          <StopCircle className="h-5 w-5 mr-2" />
+          Stop
+        </Button>
+      </div>
+    );
   };
 
-  // During recording, show record controls
-  if (isRecording || !audioUrl) {
+  // Render additional options when we have a recording
+  const renderPostRecordingOptions = () => {
+    if (!hasRecording || isRecording) {
+      return null;
+    }
+
     return (
-      <RecordControls
-        isRecording={isRecording}
-        isPaused={isPaused}
-        onStartRecording={onStart}
-        onStopRecording={onStop}
-        onPauseRecording={onPause}
-        onResumeRecording={onResume}
-        deviceSelectionReady={true}
-        disabled={disabled}
-      />
-    );
-  }
-
-  // After recording, show playback and save controls
-  return (
-    <div className="w-full flex flex-col items-center gap-4">
-      <div className="flex items-center justify-center gap-4">
-        {/* Play button */}
-        {showPlayButton && (
-          <Button
-            onClick={handlePlay}
-            disabled={isPlaying || isLoading || disabled}
-            className={cn(
-              "rounded-full w-14 h-14 bg-green-500 hover:bg-green-600",
-              isPlaying && "animate-pulse"
-            )}
-            aria-label="Play Recording"
-          >
-            <Play className="h-6 w-6 text-white" />
-          </Button>
-        )}
-
-        {/* Delete button */}
-        {showDeleteButton && (
-          <Button
-            onClick={onDelete}
-            variant="outline"
-            disabled={isLoading || disabled}
-            className="rounded-full w-12 h-12 text-red-500 border-red-200 hover:bg-red-50"
-            aria-label="Delete Recording"
-          >
-            <Trash2 className="h-5 w-5" />
-          </Button>
-        )}
-
-        {/* Save button */}
-        {onSave && (
-          <Button
-            onClick={onSave}
-            disabled={isSaving || isLoading || disabled}
-            className={cn(
-              "rounded-full w-14 h-14 bg-blue-500 hover:bg-blue-600",
-              isSaving && "animate-pulse"
-            )}
-            aria-label="Save Recording"
-          >
-            {isSaving ? (
-              <Spinner className="h-6 w-6 text-white" />
-            ) : (
-              <Save className="h-6 w-6 text-white" />
-            )}
-          </Button>
+      <div className="mt-4 space-y-4">
+        {showPlayButton && <AudioPlayer audioUrl={audioUrl} />}
+        
+        <div className="flex gap-2">
+          {showDeleteButton && (
+            <Button
+              onClick={onDelete}
+              variant="outline"
+              className="flex-1 border-red-500 text-red-500 hover:bg-red-50"
+              disabled={isSaving}
+            >
+              <Trash className="h-5 w-5 mr-2" />
+              Delete
+            </Button>
+          )}
+          
+          {onSave && (
+            <Button
+              onClick={onSave}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+              disabled={isSaving || isLoading}
+            >
+              {isSaving ? (
+                <>
+                  <div className="animate-spin h-5 w-5 mr-2 border-2 border-b-transparent rounded-full"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5 mr-2" />
+                  Save
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+        
+        {isSaving && processingProgress > 0 && (
+          <div className="space-y-2">
+            <Progress value={processingProgress} className="h-2" />
+            <p className="text-xs text-gray-500">{processingStage || "Processing..."}</p>
+          </div>
         )}
       </div>
+    );
+  };
 
-      {/* Processing progress */}
-      {isSaving && processingProgress > 0 && (
-        <div className="w-full max-w-xs mt-2">
-          <Progress value={processingProgress} />
-          <p className="text-xs text-center mt-1 text-gray-500">
-            {processingStage || "Processing..."}
-          </p>
-        </div>
-      )}
+  return (
+    <div className="w-full">
+      {renderRecordingButton()}
+      {renderPostRecordingOptions()}
     </div>
   );
-};
+}

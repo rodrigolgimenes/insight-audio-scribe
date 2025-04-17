@@ -53,10 +53,10 @@ export const SimpleAudioRecorder = ({
       chunksRef.current = [];
       setAudioUrl(null);
       
-      // Solicite permissão ao microfone com tentativas de fallback
+      // Request microphone permission with fallback attempts
       let stream;
       try {
-        // Primeira tentativa com configurações detalhadas
+        // First attempt with detailed settings
         stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             echoCancellation: true,
@@ -65,46 +65,46 @@ export const SimpleAudioRecorder = ({
           } 
         });
       } catch (initialError) {
-        console.log("Tentativa inicial falhou, tentando configuração mais simples", initialError);
+        console.log("Initial attempt failed, trying simpler configuration", initialError);
         
-        // Segunda tentativa com configuração simples
+        // Second attempt with simple configuration
         try {
           stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         } catch (fallbackError) {
           if (fallbackError instanceof DOMException) {
             if (fallbackError.name === 'NotAllowedError') {
-              setPermissionError("Acesso ao microfone negado. Por favor, permita o acesso nas configurações do navegador.");
-              toast.error("Acesso ao microfone negado", {
-                description: "Verifique as permissões no seu navegador"
+              setPermissionError("Microphone access denied. Please allow access in your browser settings.");
+              toast.error("Microphone access denied", {
+                description: "Check your browser permission settings"
               });
             } else if (fallbackError.name === 'NotFoundError') {
-              setPermissionError("Nenhum microfone encontrado. Conecte um microfone e tente novamente.");
-              toast.error("Nenhum microfone encontrado", {
-                description: "Conecte um microfone e tente novamente"
+              setPermissionError("No microphone found. Please connect a microphone and try again.");
+              toast.error("No microphone found", {
+                description: "Please connect a microphone and try again"
               });
             } else {
-              setPermissionError(`Erro ao acessar o microfone: ${fallbackError.message}`);
-              toast.error("Erro ao acessar o microfone", {
+              setPermissionError(`Microphone error: ${fallbackError.message}`);
+              toast.error("Microphone error", {
                 description: fallbackError.message
               });
             }
           } else {
-            setPermissionError("Erro desconhecido ao acessar o microfone.");
-            toast.error("Erro desconhecido");
+            setPermissionError("Unknown microphone error.");
+            toast.error("Unknown error");
           }
           setIsLoading(false);
           return;
         }
       }
       
-      // Verificar se conseguimos o stream
+      // Check if we got a stream
       if (!stream) {
-        setPermissionError("Falha ao obter stream de áudio");
+        setPermissionError("Failed to get audio stream");
         setIsLoading(false);
         return;
       }
       
-      // Tentativa de usar codecs de alta qualidade, com fallback para o padrão
+      // Try to use high quality codecs with fallback
       let options;
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         options = { mimeType: 'audio/webm;codecs=opus' };
@@ -129,13 +129,13 @@ export const SimpleAudioRecorder = ({
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
         
-        // Parar todos os tracks
+        // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
         
-        // Resetar estado
+        // Reset state
         setIsRecording(false);
         
-        // Limpar o timer
+        // Clear timer
         if (timerRef.current) {
           window.clearInterval(timerRef.current);
           timerRef.current = null;
@@ -143,17 +143,17 @@ export const SimpleAudioRecorder = ({
         
         setIsLoading(false);
         
-        // Feedback sonoro e visual de que a gravação foi concluída
-        toast.success("Gravação concluída", {
-          description: `Duração: ${formatTime(Math.floor(duration / 1000))}`
+        // Audio and visual feedback that recording is complete
+        toast.success("Recording completed", {
+          description: `Duration: ${formatTime(Math.floor(duration / 1000))}`
         });
       };
       
-      // Iniciar gravação
-      mediaRecorder.start(1000); // Coleta dados a cada segundo
+      // Start recording
+      mediaRecorder.start(1000); // Collect data every second
       mediaRecorderRef.current = mediaRecorder;
       
-      // Definir horário de início e iniciar timer
+      // Set start time and start timer
       const startTime = Date.now();
       setRecordingStartTime(startTime);
       setElapsedTime(0);
@@ -165,14 +165,14 @@ export const SimpleAudioRecorder = ({
       setIsRecording(true);
       setIsLoading(false);
       
-      toast.success("Gravação iniciada", {
-        description: "Fale no microfone"
+      toast.success("Recording started", {
+        description: "Speak into your microphone"
       });
     } catch (error) {
-      console.error("Erro ao iniciar gravação:", error);
-      setPermissionError(error instanceof Error ? error.message : "Erro desconhecido");
-      toast.error("Erro ao iniciar gravação", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+      console.error("Error starting recording:", error);
+      setPermissionError(error instanceof Error ? error.message : "Unknown error");
+      toast.error("Error starting recording", {
+        description: error instanceof Error ? error.message : "Unknown error"
       });
       setIsLoading(false);
     }
@@ -181,13 +181,13 @@ export const SimpleAudioRecorder = ({
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      toast.info("Finalizando gravação...");
+      toast.info("Finalizing recording...");
     }
   };
   
   const handleSubmitAudio = async () => {
     if (!audioUrl) {
-      toast.error("Nenhuma gravação disponível");
+      toast.error("No audio available");
       return;
     }
     
@@ -195,13 +195,13 @@ export const SimpleAudioRecorder = ({
       setIsLoading(true);
       setTranscriptionProgress(10);
       
-      // Buscar dados de áudio
+      // Fetch audio data
       const response = await fetch(audioUrl);
       const originalBlob = await response.blob();
       
       // Compress the audio before transcription
       setTranscriptionProgress(20);
-      toast.info("Comprimindo áudio...");
+      toast.info("Compressing audio...");
       
       // Use our new audio compressor for voice optimization
       let audioBlob: Blob;
@@ -219,27 +219,27 @@ export const SimpleAudioRecorder = ({
         console.log(`Audio compressed from ${(originalSize / (1024 * 1024)).toFixed(2)}MB to ${(compressedSize / (1024 * 1024)).toFixed(2)}MB (${compressionRatio}% reduction)`);
         
         if (compressionRatio > 10) {
-          toast.success(`Áudio comprimido em ${compressionRatio}%`, {
-            description: "Isso vai acelerar a transcrição"
+          toast.success(`Audio compressed in ${compressionRatio}%`, {
+            description: "This will speed up transcription"
           });
         }
       } catch (compressionError) {
-        console.error("Erro na compressão:", compressionError);
-        toast.warning("Falha na compressão, usando áudio original");
+        console.error("Error during compression:", compressionError);
+        toast.warning("Compression failed, using original audio");
         audioBlob = originalBlob;
       }
       
-      // Mostrar feedback sobre o tamanho do arquivo
+      // Show feedback about file size
       const fileSizeMB = audioBlob.size / (1024 * 1024);
-      console.log(`Tamanho do arquivo de áudio: ${fileSizeMB.toFixed(2)} MB`);
+      console.log(`Audio file size: ${fileSizeMB.toFixed(2)} MB`);
       
       if (fileSizeMB > 25) {
-        toast.warning("Arquivo grande detectado", {
-          description: `O arquivo tem ${fileSizeMB.toFixed(2)} MB. A transcrição pode demorar mais.`
+        toast.warning("Large file detected", {
+          description: `The file is ${fileSizeMB.toFixed(2)} MB. Transcription may take longer.`
         });
       }
       
-      // Converter blob para base64
+      // Convert blob to base64
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       
@@ -248,7 +248,7 @@ export const SimpleAudioRecorder = ({
         const base64Audio = base64data.split(',')[1];
         
         setTranscriptionProgress(30);
-        toast.info("Iniciando transcrição...");
+        toast.info("Starting transcription...");
         
         try {
           setTranscriptionProgress(50);
@@ -264,23 +264,23 @@ export const SimpleAudioRecorder = ({
           if (data.success) {
             onNewTranscription(data.transcription);
             setTranscriptionProgress(100);
-            toast.success("Transcrição concluída com sucesso");
+            toast.success("Transcription completed successfully");
           } else {
-            throw new Error(data.error || "Erro desconhecido durante a transcrição");
+            throw new Error(data.error || "Unknown error during transcription");
           }
         } catch (invokeError) {
-          console.error("Erro durante a transcrição:", invokeError);
-          toast.error("Falha na transcrição", {
-            description: invokeError instanceof Error ? invokeError.message : "Erro desconhecido"
+          console.error("Error during transcription:", invokeError);
+          toast.error("Transcription failed", {
+            description: invokeError instanceof Error ? invokeError.message : "Unknown error"
           });
         } finally {
           setIsLoading(false);
         }
       };
     } catch (error) {
-      console.error("Erro ao enviar áudio:", error);
-      toast.error("Erro ao enviar áudio", {
-        description: error instanceof Error ? error.message : "Erro desconhecido"
+      console.error("Error sending audio:", error);
+      toast.error("Error sending audio", {
+        description: error instanceof Error ? error.message : "Unknown error"
       });
       setIsLoading(false);
     }
@@ -307,7 +307,7 @@ export const SimpleAudioRecorder = ({
               onClick={startRecording}
               disabled={isLoading}
               className="bg-green-500 hover:bg-green-600 text-white rounded-full h-16 w-16 flex items-center justify-center"
-              aria-label="Iniciar Gravação"
+              aria-label="Start Recording"
             >
               {isLoading ? (
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -320,46 +320,55 @@ export const SimpleAudioRecorder = ({
               onClick={stopRecording}
               disabled={isLoading}
               className="bg-red-500 hover:bg-red-600 text-white rounded-full h-16 w-16 flex items-center justify-center"
-              aria-label="Parar Gravação"
+              aria-label="Stop Recording"
             >
-              <StopCircle className="h-8 w-8" />
+              {isLoading ? (
+                <Loader2 className="h-8 w-8 animate-spin" />
+              ) : (
+                <StopCircle className="h-8 w-8" />
+              )}
             </Button>
           )}
         </div>
         
         {permissionError && (
-          <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600 text-sm flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-            <span>{permissionError}</span>
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500 mt-1 flex-shrink-0" />
+            <div>
+              <p className="text-red-800 font-medium">Permission Error</p>
+              <p className="text-red-600 text-sm">{permissionError}</p>
+            </div>
           </div>
         )}
         
-        {audioUrl && (
-          <div className="mt-4">
-            <audio src={audioUrl} controls className="w-full rounded-md shadow-sm" />
-            <Button
-              onClick={handleSubmitAudio}
+        {transcriptionProgress > 0 && (
+          <div className="mt-4 space-y-2">
+            <Progress value={transcriptionProgress} className="h-2" />
+            <p className="text-xs text-gray-500 text-center">
+              {transcriptionProgress < 100 
+                ? `Transcribing: ${transcriptionProgress}%`
+                : "Transcription complete"}
+            </p>
+          </div>
+        )}
+        
+        {audioUrl && !isRecording && (
+          <div className="mt-4 space-y-4">
+            <audio src={audioUrl} controls className="w-full" />
+            <Button 
+              onClick={handleSubmitAudio} 
               disabled={isLoading}
-              className="w-full mt-2 bg-blue-500 hover:bg-blue-600 text-white"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Transcrevendo...
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Transcribing...
                 </>
               ) : (
-                "Transcrever Áudio"
+                "Transcribe Audio"
               )}
             </Button>
-            
-            {isLoading && transcriptionProgress > 0 && (
-              <div className="mt-2">
-                <Progress value={transcriptionProgress} className="h-2" />
-                <p className="text-xs text-gray-500 mt-1 text-center">
-                  {transcriptionProgress < 100 ? "Processando..." : "Concluído!"}
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>

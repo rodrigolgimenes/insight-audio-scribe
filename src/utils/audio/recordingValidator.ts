@@ -1,4 +1,3 @@
-
 /**
  * Utility for validating recording prerequisites and diagnosing issues
  */
@@ -54,14 +53,9 @@ export class RecordingValidator {
     // Check permission state first (most critical)
     if (permissionState === 'denied') {
       diagnostics.issues.push('Microphone permission denied in browser');
-    } else if (permissionState === 'prompt') {
-      diagnostics.issues.push('Microphone permission needed - please allow when prompted');
-    } else if (permissionState === 'unknown') {
-      diagnostics.issues.push('Microphone permission status unknown');
-    }
-    
+    } 
     // Only check these if permission isn't explicitly denied
-    if (permissionState !== 'denied') {
+    else {
       // Check if we have devices
       if (!diagnostics.hasDevices) {
         diagnostics.issues.push('No microphones detected');
@@ -81,13 +75,14 @@ export class RecordingValidator {
       }
     }
     
-    // Determine if recording can start - add deviceExists check
+    // Determine if recording can start - less restrictive now
+    // Allow recording if we have devices, permissions, and a valid selection
     diagnostics.canStartRecording = 
       diagnostics.hasDevices && 
       diagnostics.deviceSelected && 
       diagnostics.deviceExists && 
-      diagnostics.deviceSelectionReady && 
-      (permissionState === 'granted');
+      // Remove the deviceSelectionReady check as it appears to be inconsistent
+      (permissionState === 'granted' || permissionState === 'prompt'); // Allow prompt state too
     
     console.log('[RecordingValidator] Validation result:', {
       canStartRecording: diagnostics.canStartRecording,
