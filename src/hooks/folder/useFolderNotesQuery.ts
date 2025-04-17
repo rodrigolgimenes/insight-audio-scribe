@@ -65,10 +65,11 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
         if (note.recordings) {
           // Check if recordings is an array
           if (Array.isArray(note.recordings) && note.recordings.length > 0) {
-            duration = note.recordings[0].duration;
-          } else if (typeof note.recordings === 'object') {
-            // If it's a single object
-            duration = note.recordings.duration;
+            // Access duration from the first item in the array
+            duration = note.recordings[0]?.duration || null;
+          } else if (typeof note.recordings === 'object' && note.recordings !== null) {
+            // If it's a single object with a duration property
+            duration = (note.recordings as { duration?: any })?.duration || null;
           }
         }
 
