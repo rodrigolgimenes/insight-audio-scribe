@@ -1,12 +1,12 @@
-
+import React from "react";
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
-import { AudioDevice, PermissionState as CapturePermissionState } from "@/hooks/recording/capture/types";
+import { AudioDevice } from "@/hooks/recording/capture/types";
+import { TranscriptionStatus } from "@/components/record/transcription/TranscriptionStatus";
 
-// Define a unified PermissionState type that works across components
 type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
 interface RecordingSectionProps {
