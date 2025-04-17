@@ -59,11 +59,25 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
 
       console.log("Raw folder notes data:", data);
 
-      const processedNotes = data.map(note => ({
-        ...note,
-        duration: note.recordings && note.recordings.duration ? note.recordings.duration : null,
-        tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
-      }));
+      const processedNotes = data.map(note => {
+        // Handle recordings property which might be an array with a single object or null
+        let duration = null;
+        if (note.recordings) {
+          // Check if recordings is an array
+          if (Array.isArray(note.recordings) && note.recordings.length > 0) {
+            duration = note.recordings[0].duration;
+          } else if (typeof note.recordings === 'object') {
+            // If it's a single object
+            duration = note.recordings.duration;
+          }
+        }
+
+        return {
+          ...note,
+          duration: duration,
+          tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
+        };
+      });
 
       console.log("Processed notes:", processedNotes);
       return processedNotes;
