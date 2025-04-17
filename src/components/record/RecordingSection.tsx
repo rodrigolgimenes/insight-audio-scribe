@@ -5,7 +5,7 @@ import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { TranscriptionStatus } from "@/components/record/transcription/TranscriptionStatus";
+import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 
 type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
@@ -130,7 +130,7 @@ export const RecordingSection = ({
           isRecording={isRecording}
           onRefreshDevices={onRefreshDevices}
           devicesLoading={devicesLoading}
-          permissionState={permissionState as CapturePermissionState}
+          permissionState={permissionState}
           disabled={disabled}
         />
       </div>

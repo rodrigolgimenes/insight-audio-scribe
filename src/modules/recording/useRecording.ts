@@ -1,7 +1,13 @@
 
 import { useState, useCallback, useRef } from 'react';
-import { RecordingState, RecordingOptions, RecordingResult } from './types';
+import { RecordingState, RecordingOptions } from './types';
 import { AudioRecorder } from '@/utils/audio/audioRecorder';
+import { RecordingResult as AudioRecorderResult } from '@/utils/audio/types';
+
+// Define a type for the internal result that matches what's used in the module
+interface InternalRecordingResult extends AudioRecorderResult {
+  duration: number; // Ensure duration is required
+}
 
 export const useRecording = () => {
   const [state, setState] = useState<RecordingState>({
@@ -46,7 +52,7 @@ export const useRecording = () => {
     }
   }, []);
   
-  const stopRecording = useCallback(async (): Promise<RecordingResult> => {
+  const stopRecording = useCallback(async (): Promise<InternalRecordingResult> => {
     try {
       const result = await recorder.current.stopRecording();
       
@@ -61,7 +67,13 @@ export const useRecording = () => {
         }));
       }
       
-      return result;
+      // Ensure duration is always present in the result
+      const recordingResult: InternalRecordingResult = {
+        ...result,
+        duration: result.duration || 0
+      };
+      
+      return recordingResult;
     } catch (error) {
       setState(prev => ({
         ...prev,
