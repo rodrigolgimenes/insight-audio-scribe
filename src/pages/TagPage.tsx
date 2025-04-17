@@ -45,26 +45,30 @@ export default function TagPage() {
   const { data: tag, isLoading: isTagLoading } = useTagQuery(tagId);
   const { data: notesData, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
   
-  // Transform the notes data to match the Note type
-  const notes: Note[] | undefined = notesData?.map((note: RawNoteFromDB) => {
+  // Safely transform the notes data to match the Note type
+  const notes: Note[] | undefined = notesData?.map((rawNote: any) => {
     // Extract tags from notes_tags array
-    const noteTags = note.notes_tags?.map(nt => nt.tags) || [];
+    const noteTags = rawNote.notes_tags?.map((nt: any) => ({
+      id: nt.tags.id || '',
+      name: nt.tags.name || '',
+      color: nt.tags.color || null
+    })) || [];
     
     return {
-      id: note.id,
-      title: note.title,
-      processed_content: note.processed_content,
-      original_transcript: note.original_transcript,
-      full_prompt: note.full_prompt,
-      created_at: note.created_at,
-      updated_at: note.updated_at || note.created_at,
-      recording_id: note.recording_id,
-      user_id: note.user_id,
-      duration: note.duration,
-      audio_url: note.audio_url,
-      status: (note.status as Note['status']) || 'completed',
-      processing_progress: note.processing_progress || 0,
-      error_message: note.error_message || null,
+      id: rawNote.id || '',
+      title: rawNote.title || '',
+      processed_content: rawNote.processed_content || '',
+      original_transcript: rawNote.original_transcript || null,
+      full_prompt: rawNote.full_prompt || null,
+      created_at: rawNote.created_at || '',
+      updated_at: rawNote.updated_at || rawNote.created_at || '',
+      recording_id: rawNote.recording_id || '',
+      user_id: rawNote.user_id || '',
+      duration: rawNote.duration || null,
+      audio_url: rawNote.audio_url || null,
+      status: (rawNote.status as Note['status']) || 'completed',
+      processing_progress: rawNote.processing_progress || 0,
+      error_message: rawNote.error_message || null,
       tags: noteTags
     };
   });

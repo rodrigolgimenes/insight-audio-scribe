@@ -62,12 +62,16 @@ const FolderPage = () => {
     updated_at: note.created_at, // Use created_at as fallback since updated_at isn't in the query
     recording_id: note.id, // Use note.id as recording_id since it's not in the query
     user_id: 'anonymous', // Set a default value since it's not in the query
-    duration: note.recordings?.duration || null,
+    duration: note.duration || null,
     audio_url: null, // Since it's not in the query, set to null
-    status: 'completed', // Default status to completed
+    status: 'completed' as const, // Default status to completed with type assertion
     processing_progress: 100, // Default to 100% complete
     error_message: null, // Default to no error
-    tags: note.notes_tags?.map(nt => nt.tags).filter(Boolean) || []
+    tags: note.tags ? note.tags.map((tag: any) => ({
+      id: tag.id || '',
+      name: tag.name || '',
+      color: tag.color || null
+    })) : []
   })) || [];
 
   return (

@@ -39,7 +39,12 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         `)
         .eq("note_id", note.id)
         .maybeSingle();
-      return data?.folder || null;
+      
+      // Ensure we return an object with the correct shape
+      return data?.folder ? {
+        id: data.folder.id as string,
+        name: data.folder.name as string
+      } : null;
     },
   });
 
@@ -170,6 +175,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         folder={currentFolder}
         status={noteStatus?.status}
         progress={noteStatus?.processing_progress}
+        noteId={note.id}
       />
 
       <RenameNoteDialog
