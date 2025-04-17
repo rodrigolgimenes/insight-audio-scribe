@@ -7,6 +7,7 @@ import { RecordingResult as AudioRecorderResult } from '@/utils/audio/types';
 // Define a type for the internal result that matches what's used in the module
 interface InternalRecordingResult extends AudioRecorderResult {
   duration: number; // Ensure duration is required
+  error?: string;  // Add the error property that we're using
 }
 
 export const useRecording = () => {
@@ -79,7 +80,17 @@ export const useRecording = () => {
         ...prev,
         error: error instanceof Error ? error.message : 'Failed to stop recording'
       }));
-      return { blob: null, duration: 0, error: 'Failed to stop recording' };
+      return { 
+        blob: null, 
+        duration: 0, 
+        error: 'Failed to stop recording',
+        stats: {
+          blobSize: 0,
+          duration: 0,
+          chunks: 0,
+          mimeType: ''
+        }
+      };
     }
   }, []);
   

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
@@ -5,9 +6,10 @@ import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { PermissionState } from "@/hooks/recording/capture/permissions/types";
+import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/permissions/types";
 
-type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
+// Remove duplicate PermissionState definition as we're now using the imported one
+// type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -33,7 +35,7 @@ interface RecordingSectionProps {
   lastAction?: { action: string; timestamp: number; success: boolean };
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
-  permissionState?: PermissionState;
+  permissionState?: CapturePermissionState;
   processingProgress?: number;
   processingStage?: string;
   isRestrictedRoute?: boolean;
