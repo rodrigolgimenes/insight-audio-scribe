@@ -42,8 +42,8 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       
       // Ensure we return an object with the correct shape, not an array
       return data?.folder ? {
-        id: data.folder.id as string,
-        name: data.folder.name as string
+        id: (data.folder as any).id as string,
+        name: (data.folder as any).name as string
       } : null;
     },
   });

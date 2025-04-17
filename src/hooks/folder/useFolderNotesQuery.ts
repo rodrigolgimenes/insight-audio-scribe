@@ -61,7 +61,7 @@ export const useFolderNotesQuery = (folderId: string | undefined) => {
 
       const processedNotes = data.map(note => ({
         ...note,
-        duration: note.recordings ? note.recordings.duration : null,
+        duration: note.recordings && note.recordings.duration ? note.recordings.duration : null,
         tags: note.notes_tags?.map((nt: any) => nt.tags).filter(Boolean) || []
       }));
 
