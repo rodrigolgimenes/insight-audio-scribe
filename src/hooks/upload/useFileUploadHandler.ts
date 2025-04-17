@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { LargeFileProcessor } from '@/utils/audio/processing/LargeFileProcessor';
 
 export const useFileUploadHandler = (
   setIsUploading: React.Dispatch<React.SetStateAction<boolean>>,
@@ -116,6 +117,21 @@ export const useFileUploadHandler = (
 
       setUploadProgress(40);
 
+      // Check if this is a large file
+      const isLargeFile = LargeFileProcessor.isLargeFile(file.size);
+      if (isLargeFile) {
+        await supabase
+          .from('processing_logs')
+          .insert({
+            recording_id: recordingData.id,
+            note_id: noteData.id,
+            stage: 'large_file_detected',
+            message: `Large file detected (${Math.round(file.size / 1024 / 1024 * 100) / 100} MB)`,
+            details: { fileSize: file.size },
+            status: 'info'
+          });
+      }
+
       // Upload file to Supabase Storage with proper content type
       const contentType = isMp3File ? 'audio/mp3' : file.type;
       const { error: uploadError } = await supabase.storage
@@ -180,15 +196,14 @@ export const useFileUploadHandler = (
             });
         }
 
-        // Start the transcription process
+        // For large files, use the process-recording endpoint with appropriate parameters
         const { error: invocationError } = await supabase.functions.invoke(
-          'transcribe-upload',
+          'process-recording',
           {
             body: {
               recordingId: recordingData.id,
               noteId: noteData.id,
-              filePath: filePath,
-              videoFile: isVideoFile
+              startImmediately: true
             }
           }
         );

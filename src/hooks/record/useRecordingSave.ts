@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -5,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { chunkedTranscriptionService } from "@/services/transcription/ChunkedTranscriptionService";
 import { toast as sonnerToast } from "sonner";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
+import { LargeFileProcessor } from "@/utils/audio/processing/LargeFileProcessor";
 
 // Get the Supabase URL and key from the client file
 const SUPABASE_URL = "https://wbptvnuyhgstaaufzysh.supabase.co";
@@ -89,10 +91,19 @@ export const useRecordingSave = () => {
 
       console.log('Recording entry created:', recordingData);
       
-      sonnerToast.info("Processing your recording", {
-        description: "This may take a few minutes for larger files",
-        duration: 5000,
-      });
+      // Check if this is a large file
+      const isLargeFile = LargeFileProcessor.isLargeFile(audioBlob.size, durationInMs);
+      if (isLargeFile) {
+        sonnerToast.info("Large recording detected", {
+          description: "This recording will be processed in chunks for better reliability",
+          duration: 5000,
+        });
+      } else {
+        sonnerToast.info("Processing your recording", {
+          description: "This may take a few minutes",
+          duration: 5000,
+        });
+      }
 
       // Compress and convert audio to MP3 before upload
       setProcessingStage("Compressing audio...");
@@ -178,111 +189,112 @@ export const useRecordingSave = () => {
       console.log('Audio file uploaded successfully as MP3');
       setProcessingProgress(50);
 
+      // Create a note for this recording
+      setProcessingStage("Creating note...");
+      const { data: noteData, error: noteError } = await supabase
+        .from('notes')
+        .insert({
+          user_id: user.id,
+          recording_id: recordingData.id,
+          title: `Recording ${new Date().toLocaleString()}`,
+          processed_content: '',
+          status: 'pending',
+          processing_progress: 0
+        })
+        .select()
+        .single();
+
+      if (noteError) {
+        console.error('Error creating note:', noteError);
+        throw new Error(`Failed to create note: ${noteError.message}`);
+      }
+
+      setProcessingProgress(60);
+      setProcessingStage("Starting transcription...");
+
       // Start processing immediately with a proper async implementation
       const startProcessing = async () => {
         try {
           console.log('Starting transcription process immediately');
-          const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
-            recordingData.id,
-            compressedBlob, // Use the compressed blob for transcription
-            finalDuration,
-            (progress, stage) => {
-              setProcessingProgress(50 + (progress * 0.5)); // Adjust progress scale
-              setProcessingStage(stage);
-              
-              if (transcriptionResult?.noteId && progress % 10 === 0) {
-                // Use async/await pattern for PromiseLike instead of then/catch
-                (async () => {
-                  try {
-                    await supabase
-                      .from('notes')
-                      .update({
-                        processing_progress: progress,
-                        status: progress < 10 ? 'pending' : 'processing'
-                      })
-                      .eq('id', transcriptionResult.noteId);
-                    console.log(`Updated note progress: ${progress}%`);
-                  } catch (err) {
-                    console.error('Error updating note progress:', err);
-                  }
-                })();
-              }
-            }
-          );
           
-          console.log('Transcription initiation result:', transcriptionResult);
-          
-          if (transcriptionResult.noteId) {
-            try {
-              // Immediately invoke process-recording with high priority
-              const { error: processError } = await supabase.functions.invoke('process-recording', {
-                body: { 
+          // For large files, use the dedicated large file processing
+          if (isLargeFile) {
+            console.log(`Processing large file: ${compressedBlob.size / (1024 * 1024)} MB, ${durationInMs}ms`);
+            
+            // Call the process-recording function with high priority
+            const { error: processError } = await supabase.functions.invoke('process-recording', {
+              body: { 
+                recordingId: recordingData.id,
+                noteId: noteData.id,
+                priority: 'high',
+                startImmediately: true
+              },
+            });
+            
+            if (processError) {
+              console.error('Failed to start immediate processing:', processError);
+              // Try direct edge function call as backup
+              await fetch(`${SUPABASE_URL}/functions/v1/process-recording`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                },
+                body: JSON.stringify({ 
                   recordingId: recordingData.id,
-                  noteId: transcriptionResult.noteId,
+                  noteId: noteData.id,
                   priority: 'high',
                   startImmediately: true
-                },
+                }),
               });
-              
-              if (processError) {
-                console.error('Failed to start immediate processing:', processError);
-                // Try direct edge function call as backup
-                await fetch(`${SUPABASE_URL}/functions/v1/process-recording`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                  },
-                  body: JSON.stringify({ 
-                    recordingId: recordingData.id,
-                    noteId: transcriptionResult.noteId,
-                    priority: 'high',
-                    startImmediately: true
-                  }),
-                });
-              } else {
-                console.log('Immediate processing started successfully');
-              }
-              
-              // Use await to properly handle the Promise
-              await supabase
-                .from('notes')
-                .update({ 
-                  processing_progress: 15,
-                  status: 'processing'
-                })
-                .eq('id', transcriptionResult.noteId);
-              
-              console.log('Updated note status to ensure processing starts');
-            } catch (updateError) {
-              console.error('Error initiating processing:', updateError);
-              
-              // Retry with direct edge function call
-              try {
-                await fetch(`${SUPABASE_URL}/functions/v1/process-recording`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                  },
-                  body: JSON.stringify({ 
-                    recordingId: recordingData.id,
-                    noteId: transcriptionResult.noteId,
-                    priority: 'high'
-                  }),
-                });
-                console.log('Retried processing via direct API call');
-              } catch (retryError) {
-                console.error('Error in retry attempt:', retryError);
-              }
             }
+            
+            // Update note status to ensure processing starts
+            await supabase
+              .from('notes')
+              .update({ 
+                processing_progress: 15,
+                status: 'processing'
+              })
+              .eq('id', noteData.id);
+            
+            console.log('Updated note status to ensure large file processing starts');
+          } else {
+            // For smaller files, use standard transcription
+            const transcriptionResult = await chunkedTranscriptionService.transcribeAudio(
+              recordingData.id,
+              compressedBlob,
+              finalDuration,
+              (progress, stage) => {
+                setProcessingProgress(60 + (progress * 0.4));
+                setProcessingStage(stage);
+              }
+            );
+            
+            console.log('Standard transcription initiation result:', transcriptionResult);
           }
         } catch (error) {
           console.error('Background transcription error:', error);
+          sonnerToast.error("Error processing recording", {
+            description: error instanceof Error ? error.message : "Unknown error",
+          });
+          
+          // Try to update the note status on error
+          try {
+            await supabase
+              .from('notes')
+              .update({ 
+                status: 'error',
+                error_message: error instanceof Error ? error.message : "Unknown error"
+              })
+              .eq('id', noteData.id);
+          } catch (updateError) {
+            console.error('Failed to update note status on error:', updateError);
+          }
         }
       };
       
-      // Start immediately instead of setTimeout
+      // Start processing immediately instead of setTimeout
       startProcessing();
       
       toast({
