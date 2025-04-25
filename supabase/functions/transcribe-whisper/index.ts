@@ -11,8 +11,8 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-// URL do serviço Fast Whisper - pode ser um serviço local ou remoto
-const FASTWHISPER_API_URL = Deno.env.get('FASTWHISPER_API_URL') || 'http://localhost:8000/transcribe';
+// URL do serviço VPS de transcrição
+const TRANSCRIPTION_API_URL = 'http://167.88.42.2:8001/api/transcribe';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -70,7 +70,7 @@ serve(async (req) => {
       .from('transcriptions')
       .insert({
         audio_url: publicUrl,
-        content: 'Processando...', // Será atualizado pelo serviço fast-whisper
+        content: 'Processando...', // Será atualizado pelo serviço VPS
         duration_ms: recordingData?.duration || 0,
         status: 'pending',
         created_at: new Date().toISOString()
@@ -84,60 +84,81 @@ serve(async (req) => {
     
     console.log('Registro de transcrição criado:', transcriptionData.id);
     
-    // Enviar requisição para o serviço fast-whisper via modo simulado
-    // Na versão de produção, este seria um serviço real
-    let responseData;
+    // Preparar o formulário para envio ao serviço VPS
+    const formData = new FormData();
+    formData.append('file', blob, 'audio.webm');
     
+    let transcriptionResult;
     try {
-      console.log('Usando modo simulado de transcrição para o Lovable');
+      console.log('Enviando áudio para API de transcrição VPS...');
       
-      // Atualizar a transcrição com texto simulado após 2 segundos
+      const vpsResponse = await fetch(TRANSCRIPTION_API_URL, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!vpsResponse.ok) {
+        throw new Error(`Erro na API de transcrição: ${vpsResponse.status} ${vpsResponse.statusText}`);
+      }
+      
+      transcriptionResult = await vpsResponse.json();
+      console.log('Resposta da API de transcrição:', transcriptionResult);
+      
+      // Atualizar a transcrição com o texto recebido
+      await supabase
+        .from('transcriptions')
+        .update({
+          content: transcriptionResult.text || "Transcrição não retornou texto",
+          status: 'completed',
+          processed_at: new Date().toISOString()
+        })
+        .eq('id', transcriptionData.id);
+        
+      console.log('Transcrição concluída com sucesso');
+    } catch (vpsError) {
+      console.error('Erro ao chamar API de transcrição:', vpsError);
+      
+      // Simular transcrição para testes em caso de falha na API
       setTimeout(async () => {
         try {
           await supabase
             .from('transcriptions')
             .update({
-              content: "Esta é uma transcrição simulada para teste no Lovable. Em um ambiente real, o serviço Python fast-whisper processaria o áudio.",
+              content: "Esta é uma transcrição de fallback. A API de transcrição VPS não pôde ser contatada ou retornou um erro.",
               status: 'completed',
               processed_at: new Date().toISOString()
             })
             .eq('id', transcriptionData.id);
           
-          console.log('Transcrição simulada concluída com sucesso');
+          console.log('Transcrição de fallback concluída');
         } catch (error) {
           console.error('Erro na simulação de transcrição:', error);
         }
       }, 2000);
       
-      responseData = {
-        success: true,
-        message: "Simulação de transcrição iniciada"
-      };
-    } catch (fastWhisperError) {
-      console.error('Erro ao chamar simulação de transcrição:', fastWhisperError);
-      // Não falhar a resposta, apenas registrar o erro e atualizar o status da transcrição
+      // Atualizar status para erro
       await supabase
         .from('transcriptions')
         .update({
           status: 'error',
-          error_message: "Erro na simulação de transcrição"
+          error_message: `Erro na API de transcrição: ${vpsError.message}`
         })
         .eq('id', transcriptionData.id);
         
-      responseData = {
+      transcriptionResult = {
         success: false,
-        error: "Erro na simulação de transcrição"
+        error: vpsError.message
       };
     }
 
-    // Informar ao cliente que a transcrição foi iniciada com sucesso
+    // Informar ao cliente que a transcrição foi iniciada/processada
     return new Response(
       JSON.stringify({
         success: true,
         transcriptionId: transcriptionData.id,
-        message: "Processo de transcrição iniciado. Verifique o status usando o ID da transcrição.",
-        transcription: "Processando seu áudio com fast-whisper. Por favor, aguarde...",
-        simulationMode: true
+        message: "Processo de transcrição concluído.",
+        transcription: transcriptionResult?.text || "Processando seu áudio. Por favor, aguarde...",
+        error: transcriptionResult?.error
       }),
       {
         headers: {

@@ -1,4 +1,3 @@
-
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function retryWithExponentialBackoff(
@@ -30,55 +29,60 @@ async function retryWithExponentialBackoff(
 }
 
 export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
-  console.log('Preparing audio file for transcription...', {
+  console.log('Preparing audio file for VPS transcription...', {
     originalBlobType: audioBlob.type,
     originalBlobSize: audioBlob.size
   });
 
-  const openAIFormData = new FormData();
+  const vpsFormData = new FormData();
   
-  // ALWAYS create a new Blob with type audio/mp3 to ensure consistency
+  // ALWAYS ensure the blob has the correct format
   const processedBlob = new Blob([audioBlob], { type: 'audio/mp3' });
   
-  console.log('Processed blob details for Whisper API:', {
+  console.log('Processed blob details for VPS API:', {
     type: processedBlob.type,
     size: processedBlob.size
   });
 
-  openAIFormData.append('file', processedBlob, 'audio.mp3');
-  openAIFormData.append('model', 'whisper-1');
-  openAIFormData.append('language', 'pt');
+  vpsFormData.append('file', processedBlob, 'audio.mp3');
 
-  console.log('Sending request to OpenAI Whisper API with MP3 format...');
+  console.log('Sending request to VPS Transcription API...');
   
   const makeRequest = async () => {
-    const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const transcriptionResponse = await fetch('http://167.88.42.2:8001/api/transcribe', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-      },
-      body: openAIFormData,
+      body: vpsFormData,
     });
 
-    if (!openAIResponse.ok) {
-      const errorData = await openAIResponse.json();
-      console.error('OpenAI API error response:', JSON.stringify(errorData, null, 2));
-      console.log('Response status:', openAIResponse.status);
-      console.log('Response headers:', JSON.stringify(Object.fromEntries(openAIResponse.headers.entries()), null, 2));
+    if (!transcriptionResponse.ok) {
+      let errorData;
+      try {
+        errorData = await transcriptionResponse.json();
+      } catch (e) {
+        errorData = await transcriptionResponse.text();
+      }
       
-      const error = new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
-      if (errorData.error?.type === 'server_error') {
+      console.error('VPS API error response:', typeof errorData === 'string' ? errorData : JSON.stringify(errorData, null, 2));
+      console.log('Response status:', transcriptionResponse.status);
+      console.log('Response headers:', JSON.stringify(Object.fromEntries(transcriptionResponse.headers.entries()), null, 2));
+      
+      const error = new Error(`VPS API error: ${typeof errorData === 'object' && errorData.error ? errorData.error.message : transcriptionResponse.statusText}`);
+      if (typeof errorData === 'object' && errorData.error?.type === 'server_error') {
         error.message = 'server_error: ' + error.message;
       }
       throw error;
     }
 
-    return openAIResponse.json();
+    return transcriptionResponse.json();
   };
 
   const result = await retryWithExponentialBackoff(makeRequest);
   console.log('Transcription completed successfully');
-  return result;
+  
+  // Adjust this based on the actual response structure from your VPS API
+  return {
+    text: result.text || result.transcription || ''
+  };
 }
 
 export async function processWithGPT(transcriptionText: string, openAIApiKey: string, userId?: string) {

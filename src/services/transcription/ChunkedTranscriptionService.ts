@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
 
@@ -131,53 +130,99 @@ class ChunkedTranscriptionService {
           throw new Error('Could not get URL for audio');
         }
         
-        // Implement retry logic for process invocation
-        let processSuccess = false;
-        let processAttempts = 0;
-        const maxProcessAttempts = 3;
-        let processError = null;
-        
-        while (processAttempts < maxProcessAttempts && !processSuccess) {
-          try {
-            // Process the single audio file
-            const { error } = await supabase.functions
-              .invoke('transcribe-audio', {
-                body: { 
-                  noteId: noteData.id,
-                  audioUrl: urlData.signedUrl,
-                  durationMs: durationInMs, // Pass duration to the function
-                  priority: 'high' // Indicate high priority
-                },
-              });
-              
-            if (!error) {
-              processSuccess = true;
-              console.log('Successfully started transcription on attempt', processAttempts + 1);
-              break;
-            } else {
-              processError = error;
-              console.error(`Transcription start attempt ${processAttempts + 1} failed:`, error);
-            }
-          } catch (attemptError) {
-            processError = attemptError;
-            console.error(`Transcription start exception on attempt ${processAttempts + 1}:`, attemptError);
-          }
-          
-          processAttempts++;
-          if (processAttempts < maxProcessAttempts) {
-            // Wait with exponential backoff before retry
-            const waitTime = Math.min(1000 * Math.pow(2, processAttempts), 5000);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
+        // Download the audio file to send to the VPS API
+        const audioResponse = await fetch(urlData.signedUrl);
+        if (!audioResponse.ok) {
+          throw new Error('Failed to download audio file for transcription');
         }
+        
+        const audioFile = await audioResponse.blob();
+        
+        // Create form data for VPS API
+        const formData = new FormData();
+        formData.append('file', audioFile, 'audio.mp3');
+        
+        try {
+          // Send directly to VPS API 
+          const vpsResponse = await fetch('http://167.88.42.2:8001/api/transcribe', {
+            method: 'POST',
+            body: formData
+          });
           
-        if (!processSuccess) {
-          console.error('Processing error after all attempts:', processError);
+          if (!vpsResponse.ok) {
+            throw new Error(`VPS API error: ${vpsResponse.status} ${vpsResponse.statusText}`);
+          }
+          
+          const transcriptionResult = await vpsResponse.json();
+          
+          // Update the note with the transcription result
+          await supabase
+            .from('notes')
+            .update({
+              original_transcript: transcriptionResult.text || 'Transcription did not return text',
+              status: 'completed',
+              processing_progress: 100
+            })
+            .eq('id', noteData.id);
+          
+          onProgress?.(100, "Transcription completed!");
+          
           return {
-            success: false,
-            error: `Transcription failed to start: ${processError?.message || 'Maximum retry attempts exceeded'}`,
+            success: true,
             noteId: noteData.id
           };
+        } catch (vpsError) {
+          console.error('Error with VPS transcription:', vpsError);
+          
+          // Fall back to the edge function
+          // Implement retry logic for process invocation
+          let processSuccess = false;
+          let processAttempts = 0;
+          const maxProcessAttempts = 3;
+          let processError = null;
+          
+          while (processAttempts < maxProcessAttempts && !processSuccess) {
+            try {
+              // Process using edge function instead
+              const { error } = await supabase.functions
+                .invoke('transcribe-audio', {
+                  body: { 
+                    noteId: noteData.id,
+                    audioUrl: urlData.signedUrl,
+                    durationMs: durationInMs,
+                    priority: 'high'
+                  },
+                });
+                
+              if (!error) {
+                processSuccess = true;
+                console.log('Successfully started transcription using edge function on attempt', processAttempts + 1);
+                break;
+              } else {
+                processError = error;
+                console.error(`Transcription start attempt ${processAttempts + 1} failed:`, error);
+              }
+            } catch (attemptError) {
+              processError = attemptError;
+              console.error(`Transcription start exception on attempt ${processAttempts + 1}:`, attemptError);
+            }
+            
+            processAttempts++;
+            if (processAttempts < maxProcessAttempts) {
+              // Wait with exponential backoff before retry
+              const waitTime = Math.min(1000 * Math.pow(2, processAttempts), 5000);
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+          }
+            
+          if (!processSuccess) {
+            console.error('Processing error after all attempts:', processError);
+            return {
+              success: false,
+              error: `Transcription failed to start: ${processError?.message || 'Maximum retry attempts exceeded'}`,
+              noteId: noteData.id
+            };
+          }
         }
       } else {
         // For larger files that need chunking
