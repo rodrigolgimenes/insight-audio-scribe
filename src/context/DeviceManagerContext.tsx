@@ -1,8 +1,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-
-type PermissionState = "prompt" | "granted" | "denied" | "unknown";
+import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 
 interface DeviceManagerContextValue {
   devices: AudioDevice[];
@@ -11,6 +10,7 @@ interface DeviceManagerContextValue {
   permissionState: PermissionState;
   isLoading: boolean;
   requestPermission: () => Promise<boolean>;
+  refreshDevices: () => Promise<boolean>; // Add this method
 }
 
 const DeviceManagerContext = createContext<DeviceManagerContextValue | null>(null);
@@ -49,13 +49,42 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     }
   }, [selectedDeviceId]);
 
+  // Add the refreshDevices method
+  const refreshDevices = useCallback(async (): Promise<boolean> => {
+    if (permissionState !== 'granted') {
+      return await requestPermission();
+    }
+    
+    try {
+      setIsLoading(true);
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = allDevices.filter(d => d.kind === "audioinput");
+      
+      setDevices(audioInputs.map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `Microphone ${index + 1}`,
+        groupId: device.groupId,
+        kind: device.kind,
+        isDefault: device.deviceId === "default" || index === 0,
+        index
+      })));
+      
+      setIsLoading(false);
+      return true;
+    } catch (error) {
+      setIsLoading(false);
+      return false;
+    }
+  }, [permissionState, requestPermission]);
+
   const value = {
     devices,
     selectedDeviceId,
     setSelectedDeviceId,
     permissionState,
     isLoading,
-    requestPermission
+    requestPermission,
+    refreshDevices // Include the method in the context value
   };
 
   return (

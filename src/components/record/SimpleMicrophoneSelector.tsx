@@ -11,7 +11,7 @@ export function SimpleMicrophoneSelector() {
     setSelectedDeviceId,
     permissionState,
     isLoading,
-    refreshDevices
+    requestPermission
   } = useDeviceManager();
   const [isOpen, setIsOpen] = useState(false);
   
@@ -32,7 +32,7 @@ export function SimpleMicrophoneSelector() {
   
   const handleRefresh = () => {
     console.log('[SimpleMicrophoneSelector] Refreshing devices');
-    refreshDevices();
+    requestPermission();
   };
   
   const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
@@ -47,7 +47,7 @@ export function SimpleMicrophoneSelector() {
       
       {needsPermission && (
         <button
-          onClick={refreshDevices}
+          onClick={handleRefresh}
           disabled={isLoading}
           className="w-full p-3 flex items-center justify-center gap-2 bg-blue-50 border border-blue-300 rounded-md text-blue-700 hover:bg-blue-100"
         >

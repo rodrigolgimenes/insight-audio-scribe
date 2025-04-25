@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 
 export function useRobustMicrophoneDetection() {
   const [devices, setDevices] = useState<AudioDevice[]>([]);

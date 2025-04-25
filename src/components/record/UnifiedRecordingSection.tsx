@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Mic, MicOff, RefreshCw, AlertCircle } from "lucide-react";
 
 export function UnifiedRecordingSection() {
-  const { selectedDeviceId, permissionState, refreshDevices } = useDeviceManager();
+  const { selectedDeviceId, permissionState, requestPermission } = useDeviceManager();
   const [isRecording, setIsRecording] = React.useState(false);
 
   // Log device and permission state for debugging
@@ -88,7 +88,7 @@ export function UnifiedRecordingSection() {
             )}
             
             <button
-              onClick={() => refreshDevices()}
+              onClick={requestPermission}
               disabled={isRecording}
               className={`flex items-center gap-2 px-4 py-2 rounded border ${
                 isRecording 
