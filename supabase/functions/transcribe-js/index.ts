@@ -11,9 +11,6 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-// OpenAI API key for Whisper transcription
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
-
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 serve(async (req) => {
@@ -84,7 +81,7 @@ serve(async (req) => {
     
     console.log('Transcription record created:', transcriptionData.id);
     
-    // Process transcription using OpenAI Whisper API
+    // Process transcription using VPS API
     const transcriptionPromise = processTranscription(
       transcriptionData.id,
       blob,
@@ -129,70 +126,41 @@ async function processTranscription(transcriptionId: string, audioBlob: Blob, mi
   try {
     console.log(`Starting transcription process for ID: ${transcriptionId}`);
     
-    // If no OpenAI API key, use simulation mode
-    if (!OPENAI_API_KEY) {
-      console.log('No OpenAI API key found, using simulation mode');
-      
-      // Wait 3 seconds to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Update with simulated text
-      const { error } = await supabase
-        .from('transcriptions')
-        .update({
-          content: "This is a simulated transcription. For actual transcription, please provide an OpenAI API key.",
-          status: 'completed',
-          processed_at: new Date().toISOString()
-        })
-        .eq('id', transcriptionId);
-      
-      if (error) {
-        throw new Error(`Error updating transcription: ${error.message}`);
-      }
-      
-      return;
-    }
-    
-    // Convert audio blob to file for OpenAI API
+    // Create a form for multipart/form-data upload
     const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.webm');
     
-    // Ensure audio is in a format Whisper accepts
-    if (!mimeType.includes('mp3') && !mimeType.includes('wav') && !mimeType.includes('webm')) {
-      console.log('Converting audio to supported format');
-      // OpenAI Whisper accepts mp3, mp4, mpeg, mpga, m4a, wav, and webm
-      // We'll use webm as our default
-      formData.append('file', new Blob([audioBlob], { type: 'audio/webm' }), 'audio.webm');
-    } else {
-      formData.append('file', audioBlob, 'audio.webm');
-    }
+    // Log audio content details for debugging
+    console.log(`Audio content type: ${audioBlob.type}, size: ${(audioBlob.size / (1024 * 1024)).toFixed(2)} MB`);
     
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'pt'); // Portuguese language
-    formData.append('response_format', 'json');
+    console.log('Sending request to VPS Transcription API...');
     
-    // Call OpenAI's Whisper API
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    // Send the request with a timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 minute timeout
+    
+    const response = await fetch('http://167.88.42.2:8001/api/transcribe', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
-      },
-      body: formData
+      body: formData,
+      signal: controller.signal
     });
     
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      console.error(`VPS API Error (${response.status}):`, errorText);
+      throw new Error(`VPS API Error (${response.status}): ${errorText}`);
     }
-    
+
     const result = await response.json();
-    console.log('Transcription received from OpenAI');
+    console.log('Transcription successful');
     
     // Update transcription with the text
     const { error } = await supabase
       .from('transcriptions')
       .update({
-        content: result.text,
+        content: result.text || '',
         status: 'completed',
         processed_at: new Date().toISOString()
       })
