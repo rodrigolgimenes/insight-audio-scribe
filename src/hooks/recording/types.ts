@@ -12,4 +12,6 @@ export interface RecordingStateType {
   isPaused: boolean;
   deviceSelectionReady: boolean;
   isSystemAudio: boolean;
+  recordingMode: 'audio' | 'screen';
+  setRecordingMode: (mode: 'audio' | 'screen') => void;
 }

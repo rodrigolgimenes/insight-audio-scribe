@@ -30,6 +30,8 @@ export type RecordingStateType = {
   setAudioDevices: (devices: AudioDevice[]) => void;
   permissionState: PermissionState;
   setPermissionState: (state: PermissionState) => void;
+  recordingMode: 'audio' | 'screen';
+  setRecordingMode: (mode: 'audio' | 'screen') => void;
 };
 
 export const useRecordingState = (): RecordingStateType => {
@@ -51,6 +53,7 @@ export const useRecordingState = (): RecordingStateType => {
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
   const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
   const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
+  const [recordingMode, setRecordingMode] = useState<'audio' | 'screen'>('audio');
 
   return {
     isRecording,
@@ -78,6 +81,8 @@ export const useRecordingState = (): RecordingStateType => {
     audioDevices,
     setAudioDevices,
     permissionState,
-    setPermissionState
+    setPermissionState,
+    recordingMode,
+    setRecordingMode
   };
 };

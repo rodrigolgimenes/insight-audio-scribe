@@ -1,7 +1,7 @@
 
 import { useCallback } from "react";
 import { RecordingStateType } from "../useRecordingState";
-import { MIC_CONSTRAINTS } from "../audioConfig"; // Import our updated constraints
+import { MIC_CONSTRAINTS } from "../audioConfig";
 
 export function useStartRecording(
   recorder: React.RefObject<any>,
@@ -12,12 +12,12 @@ export function useStartRecording(
     setIsRecording,
     setIsPaused,
     setLastAction,
-    setRecordingAttemptsCount
+    setRecordingAttemptsCount,
+    recordingMode
   } = recordingState;
 
   const startRecording = useCallback(async (deviceId: string | null, isSystemAudio: boolean) => {
-    console.log('[useStartRecording] Starting recording with device ID:', deviceId);
-    console.log('[useStartRecording] System audio enabled:', isSystemAudio);
+    console.log(`[useStartRecording] Starting ${recordingMode} recording`);
     
     if (!recorder.current) {
       console.error('[useStartRecording] Recorder is not initialized');
@@ -25,78 +25,77 @@ export function useStartRecording(
     }
     
     try {
-      // Log that we're about to request microphone access
-      console.log('[useStartRecording] Requesting microphone access');
-      
       // Increment attempt counter
       setRecordingAttemptsCount(prev => prev + 1);
 
-      // Get media stream with optimized constraints for voice
       let stream;
-      if (isSystemAudio) {
-        // Request system audio stream (via user selection)
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: {
-            sampleRate: { ideal: 16000 }, // Use 16kHz sample rate
-            sampleSize: { ideal: 8 }      // Use 8-bit sample size
-          },
-          video: false
+      
+      if (recordingMode === 'screen') {
+        // Request screen capture with optional audio
+        stream = await navigator.mediaDevices.getDisplayMedia({ 
+          video: true,
+          audio: isSystemAudio 
         });
         
-        // Also get microphone if available
-        try {
-          const micConstraints = {
-            audio: deviceId 
-              ? {
-                  deviceId: { exact: deviceId },
-                  sampleRate: { ideal: 16000 }, // 16kHz for voice
-                  sampleSize: { ideal: 8 }      // 8-bit sample size
-                }
-              : {
-                  sampleRate: { ideal: 16000 }, // 16kHz for voice
-                  sampleSize: { ideal: 8 }      // 8-bit sample size
-                }
-          };
-          
-          const micStream = await navigator.mediaDevices.getUserMedia(micConstraints);
-          
-          // Create a new stream that includes both sources
-          const ctx = new AudioContext({
-            sampleRate: 16000 // Set AudioContext to 16kHz
-          });
-          const dest = ctx.createMediaStreamDestination();
-          
-          // Connect system audio
-          const systemSource = ctx.createMediaStreamSource(stream);
-          systemSource.connect(dest);
-          
-          // Connect microphone
-          const micSource = ctx.createMediaStreamSource(micStream);
-          micSource.connect(dest);
-          
-          // Use the combined stream
-          stream = dest.stream;
-          
-          console.log('[useStartRecording] Successfully combined system and microphone audio');
-        } catch (micError) {
-          console.warn('[useStartRecording] Could not get microphone, using only system audio:', micError);
-          // Continue with just system audio
+        // If system audio is requested, try to add microphone audio as well
+        if (isSystemAudio) {
+          try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Create a combined stream with both screen and mic audio
+            const tracks = [
+              ...stream.getVideoTracks(),
+              ...stream.getAudioTracks(),
+              ...micStream.getAudioTracks()
+            ];
+            
+            stream = new MediaStream(tracks);
+          } catch (error) {
+            console.warn('[useStartRecording] Could not get microphone, using only system audio:', error);
+            // Continue with just screen and system audio
+          }
         }
       } else {
-        // Request microphone only with optimized constraints
-        const constraints = {
-          audio: deviceId 
-            ? { 
-                deviceId: { exact: deviceId },
-                sampleRate: { ideal: 16000 }, // 16kHz for voice
-                sampleSize: { ideal: 8 }      // 8-bit sample size
-              } 
-            : {
-                sampleRate: { ideal: 16000 }, // 16kHz for voice
-                sampleSize: { ideal: 8 }      // 8-bit sample size
-              }
-        };
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        // Regular audio recording
+        if (isSystemAudio) {
+          // Request system audio stream (via user selection)
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            audio: true,
+            video: false
+          });
+          
+          // Also get microphone if available
+          try {
+            const micConstraints = {
+              audio: deviceId 
+                ? { deviceId: { exact: deviceId } }
+                : true
+            };
+            
+            const micStream = await navigator.mediaDevices.getUserMedia(micConstraints);
+            
+            // Create a new stream that includes both sources
+            const tracks = [
+              ...stream.getAudioTracks(),
+              ...micStream.getAudioTracks()
+            ];
+            
+            stream = new MediaStream(tracks);
+            
+            console.log('[useStartRecording] Successfully combined system and microphone audio');
+          } catch (micError) {
+            console.warn('[useStartRecording] Could not get microphone, using only system audio:', micError);
+            // Continue with just system audio
+          }
+        } else {
+          // Request microphone only
+          const constraints = {
+            audio: deviceId 
+              ? { deviceId: { exact: deviceId } } 
+              : true
+          };
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        }
       }
       
       if (!stream) {
@@ -106,14 +105,12 @@ export function useStartRecording(
       
       console.log('[useStartRecording] Media stream obtained successfully');
       
-      // Log audio track settings
+      // Log tracks
+      const videoTracks = stream.getVideoTracks();
       const audioTracks = stream.getAudioTracks();
-      if (audioTracks.length > 0) {
-        const settings = audioTracks[0].getSettings();
-        console.log('[useStartRecording] Audio settings:', settings);
-        console.log('[useStartRecording] Sample rate:', settings.sampleRate || 'unknown');
-        console.log('[useStartRecording] Sample size:', settings.sampleSize || 'unknown');
-      }
+      
+      console.log('[useStartRecording] Video tracks:', videoTracks.length);
+      console.log('[useStartRecording] Audio tracks:', audioTracks.length);
       
       // Store media stream
       setMediaStream(stream);
@@ -127,7 +124,7 @@ export function useStartRecording(
       console.error('[useStartRecording] Error starting recording:', error);
       
       setLastAction({
-        action: 'Start recording',
+        action: `Start ${recordingMode} recording`,
         timestamp: Date.now(),
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -135,7 +132,7 @@ export function useStartRecording(
       
       return false;
     }
-  }, [recorder, setMediaStream, setRecordingAttemptsCount, setLastAction]);
+  }, [recorder, setMediaStream, setRecordingAttemptsCount, setLastAction, recordingMode]);
 
   return {
     startRecording

@@ -8,7 +8,9 @@ import { useRecordingSave } from "@/components/record/useRecordingSave";
 import { FileUploadSection } from "@/components/record/FileUploadSection";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Mic, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function SimpleRecord() {
   const { session } = useAuth();
@@ -60,6 +62,13 @@ export default function SimpleRecord() {
     }
   };
 
+  // Handle toggling between audio and screen recording
+  const handleToggleRecordingMode = () => {
+    if (recordingHook.toggleRecordingMode) {
+      recordingHook.toggleRecordingMode();
+    }
+  };
+
   return (
     <div className="container py-8 max-w-5xl">
       <h1 className="text-3xl font-bold mb-8">Simple Recorder</h1>
@@ -76,19 +85,45 @@ export default function SimpleRecord() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-medium mb-4">Record Audio</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Record Content</h3>
+              
+              <div className="flex space-x-2">
+                <Button
+                  variant={recordingHook.recordingMode === 'audio' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => recordingHook.setRecordingMode('audio')}
+                  disabled={recordingHook.isRecording || !!recordingHook.audioUrl}
+                >
+                  <Mic className="h-4 w-4 mr-2" />
+                  Audio
+                </Button>
+                <Button
+                  variant={recordingHook.recordingMode === 'screen' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => recordingHook.setRecordingMode('screen')}
+                  disabled={recordingHook.isRecording || !!recordingHook.audioUrl}
+                >
+                  <Video className="h-4 w-4 mr-2" />
+                  Screen
+                </Button>
+              </div>
+            </div>
+            
             <RecordingSection
               isRecording={recordingHook.isRecording}
               isPaused={recordingHook.isPaused}
               audioUrl={recordingHook.audioUrl}
               mediaStream={recordingHook.mediaStream}
               isSystemAudio={recordingHook.isSystemAudio}
+              recordingMode={recordingHook.recordingMode}
               handleStartRecording={recordingHook.handleStartRecording}
               handleStopRecording={recordingHook.handleStopRecording}
               handlePauseRecording={recordingHook.handlePauseRecording}
               handleResumeRecording={recordingHook.handleResumeRecording}
               handleDelete={recordingHook.handleDelete}
               onSystemAudioChange={recordingHook.setIsSystemAudio}
+              onToggleRecordingMode={handleToggleRecordingMode}
               audioDevices={recordingHook.audioDevices}
               selectedDeviceId={recordingHook.selectedDeviceId}
               onDeviceSelect={recordingHook.setSelectedDeviceId}
@@ -103,19 +138,8 @@ export default function SimpleRecord() {
               isSaving={isProcessing}
               processingProgress={processingProgress}
               processingStage={processingStage}
+              onSave={handleSave}
             />
-
-            <div className="mt-4">
-              <RecordingActions
-                onSave={handleSave}
-                isSaving={isProcessing}
-                isLoading={recordingHook.isLoading}
-                isRecording={recordingHook.isRecording}
-                hasRecording={!!recordingHook.audioUrl}
-                processingProgress={processingProgress}
-                processingStage={processingStage}
-              />
-            </div>
           </CardContent>
         </Card>
 

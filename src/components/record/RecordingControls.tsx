@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Pause, Play, Save, StopCircle, Trash } from "lucide-react";
+import { Mic, MicOff, Pause, Play, Save, StopCircle, Trash, Video } from "lucide-react";
 import AudioPlayer from "./AudioPlayer";
 import { Progress } from "@/components/ui/progress";
 import { RecordingValidator } from "@/utils/audio/recordingValidator";
@@ -10,11 +10,13 @@ interface RecordingControlsProps {
   isRecording: boolean;
   isPaused: boolean;
   audioUrl: string | null;
+  recordingMode: 'audio' | 'screen';
   onStart: () => void;
   onStop: () => Promise<any>;
   onPause: () => void;
   onResume: () => void;
   onDelete: () => void;
+  onToggleMode?: () => void;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
   onSave?: () => Promise<any>;
@@ -29,11 +31,13 @@ export function RecordingControls({
   isRecording,
   isPaused,
   audioUrl,
+  recordingMode,
   onStart,
   onStop,
   onPause,
   onResume,
   onDelete,
+  onToggleMode,
   showPlayButton = true,
   showDeleteButton = true,
   onSave,
@@ -72,8 +76,12 @@ export function RecordingControls({
           disabled={disabled}
           className="w-full h-12 bg-green-500 hover:bg-green-600 text-white"
         >
-          <Mic className="h-5 w-5 mr-2" />
-          Start Recording
+          {recordingMode === 'audio' ? (
+            <Mic className="h-5 w-5 mr-2" />
+          ) : (
+            <Video className="h-5 w-5 mr-2" />
+          )}
+          Start {recordingMode === 'audio' ? 'Audio' : 'Screen'} Recording
         </Button>
       );
     }
@@ -169,6 +177,17 @@ export function RecordingControls({
 
   return (
     <div className="w-full">
+      {onToggleMode && !isRecording && !hasRecording && (
+        <div className="mb-4 flex justify-center">
+          <Button 
+            variant="outline" 
+            onClick={onToggleMode}
+            className="text-sm">
+            Switch to {recordingMode === 'audio' ? 'Screen' : 'Audio'} Recording
+          </Button>
+        </div>
+      )}
+      
       {renderRecordingButton()}
       {renderPostRecordingOptions()}
     </div>

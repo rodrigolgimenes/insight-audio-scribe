@@ -8,21 +8,20 @@ import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/permissions/types";
 
-// Remove duplicate PermissionState definition as we're now using the imported one
-// type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
-
 interface RecordingSectionProps {
   isRecording: boolean;
   isPaused: boolean;
   audioUrl: string | null;
   mediaStream: MediaStream | null;
   isSystemAudio: boolean;
+  recordingMode?: 'audio' | 'screen';
   handleStartRecording: () => void;
   handleStopRecording: () => Promise<any>;
   handlePauseRecording: () => void;
   handleResumeRecording: () => void;
   handleDelete: () => void;
   onSystemAudioChange: (value: boolean) => void;
+  onToggleRecordingMode?: () => void;
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
@@ -49,12 +48,14 @@ export const RecordingSection = ({
   audioUrl,
   mediaStream,
   isSystemAudio,
+  recordingMode = 'audio',
   handleStartRecording,
   handleStopRecording,
   handlePauseRecording,
   handleResumeRecording,
   handleDelete,
   onSystemAudioChange,
+  onToggleRecordingMode,
   audioDevices,
   selectedDeviceId,
   onDeviceSelect,
@@ -95,7 +96,7 @@ export const RecordingSection = ({
           ) : (
             <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
               <p className="text-gray-400 text-sm">
-                Loading waveform...
+                {recordingMode === 'audio' ? 'Ready to record audio' : 'Ready to record screen'}
               </p>
             </div>
           )}
@@ -106,11 +107,13 @@ export const RecordingSection = ({
           isRecording={isRecording}
           isPaused={isPaused}
           audioUrl={audioUrl}
+          recordingMode={recordingMode}
           onStart={handleStartRecording}
           onStop={handleStopRecording}
           onPause={handlePauseRecording}
           onResume={handleResumeRecording}
           onDelete={handleDelete}
+          onToggleMode={onToggleRecordingMode}
           showPlayButton={showPlayButton}
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}
@@ -121,20 +124,39 @@ export const RecordingSection = ({
           disabled={disabled}
         />
         
-        {/* Device settings */}
-        <RecordingSettings
-          isSystemAudio={isSystemAudio}
-          onSystemAudioChange={onSystemAudioChange}
-          audioDevices={audioDevices}
-          selectedDeviceId={selectedDeviceId}
-          onDeviceSelect={onDeviceSelect}
-          deviceSelectionReady={deviceSelectionReady}
-          isRecording={isRecording}
-          onRefreshDevices={onRefreshDevices}
-          devicesLoading={devicesLoading}
-          permissionState={permissionState}
-          disabled={disabled}
-        />
+        {/* Only show device settings for audio recording mode */}
+        {recordingMode === 'audio' && (
+          <RecordingSettings
+            isSystemAudio={isSystemAudio}
+            onSystemAudioChange={onSystemAudioChange}
+            audioDevices={audioDevices}
+            selectedDeviceId={selectedDeviceId}
+            onDeviceSelect={onDeviceSelect}
+            deviceSelectionReady={deviceSelectionReady}
+            isRecording={isRecording}
+            onRefreshDevices={onRefreshDevices}
+            devicesLoading={devicesLoading}
+            permissionState={permissionState}
+            disabled={disabled}
+          />
+        )}
+
+        {/* For screen recording, just show system audio toggle */}
+        {recordingMode === 'screen' && !isRecording && !audioUrl && (
+          <div className="mt-4 p-4 border rounded-lg">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="include-audio"
+                checked={isSystemAudio}
+                onChange={(e) => onSystemAudioChange(e.target.checked)}
+                className="mr-2"
+                disabled={disabled || isRecording}
+              />
+              <label htmlFor="include-audio" className="text-sm">Include microphone audio</label>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
