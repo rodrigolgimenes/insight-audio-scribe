@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { useAudioCapture } from "./useAudioCapture";
 import { useSystemAudio } from "./useSystemAudio";
@@ -93,9 +92,7 @@ export const useMediaStream = (
           
         } catch (error) {
           console.error('[useMediaStream] Error accessing microphone:', error);
-          toast({
-            description: "Microphone access denied. Continuing with screen capture only."
-          });
+          toast.warning("Microphone access denied. Continuing with screen capture only.");
         }
       }
       
