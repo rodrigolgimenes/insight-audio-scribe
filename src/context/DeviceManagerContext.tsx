@@ -8,6 +8,7 @@ import React, {
   useMemo
 } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
 type PermissionState = "prompt" | "granted" | "denied" | "unknown";
 
@@ -53,7 +54,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
   }, []);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    console.log("[DeviceManagerContext] Explicitly requesting microphone permission");
     setIsLoading(true);
     
     try {
@@ -63,7 +63,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
       if (!mountedRef.current) return false;
       
       setPermissionState("granted");
-      console.log("[DeviceManagerContext] Permission granted successfully");
       return true;
     } catch (error) {
       console.error("[DeviceManagerContext] Permission denied:", error);
@@ -197,7 +196,7 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
   const value: DeviceManagerContextValue = {
     devices,
     selectedDeviceId,
-    setSelectedDeviceId,
+    setSelectedDeviceId: handleSetSelectedDeviceId,
     permissionState,
     isLoading,
     refreshDevices,
