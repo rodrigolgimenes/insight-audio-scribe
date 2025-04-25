@@ -29,7 +29,7 @@ export function DeviceSelector({
   if (permissionState === 'denied') {
     return <DevicePermissionError />;
   }
-
+  
   // Define a wrapper function that ensures we return a Promise
   const handleRefreshDevices = async () => {
     if (onRefreshDevices) {
@@ -38,15 +38,9 @@ export function DeviceSelector({
     return Promise.resolve();
   };
 
-  // Just pass through to our centralized MicrophoneSelector component
+  // Just pass through the props that MicrophoneSelector accepts
   console.log("[DeviceSelector] Rendering unified MicrophoneSelector");
-  return <MicrophoneSelector 
-    disabled={disabled} 
-    audioDevices={audioDevices}
-    selectedDeviceId={selectedDeviceId}
-    onDeviceSelect={onDeviceSelect}
-    isReady={isReady}
-    onRefreshDevices={handleRefreshDevices}
-    devicesLoading={devicesLoading}
-  />;
+  
+  // MicrophoneSelector now uses the DeviceManagerContext, so we only need to pass disabled prop
+  return <MicrophoneSelector disabled={disabled} />;
 }

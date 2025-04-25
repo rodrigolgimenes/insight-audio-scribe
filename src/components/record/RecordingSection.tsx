@@ -1,4 +1,3 @@
-
 import React from "react";
 import { RecordingControls } from "./RecordingControls";
 import { RecordingSettings } from "./RecordingSettings";
@@ -113,7 +112,7 @@ export const RecordingSection = ({
           onPause={handlePauseRecording}
           onResume={handleResumeRecording}
           onDelete={handleDelete}
-          onToggleMode={onToggleRecordingMode}
+          onToggleMode={onToggleMode}
           showPlayButton={showPlayButton}
           showDeleteButton={showDeleteButton}
           isLoading={isLoading}

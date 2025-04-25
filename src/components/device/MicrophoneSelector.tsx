@@ -3,10 +3,15 @@ import React, { useState, useEffect } from "react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw, ChevronDown, MicOff, Loader2 } from "lucide-react";
 
+interface MicrophoneSelectorProps {
+  disabled?: boolean;
+  className?: string;
+}
+
 export function MicrophoneSelector({ 
   disabled = false,
   className = "" 
-}) {
+}: MicrophoneSelectorProps) {
   const {
     devices,
     selectedDeviceId,
