@@ -104,7 +104,7 @@ export const useRecording = () => {
 
   // Toggle recording mode
   const toggleRecordingMode = useCallback(() => {
-    recordingState.setRecordingMode(prev => prev === 'audio' ? 'screen' : 'audio');
+    recordingState.setRecordingMode(recordingState.recordingMode === 'audio' ? 'screen' : 'audio');
   }, [recordingState]);
 
   // Modify start recording to handle different modes
@@ -193,10 +193,10 @@ export const useRecording = () => {
   ]);
 
   // Modified stop recording handler
-  const handleStopRecording = useCallback(async () => {
+  const handleStopRecording = useCallback(async (): Promise<{blob?: Blob, duration?: number} | void> => {
     if (!recordingState.isRecording) {
       console.log('[useRecordingHook] Not recording, ignoring stop request');
-      return { success: false };
+      return;
     }
     
     try {
@@ -237,7 +237,7 @@ export const useRecording = () => {
         toast.error(`Error stopping recording: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
       
-      return { success: false, error };
+      return;
     }
   }, [recordingState, stopRecording, isRestrictedRoute]);
 

@@ -94,8 +94,7 @@ export const useMediaStream = (
         } catch (error) {
           console.error('[useMediaStream] Error accessing microphone:', error);
           toast({
-            title: "Microphone access denied",
-            description: "Continuing with screen capture only."
+            description: "Microphone access denied. Continuing with screen capture only."
           });
         }
       }
