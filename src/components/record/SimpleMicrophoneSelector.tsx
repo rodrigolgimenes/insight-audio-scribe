@@ -15,8 +15,12 @@ export function SimpleMicrophoneSelector() {
   } = useDeviceManager();
   const [isOpen, setIsOpen] = useState(false);
   
+  // Ensure we respect restricted routes
+  const isRestricted = isRestrictedRoute();
+  
   useEffect(() => {
     if (devices.length > 0 && !selectedDeviceId) {
+      console.log('[SimpleMicrophoneSelector] Auto-selecting first device');
       setSelectedDeviceId(devices[0].deviceId);
     }
   }, [devices, selectedDeviceId, setSelectedDeviceId]);
@@ -27,12 +31,14 @@ export function SimpleMicrophoneSelector() {
   };
   
   const handleRefresh = () => {
+    console.log('[SimpleMicrophoneSelector] Refreshing devices');
     refreshDevices();
   };
   
   const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
-  
+
+  // For restricted routes, only show minimal UI without notifications
   return (
     <div className="w-full">
       <div className="text-sm font-medium mb-2 text-gray-700">

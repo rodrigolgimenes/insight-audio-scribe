@@ -88,64 +88,35 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
 
   const refreshDevices = useCallback(async () => {
     if (detectionInProgressRef.current) {
-      console.log("[DeviceManagerContext] refreshDevices: already in progress");
+      console.log("[DeviceManagerContext] Device refresh already in progress");
       return;
     }
     
     detectionInProgressRef.current = true;
     setIsLoading(true);
-    console.log("[DeviceManagerContext] Starting device refresh...");
-
+    
     try {
-      if (navigator.permissions) {
-        try {
-          const permResult = await navigator.permissions.query({ name: "microphone" as PermissionName });
-          console.log("[DeviceManagerContext] Permission status:", permResult.state);
-          
-          if (permResult.state !== "granted") {
-            if (permResult.state === "denied") {
-              setPermissionState("denied");
-              console.log("[DeviceManagerContext] Permission already denied in browser settings");
-              detectionInProgressRef.current = false;
-              setIsLoading(false);
-              return;
-            }
-            
-            await requestPermission();
-          } else {
-            setPermissionState("granted");
-          }
-        } catch (err) {
-          console.warn("[DeviceManagerContext] Error using Permissions API:", err);
-        }
+      const permResult = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      console.log("[DeviceManagerContext] Permission status:", permResult.state);
+      
+      if (permResult.state === "denied") {
+        setPermissionState("denied");
+        return;
       }
 
-      console.log("[DeviceManagerContext] Enumerating devices...");
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = allDevices.filter(d => d.kind === "audioinput");
       const formattedDevices = formatDevices(audioInputs);
 
-      console.log(`[DeviceManagerContext] Found ${formattedDevices.length} audio inputs:`, 
-        formattedDevices.map(d => ({ id: d.deviceId, label: d.label })));
+      console.log(`[DeviceManagerContext] Found ${formattedDevices.length} audio inputs`);
       
-      if (!mountedRef.current) {
-        detectionInProgressRef.current = false;
-        return;
-      }
+      if (!mountedRef.current) return;
       
       setDevices(formattedDevices);
 
       if (!selectedDeviceId && formattedDevices.length > 0) {
-        const deviceToSelect = formattedDevices[0].deviceId;
-        console.log("[DeviceManagerContext] Auto-selecting first device:", deviceToSelect);
-        setSelectedDeviceId(deviceToSelect);
-      } else if (selectedDeviceId) {
-        const deviceExists = formattedDevices.some(d => d.deviceId === selectedDeviceId);
-        if (!deviceExists && formattedDevices.length > 0) {
-          const deviceToSelect = formattedDevices[0].deviceId;
-          console.log("[DeviceManagerContext] Selected device no longer exists, selecting:", deviceToSelect);
-          setSelectedDeviceId(deviceToSelect);
-        }
+        console.log("[DeviceManagerContext] Auto-selecting first device");
+        setSelectedDeviceId(formattedDevices[0].deviceId);
       }
     } catch (error) {
       console.error("[DeviceManagerContext] Error in refreshDevices:", error);
@@ -159,7 +130,7 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
         detectionInProgressRef.current = false;
       }
     }
-  }, [permissionState, selectedDeviceId, formatDevices, requestPermission]);
+  }, [selectedDeviceId, formatDevices]);
 
   const value: DeviceManagerContextValue = {
     devices,
