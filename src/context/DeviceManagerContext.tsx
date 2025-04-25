@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useContext,
@@ -23,7 +22,6 @@ interface DeviceManagerContextValue {
   requestPermission: () => Promise<boolean>;
 }
 
-// Add missing interface
 interface DeviceManagerProviderProps {
   children: React.ReactNode;
 }
@@ -254,74 +252,15 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     }
   }, [permissionState, selectedDeviceId, formatDevices, requestPermission]);
 
-  const isRestrictedRoute = React.useMemo(() => {
-    const path = window.location.pathname.toLowerCase();
-    return path === '/' || 
-           path === '/index' || 
-           path === '/dashboard' || 
-           path === '/app' ||
-           path.startsWith('/app/');
-  }, []);
-
-  React.useEffect(() => {
-    mountedRef.current = true;
-    
-    refreshDevices().catch(console.error);
-
-    const handleDeviceChange = () => {
-      console.log("[DeviceManagerContext] devicechange event detected -> refreshing devices");
-      refreshDevices().catch(console.error);
-    };
-    
-    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
-
-    if (navigator.permissions) {
-      try {
-        navigator.permissions.query({ name: "microphone" as PermissionName })
-          .then(permissionStatus => {
-            if (!mountedRef.current) return;
-            
-            console.log("[DeviceManagerContext] Initial permission status:", permissionStatus.state);
-            setPermissionState(permissionStatus.state as PermissionState);
-            
-            permissionStatus.addEventListener("change", () => {
-              if (!mountedRef.current) return;
-              
-              console.log("[DeviceManagerContext] Permission status changed:", permissionStatus.state);
-              setPermissionState(permissionStatus.state as PermissionState);
-              
-              if (permissionStatus.state === "granted") {
-                refreshDevices().catch(console.error);
-              }
-            });
-          })
-          .catch(err => {
-            console.warn("[DeviceManagerContext] Error checking permission status:", err);
-          });
-      } catch (err) {
-        console.warn("[DeviceManagerContext] Error with Permissions API:", err);
-      }
-    }
-
-    return () => {
-      mountedRef.current = false;
-      navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
-    };
-  }, [refreshDevices]);
-
   const setSelectedDeviceIdWithRouteAwareness = React.useCallback((deviceId: string) => {
     console.log('[DeviceManagerContext] Setting selected device ID:', deviceId);
     setSelectedDeviceId(deviceId);
     
-    if (!isRestrictedRoute) {
-      toast.success("Microphone selected", {
-        id: "device-manager-selection",
-        duration: 2000
-      });
-    } else {
-      console.log('[DeviceManagerContext] Toast suppressed on restricted route');
-    }
-  }, [isRestrictedRoute]);
+    toast.success("Microphone selected", {
+      id: "device-manager-selection",
+      duration: 2000
+    });
+  }, []);
 
   const value: DeviceManagerContextValue = {
     devices,
