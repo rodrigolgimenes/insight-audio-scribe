@@ -7,7 +7,6 @@ import React, {
   useCallback,
   useMemo
 } from "react";
-import { toast } from "sonner";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 type PermissionState = "prompt" | "granted" | "denied" | "unknown";
@@ -59,19 +58,12 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
       stream.getTracks().forEach(track => track.stop());
       
       if (!mountedRef.current) return false;
       
       setPermissionState("granted");
       console.log("[DeviceManagerContext] Permission granted successfully");
-      
-      toast.success("Microphone access granted", {
-        id: "mic-permission-granted",
-        duration: 2000
-      });
-      
       return true;
     } catch (error) {
       console.error("[DeviceManagerContext] Permission denied:", error);
@@ -80,17 +72,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
       
       if (error instanceof DOMException && error.name === "NotAllowedError") {
         setPermissionState("denied");
-        toast.error("Microphone access denied", {
-          description: "Please allow microphone access in your browser settings",
-          id: "mic-permission-denied",
-          duration: 3000
-        });
-      } else if (error instanceof DOMException && error.name === "NotFoundError") {
-        toast.error("No microphone found", {
-          description: "Please connect a microphone and try again",
-          id: "no-microphone-found",
-          duration: 3000
-        });
       }
       
       return false;
@@ -103,31 +84,8 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
 
   const handleSetSelectedDeviceId = useCallback((deviceId: string) => {
     console.log("[DeviceManagerContext] Setting selected device:", deviceId);
-    
-    const deviceExists = devices.some(d => d.deviceId === deviceId);
-    console.log("[DeviceManagerContext] Device exists in list:", deviceExists);
-    
-    if (!deviceExists) {
-      console.warn("[DeviceManagerContext] Selected device not in current device list!");
-    }
-    
-    const previous = selectedDeviceId;
-    
     setSelectedDeviceId(deviceId);
-    
-    console.log("[DeviceManagerContext] Device selection changed:", {
-      from: previous,
-      to: deviceId
-    });
-    
-    setTimeout(() => {
-      console.log("[DeviceManagerContext] Selection verification:", {
-        expected: deviceId,
-        actual: selectedDeviceId,
-        match: selectedDeviceId === deviceId
-      });
-    }, 100);
-  }, [devices, selectedDeviceId]);
+  }, []);
 
   const refreshDevices = useCallback(async () => {
     if (detectionInProgressRef.current) {
@@ -149,10 +107,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
             if (permResult.state === "denied") {
               setPermissionState("denied");
               console.log("[DeviceManagerContext] Permission already denied in browser settings");
-              toast.error("Microphone access denied", {
-                description: "Please allow microphone access in your browser settings",
-                id: "mic-permission-browser-settings"
-              });
               detectionInProgressRef.current = false;
               setIsLoading(false);
               return;
@@ -190,9 +144,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
           
           if (error instanceof DOMException && error.name === "NotAllowedError") {
             setPermissionState("denied");
-            toast.error("Microphone access denied", {
-              description: "Please allow microphone access in your browser settings"
-            });
           }
           
           setDevices([]);
@@ -229,20 +180,11 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
           setSelectedDeviceId(deviceToSelect);
         }
       }
-      
-      if (formattedDevices.length === 0) {
-        toast.warning("No microphones found", {
-          description: "Please connect a microphone and try again"
-        });
-      }
     } catch (error) {
       console.error("[DeviceManagerContext] Error in refreshDevices:", error);
       if (mountedRef.current) {
         setDevices([]);
         setPermissionState("unknown");
-        toast.error("Failed to detect microphones", {
-          description: error instanceof Error ? error.message : "Unknown error"
-        });
       }
     } finally {
       if (mountedRef.current) {
@@ -252,20 +194,10 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     }
   }, [permissionState, selectedDeviceId, formatDevices, requestPermission]);
 
-  const setSelectedDeviceIdWithRouteAwareness = React.useCallback((deviceId: string) => {
-    console.log('[DeviceManagerContext] Setting selected device ID:', deviceId);
-    setSelectedDeviceId(deviceId);
-    
-    toast.success("Microphone selected", {
-      id: "device-manager-selection",
-      duration: 2000
-    });
-  }, []);
-
   const value: DeviceManagerContextValue = {
     devices,
     selectedDeviceId,
-    setSelectedDeviceId: setSelectedDeviceIdWithRouteAwareness,
+    setSelectedDeviceId,
     permissionState,
     isLoading,
     refreshDevices,
