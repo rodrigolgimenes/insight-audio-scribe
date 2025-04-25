@@ -120,38 +120,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
         }
       }
 
-      if (permissionState !== "granted") {
-        console.log("[DeviceManagerContext] Requesting microphone access...");
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach((track) => track.stop());
-          
-          if (!mountedRef.current) {
-            detectionInProgressRef.current = false;
-            return;
-          }
-          
-          setPermissionState("granted");
-          console.log("[DeviceManagerContext] Microphone access granted");
-        } catch (error) {
-          console.error("[DeviceManagerContext] Error requesting permission:", error);
-          
-          if (!mountedRef.current) {
-            detectionInProgressRef.current = false;
-            return;
-          }
-          
-          if (error instanceof DOMException && error.name === "NotAllowedError") {
-            setPermissionState("denied");
-          }
-          
-          setDevices([]);
-          detectionInProgressRef.current = false;
-          setIsLoading(false);
-          return;
-        }
-      }
-
       console.log("[DeviceManagerContext] Enumerating devices...");
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = allDevices.filter(d => d.kind === "audioinput");

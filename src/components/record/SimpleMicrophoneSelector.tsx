@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown, Mic, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { useDeviceManager } from "@/context/DeviceManagerContext";
+import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
 export function SimpleMicrophoneSelector() {
   const { 
@@ -25,7 +26,6 @@ export function SimpleMicrophoneSelector() {
     setIsOpen(false);
   };
   
-  // Define the handleRefresh function to call refreshDevices
   const handleRefresh = () => {
     refreshDevices();
   };
