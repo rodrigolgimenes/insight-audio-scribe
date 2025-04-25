@@ -20,17 +20,13 @@ export function NoDevicesMessage({
   isLoading = false
 }: NoDevicesMessageProps) {
   const [shouldShowWarning, setShouldShowWarning] = useState(false);
-  
-  // Check if we should show warnings on this route
   const isRestricted = isRestrictedRoute();
   
-  // Only show warning after a delay and if not on restricted route
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null;
     
     if (showWarning && !isLoading && audioDevices.length === 0 && !isRestricted) {
       timeoutId = setTimeout(() => {
-        console.log('[NoDevicesMessage] Setting shouldShowWarning to true');
         setShouldShowWarning(true);
       }, 5000);
     } else {
@@ -44,7 +40,6 @@ export function NoDevicesMessage({
     };
   }, [showWarning, isLoading, audioDevices.length, isRestricted]);
   
-  // Never show warning on restricted routes
   if (isRestricted || !showWarning || isLoading || !shouldShowWarning) {
     return null;
   }
@@ -52,7 +47,9 @@ export function NoDevicesMessage({
   return (
     <div className="flex flex-col items-center p-3 bg-amber-50 border border-amber-200 rounded-md mt-2">
       <Mic className="h-10 w-10 text-amber-500 mb-2" />
-      <h3 className="text-sm font-medium text-amber-700">No microphones detected</h3>
+      <h3 className="text
+
+-sm font-medium text-amber-700">No microphones detected</h3>
       <p className="text-xs text-amber-600 text-center mt-1 mb-3">
         {permissionState === 'granted' ? 
           'Please check your microphone connection and try again' :

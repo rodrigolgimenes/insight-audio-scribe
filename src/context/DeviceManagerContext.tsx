@@ -1,12 +1,5 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  useMemo
-} from "react";
+
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
@@ -81,11 +74,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     }
   }, []);
 
-  const handleSetSelectedDeviceId = useCallback((deviceId: string) => {
-    console.log("[DeviceManagerContext] Setting selected device:", deviceId);
-    setSelectedDeviceId(deviceId);
-  }, []);
-
   const refreshDevices = useCallback(async () => {
     if (detectionInProgressRef.current) {
       console.log("[DeviceManagerContext] Device refresh already in progress");
@@ -115,7 +103,6 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
       setDevices(formattedDevices);
 
       if (!selectedDeviceId && formattedDevices.length > 0) {
-        console.log("[DeviceManagerContext] Auto-selecting first device");
         setSelectedDeviceId(formattedDevices[0].deviceId);
       }
     } catch (error) {
@@ -132,10 +119,19 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     }
   }, [selectedDeviceId, formatDevices]);
 
-  const value: DeviceManagerContextValue = {
+  useEffect(() => {
+    console.log("[DeviceManagerContext] Initial device refresh");
+    refreshDevices();
+    
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [refreshDevices]);
+
+  const value = {
     devices,
     selectedDeviceId,
-    setSelectedDeviceId: handleSetSelectedDeviceId,
+    setSelectedDeviceId,
     permissionState,
     isLoading,
     refreshDevices,
