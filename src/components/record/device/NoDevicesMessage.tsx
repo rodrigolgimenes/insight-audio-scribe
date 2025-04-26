@@ -27,6 +27,7 @@ export function NoDevicesMessage({
   const actualRefresh = deviceContext?.refreshDevices || onRefresh;
   
   // Don't show the warning if we're loading or if devices are found
+  // Also hide the warning if permission is granted and we have devices
   if (actualIsLoading || (actualDevices && actualDevices.length > 0)) {
     return null;
   }

@@ -1,6 +1,8 @@
 
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useEffect } from 'react';
 import { useDeviceManager } from '@/hooks/device/useDeviceManager';
+import { toast } from 'sonner';
+import { isRestrictedRoute } from '@/utils/route/isRestrictedRoute';
 
 // Create a context for the device manager
 export const DeviceContext = React.createContext<ReturnType<typeof useDeviceManager> | null>(null);
@@ -9,9 +11,44 @@ interface DeviceManagerProviderProps {
   children: ReactNode;
 }
 
+// Track displayed toast IDs to prevent duplicates
+const displayedToastIds = new Set<string>();
+
 export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) {
   // Initialize the device manager hook
   const deviceManager = useDeviceManager();
+  
+  // Clear toast tracking on route change
+  useEffect(() => {
+    const handleRouteChange = () => {
+      // Only clear toast tracking on navigation
+      if (window.location.pathname !== window.history.state?.prevPath) {
+        displayedToastIds.clear();
+      }
+      window.history.state = {
+        ...window.history.state,
+        prevPath: window.location.pathname
+      };
+    };
+    
+    window.addEventListener('popstate', handleRouteChange);
+    
+    // Initial check on mount
+    if (deviceManager.devices.length === 0 && !deviceManager.isLoading && !isRestrictedRoute()) {
+      // Only show toast once
+      if (!displayedToastIds.has('devices-check')) {
+        displayedToastIds.add('devices-check');
+        toast.info("Checking for microphones...", {
+          id: "devices-check",
+          duration: 2000
+        });
+      }
+    }
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, [deviceManager.devices.length, deviceManager.isLoading]);
   
   return (
     <DeviceContext.Provider value={deviceManager}>

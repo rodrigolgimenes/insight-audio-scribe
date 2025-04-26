@@ -2,6 +2,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
+import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
+
+// Track displayed notifications to prevent duplicates
+const notifiedEvents = {
+  permissionGranted: false,
+  permissionDenied: false,
+  noDevices: false,
+  deviceRefresh: false
+};
 
 // Singleton state storage
 const deviceState = {
@@ -11,7 +20,8 @@ const deviceState = {
   isLoading: false,
   initialized: false,
   lastDetectionTime: 0,
-  cachedDevices: [] as AudioDevice[]
+  cachedDevices: [] as AudioDevice[],
+  lastNotificationTime: 0 // Track last notification time for throttling
 };
 
 // Local storage keys
@@ -20,6 +30,10 @@ const STORAGE_KEYS = {
   DEVICES_CACHE: 'audio_devices_cache',
   LAST_DETECTION: 'audio_last_detection_time'
 };
+
+// Time constants
+const CACHE_MAX_AGE = 60000; // 1 minute
+const NOTIFICATION_THROTTLE = 3000; // 3 seconds between notifications
 
 // Load cached data from localStorage
 const loadFromCache = () => {
@@ -62,16 +76,6 @@ export function useDeviceManager() {
   const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>(deviceState.permissionState);
   const [isLoading, setIsLoading] = useState(deviceState.isLoading);
 
-  // Check if we're on a restricted route
-  const isRestrictedRoute = useCallback((): boolean => {
-    const path = window.location.pathname.toLowerCase();
-    return path === '/' || 
-           path === '/index' || 
-           path === '/dashboard' || 
-           path === '/app' ||
-           path.startsWith('/app/');
-  }, []);
-
   // Format devices from MediaDeviceInfo to AudioDevice
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
     return mediaDevices
@@ -86,28 +90,44 @@ export function useDeviceManager() {
       }));
   }, []);
 
-  // Display notification based on route restrictions
+  // Display notification based on route restrictions, with throttling
   const showNotification = useCallback((
-    type: 'success' | 'error' | 'warning', 
+    type: 'success' | 'error' | 'warning' | 'info', 
     message: string, 
     description?: string,
     id?: string
   ) => {
+    // Skip notifications on restricted routes
     if (isRestrictedRoute()) {
       console.log('[DeviceManager] Suppressing notification on restricted route:', message);
       return;
     }
-
-    if (type === 'success') {
-      toast.success(message, { id });
-    } else if (type === 'error') {
-      toast.error(message, { description, id });
-    } else {
-      toast.warning(message, { description, id });
+    
+    // Throttle notifications
+    const now = Date.now();
+    if (now - deviceState.lastNotificationTime < NOTIFICATION_THROTTLE) {
+      console.log('[DeviceManager] Throttling notification:', message);
+      return;
     }
-  }, [isRestrictedRoute]);
+    
+    // Update last notification time
+    deviceState.lastNotificationTime = now;
+    
+    // Show the appropriate toast type with a unique ID
+    const toastId = id || `device-${type}-${Date.now()}`;
+    
+    if (type === 'success') {
+      toast.success(message, { id: toastId, description });
+    } else if (type === 'error') {
+      toast.error(message, { id: toastId, description });
+    } else if (type === 'warning') {
+      toast.warning(message, { id: toastId, description });
+    } else {
+      toast.info(message, { id: toastId, description });
+    }
+  }, []);
 
-  // Request microphone permission
+  // Request microphone permission with improved error handling
   const requestPermission = useCallback(async (): Promise<boolean> => {
     // If already loading, return current state
     if (deviceState.isLoading) {
@@ -116,7 +136,7 @@ export function useDeviceManager() {
     
     // If permission already granted and recently checked, return early
     if (deviceState.permissionState === 'granted' && 
-        Date.now() - deviceState.lastDetectionTime < 60000) {
+        Date.now() - deviceState.lastDetectionTime < CACHE_MAX_AGE) {
       return true;
     }
     
@@ -132,7 +152,12 @@ export function useDeviceManager() {
       deviceState.permissionState = newPermissionState;
       setPermissionState(newPermissionState);
       
-      showNotification('success', "Microphone access granted", undefined, 'mic-permission');
+      // Only show notification once per session
+      if (!notifiedEvents.permissionGranted) {
+        notifiedEvents.permissionGranted = true;
+        showNotification('success', "Microphone access granted", undefined, 'mic-permission');
+      }
+      
       return true;
     } catch (error) {
       console.error("[DeviceManager] Permission denied:", error);
@@ -141,8 +166,13 @@ export function useDeviceManager() {
       deviceState.permissionState = newPermissionState;
       setPermissionState(newPermissionState);
       
-      showNotification('error', "Microphone access denied", 
-        "Please allow microphone access in your browser settings", 'mic-permission-denied');
+      // Only show notification once per session
+      if (!notifiedEvents.permissionDenied) {
+        notifiedEvents.permissionDenied = true;
+        showNotification('error', "Microphone access denied", 
+          "Please allow microphone access in your browser settings", 'mic-permission-denied');
+      }
+      
       return false;
     } finally {
       deviceState.isLoading = false;
@@ -159,8 +189,7 @@ export function useDeviceManager() {
     
     // Use cached devices if available and not forced refresh
     const now = Date.now();
-    const cacheMaxAge = 60000; // 1 minute cache validity
-    const cacheIsValid = now - deviceState.lastDetectionTime < cacheMaxAge;
+    const cacheIsValid = now - deviceState.lastDetectionTime < CACHE_MAX_AGE;
     
     if (!forceRefresh && cacheIsValid && deviceState.devices.length > 0) {
       console.log('[DeviceManager] Using cached devices, age:', (now - deviceState.lastDetectionTime) / 1000, 'seconds');
@@ -209,8 +238,9 @@ export function useDeviceManager() {
         localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, newDeviceId);
       }
       
-      // Show notification if no devices found
-      if (audioDevices.length === 0) {
+      // Show notification if no devices found - only once per session
+      if (audioDevices.length === 0 && !notifiedEvents.noDevices) {
+        notifiedEvents.noDevices = true;
         showNotification('warning', "No microphones found", 
           "Please connect a microphone and try again", 'no-mics');
       }
@@ -238,8 +268,11 @@ export function useDeviceManager() {
     // Save to local storage
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
     
-    // Show notification
-    showNotification('success', "Microphone selected", undefined, 'mic-selected');
+    // Only show notification once per session for a device change
+    if (!notifiedEvents.deviceRefresh) {
+      notifiedEvents.deviceRefresh = true;
+      showNotification('success', "Microphone selected", undefined, 'mic-selected');
+    }
   }, [showNotification]);
 
   // Initialize on mount - fast startup with cached data
