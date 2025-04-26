@@ -2,79 +2,22 @@
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
-import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
-// Track displayed notifications to prevent duplicates
-const notifiedEvents = {
-  permissionGranted: false,
-  permissionDenied: false,
-  noDevices: false,
-  deviceRefresh: false
-};
-
-// Singleton state storage
-const deviceState = {
-  devices: [] as AudioDevice[],
-  selectedDeviceId: null as string | null,
-  permissionState: 'unknown' as 'prompt' | 'granted' | 'denied' | 'unknown',
-  isLoading: false,
-  initialized: false,
-  lastDetectionTime: 0,
-  cachedDevices: [] as AudioDevice[],
-  lastNotificationTime: 0 // Track last notification time for throttling
-};
-
-// Local storage keys
+// Constants
 const STORAGE_KEYS = {
   SELECTED_DEVICE: 'audio_selected_device',
   DEVICES_CACHE: 'audio_devices_cache',
   LAST_DETECTION: 'audio_last_detection_time'
 };
 
-// Time constants
-const CACHE_MAX_AGE = 60000; // 1 minute
-const NOTIFICATION_THROTTLE = 3000; // 3 seconds between notifications
+const CACHE_MAX_AGE = 60000; // 1 minute cache validity
+const notifiedEvents = new Set<string>();
 
-// Load cached data from localStorage
-const loadFromCache = () => {
-  try {
-    // Load selected device ID
-    const savedDeviceId = localStorage.getItem(STORAGE_KEYS.SELECTED_DEVICE);
-    if (savedDeviceId) {
-      deviceState.selectedDeviceId = savedDeviceId;
-    }
-    
-    // Load cached devices
-    const cachedDevicesStr = localStorage.getItem(STORAGE_KEYS.DEVICES_CACHE);
-    if (cachedDevicesStr) {
-      const cachedDevices = JSON.parse(cachedDevicesStr);
-      if (Array.isArray(cachedDevices) && cachedDevices.length > 0) {
-        deviceState.cachedDevices = cachedDevices;
-      }
-    }
-    
-    // Load detection timestamp
-    const lastDetection = localStorage.getItem(STORAGE_KEYS.LAST_DETECTION);
-    if (lastDetection) {
-      deviceState.lastDetectionTime = parseInt(lastDetection, 10);
-    }
-  } catch (error) {
-    console.error('[DeviceManager] Error loading from cache:', error);
-  }
-};
-
-// Initialize cache on load
-loadFromCache();
-
-/**
- * Optimized hook for accessing and managing audio devices
- */
 export function useDeviceManager() {
-  // Local state that will sync with the singleton
-  const [devices, setDevices] = useState<AudioDevice[]>(deviceState.devices);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(deviceState.selectedDeviceId);
-  const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>(deviceState.permissionState);
-  const [isLoading, setIsLoading] = useState(deviceState.isLoading);
+  const [devices, setDevices] = useState<AudioDevice[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Format devices from MediaDeviceInfo to AudioDevice
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
@@ -90,257 +33,135 @@ export function useDeviceManager() {
       }));
   }, []);
 
-  // Display notification based on route restrictions, with throttling
-  const showNotification = useCallback((
-    type: 'success' | 'error' | 'warning' | 'info', 
-    message: string, 
-    description?: string,
-    id?: string
-  ) => {
-    // Skip notifications on restricted routes
-    if (isRestrictedRoute()) {
-      console.log('[DeviceManager] Suppressing notification on restricted route:', message);
-      return;
+  // Load cached data
+  const loadFromCache = useCallback(() => {
+    try {
+      // Load selected device ID
+      const savedDeviceId = localStorage.getItem(STORAGE_KEYS.SELECTED_DEVICE);
+      if (savedDeviceId) {
+        setSelectedDeviceId(savedDeviceId);
+      }
+
+      // Load cached devices
+      const cachedDevicesStr = localStorage.getItem(STORAGE_KEYS.DEVICES_CACHE);
+      if (cachedDevicesStr) {
+        const cachedDevices = JSON.parse(cachedDevicesStr);
+        if (Array.isArray(cachedDevices) && cachedDevices.length > 0) {
+          setDevices(cachedDevices);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error('[DeviceManager] Error loading from cache:', error);
     }
-    
-    // Throttle notifications
-    const now = Date.now();
-    if (now - deviceState.lastNotificationTime < NOTIFICATION_THROTTLE) {
-      console.log('[DeviceManager] Throttling notification:', message);
-      return;
-    }
-    
-    // Update last notification time
-    deviceState.lastNotificationTime = now;
-    
-    // Show the appropriate toast type with a unique ID
-    const toastId = id || `device-${type}-${Date.now()}`;
-    
-    if (type === 'success') {
-      toast.success(message, { id: toastId, description });
-    } else if (type === 'error') {
-      toast.error(message, { id: toastId, description });
-    } else if (type === 'warning') {
-      toast.warning(message, { id: toastId, description });
-    } else {
-      toast.info(message, { id: toastId, description });
+    return false;
+  }, []);
+
+  // Show notification once per session
+  const showNotification = useCallback((type: string, message: string) => {
+    if (!notifiedEvents.has(type)) {
+      notifiedEvents.add(type);
+      toast[type === 'error' ? 'error' : 'success'](message);
     }
   }, []);
 
-  // Request microphone permission with improved error handling
+  // Request microphone permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    // If already loading, return current state
-    if (deviceState.isLoading) {
-      return deviceState.permissionState === 'granted';
-    }
-    
-    // If permission already granted and recently checked, return early
-    if (deviceState.permissionState === 'granted' && 
-        Date.now() - deviceState.lastDetectionTime < CACHE_MAX_AGE) {
-      return true;
-    }
-    
-    console.log("[DeviceManager] Requesting microphone permission");
-    deviceState.isLoading = true;
-    setIsLoading(true);
+    if (isLoading) return false;
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach(track => track.stop());
       
-      const newPermissionState = 'granted';
-      deviceState.permissionState = newPermissionState;
-      setPermissionState(newPermissionState);
-      
-      // Only show notification once per session
-      if (!notifiedEvents.permissionGranted) {
-        notifiedEvents.permissionGranted = true;
-        showNotification('success', "Microphone access granted", undefined, 'mic-permission');
-      }
-      
+      setPermissionState('granted');
+      showNotification('success', "Microphone access granted");
       return true;
     } catch (error) {
-      console.error("[DeviceManager] Permission denied:", error);
-      
-      const newPermissionState = 'denied';
-      deviceState.permissionState = newPermissionState;
-      setPermissionState(newPermissionState);
-      
-      // Only show notification once per session
-      if (!notifiedEvents.permissionDenied) {
-        notifiedEvents.permissionDenied = true;
-        showNotification('error', "Microphone access denied", 
-          "Please allow microphone access in your browser settings", 'mic-permission-denied');
-      }
-      
+      setPermissionState('denied');
+      showNotification('error', "Microphone access denied");
       return false;
-    } finally {
-      deviceState.isLoading = false;
-      setIsLoading(false);
     }
-  }, [showNotification]);
+  }, [isLoading, showNotification]);
 
-  // Refresh device list with optimized caching
-  const refreshDevices = useCallback(async (forceRefresh = false): Promise<boolean> => {
-    // Skip if already loading
-    if (deviceState.isLoading && !forceRefresh) {
-      return false;
-    }
+  // Refresh devices list
+  const refreshDevices = useCallback(async (force = false): Promise<boolean> => {
+    if (isLoading && !force) return false;
     
-    // Use cached devices if available and not forced refresh
-    const now = Date.now();
-    const cacheIsValid = now - deviceState.lastDetectionTime < CACHE_MAX_AGE;
-    
-    if (!forceRefresh && cacheIsValid && deviceState.devices.length > 0) {
-      console.log('[DeviceManager] Using cached devices, age:', (now - deviceState.lastDetectionTime) / 1000, 'seconds');
-      return true;
-    }
-    
-    console.log("[DeviceManager] Refreshing devices" + (forceRefresh ? ' (forced)' : ''));
-    deviceState.isLoading = true;
     setIsLoading(true);
     
     try {
-      // Ensure permission is granted first if needed
-      if (deviceState.permissionState !== 'granted') {
+      // Ensure permission is granted
+      if (permissionState !== 'granted') {
         const hasPermission = await requestPermission();
-        if (!hasPermission) return false;
+        if (!hasPermission) {
+          setIsLoading(false);
+          return false;
+        }
       }
       
-      // Get devices with permission
+      // Get devices
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const audioDevices = formatDevices(mediaDevices.filter(d => d.kind === "audioinput"));
+      const audioDevices = formatDevices(mediaDevices);
       
-      console.log(`[DeviceManager] Found ${audioDevices.length} audio devices`);
-      
-      // Update singleton state
-      deviceState.devices = audioDevices;
-      deviceState.lastDetectionTime = now;
-      
-      // Save to state and cache
+      // Update state and cache
       setDevices(audioDevices);
-      localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, now.toString());
       localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioDevices));
+      localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
+      
+      // Handle no devices found
+      if (audioDevices.length === 0) {
+        showNotification('warning', "No microphones found");
+      }
       
       // Auto-select first device if none selected
-      if (!deviceState.selectedDeviceId && audioDevices.length > 0) {
+      if (!selectedDeviceId && audioDevices.length > 0) {
         const defaultDevice = audioDevices.find(d => d.isDefault) || audioDevices[0];
-        deviceState.selectedDeviceId = defaultDevice.deviceId;
-        setSelectedDeviceId(defaultDevice.deviceId);
-        localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, defaultDevice.deviceId);
-      }
-      
-      // Check if selected device still exists
-      if (deviceState.selectedDeviceId && !audioDevices.some(d => d.deviceId === deviceState.selectedDeviceId) && audioDevices.length > 0) {
-        const newDeviceId = audioDevices[0].deviceId;
-        deviceState.selectedDeviceId = newDeviceId;
-        setSelectedDeviceId(newDeviceId);
-        localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, newDeviceId);
-      }
-      
-      // Show notification if no devices found - only once per session
-      if (audioDevices.length === 0 && !notifiedEvents.noDevices) {
-        notifiedEvents.noDevices = true;
-        showNotification('warning', "No microphones found", 
-          "Please connect a microphone and try again", 'no-mics');
+        handleSelectDevice(defaultDevice.deviceId);
       }
       
       return true;
     } catch (error) {
-      console.error("[DeviceManager] Error refreshing devices:", error);
+      console.error('[DeviceManager] Error refreshing devices:', error);
       showNotification('error', "Failed to refresh devices");
       return false;
     } finally {
-      deviceState.isLoading = false;
       setIsLoading(false);
-      deviceState.initialized = true;
     }
-  }, [requestPermission, formatDevices, showNotification]);
+  }, [isLoading, permissionState, requestPermission, formatDevices, selectedDeviceId, showNotification]);
 
   // Handle device selection
   const handleSelectDevice = useCallback((deviceId: string) => {
-    console.log('[DeviceManager] Selecting device:', deviceId);
-    
-    // Update singleton state
-    deviceState.selectedDeviceId = deviceId;
     setSelectedDeviceId(deviceId);
-    
-    // Save to local storage
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
-    
-    // Only show notification once per session for a device change
-    if (!notifiedEvents.deviceRefresh) {
-      notifiedEvents.deviceRefresh = true;
-      showNotification('success', "Microphone selected", undefined, 'mic-selected');
-    }
+    showNotification('success', "Microphone selected");
   }, [showNotification]);
 
-  // Initialize on mount - fast startup with cached data
+  // Initialize on mount
   useEffect(() => {
-    const initDevices = async () => {
-      // Fast initialization with cached data
-      if (deviceState.cachedDevices.length > 0) {
-        console.log('[DeviceManager] Using cached devices for initial render');
-        setDevices(deviceState.cachedDevices);
-      }
+    const init = async () => {
+      const hasCachedData = loadFromCache();
       
-      // Check if we need to initialize
-      if (!deviceState.initialized) {
+      // Check if we need to refresh
+      const lastDetection = localStorage.getItem(STORAGE_KEYS.LAST_DETECTION);
+      const cacheExpired = !lastDetection || Date.now() - parseInt(lastDetection, 10) > CACHE_MAX_AGE;
+      
+      if (!hasCachedData || cacheExpired) {
         await refreshDevices(false);
       }
     };
     
-    initDevices();
-    
-    // Listen for device changes
-    const handleDeviceChange = () => {
-      console.log("[DeviceManager] Device change detected");
-      refreshDevices(true);
-    };
-    
-    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    init();
+  }, [loadFromCache, refreshDevices]);
+
+  // Listen for device changes
+  useEffect(() => {
+    const handleDeviceChange = () => refreshDevices(true);
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     
     return () => {
-      navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };
   }, [refreshDevices]);
-
-  // Check permission status on mount
-  useEffect(() => {
-    const checkPermission = async () => {
-      try {
-        if (navigator.permissions) {
-          const result = await navigator.permissions.query({
-            name: "microphone" as PermissionName,
-          });
-          
-          const newPermissionState = result.state as 'prompt' | 'granted' | 'denied';
-          deviceState.permissionState = newPermissionState;
-          setPermissionState(newPermissionState);
-          
-          // Listen for permission changes
-          result.addEventListener("change", () => {
-            const changedState = result.state as 'prompt' | 'granted' | 'denied';
-            deviceState.permissionState = changedState;
-            setPermissionState(changedState);
-            
-            if (changedState === 'granted') {
-              refreshDevices(true);
-            }
-          });
-          
-          // If permission is granted, ensure we have devices
-          if (result.state === 'granted' && devices.length === 0) {
-            refreshDevices(false);
-          }
-        }
-      } catch (error) {
-        console.log("[DeviceManager] Permissions API error:", error);
-      }
-    };
-    
-    checkPermission();
-  }, [devices.length, refreshDevices]);
 
   return {
     devices,
