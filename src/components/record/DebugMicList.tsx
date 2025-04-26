@@ -1,8 +1,7 @@
 
 import React from "react";
-import { useAudioDevices } from "@/context/AudioDeviceContext";
+import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Mic, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { MicrophoneSelector } from "@/components/microphone/MicrophoneSelector";
 
@@ -13,7 +12,7 @@ export function DebugMicList() {
     permissionState,
     refreshDevices,
     requestPermission
-  } = useAudioDevices();
+  } = useDeviceManager();
   
   // Log details on render and when state changes
   React.useEffect(() => {
@@ -28,26 +27,13 @@ export function DebugMicList() {
   // Handle refreshing devices
   const handleRefresh = async () => {
     console.log('[DebugMicList] Refreshing devices');
-    
-    try {
-      await refreshDevices();
-      toast.success(`Refreshed microphone list (found ${devices.length})`);
-    } catch (error) {
-      console.error('[DebugMicList] Error refreshing devices:', error);
-      toast.error("Failed to refresh microphones");
-    }
+    await refreshDevices(true);
   };
   
   // Handle requesting permission
   const handleRequestPermission = async () => {
     console.log('[DebugMicList] Requesting permission');
-    
-    try {
-      const result = await requestPermission();
-      console.log('[DebugMicList] Permission request result:', result);
-    } catch (error) {
-      console.error('[DebugMicList] Error requesting permission:', error);
-    }
+    await requestPermission();
   };
   
   return (
@@ -70,7 +56,6 @@ export function DebugMicList() {
         <div><span className="font-medium">Devices found:</span> {devices.length}</div>
       </div>
       
-      {/* Use our new MicrophoneSelector component */}
       <MicrophoneSelector />
       
       {permissionState !== 'granted' && (
