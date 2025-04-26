@@ -5,20 +5,19 @@ import { Button } from "@/components/ui/button";
 import { useDeviceContext } from "@/providers/DeviceManagerProvider";
 
 interface NoDevicesMessageProps {
-  showWarning: boolean;
   onRefresh?: () => void;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
   audioDevices?: Array<any>;
   isLoading?: boolean;
 }
 
-export function NoDevicesMessage({ 
-  showWarning,
+export function NoDevicesMessage({
   onRefresh,
   permissionState = 'unknown',
   audioDevices = [],
   isLoading = false
 }: NoDevicesMessageProps) {
+  // Get values from context or use props as fallback
   const deviceContext = useDeviceContext();
   
   // Use context values if available, otherwise use props
@@ -28,14 +27,14 @@ export function NoDevicesMessage({
   const actualRefresh = deviceContext?.refreshDevices || onRefresh;
   
   // Don't show the warning if we're loading or if devices are found
-  if (!showWarning || actualIsLoading || (actualDevices && actualDevices.length > 0)) {
+  if (actualIsLoading || (actualDevices && actualDevices.length > 0)) {
     return null;
   }
   
   // Handle refresh action
   const handleRefresh = () => {
     if (actualRefresh && typeof actualRefresh === 'function') {
-      actualRefresh();
+      actualRefresh(true);
     }
   };
   
