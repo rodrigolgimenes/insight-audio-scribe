@@ -34,11 +34,8 @@ export function NoDevicesMessage({
   
   // Handle refresh action
   const handleRefresh = () => {
-    if (actualRefresh) {
-      // Check if actualRefresh is a function before calling it
-      if (typeof actualRefresh === 'function') {
-        actualRefresh();
-      }
+    if (actualRefresh && typeof actualRefresh === 'function') {
+      actualRefresh();
     }
   };
   
