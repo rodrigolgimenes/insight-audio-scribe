@@ -25,10 +25,15 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
       if (window.location.pathname !== window.history.state?.prevPath) {
         displayedToastIds.clear();
       }
-      window.history.state = {
+      
+      // Create a new history state object instead of modifying the existing one
+      const newHistoryState = {
         ...window.history.state,
         prevPath: window.location.pathname
       };
+      
+      // Replace the current history state with our updated version
+      window.history.replaceState(newHistoryState, '');
     };
     
     window.addEventListener('popstate', handleRouteChange);
