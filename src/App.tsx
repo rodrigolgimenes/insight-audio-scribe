@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
+import { LoginPage } from "@/components/auth/LoginPage";
+import { AuthCallback } from "@/components/auth/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import TestRecordMeeting from "./pages/TestRecordMeeting";
@@ -127,7 +129,6 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              {/* Routes needing microphone access wrapped in DeviceManagerProvider */}
               <Route
                 path="/simple-record"
                 element={
@@ -144,7 +145,6 @@ const App = () => {
                   </DeviceManagerProvider>
                 }
               />
-              {/* Continue with remaining routes */}
               <Route
                 path="/app/notes/:noteId"
                 element={
