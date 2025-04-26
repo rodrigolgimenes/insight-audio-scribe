@@ -25,7 +25,7 @@ export function NoDevicesMessage({
   const actualPermissionState = deviceContext?.permissionState || permissionState;
   const actualDevices = deviceContext?.devices || audioDevices;
   const actualIsLoading = deviceContext?.isLoading || isLoading;
-  const actualRefresh = onRefresh || deviceContext?.refreshDevices;
+  const actualRefresh = deviceContext?.refreshDevices || onRefresh;
   
   // Don't show the warning if we're loading or if devices are found
   if (!showWarning || actualIsLoading || (actualDevices && actualDevices.length > 0)) {
@@ -35,9 +35,8 @@ export function NoDevicesMessage({
   // Handle refresh action
   const handleRefresh = () => {
     if (actualRefresh) {
+      // Check if actualRefresh is a function before calling it
       if (typeof actualRefresh === 'function') {
-        actualRefresh(true);
-      } else {
         actualRefresh();
       }
     }
