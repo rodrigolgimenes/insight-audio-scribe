@@ -13,28 +13,24 @@ export const usePermissionRequest = (
   
   const { checkBrowserCompatibility } = useBrowserCompatibilityCheck();
 
-  // Clean up on unmount
   const cleanup = () => {
     mountedRef.current = false;
   };
 
-  // Enhanced permission check with prevention of duplicate checks
-  const requestPermission = useCallback(async (showToast = true): Promise<boolean> => {
+  const requestPermission = useCallback(async (): Promise<boolean> => {
     if (detectionInProgressRef.current) {
-      console.log('[usePermissionRequest] Permission check already in progress, skipping duplicate request');
+      console.log('[usePermissionRequest] Permission check already in progress');
       return permissionState === 'granted';
     }
 
     detectionInProgressRef.current = true;
-    console.log('[usePermissionRequest] Requesting microphone permission explicitly...');
+    console.log('[usePermissionRequest] Requesting microphone permission');
     
     try {
       setHasAttemptedPermission(true);
-      
-      // Check if browser is fully compatible
       checkBrowserCompatibility();
       
-      // Use our improved checkPermissions method
+      // Single, direct permission check
       const hasPermission = await checkPermissions();
       
       if (!mountedRef.current) {
@@ -42,13 +38,11 @@ export const usePermissionRequest = (
         return false;
       }
       
-      // Update our permission state based on the result
       setPermissionState(hasPermission ? 'granted' : 'denied');
       detectionInProgressRef.current = false;
-      
       return hasPermission;
     } catch (err) {
-      console.error('[usePermissionRequest] Unexpected error during permission request:', err);
+      console.error('[usePermissionRequest] Error during permission request:', err);
       
       if (mountedRef.current) {
         setPermissionState('unknown');
