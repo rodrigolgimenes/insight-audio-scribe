@@ -70,45 +70,9 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
 
   // Request microphone permission
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    console.log("[AudioDeviceContext] Requesting microphone permission");
-    setIsLoading(true);
-    
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop tracks immediately after permission is granted
-      stream.getTracks().forEach(track => track.stop());
-      
-      setPermissionState("granted");
-      console.log("[AudioDeviceContext] Permission granted");
-      
-      // Only show success toast if not on restricted route
-      if (!isRestrictedRoute()) {
-        toast.success("Microphone access granted", {
-          duration: 2000
-        });
-      } else {
-        console.log("[AudioDeviceContext] Suppressing success toast on restricted route");
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("[AudioDeviceContext] Permission denied:", error);
-      setPermissionState("denied");
-      
-      // Only show error toast if not on restricted route
-      if (!isRestrictedRoute()) {
-        toast.error("Microphone access denied", {
-          description: "Please allow microphone access in your browser settings"
-        });
-      } else {
-        console.log("[AudioDeviceContext] Suppressing error toast on restricted route");
-      }
-      
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isRestrictedRoute]);
+    console.log("[AudioDeviceContext] Placeholder permission request");
+    return false;
+  }, []);
 
   // Format devices from MediaDeviceInfo to our AudioDevice type
   const formatDevices = useCallback((mediaDevices: MediaDeviceInfo[]): AudioDevice[] => {
@@ -130,111 +94,24 @@ export function AudioDeviceProvider({ children }: AudioDeviceProviderProps) {
 
   // Refresh the list of audio devices
   const refreshDevices = useCallback(async (): Promise<void> => {
-    console.log("[AudioDeviceContext] Refreshing devices");
-    setIsLoading(true);
-    
-    try {
-      // Check if permission already granted
-      if (permissionState !== "granted") {
-        const hasPermission = await requestPermission();
-        if (!hasPermission) return;
-      }
-      
-      // Get devices with permission
-      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputDevices = formatDevices(
-        mediaDevices.filter(d => d.kind === "audioinput")
-      );
-      
-      console.log(`[AudioDeviceContext] Found ${audioInputDevices.length} audio input devices`);
-      setDevices(audioInputDevices);
-      
-      // Auto-select first device if none selected
-      if (!selectedDeviceId && audioInputDevices.length > 0) {
-        console.log("[AudioDeviceContext] Auto-selecting first device:", audioInputDevices[0].deviceId);
-        setSelectedDeviceId(audioInputDevices[0].deviceId);
-      }
-      
-      // Only show toast for no devices error case when not on restricted route
-      if (audioInputDevices.length === 0 && !isRestrictedRoute()) {
-        toast.warning("No microphones found", {
-          description: "Please connect a microphone and try again"
-        });
-      }
-    } catch (error) {
-      console.error("[AudioDeviceContext] Error refreshing devices:", error);
-      
-      // Only show error toast if not on restricted route
-      if (!isRestrictedRoute()) {
-        toast.error("Failed to refresh devices");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [permissionState, requestPermission, formatDevices, selectedDeviceId, isRestrictedRoute]);
+    console.log("[AudioDeviceContext] Placeholder device refresh");
+  }, []);
 
   // Listen for device changes
   useEffect(() => {
-    const handleDeviceChange = () => {
-      console.log("[AudioDeviceContext] Device change detected");
-      refreshDevices();
-    };
-    
-    navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
-    
-    // Initial device detection
-    refreshDevices();
-    
-    return () => {
-      navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
-    };
-  }, [refreshDevices]);
+    console.log("[AudioDeviceContext] Placeholder device initialization");
+  }, []);
 
   // Check permission status on mount
   useEffect(() => {
-    const checkPermissionStatus = async () => {
-      try {
-        if (navigator.permissions) {
-          const result = await navigator.permissions.query({
-            name: "microphone" as PermissionName,
-          });
-          console.log("[AudioDeviceContext] Permission status:", result.state);
-          setPermissionState(result.state as PermissionState);
-          
-          // Add listener for permission changes
-          result.addEventListener("change", () => {
-            console.log("[AudioDeviceContext] Permission state changed:", result.state);
-            setPermissionState(result.state as PermissionState);
-            if (result.state === "granted") {
-              refreshDevices();
-            }
-          });
-        } else {
-          console.log("[AudioDeviceContext] Permissions API not available");
-        }
-      } catch (err) {
-        console.error("[AudioDeviceContext] Error checking permission:", err);
-      }
-    };
-    
-    checkPermissionStatus();
-  }, [refreshDevices]);
+    console.log("[AudioDeviceContext] Placeholder permission check");
+  }, []);
 
   // Custom set selected device function to handle toasts
   const handleSetSelectedDevice = useCallback((deviceId: string) => {
     console.log('[AudioDeviceContext] Setting selected device:', deviceId);
     setSelectedDeviceId(deviceId);
-    
-    // Only show toast if not on restricted route
-    if (!isRestrictedRoute()) {
-      toast.success("Microphone selected", {
-        id: "audio-device-selected",
-        duration: 2000
-      });
-    } else {
-      console.log('[AudioDeviceContext] Toast suppressed on restricted route');
-    }
-  }, [isRestrictedRoute]);
+  }, []);
 
   const value = {
     devices,
