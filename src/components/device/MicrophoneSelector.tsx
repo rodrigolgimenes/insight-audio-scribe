@@ -1,7 +1,7 @@
 
-import React from "react";
-import { useDeviceManager } from "@/context/DeviceManagerContext";
-import { Mic, MicOff } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { useDeviceManager } from "@/hooks/device/useDeviceManager";
+import { Mic, MicOff, ChevronDown } from "lucide-react";
 
 interface MicrophoneSelectorProps {
   disabled?: boolean;
@@ -16,17 +16,43 @@ export function MicrophoneSelector({
     devices,
     selectedDeviceId,
     setSelectedDeviceId,
-    permissionState
+    permissionState,
+    refreshDevices
   } = useDeviceManager();
   
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+  
+  // Ensure we have devices on first render
+  useEffect(() => {
+    if (devices.length === 0 && permissionState === 'granted') {
+      refreshDevices(false);
+    }
+  }, [devices, permissionState, refreshDevices]);
+
   const handleSelect = (deviceId: string) => {
     setSelectedDeviceId(deviceId);
+    setDropdownOpen(false);
   };
   
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} ref={dropdownRef}>
       <div className="text-sm font-medium mb-2 text-gray-700">
         <span>Select Microphone</span>
       </div>
@@ -34,7 +60,7 @@ export function MicrophoneSelector({
       <div className="relative">
         <button
           type="button"
-          onClick={() => setSelectedDeviceId(selectedDeviceId || devices[0]?.deviceId)}
+          onClick={() => setDropdownOpen(!dropdownOpen)}
           disabled={disabled || permissionState === 'denied'}
           className={`flex items-center justify-between w-full p-3 bg-white border border-gray-300 rounded-md text-left text-gray-700 shadow-sm hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
             disabled ? 'opacity-50 cursor-not-allowed' : ''
@@ -51,9 +77,11 @@ export function MicrophoneSelector({
               No microphone selected
             </span>
           )}
+          
+          <ChevronDown className={`h-4 w-4 transition-transform ${dropdownOpen ? 'transform rotate-180' : ''}`} />
         </button>
         
-        {devices.length > 0 && (
+        {dropdownOpen && devices.length > 0 && (
           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
             {devices.map((device) => (
               <button
@@ -68,9 +96,43 @@ export function MicrophoneSelector({
                 {device.label}
               </button>
             ))}
+            
+            <button 
+              className="w-full text-left p-3 border-t border-gray-200 text-blue-600 hover:bg-blue-50 flex items-center"
+              onClick={(e) => { 
+                e.preventDefault();
+                refreshDevices(true);
+                setDropdownOpen(false);
+              }}
+            >
+              <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.84 1 6.54 2.71L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+              Refresh Devices
+            </button>
           </div>
         )}
       </div>
+      
+      {permissionState === 'denied' && (
+        <div className="mt-2 text-xs text-red-500">
+          Microphone access denied. Please allow access in your browser settings.
+        </div>
+      )}
+      
+      {permissionState === 'prompt' && devices.length === 0 && (
+        <button
+          onClick={() => refreshDevices(true)}
+          className="mt-2 text-xs text-blue-500 hover:underline flex items-center"
+        >
+          <svg className="h-3 w-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.84 1 6.54 2.71L21 8" />
+            <path d="M21 3v5h-5" />
+          </svg>
+          Click to grant microphone access
+        </button>
+      )}
     </div>
   );
 }

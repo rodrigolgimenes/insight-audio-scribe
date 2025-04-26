@@ -2,6 +2,7 @@
 import React from "react";
 import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useDeviceContext } from "@/providers/DeviceManagerProvider";
 
 interface NoDevicesMessageProps {
   showWarning: boolean;
@@ -18,20 +19,39 @@ export function NoDevicesMessage({
   audioDevices = [],
   isLoading = false
 }: NoDevicesMessageProps) {
+  const deviceContext = useDeviceContext();
+  
+  // Use context values if available, otherwise use props
+  const actualPermissionState = deviceContext?.permissionState || permissionState;
+  const actualDevices = deviceContext?.devices || audioDevices;
+  const actualIsLoading = deviceContext?.isLoading || isLoading;
+  const actualRefresh = onRefresh || deviceContext?.refreshDevices;
+  
   // Don't show the warning if we're loading or if devices are found
-  if (!showWarning || isLoading || (audioDevices && audioDevices.length > 0)) {
+  if (!showWarning || actualIsLoading || (actualDevices && actualDevices.length > 0)) {
     return null;
   }
+  
+  // Handle refresh action
+  const handleRefresh = () => {
+    if (actualRefresh) {
+      if (typeof actualRefresh === 'function') {
+        actualRefresh(true);
+      } else {
+        actualRefresh();
+      }
+    }
+  };
   
   return (
     <div className="flex flex-col items-center p-3 bg-amber-50 border border-amber-200 rounded-md mt-2">
       <Mic className="h-10 w-10 text-amber-500 mb-2" />
       <h3 className="text-sm font-medium text-amber-700">No microphones detected</h3>
-      {onRefresh && (
+      {actualRefresh && (
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={onRefresh}
+          onClick={handleRefresh}
           className="bg-white border-amber-300 text-amber-700 hover:bg-amber-100 mt-2"
         >
           Check Again
