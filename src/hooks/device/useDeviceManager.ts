@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
@@ -57,15 +56,7 @@ export function useDeviceManager() {
     return false;
   }, []);
 
-  // Show notification once per session
-  const showNotification = useCallback((type: string, message: string) => {
-    if (!notifiedEvents.has(type)) {
-      notifiedEvents.add(type);
-      toast[type === 'error' ? 'error' : 'success'](message);
-    }
-  }, []);
-
-  // Request microphone permission
+  // Request microphone permission - centralized notifications
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (isLoading) return false;
     
@@ -74,16 +65,22 @@ export function useDeviceManager() {
       stream.getTracks().forEach(track => track.stop());
       
       setPermissionState('granted');
-      showNotification('success', "Microphone access granted");
+      if (!notifiedEvents.has('permission_granted')) {
+        notifiedEvents.add('permission_granted');
+        toast.success("Microphone access granted");
+      }
       return true;
     } catch (error) {
       setPermissionState('denied');
-      showNotification('error', "Microphone access denied");
+      if (!notifiedEvents.has('permission_denied')) {
+        notifiedEvents.add('permission_denied');
+        toast.error("Microphone access denied");
+      }
       return false;
     }
-  }, [isLoading, showNotification]);
+  }, [isLoading]);
 
-  // Refresh devices list
+  // Refresh devices list - centralized notifications
   const refreshDevices = useCallback(async (force = false): Promise<boolean> => {
     if (isLoading && !force) return false;
     
@@ -109,8 +106,9 @@ export function useDeviceManager() {
       localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
       
       // Handle no devices found
-      if (audioDevices.length === 0) {
-        showNotification('warning', "No microphones found");
+      if (audioDevices.length === 0 && !notifiedEvents.has('no_devices')) {
+        notifiedEvents.add('no_devices');
+        toast.warning("No microphones found");
       }
       
       // Auto-select first device if none selected
@@ -122,19 +120,21 @@ export function useDeviceManager() {
       return true;
     } catch (error) {
       console.error('[DeviceManager] Error refreshing devices:', error);
-      showNotification('error', "Failed to refresh devices");
       return false;
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, permissionState, requestPermission, formatDevices, selectedDeviceId, showNotification]);
+  }, [isLoading, permissionState, requestPermission, formatDevices, selectedDeviceId]);
 
   // Handle device selection
   const handleSelectDevice = useCallback((deviceId: string) => {
     setSelectedDeviceId(deviceId);
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
-    showNotification('success', "Microphone selected");
-  }, [showNotification]);
+    if (!notifiedEvents.has('device_selected')) {
+      notifiedEvents.add('device_selected');
+      toast.success("Microphone selected");
+    }
+  }, []);
 
   // Initialize on mount
   useEffect(() => {

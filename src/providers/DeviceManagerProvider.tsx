@@ -1,7 +1,6 @@
 
 import React, { ReactNode, useEffect } from 'react';
 import { useDeviceManager } from '@/hooks/device/useDeviceManager';
-import { toast } from 'sonner';
 import { isRestrictedRoute } from '@/utils/route/isRestrictedRoute';
 
 // Create a context for the device manager
@@ -38,16 +37,9 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     
     window.addEventListener('popstate', handleRouteChange);
     
-    // Initial check on mount
+    // Initial check on mount - removed toast.info call
     if (deviceManager.devices.length === 0 && !deviceManager.isLoading && !isRestrictedRoute()) {
-      // Only show toast once
-      if (!displayedToastIds.has('devices-check')) {
-        displayedToastIds.add('devices-check');
-        toast.info("Checking for microphones...", {
-          id: "devices-check",
-          duration: 2000
-        });
-      }
+      deviceManager.refreshDevices(false);
     }
     
     return () => {
