@@ -1,6 +1,5 @@
 
 import { useState, useCallback, useRef } from "react";
-import { useBrowserCompatibilityCheck } from "./useBrowserCompatibilityCheck";
 
 export const usePermissionRequest = (
   checkPermissions: () => Promise<boolean>,
@@ -10,12 +9,6 @@ export const usePermissionRequest = (
   const [hasAttemptedPermission, setHasAttemptedPermission] = useState(false);
   const detectionInProgressRef = useRef(false);
   const mountedRef = useRef(true);
-  
-  const { checkBrowserCompatibility } = useBrowserCompatibilityCheck();
-
-  const cleanup = () => {
-    mountedRef.current = false;
-  };
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (detectionInProgressRef.current) {
@@ -28,18 +21,13 @@ export const usePermissionRequest = (
     
     try {
       setHasAttemptedPermission(true);
-      checkBrowserCompatibility();
       
       // Single, direct permission check
       const hasPermission = await checkPermissions();
       
-      if (!mountedRef.current) {
-        detectionInProgressRef.current = false;
-        return false;
-      }
+      if (!mountedRef.current) return false;
       
       setPermissionState(hasPermission ? 'granted' : 'denied');
-      detectionInProgressRef.current = false;
       return hasPermission;
     } catch (err) {
       console.error('[usePermissionRequest] Error during permission request:', err);
@@ -48,16 +36,19 @@ export const usePermissionRequest = (
         setPermissionState('unknown');
       }
       
-      detectionInProgressRef.current = false;
       return false;
+    } finally {
+      detectionInProgressRef.current = false;
     }
-  }, [checkPermissions, permissionState, checkBrowserCompatibility]);
+  }, [checkPermissions, permissionState]);
 
   return {
     permissionState,
     setPermissionState,
     hasAttemptedPermission,
     requestPermission,
-    cleanup
+    cleanup: () => {
+      mountedRef.current = false;
+    }
   };
 };
