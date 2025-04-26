@@ -7,10 +7,16 @@ export const usePermissionMonitoring = (
 ) => {
   const initialCheckDoneRef = useRef(false);
   const permissionEventBoundRef = useRef(false);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    // Mark component as mounted
+    mountedRef.current = true;
+    
     // Set up device change monitoring
     const handleDeviceChange = () => {
+      if (!mountedRef.current) return;
+      
       console.log('[usePermissionMonitoring] Device change detected');
       detectDevices(true);
     };
@@ -19,7 +25,7 @@ export const usePermissionMonitoring = (
     
     // Perform an initial permissions check
     const checkInitialPermissions = async () => {
-      if (initialCheckDoneRef.current) return;
+      if (initialCheckDoneRef.current || !mountedRef.current) return;
       initialCheckDoneRef.current = true;
       
       // First try the Permissions API if available
@@ -27,6 +33,8 @@ export const usePermissionMonitoring = (
         try {
           console.log('[usePermissionMonitoring] Checking permissions using Permissions API');
           const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          
+          if (!mountedRef.current) return;
           
           // Update initial state
           console.log('[usePermissionMonitoring] Initial permission state:', permissionStatus.state);
@@ -37,6 +45,8 @@ export const usePermissionMonitoring = (
             permissionEventBoundRef.current = true;
             
             permissionStatus.addEventListener('change', () => {
+              if (!mountedRef.current) return;
+              
               console.log('[usePermissionMonitoring] Permission change detected:', permissionStatus.state);
               setPermissionState(permissionStatus.state as 'prompt'|'granted'|'denied');
               
@@ -48,48 +58,19 @@ export const usePermissionMonitoring = (
             });
           }
         } catch (err) {
+          if (!mountedRef.current) return;
           console.warn('[usePermissionMonitoring] Error checking permissions:', err);
-          useFallbackPermissionCheck();
         }
       } else {
-        console.log('[usePermissionMonitoring] Permissions API not available, using fallback method');
-        useFallbackPermissionCheck();
+        console.log('[usePermissionMonitoring] Permissions API not available');
       }
     };
     
-    // Fallback method to check permissions when Permissions API is not available
-    const useFallbackPermissionCheck = async () => {
-      try {
-        console.log('[usePermissionMonitoring] Attempting fallback permission check');
-        // Try to access user media to determine permission state
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        console.log('[usePermissionMonitoring] Fallback check: permission granted');
-        setPermissionState('granted');
-        
-        // Clean up the stream
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-        }
-        
-        // Also refresh devices since we now have permission
-        detectDevices(true);
-      } catch (err) {
-        // Determine if permission is denied or prompt based on error message
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          console.log('[usePermissionMonitoring] Fallback check: permission denied');
-          setPermissionState('denied');
-        } else {
-          console.log('[usePermissionMonitoring] Fallback check: permission status unknown', err);
-          setPermissionState('unknown');
-        }
-      }
-    };
-    
-    // Run the initial check
+    // Run the initial check without fallbacks
     checkInitialPermissions();
     
     return () => {
+      mountedRef.current = false;
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };
   }, [detectDevices, setPermissionState]);

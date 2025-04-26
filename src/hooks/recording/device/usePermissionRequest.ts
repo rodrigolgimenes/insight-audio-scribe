@@ -1,6 +1,5 @@
 
 import { useState, useCallback, useRef } from "react";
-import { toast } from "sonner";
 import { useBrowserCompatibilityCheck } from "./useBrowserCompatibilityCheck";
 
 export const usePermissionRequest = (
@@ -19,17 +18,7 @@ export const usePermissionRequest = (
     mountedRef.current = false;
   };
 
-  // Improved check for restricted routes - includes app/ as a path segment
-  const isRestrictedRoute = (): boolean => {
-    const path = window.location.pathname.toLowerCase();
-    return path === '/' || 
-           path === '/index' || 
-           path === '/dashboard' || 
-           path === '/app' ||
-           path.startsWith('/app/');
-  };
-
-  // Enhanced permission check with multiple retry strategies
+  // Enhanced permission check with prevention of duplicate checks
   const requestPermission = useCallback(async (showToast = true): Promise<boolean> => {
     if (detectionInProgressRef.current) {
       console.log('[usePermissionRequest] Permission check already in progress, skipping duplicate request');
@@ -57,28 +46,12 @@ export const usePermissionRequest = (
       setPermissionState(hasPermission ? 'granted' : 'denied');
       detectionInProgressRef.current = false;
       
-      // Only show toast if on a non-restricted route
-      if (hasPermission && showToast && !isRestrictedRoute()) {
-        toast.success("Microphone access granted", {
-          id: "mic-permission-granted",
-          duration: 3000
-        });
-      }
-      
       return hasPermission;
     } catch (err) {
       console.error('[usePermissionRequest] Unexpected error during permission request:', err);
       
       if (mountedRef.current) {
         setPermissionState('unknown');
-        
-        // Only show toast if on a non-restricted route
-        if (showToast && !isRestrictedRoute()) {
-          toast.error("Failed to access microphone", {
-            description: err instanceof Error ? err.message : "Unknown error",
-            id: "mic-access-failed"
-          });
-        }
       }
       
       detectionInProgressRef.current = false;

@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 
@@ -8,8 +8,17 @@ export function useRobustMicrophoneDetection() {
   const [isLoading, setIsLoading] = useState(true);
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   
+  // Prevent duplicate checks
+  const detectionInProgressRef = useRef(false);
+  
   const requestMicrophoneAccess = useCallback(async (): Promise<boolean> => {
+    if (detectionInProgressRef.current) {
+      console.log('[useRobustMicrophoneDetection] Detection already in progress, skipping duplicate request');
+      return permissionState === "granted";
+    }
+    
     setIsLoading(true);
+    detectionInProgressRef.current = true;
     
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -17,13 +26,17 @@ export function useRobustMicrophoneDetection() {
       
       setPermissionState("granted");
       setIsLoading(false);
+      detectionInProgressRef.current = false;
+      
       return true;
     } catch (err) {
       setPermissionState("denied");
       setIsLoading(false);
+      detectionInProgressRef.current = false;
+      
       return false;
     }
-  }, []);
+  }, [permissionState]);
 
   const detectDevices = useCallback(async () => {
     if (permissionState !== 'granted') {
@@ -32,6 +45,7 @@ export function useRobustMicrophoneDetection() {
     }
     
     try {
+      setIsLoading(true);
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = allDevices.filter(device => device.kind === "audioinput");
       const formattedDevices = audioInputs.map((device, index) => ({
