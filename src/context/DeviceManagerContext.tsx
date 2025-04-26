@@ -1,9 +1,8 @@
 
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 import { toast } from "sonner";
-import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
 interface DeviceManagerContextValue {
   devices: AudioDevice[];
@@ -23,14 +22,42 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [isLoading, setIsLoading] = useState(false);
   
-  // Refs para controle de notificações
+  // Refs for notification control and state management
   const hasShownPermissionNotificationRef = useRef(false);
   const hasShownNoDevicesNotificationRef = useRef(false);
   const isInitialLoadRef = useRef(true);
+  const mountedRef = useRef(true);
+  const lastRefreshTimeRef = useRef(0);
   
+  // Check if we're on a restricted route
+  const isRestrictedRoute = useCallback(() => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  }, []);
+  
+  // Handle component mount/unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  
+  // Centralized notification handler
   const showNotification = useCallback((type: 'success' | 'error' | 'warning', message: string, description?: string) => {
+    // Suppress notifications on restricted routes
     if (isRestrictedRoute()) {
       console.log('[DeviceManagerContext] Suppressing notification on restricted route:', message);
+      return;
+    }
+
+    // Only show notification if we're past initial load
+    if (isInitialLoadRef.current) {
+      console.log('[DeviceManagerContext] Suppressing notification during initial load:', message);
       return;
     }
 
@@ -41,8 +68,9 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     } else {
       toast.warning(message, { description });
     }
-  }, []);
+  }, [isRestrictedRoute]);
 
+  // Permission request handler
   const requestPermission = useCallback(async (): Promise<boolean> => {
     console.log("[DeviceManagerContext] Requesting microphone permission");
     setIsLoading(true);
@@ -51,8 +79,11 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach(track => track.stop());
       
+      if (!mountedRef.current) return false;
+      
       setPermissionState("granted");
       
+      // Show notification only once and not on initial load
       if (!hasShownPermissionNotificationRef.current && !isInitialLoadRef.current) {
         hasShownPermissionNotificationRef.current = true;
         showNotification('success', "Microphone access granted");
@@ -61,8 +92,12 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       return true;
     } catch (error) {
       console.error("[DeviceManagerContext] Permission denied:", error);
+      
+      if (!mountedRef.current) return false;
+      
       setPermissionState("denied");
       
+      // Show notification only once and not on initial load
       if (!hasShownPermissionNotificationRef.current && !isInitialLoadRef.current) {
         hasShownPermissionNotificationRef.current = true;
         showNotification('error', "Microphone access denied", 
@@ -71,14 +106,26 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       
       return false;
     } finally {
-      setIsLoading(false);
-      isInitialLoadRef.current = false;
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [showNotification]);
 
+  // Device refresh handler with rate limiting
   const refreshDevices = useCallback(async (): Promise<boolean> => {
     console.log("[DeviceManagerContext] Refreshing devices");
     
+    // Rate limiting - don't refresh too frequently
+    const now = Date.now();
+    if (now - lastRefreshTimeRef.current < 2000 && devices.length > 0) {
+      console.log("[DeviceManagerContext] Skipping refresh - too soon since last refresh");
+      return true;
+    }
+    
+    lastRefreshTimeRef.current = now;
+    
+    // Ensure permission is granted first
     if (permissionState !== 'granted') {
       const hasPermission = await requestPermission();
       if (!hasPermission) return false;
@@ -86,6 +133,9 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     
     try {
       setIsLoading(true);
+      
+      if (!mountedRef.current) return false;
+      
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = allDevices.filter(d => d.kind === "audioinput");
       
@@ -98,39 +148,50 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
         index
       }));
       
+      if (!mountedRef.current) return false;
+      
       setDevices(formattedDevices);
       
+      // Auto-select first device if none selected
       if (!selectedDeviceId && formattedDevices.length > 0) {
         setSelectedDeviceId(formattedDevices[0].deviceId);
       }
       
+      // Show notification if no devices found, but only once per session and not during initial load
       if (formattedDevices.length === 0 && !hasShownNoDevicesNotificationRef.current && !isInitialLoadRef.current) {
         hasShownNoDevicesNotificationRef.current = true;
         showNotification('warning', "No microphones found", 
           "Please connect a microphone and try again");
       }
       
+      // Clear initial load flag after first successful refresh
+      isInitialLoadRef.current = false;
+      
       return true;
     } catch (error) {
       console.error("[DeviceManagerContext] Error refreshing devices:", error);
       return false;
     } finally {
-      setIsLoading(false);
-      isInitialLoadRef.current = false;
+      if (mountedRef.current) {
+        setIsLoading(false);
+        
+        // Clear initial load flag after first attempt, even if it failed
+        isInitialLoadRef.current = false;
+      }
     }
-  }, [permissionState, requestPermission, selectedDeviceId, showNotification]);
+  }, [devices.length, permissionState, requestPermission, selectedDeviceId, showNotification]);
 
-  // Setup device change listener and initial device check
-  React.useEffect(() => {
-    let isMounted = true;
-    
+  // Set up device change listener and initial device check
+  useEffect(() => {
+    // Only run this once
     const handleDeviceChange = () => {
       console.log("[DeviceManagerContext] Device change detected");
-      if (isMounted && permissionState === 'granted') {
+      if (mountedRef.current && permissionState === 'granted') {
         refreshDevices();
       }
     };
     
+    // Add device change listener
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
     
     // Initial permission check
@@ -141,35 +202,40 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
             name: "microphone" as PermissionName,
           });
           
-          if (isMounted) {
-            console.log("[DeviceManagerContext] Initial permission status:", result.state);
+          if (!mountedRef.current) return;
+          
+          console.log("[DeviceManagerContext] Initial permission status:", result.state);
+          setPermissionState(result.state as PermissionState);
+          
+          // If permission is granted, refresh devices
+          if (result.state === 'granted') {
+            refreshDevices();
+          }
+          
+          // Listen for permission changes
+          result.addEventListener("change", () => {
+            if (!mountedRef.current) return;
+            
+            console.log("[DeviceManagerContext] Permission state changed:", result.state);
             setPermissionState(result.state as PermissionState);
             
+            // If permission becomes granted, refresh devices
             if (result.state === 'granted') {
               refreshDevices();
             }
-            
-            result.addEventListener("change", () => {
-              if (isMounted) {
-                console.log("[DeviceManagerContext] Permission state changed:", result.state);
-                setPermissionState(result.state as PermissionState);
-                
-                if (result.state === 'granted') {
-                  refreshDevices();
-                }
-              }
-            });
-          }
+          });
         }
       } catch (error) {
         console.log("[DeviceManagerContext] Permissions API not available or error:", error);
       }
     };
     
+    // Run initial permission check
     checkInitialPermission();
     
     return () => {
-      isMounted = false;
+      // Clean up on unmount
+      mountedRef.current = false;
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
   }, [refreshDevices, permissionState]);

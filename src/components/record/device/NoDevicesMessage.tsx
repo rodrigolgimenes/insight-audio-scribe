@@ -18,7 +18,8 @@ export function NoDevicesMessage({
   audioDevices = [],
   isLoading = false
 }: NoDevicesMessageProps) {
-  if (!showWarning || isLoading) {
+  // Don't show the warning if we're loading or if devices are found
+  if (!showWarning || isLoading || (audioDevices && audioDevices.length > 0)) {
     return null;
   }
   

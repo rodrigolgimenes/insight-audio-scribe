@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
@@ -11,7 +12,7 @@ export const useDeviceDetection = (
   const mountedRef = useRef(true);
   const initialCheckDoneRef = useRef(false);
 
-  // Check if we're on a restricted route
+  // Avoid notifications on restricted routes
   const isDashboardPage = useRef(window.location.pathname.includes('/app'));
 
   // Clean up on unmount
@@ -23,7 +24,7 @@ export const useDeviceDetection = (
   }, []);
 
   const detectDevices = useCallback(async (forceRefresh = false): Promise<{devices: AudioDevice[], defaultId: string | null}> => {
-    // Prevent concurrent detection attempts
+    // Don't run detection if it's already in progress and not forced
     if (detectionInProgressRef.current && !forceRefresh) {
       console.log('[useDeviceDetection] Device detection already in progress');
       return { devices, defaultId: null };
@@ -33,7 +34,7 @@ export const useDeviceDetection = (
     setIsLoading(true);
 
     try {
-      // Initial permission check
+      // Check for permission first
       const hasPermission = await requestPermission(!isDashboardPage.current);
       
       if (!mountedRef.current) {
@@ -46,19 +47,27 @@ export const useDeviceDetection = (
         return { devices: [], defaultId: null };
       }
 
-      // Primary device detection attempt
-      console.log('[useDeviceDetection] Attempting primary device detection');
+      // Primary device detection
+      console.log('[useDeviceDetection] Detecting audio devices');
       const result = await getAudioDevices();
 
       if (!mountedRef.current) {
         return { devices: [], defaultId: null };
       }
 
-      // If no devices found on first try, attempt one fallback
+      // If devices found, update state and return
+      if (result.devices.length > 0) {
+        console.log('[useDeviceDetection] Devices found:', result.devices.length);
+        setDevices(result.devices);
+        initialCheckDoneRef.current = true;
+        return result;
+      }
+      
+      // If no devices found on first try and we haven't completed initial check, try once more
       if (result.devices.length === 0 && !initialCheckDoneRef.current) {
-        console.log('[useDeviceDetection] No devices found, attempting fallback');
+        console.log('[useDeviceDetection] No devices found, attempting one fallback');
         
-        // Wait a moment before fallback
+        // Wait a short moment before retry
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         if (!mountedRef.current) {
@@ -74,17 +83,16 @@ export const useDeviceDetection = (
           initialCheckDoneRef.current = true;
           return fallbackResult;
         }
+        
+        // If still no devices, update state
+        console.log('[useDeviceDetection] Fallback failed, no devices found');
+        setDevices([]);
       } else {
-        // Devices found on first try
         setDevices(result.devices);
-        initialCheckDoneRef.current = true;
-        return result;
       }
-
-      // If we reach here, no devices were found
-      setDevices([]);
+      
       initialCheckDoneRef.current = true;
-      return { devices: [], defaultId: null };
+      return { devices: result.devices, defaultId: result.defaultId };
 
     } catch (err) {
       console.error('[useDeviceDetection] Error detecting devices:', err);
