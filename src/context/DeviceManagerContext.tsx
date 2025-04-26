@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useCallback, useRef } from 
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 import { toast } from "sonner";
+import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
 interface DeviceManagerContextValue {
   devices: AudioDevice[];
@@ -22,30 +23,28 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
   const [permissionState, setPermissionState] = useState<PermissionState>("unknown");
   const [isLoading, setIsLoading] = useState(false);
   
-  // Refs to prevent duplicate notifications
-  const permissionCheckingRef = useRef(false);
+  // Refs para controle de notificações
   const hasShownPermissionNotificationRef = useRef(false);
   const hasShownNoDevicesNotificationRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
   
-  // Check if we're on a restricted route (dashboard, index, app)
-  const isRestrictedRoute = useCallback((): boolean => {
-    const path = window.location.pathname.toLowerCase();
-    return path === '/' || 
-           path === '/index' || 
-           path === '/dashboard' || 
-           path === '/app' ||
-           path.startsWith('/app/');
+  const showNotification = useCallback((type: 'success' | 'error' | 'warning', message: string, description?: string) => {
+    if (isRestrictedRoute()) {
+      console.log('[DeviceManagerContext] Suppressing notification on restricted route:', message);
+      return;
+    }
+
+    if (type === 'success') {
+      toast.success(message);
+    } else if (type === 'error') {
+      toast.error(message, { description });
+    } else {
+      toast.warning(message, { description });
+    }
   }, []);
 
-  // Request microphone permission - SIMPLIFIED VERSION
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    if (permissionCheckingRef.current) {
-      console.log("[DeviceManagerContext] Permission check already in progress, skipping duplicate request");
-      return permissionState === 'granted';
-    }
-    
     console.log("[DeviceManagerContext] Requesting microphone permission");
-    permissionCheckingRef.current = true;
     setIsLoading(true);
     
     try {
@@ -53,15 +52,10 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       stream.getTracks().forEach(track => track.stop());
       
       setPermissionState("granted");
-      console.log("[DeviceManagerContext] Permission granted");
       
-      // Only show notification if permission was not previously granted and not on a restricted route
-      if (permissionState !== 'granted' && !isRestrictedRoute() && !hasShownPermissionNotificationRef.current) {
+      if (!hasShownPermissionNotificationRef.current && !isInitialLoadRef.current) {
         hasShownPermissionNotificationRef.current = true;
-        toast.success("Microphone access granted", {
-          duration: 2000,
-          id: "mic-permission-granted" // Use ID to prevent duplicates
-        });
+        showNotification('success', "Microphone access granted");
       }
       
       return true;
@@ -69,27 +63,22 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       console.error("[DeviceManagerContext] Permission denied:", error);
       setPermissionState("denied");
       
-      // Only show error toast if not on restricted route and hasn't been shown before
-      if (!isRestrictedRoute() && !hasShownPermissionNotificationRef.current) {
+      if (!hasShownPermissionNotificationRef.current && !isInitialLoadRef.current) {
         hasShownPermissionNotificationRef.current = true;
-        toast.error("Microphone access denied", {
-          description: "Please allow microphone access in your browser settings",
-          id: "mic-permission-denied" // Use ID to prevent duplicates
-        });
+        showNotification('error', "Microphone access denied", 
+          "Please allow microphone access in your browser settings");
       }
       
       return false;
     } finally {
       setIsLoading(false);
-      permissionCheckingRef.current = false;
+      isInitialLoadRef.current = false;
     }
-  }, [permissionState, isRestrictedRoute]);
+  }, [showNotification]);
 
-  // Refresh devices with simplified logic
   const refreshDevices = useCallback(async (): Promise<boolean> => {
     console.log("[DeviceManagerContext] Refreshing devices");
     
-    // If permission not granted, request it first
     if (permissionState !== 'granted') {
       const hasPermission = await requestPermission();
       if (!hasPermission) return false;
@@ -100,7 +89,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       const allDevices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = allDevices.filter(d => d.kind === "audioinput");
       
-      // Format devices
       const formattedDevices = audioInputs.map((device, index) => ({
         deviceId: device.deviceId,
         label: device.label || `Microphone ${index + 1}`,
@@ -112,18 +100,14 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       
       setDevices(formattedDevices);
       
-      // Auto-select first device if none selected
       if (!selectedDeviceId && formattedDevices.length > 0) {
         setSelectedDeviceId(formattedDevices[0].deviceId);
       }
       
-      // Only show no devices error if none found and not on restricted route
-      if (formattedDevices.length === 0 && !isRestrictedRoute() && !hasShownNoDevicesNotificationRef.current) {
+      if (formattedDevices.length === 0 && !hasShownNoDevicesNotificationRef.current && !isInitialLoadRef.current) {
         hasShownNoDevicesNotificationRef.current = true;
-        toast.warning("No microphones found", {
-          description: "Please connect a microphone and try again",
-          id: "no-mics-found" // Use ID to prevent duplicates
-        });
+        showNotification('warning', "No microphones found", 
+          "Please connect a microphone and try again");
       }
       
       return true;
@@ -132,14 +116,14 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       return false;
     } finally {
       setIsLoading(false);
+      isInitialLoadRef.current = false;
     }
-  }, [permissionState, requestPermission, selectedDeviceId, isRestrictedRoute]);
+  }, [permissionState, requestPermission, selectedDeviceId, showNotification]);
 
   // Setup device change listener and initial device check
   React.useEffect(() => {
     let isMounted = true;
     
-    // Listen for device changes
     const handleDeviceChange = () => {
       console.log("[DeviceManagerContext] Device change detected");
       if (isMounted && permissionState === 'granted') {
@@ -149,7 +133,7 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
     
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
     
-    // Initial permission check only on component mount
+    // Initial permission check
     const checkInitialPermission = async () => {
       try {
         if (navigator.permissions) {
@@ -161,12 +145,10 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
             console.log("[DeviceManagerContext] Initial permission status:", result.state);
             setPermissionState(result.state as PermissionState);
             
-            // If permission already granted, refresh devices
             if (result.state === 'granted') {
               refreshDevices();
             }
             
-            // Add listener for permission changes
             result.addEventListener("change", () => {
               if (isMounted) {
                 console.log("[DeviceManagerContext] Permission state changed:", result.state);
@@ -184,7 +166,6 @@ export function DeviceManagerProvider({ children }: { children: React.ReactNode 
       }
     };
     
-    // Run initial check (don't make it async to avoid race conditions)
     checkInitialPermission();
     
     return () => {
