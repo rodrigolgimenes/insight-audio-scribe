@@ -1,4 +1,3 @@
-
 import { useCallback } from "react";
 import { RecordingStateType } from "./useRecordingState";
 import { RecordingValidator } from "@/utils/audio/recordingValidator";
@@ -25,7 +24,7 @@ export const useRecordingActions = (
     console.log('[useRecordingActions] Start recording requested');
     
     // Log validation diagnostics
-    const diagnostics = RecordingValidator.logDiagnostics({
+    RecordingValidator.logDiagnostics({
       selectedDeviceId: recordingState.selectedDeviceId,
       deviceSelectionReady: recordingState.deviceSelectionReady,
       audioDevices: recordingState.audioDevices,
@@ -40,43 +39,25 @@ export const useRecordingActions = (
     }
 
     try {
-      // Force to true for now - even if deviceSelectionReady is false, we'll try to start
-      // if we have a selected device
-      const canStart = recordingState.selectedDeviceId && 
-                      recordingState.audioDevices.length > 0 &&
-                      recordingState.permissionState !== 'denied';
+      // Simplified validation - just check permission status
+      const canStart = recordingState.permissionState !== 'denied';
       
-      // Check if we can start recording
       if (!canStart) {
-        console.log('[useRecordingActions] Cannot start recording due to validation failures');
+        console.log('[useRecordingActions] Cannot start recording due to denied permission');
         
         // Set a detailed action log
         recordingState.setLastAction({
           action: 'Start recording',
           timestamp: Date.now(),
           success: false,
-          error: 'Cannot start recording: ' + diagnostics.issues.join(', ')
+          error: 'Microphone access denied'
         });
         
         // Only show toast on non-restricted routes
         if (!isRestrictedRoute()) {
-          if (recordingState.permissionState === 'denied') {
-            toast.error("Microphone access denied", {
-              description: "Please allow microphone access in your browser settings",
-            });
-          } else if (!recordingState.audioDevices.length) {
-            toast.error("No microphones detected", {
-              description: "Please connect a microphone and try again",
-            });
-          } else if (!recordingState.selectedDeviceId) {
-            toast.error("No microphone selected", {
-              description: "Please select a microphone from the dropdown",
-            });
-          } else {
-            toast.error("Cannot start recording", {
-              description: "Please check your microphone settings",
-            });
-          }
+          toast.error("Microphone access denied", {
+            description: "Please allow microphone access in your browser settings",
+          });
         }
         
         return false;

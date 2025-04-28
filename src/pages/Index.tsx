@@ -1,4 +1,5 @@
 
+import React from "react";
 import { ShellLayout } from "@/components/layouts/ShellLayout";
 import { Hero } from "@/components/landing/Hero";
 import { Features } from "@/components/landing/Features";

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { RecordingControls } from "./RecordingControls";
+import { RecordControls } from "./RecordControls";
 import { RecordingSettings } from "./RecordingSettings";
 import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
@@ -32,6 +32,10 @@ interface RecordingSectionProps {
   devicesLoading?: boolean;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
   disabled?: boolean;
+  lastAction?: any;
+  isRestrictedRoute?: boolean;
+  processingProgress?: number;
+  processingStage?: string;
 }
 
 export const RecordingSection = ({
@@ -58,7 +62,11 @@ export const RecordingSection = ({
   onRefreshDevices,
   devicesLoading = false,
   permissionState = 'unknown',
-  disabled = false
+  disabled = false,
+  lastAction,
+  isRestrictedRoute = false,
+  processingProgress,
+  processingStage
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,
@@ -86,7 +94,7 @@ export const RecordingSection = ({
           )}
         </div>
         
-        <RecordingControls
+        <RecordControls
           isRecording={isRecording}
           isPaused={isPaused}
           onStartRecording={handleStartRecording}

@@ -3,7 +3,6 @@ import React, { useEffect, useState } from "react";
 import { AudioVisualizer } from "../AudioVisualizer";
 import { RecordControls } from "../RecordControls";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { RecordingValidator } from "@/utils/audio/recordingValidator";
 import { toast } from "sonner";
 
 interface RecordingMainProps {
@@ -61,16 +60,23 @@ export const RecordingMain = ({
     });
     
     // Re-validate when props change
-    const diagnostics = RecordingValidator.validatePrerequisites({
-      selectedDeviceId,
-      deviceSelectionReady,
-      audioDevices,
-      permissionState
-    });
+    const issues = [];
+    
+    if (!audioDevices.length) {
+      issues.push('No microphones detected');
+    }
+    
+    if (!selectedDeviceId && audioDevices.length > 0) {
+      issues.push('No microphone selected');
+    }
+    
+    if (permissionState === 'denied') {
+      issues.push('Microphone access denied');
+    }
     
     setValidationStatus({
-      canStartRecording: diagnostics.canStartRecording,
-      issues: diagnostics.issues
+      canStartRecording: issues.length === 0,
+      issues
     });
   }, [deviceSelectionReady, selectedDeviceId, audioDevices, permissionState]);
 
@@ -132,8 +138,6 @@ export const RecordingMain = ({
         deviceSelectionReady={deviceSelectionReady}
         selectedDeviceId={selectedDeviceId}
         audioDevices={audioDevices}
-        showLastAction={true}
-        lastAction={lastAction}
         permissionState={permissionState}
       />
       
