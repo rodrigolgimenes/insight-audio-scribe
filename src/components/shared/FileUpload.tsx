@@ -62,6 +62,9 @@ export function FileUpload({
         return;
       }
 
+      // Log for debugging
+      console.log(`[FileUpload] Handling file upload with skipDeviceCheck: ${skipDeviceCheck}`);
+      
       const result = await handleFileUpload(e, initiateTranscription);
       
       if (result && onUploadComplete) {
@@ -118,6 +121,7 @@ export function FileUpload({
           onChange={handleFileChange}
           className="sr-only"
           disabled={disabled || isUploading}
+          data-skip-device-check={skipDeviceCheck}
         />
       </div>
     </div>

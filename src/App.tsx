@@ -170,7 +170,7 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              {/* Device-dependent routes wrapped with DeviceManagerProvider */}
+              {/* IMPORTANT: Only wrap recording routes with DeviceManagerProvider */}
               <Route
                 path="/simple-record"
                 element={

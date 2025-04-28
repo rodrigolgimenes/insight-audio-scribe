@@ -31,7 +31,11 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     
     // Initial check on mount - with no toast notification
     // Only perform device detection on non-restricted routes, like /simple-record
-    if (deviceManager.devices.length === 0 && !deviceManager.isLoading && !isRestrictedRoute()) {
+    const currentRoute = window.location.pathname.toLowerCase();
+    const shouldRefreshOnMount = !isRestrictedRoute() && 
+      (currentRoute === '/simple-record' || currentRoute === '/test-record-meeting');
+    
+    if (deviceManager.devices.length === 0 && !deviceManager.isLoading && shouldRefreshOnMount) {
       console.log('[DeviceManagerProvider] No devices detected, refreshing on mount');
       deviceManager.refreshDevices(false); // Pass false to avoid showing a notification
     }

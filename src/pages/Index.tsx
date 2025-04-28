@@ -53,7 +53,6 @@ export default function Index() {
               buttonText="Upload Audio File"
               description="Upload MP3 files directly or convert other audio formats"
               buttonClassName="w-full"
-              // Skip automatic microphone detection for file upload
               skipDeviceCheck={true}
             />
             

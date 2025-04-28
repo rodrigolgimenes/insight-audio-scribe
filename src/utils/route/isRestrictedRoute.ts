@@ -15,5 +15,10 @@ export const isRestrictedRoute = (): boolean => {
   ];
   
   // Check if the current path is in our allowed routes list
-  return !allowedNotificationRoutes.includes(path);
+  const isAllowed = allowedNotificationRoutes.includes(path);
+  
+  // Log for debugging
+  console.log(`[isRestrictedRoute] Path: ${path}, Restricted: ${!isAllowed}`);
+  
+  return !isAllowed;
 };
