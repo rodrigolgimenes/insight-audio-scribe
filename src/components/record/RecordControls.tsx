@@ -1,19 +1,16 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Pause } from "lucide-react";
+import { Mic, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RecordControlsProps {
   isRecording: boolean;
   isPaused: boolean;
-  onStartRecording: () => void;
-  onStopRecording: () => void;
-  onPauseRecording: () => void;
-  onResumeRecording: () => void;
-  deviceSelectionReady?: boolean;
-  selectedDeviceId?: string | null;
-  audioDevices?: any[];
+  handleStartRecording: () => void;
+  handleTranscribe: () => void;
+  handlePauseRecording: () => void;
+  handleResumeRecording: () => void;
   permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
   disabled?: boolean;
 }
@@ -21,10 +18,10 @@ interface RecordControlsProps {
 export function RecordControls({
   isRecording,
   isPaused,
-  onStartRecording,
-  onStopRecording,
-  onPauseRecording,
-  onResumeRecording,
+  handleStartRecording,
+  handleTranscribe,
+  handlePauseRecording,
+  handleResumeRecording,
   permissionState = 'unknown',
   disabled = false
 }: RecordControlsProps) {
@@ -35,7 +32,7 @@ export function RecordControls({
       <div className="flex items-center gap-4">
         {!isRecording ? (
           <Button
-            onClick={onStartRecording}
+            onClick={handleStartRecording}
             disabled={!canRecord || disabled}
             size="lg"
             className={cn(
@@ -49,21 +46,21 @@ export function RecordControls({
         ) : (
           <div className="flex items-center gap-2">
             <Button
-              onClick={onStopRecording}
+              onClick={handleTranscribe}
               disabled={disabled}
               size="lg"
               className={cn(
-                "rounded-full w-14 h-14 bg-red-500 hover:bg-red-600 text-white",
+                "rounded-full w-14 h-14 bg-green-500 hover:bg-green-600 text-white",
                 disabled && "opacity-50 cursor-not-allowed"
               )}
-              aria-label="Stop Recording"
+              aria-label="Transcribe Recording"
             >
-              <Square className="h-6 w-6" />
+              <span className="text-xs font-medium">TRANSCRIBE</span>
             </Button>
             
             {!isPaused ? (
               <Button
-                onClick={onPauseRecording}
+                onClick={handlePauseRecording}
                 disabled={disabled}
                 size="lg"
                 className={cn(
@@ -76,16 +73,16 @@ export function RecordControls({
               </Button>
             ) : (
               <Button
-                onClick={onResumeRecording}
+                onClick={handleResumeRecording}
                 disabled={disabled}
                 size="lg"
                 className={cn(
-                  "rounded-full w-12 h-12 bg-green-500 hover:bg-green-600 text-white",
+                  "rounded-full w-12 h-12 bg-blue-500 hover:bg-blue-600 text-white",
                   disabled && "opacity-50 cursor-not-allowed"
                 )}
                 aria-label="Resume Recording"
               >
-                <Mic className="h-5 w-5" />
+                <Play className="h-5 w-5" />
               </Button>
             )}
           </div>
