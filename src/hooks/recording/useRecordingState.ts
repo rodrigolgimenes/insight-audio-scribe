@@ -24,6 +24,8 @@ export type RecordingStateType = {
   setRecordingAttemptsCount: (count: number | ((prev: number) => number)) => void;
   deviceSelectionReady: boolean;
   setDeviceSelectionReady: (ready: boolean) => void;
+  audioDevices: any[];
+  permissionState: 'prompt' | 'granted' | 'denied' | 'unknown';
 };
 
 export const useRecordingState = (): RecordingStateType => {
@@ -43,6 +45,8 @@ export const useRecordingState = (): RecordingStateType => {
   } | null>(null);
   const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
+  const [audioDevices, setAudioDevices] = useState<any[]>([]);
+  const [permissionState, setPermissionState] = useState<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
 
   return {
     isRecording,
@@ -66,6 +70,8 @@ export const useRecordingState = (): RecordingStateType => {
     recordingAttemptsCount,
     setRecordingAttemptsCount,
     deviceSelectionReady,
-    setDeviceSelectionReady
+    setDeviceSelectionReady,
+    audioDevices,
+    permissionState
   };
 };
