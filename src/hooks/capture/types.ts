@@ -12,7 +12,7 @@ export const toAudioDevice = (
   return {
     deviceId: device.deviceId,
     groupId: device.groupId,
-    kind: device.kind,
+    kind: device.kind, // Make sure kind is included
     label: device.label,
     isDefault,
     displayName: device.label || `Microphone ${index + 1}`,

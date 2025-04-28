@@ -52,6 +52,7 @@ export function useStableMicrophoneDetection() {
         deviceId: device.deviceId,
         label: device.label || `Microphone ${index + 1}`,
         groupId: device.groupId,
+        kind: device.kind,  // Add the required 'kind' property
         isDefault: device.deviceId === 'default' || index === 0,
         index
       }));
