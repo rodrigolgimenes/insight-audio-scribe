@@ -1,39 +1,41 @@
+
 import { Facebook, Github, Twitter } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const Footer = () => {
   return (
-    <footer className="bg-secondary text-secondary-foreground py-12">
+    <footer className="bg-gray-900 text-gray-300 py-12">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-xl font-bold mb-4">InsightScribe</h3>
+            <h3 className="text-xl font-bold mb-4 text-white">InsightScribe</h3>
             <p className="text-gray-400">
               Transform your meetings into actionable insights with AI-powered transcription and
               summarization.
             </p>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Product</h4>
+            <h4 className="font-semibold mb-4 text-gray-200">Product</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#features" className="text-gray-400 hover:text-white transition-colors">
+                <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-gray-400 hover:text-white transition-colors">
                   Features
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#pricing" className="text-gray-400 hover:text-white transition-colors">
+                <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-gray-400 hover:text-white transition-colors">
                   Pricing
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#faq" className="text-gray-400 hover:text-white transition-colors">
-                  FAQ
-                </a>
+                <Link to="/simple-record" className="text-gray-400 hover:text-white transition-colors">
+                  Try Recording
+                </Link>
               </li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Company</h4>
+            <h4 className="font-semibold mb-4 text-gray-200">Company</h4>
             <ul className="space-y-2">
               <li>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
@@ -53,7 +55,7 @@ export const Footer = () => {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
+            <h4 className="font-semibold mb-4 text-gray-200">Legal</h4>
             <ul className="space-y-2">
               <li>
                 <a href="#" className="text-gray-400 hover:text-white transition-colors">
