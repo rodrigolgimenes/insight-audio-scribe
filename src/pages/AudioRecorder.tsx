@@ -1,45 +1,26 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Loader } from 'lucide-react';
-import { toast } from 'sonner';
-import { useRecorder, RecorderStatus } from '@/hooks/useRecorder';
+import React, { useRef } from 'react';
+import { useRecorder } from '@/hooks/useRecorder';
 import { useDeviceManager } from '@/context/DeviceManagerContext';
-import { useFileUpload } from '@/hooks/upload/useFileUpload';
-import { useNavigate } from 'react-router-dom';
 import { AudioWaveformVisualizer } from '@/components/record/AudioWaveformVisualizer';
 import { AudioRecordingControls } from '@/components/record/AudioRecordingControls';
 import { AudioDeviceSettings } from '@/components/record/AudioDeviceSettings';
-
-// Helper function to format milliseconds to MM:SS
-const formatDuration = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-};
+import { AudioTranscribeHandler } from '@/components/record/AudioTranscribeHandler';
+import { ShellLayout } from '@/components/layouts/ShellLayout';
 
 const AudioRecorder: React.FC = () => {
-  // Navigation
-  const navigate = useNavigate();
-  
   // State
-  const [isSystemAudio, setIsSystemAudio] = useState<boolean>(
+  const [isSystemAudio, setIsSystemAudio] = React.useState<boolean>(
     localStorage.getItem('insightscribe-record-system-audio') === 'true'
   );
-  const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState<boolean>(false);
   
   // Device manager for microphone access
   const { selectedDeviceId } = useDeviceManager();
   
-  // File upload utility
-  const { handleFileUpload } = useFileUpload();
-  
   // Custom recorder hook
   const { 
     status, 
-    statusRef, // Use the statusRef
+    statusRef,
     audioBlob, 
     audioUrl, 
     recordingTime,
@@ -58,7 +39,7 @@ const AudioRecorder: React.FC = () => {
   }>({});
 
   // Effect to save system audio preference to localStorage
-  useEffect(() => {
+  React.useEffect(() => {
     localStorage.setItem('insightscribe-record-system-audio', isSystemAudio.toString());
   }, [isSystemAudio]);
 
@@ -155,7 +136,7 @@ const AudioRecorder: React.FC = () => {
       
       // If we got a result, log it
       if (result) {
-        console.log('Recording stopped, duration:', formatDuration(result.duration));
+        console.log('Recording stopped, duration:', result.duration);
       }
     } else {
       // Start recording
@@ -183,100 +164,49 @@ const AudioRecorder: React.FC = () => {
     }
   };
 
-  // Handle transcribe button click
-  const handleTranscribe = async () => {
-    if (!audioBlob || duration < 1000) {
-      toast.warning('Recording is too short', {
-        description: 'Recording must be at least 1 second long.',
-        duration: 3000
-      });
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      setIsUploadDialogOpen(true);
-
-      // Create a File object from the blob
-      const file = new File([audioBlob], 'recording.webm', {
-        type: 'audio/webm',
-        lastModified: Date.now()
-      });
-
-      // Upload the file
-      const result = await handleFileUpload(undefined, true, file);
-      
-      if (result) {
-        toast.success('Recording uploaded successfully');
-        
-        // Navigate to the note
-        navigate(`/notes/${result.noteId}`);
-      } else {
-        throw new Error('File upload failed');
-      }
-    } catch (error) {
-      console.error('Transcription error:', error);
-      toast.error('Transcription failed', {
-        description: 'There was an error uploading your recording.',
-        duration: 5000
-      });
-    } finally {
-      setIsUploading(false);
-      setIsUploadDialogOpen(false);
-    }
-  };
-
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
-      <div className="bg-white rounded-lg shadow-md w-full max-w-2xl p-8">
-        <h1 className="text-2xl font-semibold mb-6">Audio Recorder</h1>
-        
-        {/* Waveform visualization */}
-        <AudioWaveformVisualizer 
-          isRecording={status === 'recording'} 
-          status={status} 
-          audioUrl={audioUrl}
-          setupVisualization={setupVisualization}
-        />
-        
-        {/* Microphone selection and system audio toggle */}
-        <AudioDeviceSettings
-          isSystemAudio={isSystemAudio}
-          setIsSystemAudio={setIsSystemAudio}
-          status={status}
-        />
-        
-        {/* Recording controls */}
-        <AudioRecordingControls
-          status={status}
-          audioUrl={audioUrl}
-          duration={duration}
-          recordingTime={recordingTime}
-          selectedDeviceId={selectedDeviceId}
-          handleRecordClick={handleRecordClick}
-          handleTranscribe={handleTranscribe}
-          formatDuration={formatDuration}
-        />
-        
-        {/* Audio playback (hidden) */}
-        {audioUrl && (
-          <audio ref={audioRef} src={audioUrl} controls className="hidden" />
-        )}
-        
-        {/* Upload dialog */}
-        <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader className="animate-spin mb-4 text-[#4338ca]" size={48} />
-              <h3 className="text-xl font-medium mb-2">Processing Recording</h3>
-              <p className="text-gray-500 text-center">
-                Your recording is being uploaded to the cloud. Please wait...
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
+    <ShellLayout>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
+        <div className="bg-white rounded-lg shadow-md w-full max-w-2xl p-8">
+          <h1 className="text-2xl font-semibold mb-6">Audio Recorder</h1>
+          
+          {/* Waveform visualization */}
+          <AudioWaveformVisualizer 
+            isRecording={status === 'recording'} 
+            status={status} 
+            audioUrl={audioUrl}
+            setupVisualization={setupVisualization}
+          />
+          
+          {/* Microphone selection and system audio toggle */}
+          <AudioDeviceSettings
+            isSystemAudio={isSystemAudio}
+            setIsSystemAudio={setIsSystemAudio}
+            status={status}
+          />
+          
+          {/* Recording controls with transcription handler */}
+          <AudioTranscribeHandler audioBlob={audioBlob} duration={duration}>
+            {(handleTranscribe) => (
+              <AudioRecordingControls
+                status={status}
+                audioUrl={audioUrl}
+                duration={duration}
+                recordingTime={recordingTime}
+                selectedDeviceId={selectedDeviceId}
+                handleRecordClick={handleRecordClick}
+                handleTranscribe={handleTranscribe}
+              />
+            )}
+          </AudioTranscribeHandler>
+          
+          {/* Audio playback (hidden) */}
+          {audioUrl && (
+            <audio ref={audioRef} src={audioUrl} controls className="hidden" />
+          )}
+        </div>
       </div>
-    </div>
+    </ShellLayout>
   );
 };
 

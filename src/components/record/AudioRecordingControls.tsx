@@ -1,18 +1,18 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, StopCircle, Upload } from 'lucide-react';
-import { RecorderStatus } from '@/hooks/useRecorder';
+import { Mic, StopCircle, Save } from 'lucide-react';
+import AudioPlayer from './AudioPlayer';
+import { formatDuration } from '@/utils/formatters';
 
 interface AudioRecordingControlsProps {
-  status: RecorderStatus;
+  status: string;
   audioUrl: string | null;
   duration: number;
   recordingTime: number;
   selectedDeviceId: string | null;
   handleRecordClick: () => void;
   handleTranscribe: () => void;
-  formatDuration: (ms: number) => string;
 }
 
 export const AudioRecordingControls: React.FC<AudioRecordingControlsProps> = ({
@@ -22,69 +22,60 @@ export const AudioRecordingControls: React.FC<AudioRecordingControlsProps> = ({
   recordingTime,
   selectedDeviceId,
   handleRecordClick,
-  handleTranscribe,
-  formatDuration
+  handleTranscribe
 }) => {
-  // Get status text and color based on current status
-  const getStatusInfo = () => {
-    switch (status) {
-      case 'idle':
-        return { text: audioUrl ? 'Ready' : 'Ready', color: '#22c55e' };
-      case 'recording':
-        return { text: 'Recording...', color: '#ef4444' };
-      case 'saving':
-        return { text: 'Uploading...', color: '#4338ca' };
-      case 'error':
-        return { text: 'Error', color: '#9ca3af' };
-      default:
-        return { text: 'Ready', color: '#22c55e' };
-    }
-  };
-
-  const { text: statusText, color: statusColor } = getStatusInfo();
-
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-3">
-        <div 
-          className="w-3 h-3 rounded-full" 
-          style={{ backgroundColor: statusColor }}
-        ></div>
-        <span>{statusText}</span>
-        {status === 'recording' && (
-          <span className="text-sm font-medium">
+    <div className="space-y-4">
+      {/* Recording time display */}
+      {status === 'recording' && (
+        <div className="text-center">
+          <div className="text-4xl font-mono font-bold">
             {formatDuration(recordingTime)}
-          </span>
-        )}
-      </div>
+          </div>
+          <div className="text-sm text-gray-500">Recording in progress</div>
+        </div>
+      )}
       
-      <div className="flex items-center space-x-3">
-        {audioUrl && status === 'idle' && (
+      {/* Record button */}
+      <div className="flex justify-center">
+        {status !== 'recording' ? (
+          <div className="space-y-4 w-full">
+            {/* Record button */}
+            <Button
+              onClick={handleRecordClick}
+              disabled={!selectedDeviceId}
+              className="w-full bg-green-500 hover:bg-green-600 text-white py-6"
+            >
+              <Mic className="mr-2 h-5 w-5" />
+              {audioUrl ? "Record again" : "Start recording"}
+            </Button>
+            
+            {/* Audio player and transcribe button */}
+            {audioUrl && (
+              <div className="space-y-4">
+                <AudioPlayer audioUrl={audioUrl} />
+                <div className="text-sm text-gray-500 flex justify-between">
+                  <span>Duration: {formatDuration(duration)}</span>
+                </div>
+                <Button
+                  onClick={handleTranscribe}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white py-6"
+                >
+                  <Save className="mr-2 h-5 w-5" />
+                  Transcribe Recording
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
           <Button
-            onClick={handleTranscribe}
-            disabled={!audioUrl || duration < 1000}
-            className="bg-[#4338ca] hover:bg-[#3730a3] text-white flex items-center gap-2"
+            onClick={handleRecordClick}
+            className="bg-red-500 hover:bg-red-600 text-white px-6 py-6 rounded-lg"
           >
-            <Upload size={16} />
-            Transcribe
+            <StopCircle className="mr-2 h-5 w-5" />
+            Stop Recording
           </Button>
         )}
-        
-        <button
-          onClick={handleRecordClick}
-          disabled={!selectedDeviceId || status === 'saving'}
-          className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none ${
-            status === 'recording' 
-              ? 'bg-gray-500 hover:bg-gray-600' 
-              : 'bg-[#ef4444] hover:bg-[#dc2626]'
-          }`}
-        >
-          {status === 'recording' ? (
-            <StopCircle className="text-white" size={32} />
-          ) : (
-            <Mic className="text-white" size={32} />
-          )}
-        </button>
       </div>
     </div>
   );
