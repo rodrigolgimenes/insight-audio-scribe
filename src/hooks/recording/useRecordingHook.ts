@@ -11,9 +11,12 @@ import { useSystemAudio } from "./useSystemAudio";
 import { useRecorderInitialization } from "./useRecorderInitialization";
 import { useRecordingAttemptTracker } from "./useRecordingAttemptTracker";
 import { useRecordingLogger } from "./useRecordingLogger";
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useRecordingSave } from "../record/useRecordingSave";
 import { toast } from "sonner";
+
+// Used to track if initial setup has happened
+const globalInitialized = { value: false };
 
 /**
  * Main hook that combines all recording functionality
@@ -32,50 +35,44 @@ export const useRecording = () => {
            path.startsWith('/app/');
   }, []);
   
+  // Use a ref to track if this is the initial render
+  const isInitialRender = useRef(true);
+  
   // Main state
   const recordingState = useRecordingState();
   
-  // Set deviceSelectionReady if not already in the state
+  // Set deviceSelectionReady if not already in the state - use effect with memoized dependencies
   useEffect(() => {
-    // Set deviceSelectionReady based on available devices and selected device
-    if (audioDevices.length > 0 && recordingState.selectedDeviceId) {
+    // Only update if device selection isn't already ready and we have valid devices
+    if (!recordingState.deviceSelectionReady && 
+        audioDevices.length > 0 && 
+        recordingState.selectedDeviceId) {
       recordingState.setDeviceSelectionReady(true);
-    } else {
-      recordingState.setDeviceSelectionReady(false);
     }
-  }, [recordingState.selectedDeviceId]);
+  }, [recordingState.selectedDeviceId, recordingState.deviceSelectionReady]);
   
   // Create a wrapped version of setSelectedDeviceId that adds logging
   // and prevents toasts on restricted routes
   const originalSetSelectedDeviceId = recordingState.setSelectedDeviceId;
-  recordingState.setSelectedDeviceId = (deviceId: string | null) => {
+  recordingState.setSelectedDeviceId = useCallback((deviceId: string | null) => {
+    // Skip if it's the same ID to avoid unnecessary renders
+    if (deviceId === recordingState.selectedDeviceId) {
+      return;
+    }
+    
     console.log('[useRecordingHook] setSelectedDeviceId called with:', deviceId);
-    console.log('[useRecordingHook] Current state before update:', {
-      selectedDeviceId: recordingState.selectedDeviceId,
-      deviceSelectionReady: recordingState.deviceSelectionReady,
-      isRecording: recordingState.isRecording,
-      isRestrictedRoute: isRestrictedRoute()
-    });
     
     // Call original function
     originalSetSelectedDeviceId(deviceId);
     
     // Only show toast if not on a restricted route and deviceId is provided
     if (deviceId && !isRestrictedRoute()) {
-      console.log('[useRecordingHook] Would show toast for device selection, but route is restricted');
-    }
-    
-    // Log after update (will show previous value due to closure)
-    console.log('[useRecordingHook] State update initiated, will verify in next render');
-    
-    // Add timeout to verify state update
-    setTimeout(() => {
-      console.log('[useRecordingHook] State after update (timeout check):', {
-        selectedDeviceId: recordingState.selectedDeviceId,
-        deviceId
+      toast.success("Microphone selected", {
+        id: "mic-selected",
+        duration: 2000
       });
-    }, 100);
-  };
+    }
+  }, [originalSetSelectedDeviceId, recordingState.selectedDeviceId, isRestrictedRoute]);
 
   // Error handling
   const {
@@ -83,33 +80,74 @@ export const useRecording = () => {
     setInitError
   } = useRecordingError();
 
-  // Device selection
+  // Device selection - prevent re-initialization
   const {
     audioDevices,
     deviceSelectionReady,
     refreshDevices,
     devicesLoading,
     permissionState
-  } = useDeviceSelection();
+  } = useMemo(() => {
+    // If we've already initialized in this render cycle, return a stub
+    if (globalInitialized.value) {
+      return useDeviceSelection();
+    } else {
+      globalInitialized.value = true;
+      const result = useDeviceSelection();
+      return result;
+    }
+  }, []);
 
-  // Update the recording state deviceSelectionReady when device selection changes
+  // Update the recording state deviceSelectionReady when device selection changes 
   useEffect(() => {
-    recordingState.setDeviceSelectionReady(deviceSelectionReady);
-  }, [deviceSelectionReady]);
+    // Skip initial render
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    
+    if (recordingState.deviceSelectionReady !== deviceSelectionReady) {
+      recordingState.setDeviceSelectionReady(deviceSelectionReady);
+    }
+  }, [deviceSelectionReady, recordingState]);
 
   // Log device selection state changes
   useEffect(() => {
-    console.log('[useRecordingHook] Device selection state updated:', {
-      deviceSelectionReady,
-      audioDevicesCount: audioDevices.length,
-      permissionState,
-      selectedDeviceId: recordingState.selectedDeviceId,
-      isRestrictedRoute: isRestrictedRoute()
-    });
+    // Only log when something actually changes to reduce console spam
+    const stateChanged = isInitialRender.current ||
+      recordingState.selectedDeviceId !== lastDeviceIdRef.current ||
+      deviceSelectionReady !== lastSelectionReadyRef.current ||
+      permissionState !== lastPermissionRef.current;
+      
+    if (stateChanged) {
+      console.log('[useRecordingHook] Device selection state updated:', {
+        deviceSelectionReady,
+        audioDevicesCount: audioDevices.length,
+        permissionState,
+        selectedDeviceId: recordingState.selectedDeviceId,
+        isRestrictedRoute: isRestrictedRoute()
+      });
+      
+      // Update tracking refs
+      lastDeviceIdRef.current = recordingState.selectedDeviceId;
+      lastSelectionReadyRef.current = deviceSelectionReady;
+      lastPermissionRef.current = permissionState;
+      
+      if (isInitialRender.current) {
+        isInitialRender.current = false;
+      }
+    }
   }, [deviceSelectionReady, audioDevices.length, permissionState, recordingState.selectedDeviceId, isRestrictedRoute]);
+  
+  // Track previous values to detect changes
+  const lastDeviceIdRef = useRef<string | null>(null);
+  const lastSelectionReadyRef = useRef(false);
+  const lastPermissionRef = useRef<'prompt' | 'granted' | 'denied' | 'unknown'>('unknown');
 
-  // Media stream handling
-  const { streamManager } = useMediaStream(recordingState.setLastAction);
+  // Media stream handling - memoize to prevent re-renders
+  const { streamManager } = useMemo(() => 
+    useMediaStream(recordingState.setLastAction), 
+  [recordingState.setLastAction]);
 
   // Recording operations
   const { 
@@ -124,7 +162,9 @@ export const useRecording = () => {
     stopRecording,
     pauseRecording,
     resumeRecording
-  } = useRecordingLifecycle(recorder, recordingState);
+  } = useMemo(() => 
+    useRecordingLifecycle(recorder, recordingState),
+  [recorder, recordingState]);
 
   // Set up action handlers with enhanced logging and validation
   const {
@@ -132,26 +172,32 @@ export const useRecording = () => {
     handleStopRecording,
     handlePauseRecording,
     handleResumeRecording
-  } = useRecordingActions(
-    recordingState,
-    startRecording,
-    stopRecording,
-    pauseRecording,
-    resumeRecording
-  );
+  } = useMemo(() => 
+    useRecordingActions(
+      recordingState,
+      startRecording,
+      stopRecording,
+      pauseRecording,
+      resumeRecording
+    ),
+  [recordingState, startRecording, stopRecording, pauseRecording, resumeRecording]);
 
   // System audio handler
-  const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
+  const { handleSystemAudioChange } = useMemo(() => 
+    useSystemAudio(recordingState.setIsSystemAudio),
+  [recordingState.setIsSystemAudio]);
 
   // Save and delete functionality with toast suppression on restricted routes
-  const originalHandleDelete = useSaveDeleteRecording(
-    recordingState, 
-    stopRecording, 
-    recordingState.setLastAction
-  ).handleDelete;
+  const { handleDelete: originalHandleDelete } = useMemo(() =>
+    useSaveDeleteRecording(
+      recordingState, 
+      stopRecording, 
+      recordingState.setLastAction
+    ),
+  [recordingState, stopRecording]);
   
   // Wrap the delete handler to prevent toasts on restricted routes
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     // Execute the original handler
     originalHandleDelete();
     
@@ -161,16 +207,35 @@ export const useRecording = () => {
         id: "recording-deleted"
       });
     }
-  };
+  }, [originalHandleDelete, isRestrictedRoute]);
 
-  // Initialize recorder
-  useRecorderInitialization(initializeRecorder, setInitError, recordingState.selectedDeviceId);
+  // Initialize recorder only once
+  useEffect(() => {
+    if (!initialized.current) {
+      useRecorderInitialization(initializeRecorder, setInitError, recordingState.selectedDeviceId);
+      initialized.current = true;
+    }
+  }, [initializeRecorder, recordingState.selectedDeviceId, setInitError]);
 
   // Track recording attempts
-  useRecordingAttemptTracker(recordingState.isRecording, recordingState.setRecordingAttemptsCount);
+  useEffect(() => {
+    useRecordingAttemptTracker(recordingState.isRecording, recordingState.setRecordingAttemptsCount);
+  }, [recordingState.isRecording, recordingState.setRecordingAttemptsCount]);
 
   // Log state changes
-  useRecordingLogger(
+  useEffect(() => {
+    useRecordingLogger(
+      recordingState.isRecording, 
+      recordingState.isPaused, 
+      recordingState.audioUrl, 
+      recordingState.mediaStream, 
+      recordingState.selectedDeviceId, 
+      recordingState.deviceSelectionReady, 
+      recordingState.recordingAttemptsCount, 
+      recordingState.isSystemAudio, 
+      recordingState.lastAction
+    );
+  }, [
     recordingState.isRecording, 
     recordingState.isPaused, 
     recordingState.audioUrl, 
@@ -180,7 +245,7 @@ export const useRecording = () => {
     recordingState.recordingAttemptsCount, 
     recordingState.isSystemAudio, 
     recordingState.lastAction
-  );
+  ]);
 
   // Add new state for processing progress
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -221,12 +286,10 @@ export const useRecording = () => {
     recordingSaveHook
   ]);
 
-  // REMOVED the duplicate handleStartRecording declaration that was here
-  // We're now using the one from useRecordingActions
-
   console.log('[useRecordingHook] Hook initialized, returning methods');
   
-  return {
+  // Return memoized values to reduce re-renders
+  return useMemo(() => ({
     ...recordingState,
     handleStartRecording,
     handleStopRecording,
@@ -246,5 +309,24 @@ export const useRecording = () => {
     processingStage,
     isLoading: recordingSaveHook?.isProcessing || false,
     isRestrictedRoute: isRestrictedRoute()
-  };
+  }), [
+    recordingState,
+    handleStartRecording,
+    handleStopRecording,
+    handlePauseRecording,
+    handleResumeRecording,
+    handleDelete,
+    handleSaveRecording,
+    handleSystemAudioChange,
+    audioDevices,
+    getCurrentDuration,
+    initError,
+    refreshDevices,
+    devicesLoading,
+    permissionState,
+    processingProgress,
+    processingStage,
+    recordingSaveHook?.isProcessing,
+    isRestrictedRoute
+  ]);
 };

@@ -12,11 +12,14 @@ export const useDeviceDetection = (
   const detectionInProgressRef = useRef(false);
   const autoRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
-  const maxRetries = 10; // Increased from 8
+  const maxRetries = 5; // Reduced from 10 to limit excessive retries
   const fallbackAttemptedRef = useRef(false);
   const lastDetectionTimeRef = useRef(0);
   const forcedApproachTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isDashboardPage = useRef(window.location.pathname.includes('/app'));
+  const deviceCacheRef = useRef<AudioDevice[]>([]);
+  const deviceCacheTimeRef = useRef(0);
+  const deviceCacheValidMs = 5000; // Cache is valid for 5 seconds
 
   // Clean up on unmount
   useEffect(() => {
@@ -36,10 +39,17 @@ export const useDeviceDetection = (
     return cleanup;
   }, []);
 
-  // Enhanced device detection with improved error handling and recovery strategies
+  // Enhanced device detection with improved debounce and cache
   const detectDevices = useCallback(async (forceRefresh = false): Promise<{devices: AudioDevice[], defaultId: string | null}> => {
     const now = Date.now();
     const elapsedSinceLastAttempt = now - lastDetectionTimeRef.current;
+    
+    // Check device cache first if not forcing refresh
+    if (!forceRefresh && deviceCacheRef.current.length > 0 && 
+        (now - deviceCacheTimeRef.current < deviceCacheValidMs)) {
+      console.log('[useDeviceDetection] Using cached devices, age:', now - deviceCacheTimeRef.current, 'ms');
+      return { devices: deviceCacheRef.current, defaultId: null };
+    }
     
     // Prevent rapid successive detection attempts (but allow force refresh)
     if (!forceRefresh && detectionInProgressRef.current) {
@@ -47,9 +57,9 @@ export const useDeviceDetection = (
       return { devices, defaultId: null };
     }
     
-    // Add some debounce protection unless forced
-    if (!forceRefresh && elapsedSinceLastAttempt < 300) {
-      console.log('[useDeviceDetection] Skipping detection due to recent attempt', elapsedSinceLastAttempt);
+    // Add more aggressive debounce protection unless forced
+    if (!forceRefresh && elapsedSinceLastAttempt < 1000) {
+      console.log('[useDeviceDetection] Debouncing detection, last attempt:', elapsedSinceLastAttempt, 'ms ago');
       return { devices, defaultId: null };
     }
     
@@ -64,6 +74,12 @@ export const useDeviceDetection = (
     if (forcedApproachTimeoutRef.current) {
       clearTimeout(forcedApproachTimeoutRef.current);
       forcedApproachTimeoutRef.current = null;
+    }
+    
+    // Don't start detection if we have devices already and this isn't a forced refresh
+    if (!forceRefresh && devices.length > 0) {
+      console.log('[useDeviceDetection] Already have devices, skipping detection');
+      return { devices, defaultId: null };
     }
     
     detectionInProgressRef.current = true;
@@ -100,8 +116,8 @@ export const useDeviceDetection = (
       
       console.log(`[useDeviceDetection] Found ${newDevices.length} devices with standard approach`);
       
-      // If no devices found, try a fallback approach (only on first few attempts)
-      if (newDevices.length === 0 && refreshAttempts < 5) {
+      // Only try fallback if no devices found AND forcing refresh AND haven't tried too many times
+      if (newDevices.length === 0 && forceRefresh && refreshAttempts < 3) {
         // Try to get a temporary stream with different constraints
         try {
           console.log('[useDeviceDetection] No devices found, trying fallback approach');
@@ -112,14 +128,11 @@ export const useDeviceDetection = (
           // Force browser to show all devices with a different getUserMedia call
           const tempStream = await navigator.mediaDevices.getUserMedia({
             audio: {
-              // Use different constraints to force device discovery
               echoCancellation: false,
               noiseSuppression: false,
               autoGainControl: false,
-              // Remove the invalid 'latency' property
-              // Use properties that are valid in MediaTrackConstraints
-              sampleRate: { ideal: 44100 }, // Use valid property instead of latency
-              channelCount: { ideal: 1 } // Mono might be compatible with more devices
+              sampleRate: { ideal: 44100 },
+              channelCount: { ideal: 1 }
             }
           });
           
@@ -145,10 +158,20 @@ export const useDeviceDetection = (
         }
       }
       
-      // Update devices state
-      setDevices(newDevices);
+      // Only update state and cache if devices changed or we have no devices yet
+      const hasDeviceChanges = devices.length !== newDevices.length || 
+        !devices.every((d, i) => d.deviceId === newDevices[i].deviceId);
       
-      if (newDevices.length === 0) {
+      if (hasDeviceChanges || devices.length === 0) {
+        // Update devices state
+        setDevices(newDevices);
+        
+        // Update device cache
+        deviceCacheRef.current = newDevices;
+        deviceCacheTimeRef.current = now;
+      }
+      
+      if (newDevices.length === 0 && refreshAttempts < maxRetries) {
         // Handle no devices found scenario
         await handleNoDevicesFound();
       } else {
@@ -183,19 +206,7 @@ export const useDeviceDetection = (
     // Schedule auto-retry if we haven't tried too many times
     if (newAttemptCount < maxRetries) {
       // Progressive backoff with randomization for more natural retry pattern
-      // Start with shorter intervals, then gradually increase
-      let delay: number;
-      
-      if (newAttemptCount < 3) {
-        // Very short initial delays (300-600ms)
-        delay = 300 + Math.random() * 300;
-      } else if (newAttemptCount < 6) {
-        // Medium delays (800-1500ms)
-        delay = 800 + Math.random() * 700;
-      } else {
-        // Longer delays with progressive backoff (1500-5000ms)
-        delay = Math.min(1500 + (newAttemptCount * 500) + (Math.random() * 500), 5000);
-      }
+      const delay = Math.min(1000 * Math.pow(1.5, newAttemptCount), 10000);
       
       console.log(`[useDeviceDetection] Scheduling auto-retry for device detection in ${delay}ms`);
       
@@ -203,52 +214,12 @@ export const useDeviceDetection = (
         if (mountedRef.current) {
           console.log('[useDeviceDetection] Auto-retrying device detection');
           detectionInProgressRef.current = false;
-          fallbackAttemptedRef.current = newAttemptCount % 2 === 0; // Alternate between approaches
+          fallbackAttemptedRef.current = newAttemptCount % 2 === 0; 
           detectDevices(true);
         }
       }, delay);
-      
-      // On the 4th attempt, try a completely different approach
-      if (newAttemptCount === 4) {
-        forcedApproachTimeoutRef.current = setTimeout(() => {
-          if (mountedRef.current) {
-            console.log('[useDeviceDetection] Trying forced permission approach');
-            try {
-              // Reset audio context which can sometimes help
-              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-              audioContext.resume().then(() => {
-                console.log('[useDeviceDetection] Audio context resumed');
-                // Close it after a moment
-                setTimeout(() => audioContext.close(), 500);
-              });
-              
-              // Force a permission prompt with yet another constraint set
-              navigator.mediaDevices.getUserMedia({
-                audio: {
-                  deviceId: "default",
-                  echoCancellation: true,
-                  noiseSuppression: true
-                }
-              }).then(stream => {
-                stream.getTracks().forEach(track => track.stop());
-                
-                // Wait and refresh devices
-                setTimeout(() => {
-                  if (mountedRef.current) {
-                    console.log('[useDeviceDetection] Refreshing after forced approach');
-                    detectionInProgressRef.current = false;
-                    detectDevices(true);
-                  }
-                }, 500);
-              }).catch(err => {
-                console.error('[useDeviceDetection] Forced approach failed:', err);
-              });
-            } catch (err) {
-              console.error('[useDeviceDetection] Error in forced approach:', err);
-            }
-          }
-        }, 2000);
-      }
+    } else {
+      console.log('[useDeviceDetection] Max retry attempts reached, giving up');
     }
     
     setIsLoading(false);
@@ -272,7 +243,7 @@ export const useDeviceDetection = (
     
     // Schedule auto-retry if we haven't tried too many times
     if (newAttemptCount < maxRetries) {
-      const delay = Math.min(800 * Math.pow(1.2, newAttemptCount), 5000); // Progressive backoff
+      const delay = Math.min(1500 * Math.pow(1.5, newAttemptCount), 10000); // Progressive backoff
       console.log(`[useDeviceDetection] Scheduling auto-retry after error in ${delay}ms`);
       
       autoRetryTimeoutRef.current = setTimeout(() => {
@@ -282,6 +253,8 @@ export const useDeviceDetection = (
           detectDevices(true);
         }
       }, delay);
+    } else {
+      console.log('[useDeviceDetection] Max retry attempts reached, giving up');
     }
     
     detectionInProgressRef.current = false;

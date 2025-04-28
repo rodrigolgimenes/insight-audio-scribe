@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAudioCapture } from "./useAudioCapture";
 import { useDeviceState } from "./device/useDeviceState";
 import { useDeviceValidation } from "./device/useDeviceValidation";
@@ -23,18 +22,21 @@ export const useDeviceSelection = () => {
   // Debug references
   const selectionAttemptsRef = useRef(0);
   const lastSelectedIdRef = useRef<string | null>(null);
+  const deviceInitializationDone = useRef(false);
+  const deviceSelectionStable = useRef(false);
+  const refreshInProgressRef = useRef(false);
   
   // Check if we're on a restricted route (dashboard, index, app)
-  const isRestrictedRoute = () => {
+  const isRestrictedRoute = useCallback(() => {
     const path = window.location.pathname.toLowerCase();
     return path === '/' || 
            path === '/index' || 
            path === '/dashboard' || 
            path === '/app' ||
            path.startsWith('/app/');
-  };
+  }, []);
   
-  // Use our robust device detection hook
+  // Use our robust device detection hook with memoized dependencies
   const {
     devices: audioDevices,
     isLoading: devicesLoading,
@@ -63,30 +65,42 @@ export const useDeviceSelection = () => {
   // Keep track of when we last tried to select a device
   const lastSelectionTimeRef = useRef(0);
   
+  // More aggressive debouncing for device selection
+  const debounceTimeRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Log when selectedDeviceId changes
   useEffect(() => {
-    console.log('[useDeviceSelection] selectedDeviceId changed:', {
-      selectedDeviceId,
-      lastSelectedId: lastSelectedIdRef.current,
-      audioDevicesCount: audioDevices.length,
-      deviceSelectionReady,
-      isRestrictedRoute: isRestrictedRoute()
-    });
-    lastSelectedIdRef.current = selectedDeviceId;
-  }, [selectedDeviceId, audioDevices.length, deviceSelectionReady]);
+    // Only log if there's an actual change to avoid spam
+    if (selectedDeviceId !== lastSelectedIdRef.current) {
+      console.log('[useDeviceSelection] selectedDeviceId changed:', {
+        selectedDeviceId,
+        lastSelectedId: lastSelectedIdRef.current,
+        audioDevicesCount: audioDevices.length,
+        deviceSelectionReady,
+        isRestrictedRoute: isRestrictedRoute()
+      });
+      lastSelectedIdRef.current = selectedDeviceId;
+    }
+  }, [selectedDeviceId, audioDevices.length, deviceSelectionReady, isRestrictedRoute]);
 
   // Update permission granted state when permission state changes
   useEffect(() => {
-    console.log('[useDeviceSelection] Permission state changed:', permissionState);
     setPermissionGranted(permissionState === 'granted');
   }, [permissionState, setPermissionGranted]);
   
-  // Handle robust device selection
+  // Handle robust device selection - don't update too frequently
   useEffect(() => {
-    if (robustSelectedDeviceId && robustSelectedDeviceId !== selectedDeviceId) {
-      console.log('[useDeviceSelection] Updating selectedDeviceId from robustDeviceDetection:', robustSelectedDeviceId);
-      setSelectedDeviceId(robustSelectedDeviceId);
-    }
+    // Skip updates if we don't have a valid robust device ID
+    if (!robustSelectedDeviceId) return;
+    
+    // Skip updating if the IDs match
+    if (robustSelectedDeviceId === selectedDeviceId) return;
+    
+    // Skip if we've already initialized and selection is stable
+    if (deviceInitializationDone.current && deviceSelectionStable.current) return;
+    
+    console.log('[useDeviceSelection] Updating selectedDeviceId from robustDeviceDetection:', robustSelectedDeviceId);
+    setSelectedDeviceId(robustSelectedDeviceId);
   }, [robustSelectedDeviceId, selectedDeviceId, setSelectedDeviceId]);
   
   // Use device validation hook
@@ -98,163 +112,187 @@ export const useDeviceSelection = () => {
   );
   
   // Create a wrapper for the refreshDevices function that uses our robust detection
-  const refreshDevices = async () => {
+  const refreshDevices = useCallback(async () => {
+    // Prevent concurrent refreshes
+    if (refreshInProgressRef.current) {
+      console.log('[useDeviceSelection] Refresh already in progress, skipping');
+      return { devices: audioDevices, defaultId: null };
+    }
+    
     console.log('[useDeviceSelection] Refreshing devices...');
+    refreshInProgressRef.current = true;
     
-    // First ensure permission is granted
-    const hasPermission = await requestMicrophoneAccess(true);
+    try {
+      // First ensure permission is granted
+      const hasPermission = await requestMicrophoneAccess(true);
+      
+      if (hasPermission) {
+        // Set permission checked ref for compatibility with existing hooks
+        permissionCheckedRef.current = true;
+        
+        // Perform the device detection
+        const result = await detectDevices(true);
+        const devices = result.devices;
+        const defaultId = result.defaultId;
+        
+        // If we have no devices, show a message
+        if (devices.length === 0) {
+          // Only show toast on non-restricted routes
+          if (!isRestrictedRoute()) {
+            toast.warning("No microphones found", {
+              description: "Please check your microphone connection",
+              id: "no-mics-found",
+              duration: 5000
+            });
+          }
+          setDeviceSelectionReady(false);
+          return { devices: [], defaultId: null };
+        }
+        
+        // Logic to select a device if needed
+        if (devices.length > 0) {
+          // Check if currently selected device exists in the list
+          const deviceExists = selectedDeviceId ? 
+            devices.some(d => d.deviceId === selectedDeviceId) : false;
+          
+          if (!deviceExists && !deviceSelectionStable.current) {
+            // Current selection is invalid, select the first device
+            const deviceToSelect = devices[0].deviceId;
+            console.log('[useDeviceSelection] Selected device not found, selecting first device:', deviceToSelect);
+            setSelectedDeviceId(deviceToSelect);
+            // Also update in robust device hook
+            setRobustSelectedDeviceId(deviceToSelect);
+            // Update selection time
+            lastSelectionTimeRef.current = Date.now();
+            selectionAttemptsRef.current++;
+          } else {
+            // We have a valid selection, ensure ready state is true
+            console.log('[useDeviceSelection] Selected device exists, marking as ready');
+            setDeviceSelectionReady(true);
+            // Mark selection as stable to prevent further auto-selection
+            deviceSelectionStable.current = true;
+          }
+        }
+        
+        // Update device selection ready state based on valid selection
+        const hasValidSelection = selectedDeviceId && devices.some(d => d.deviceId === selectedDeviceId);
+        setDeviceSelectionReady(hasValidSelection);
+        
+        return { devices, defaultId };
+      }
+      
+      return { devices: audioDevices, defaultId: null };
+    } finally {
+      refreshInProgressRef.current = false;
+    }
+  }, [audioDevices, selectedDeviceId, detectDevices, isRestrictedRoute, permissionCheckedRef, requestMicrophoneAccess, setDeviceSelectionReady, setRobustSelectedDeviceId, setSelectedDeviceId]);
+
+  // Enhanced setSelectedDeviceId with debounce
+  const enhancedSetSelectedDeviceId = useCallback((deviceId: string) => {
+    // Skip if it's the same ID we already have
+    if (deviceId === selectedDeviceId) {
+      console.log('[useDeviceSelection] Ignoring duplicate device selection:', deviceId);
+      return;
+    }
     
-    if (hasPermission) {
-      // Set permission checked ref for compatibility with existing hooks
-      permissionCheckedRef.current = true;
+    console.log('[useDeviceSelection] Enhanced setSelectedDeviceId called with:', deviceId);
+    
+    // Clear any previous debounce
+    if (debounceTimeRef.current) {
+      clearTimeout(debounceTimeRef.current);
+    }
+    
+    // Debounce the selection
+    debounceTimeRef.current = setTimeout(() => {
+      // Track selection attempts
+      selectionAttemptsRef.current++;
+      // Update selection time
+      lastSelectionTimeRef.current = Date.now();
+      // Record last selected ID for comparison
+      lastSelectedIdRef.current = deviceId;
       
-      // Perform the device detection
-      const result = await detectDevices(true);
-      const devices = result.devices;
-      const defaultId = result.defaultId;
+      // Update in device state
+      setSelectedDeviceId(deviceId);
+      // Also update in robust device detection
+      setRobustSelectedDeviceId(deviceId);
       
-      // If we have no devices, show a message
-      if (devices.length === 0) {
-        // Only show toast on non-restricted routes
+      // Verify device exists in our list
+      const deviceExists = audioDevices.some(d => d.deviceId === deviceId);
+      console.log('[useDeviceSelection] Device existence check:', {
+        deviceId,
+        exists: deviceExists,
+        availableDeviceIds: audioDevices.map(d => d.deviceId)
+      });
+      
+      // Update device selection ready state
+      if (deviceExists) {
+        setDeviceSelectionReady(true);
+        deviceSelectionStable.current = true;
+        
+        // Show success toast only on non-restricted routes
         if (!isRestrictedRoute()) {
-          toast.warning("No microphones found", {
-            description: "Please check your microphone connection",
-            id: "no-mics-found",
-            duration: 5000
+          toast.success("Microphone selected", {
+            id: "mic-selected",
+            duration: 2000
           });
         }
-        setDeviceSelectionReady(false);
-        return { devices: [], defaultId: null };
       }
-      
-      // Logic to select a device if needed
-      if (devices.length > 0) {
-        // Check if currently selected device exists in the list
-        const deviceExists = selectedDeviceId ? 
-          devices.some(d => d.deviceId === selectedDeviceId) : false;
-        
-        if (!deviceExists) {
-          // Current selection is invalid, select the first device
-          const deviceToSelect = devices[0].deviceId;
-          console.log('[useDeviceSelection] Selected device not found, selecting first device:', deviceToSelect);
-          setSelectedDeviceId(deviceToSelect);
-          // Also update in robust device hook
-          setRobustSelectedDeviceId(deviceToSelect);
-          // Update selection time
-          lastSelectionTimeRef.current = Date.now();
-          selectionAttemptsRef.current++;
-        } else {
-          // We have a valid selection, ensure ready state is true
-          console.log('[useDeviceSelection] Selected device exists, marking as ready');
-          setDeviceSelectionReady(true);
-        }
-      }
-      
-      // Update device selection ready state based on valid selection
-      const hasValidSelection = selectedDeviceId && devices.some(d => d.deviceId === selectedDeviceId);
-      setDeviceSelectionReady(hasValidSelection);
-      
-      return { devices, defaultId };
-    }
-    
-    return { devices: [] as AudioDevice[], defaultId: null };
-  };
-
-  // Enhanced setSelectedDeviceId that updates both state locations
-  const enhancedSetSelectedDeviceId = (deviceId: string) => {
-    console.log('[useDeviceSelection] Enhanced setSelectedDeviceId called with:', deviceId);
-    // Track selection attempts
-    selectionAttemptsRef.current++;
-    // Update selection time
-    lastSelectionTimeRef.current = Date.now();
-    // Record last selected ID for comparison
-    lastSelectedIdRef.current = deviceId;
-    
-    // Update in device state
-    setSelectedDeviceId(deviceId);
-    // Also update in robust device detection
-    setRobustSelectedDeviceId(deviceId);
-    
-    // Verify device exists in our list
-    const deviceExists = audioDevices.some(d => d.deviceId === deviceId);
-    console.log('[useDeviceSelection] Device existence check:', {
-      deviceId,
-      exists: deviceExists,
-      availableDeviceIds: audioDevices.map(d => d.deviceId)
-    });
-    
-    // Update device selection ready state
-    if (deviceExists) {
-      setDeviceSelectionReady(true);
-      
-      // Show success toast only on non-restricted routes
-      if (!isRestrictedRoute()) {
-        toast.success("Microphone selected", {
-          id: "mic-selected",
-          duration: 2000
-        });
-      }
-    }
-    
-    // Verify state was updated correctly with a timeout
-    setTimeout(() => {
-      console.log('[useDeviceSelection] State verification after setSelectedDeviceId:', {
-        expectedDeviceId: deviceId,
-        actualDeviceId: selectedDeviceId,
-        deviceSelectionReady
-      });
-    }, 200);
-  };
+    }, 300); // 300ms debounce
+  }, [selectedDeviceId, setSelectedDeviceId, setRobustSelectedDeviceId, audioDevices, isRestrictedRoute, setDeviceSelectionReady]);
   
-  // Use device initialization hook with our modified refreshDevices function
-  useDeviceInitialization(
-    refreshDevices,
-    deviceInitializationAttempted,
-    audioDevices,
-    selectedDeviceId,
-    deviceSelectionReady,
-    permissionGranted,
-    setDeviceSelectionReady
-  );
-  
-  // Handle case where default device should be selected after initialization
+  // Use device initialization hook with our modified refreshDevices function - 
+  // Only run this once after mounting
   useEffect(() => {
-    const now = Date.now();
-    const timeSinceLastSelection = now - lastSelectionTimeRef.current;
+    if (deviceInitializationDone.current) return;
     
-    // Only try to select a device if:
-    // 1. We haven't made a selection recently (avoid overriding user selection)
-    // 2. We have audio devices
-    // 3. No device is currently selected or selected device doesn't exist
-    if (
-      timeSinceLastSelection > 2000 && 
-      audioDevices.length > 0 && 
-      (!selectedDeviceId || !validateDeviceExists(selectedDeviceId))
-    ) {
-      const deviceToSelect = audioDevices[0].deviceId;
-      console.log('[useDeviceSelection] Auto-selecting device:', {
-        deviceToSelect,
-        reason: selectedDeviceId ? 'Selected device not found' : 'No device selected',
-        timeSinceLastSelection
-      });
+    const initializeDevices = async () => {
+      // First check if we already have audio devices and a selected device
+      if (audioDevices.length > 0 && selectedDeviceId) {
+        console.log('[useDeviceSelection] Already have devices and selection, skipping initialization');
+        deviceInitializationDone.current = true;
+        deviceSelectionStable.current = true;
+        return;
+      }
       
-      enhancedSetSelectedDeviceId(deviceToSelect);
-    }
-  }, [audioDevices, selectedDeviceId, validateDeviceExists]);
+      if (!deviceInitializationAttempted.current) {
+        console.log('[useDeviceSelection] Initializing devices');
+        deviceInitializationAttempted.current = true;
+        await refreshDevices();
+        deviceInitializationDone.current = true;
+      }
+    };
+    
+    initializeDevices();
+  }, [audioDevices.length, selectedDeviceId, refreshDevices, deviceInitializationAttempted]);
   
-  // Log diagnostic information
+  // Handle case where default device should be selected - but limit to once
+  const deviceSelectionAttempted = useRef(false);
+  
   useEffect(() => {
-    console.log('[useDeviceSelection] Diagnostic info:', {
-      permissionState,
-      audioDevicesCount: audioDevices.length,
-      selectedDeviceId,
-      deviceSelectionReady,
-      selectionAttempts: selectionAttemptsRef.current,
-      lastSelectedId: lastSelectedIdRef.current
-    });
-  }, [permissionState, audioDevices.length, selectedDeviceId, deviceSelectionReady]);
+    // Skip if we've already attempted selection
+    if (deviceSelectionAttempted.current) return;
+    
+    // Skip if we don't have devices
+    if (audioDevices.length === 0) return;
+    
+    // Skip if we already have a valid selection
+    if (selectedDeviceId && validateDeviceExists(selectedDeviceId)) {
+      deviceSelectionAttempted.current = true;
+      deviceSelectionStable.current = true;
+      return;
+    }
+    
+    // We need to select a device
+    console.log('[useDeviceSelection] Initial device selection needed');
+    deviceSelectionAttempted.current = true;
+    
+    const deviceToSelect = audioDevices[0].deviceId;
+    console.log('[useDeviceSelection] Auto-selecting device:', deviceToSelect);
+    enhancedSetSelectedDeviceId(deviceToSelect);
+  }, [audioDevices, selectedDeviceId, validateDeviceExists, enhancedSetSelectedDeviceId]);
 
-  return {
+  // Return a stable interface - use useMemo to avoid re-renders
+  return useMemo(() => ({
     audioDevices,
     selectedDeviceId,
     setSelectedDeviceId: enhancedSetSelectedDeviceId,
@@ -263,5 +301,14 @@ export const useDeviceSelection = () => {
     permissionGranted,
     devicesLoading,
     permissionState
-  };
+  }), [
+    audioDevices, 
+    selectedDeviceId, 
+    enhancedSetSelectedDeviceId, 
+    deviceSelectionReady,
+    refreshDevices,
+    permissionGranted,
+    devicesLoading,
+    permissionState
+  ]);
 };
