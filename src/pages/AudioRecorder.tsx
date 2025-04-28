@@ -6,7 +6,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Mic, MicOff, StopCircle, Loader, Upload, Circle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useRecorder } from '@/hooks/useRecorder';
+import { useRecorder, RecorderStatus } from '@/hooks/useRecorder';
 import { MicrophoneSelector } from '@/components/microphone/MicrophoneSelector';
 import { useDeviceManager } from '@/context/DeviceManagerContext';
 import { formatTime } from '@/utils/timeUtils';
@@ -218,7 +218,8 @@ const AudioRecorder: React.FC = () => {
         setTimeout(() => {
           // We need to get the current status at the time this callback runs
           // not rely on the status value from the closure which TypeScript narrows
-          const currentStatus: 'idle' | 'recording' | 'saving' | 'error' = status;
+          // Import RecorderStatus type at the top of the file
+          const currentStatus: RecorderStatus = status;
           if (currentStatus === 'recording' && window.navigator.mediaDevices) {
             // Get all media devices for visualization
             window.navigator.mediaDevices.enumerateDevices()
