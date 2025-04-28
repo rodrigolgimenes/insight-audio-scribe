@@ -1,13 +1,13 @@
-// We'll add the AudioRecorder route to the App.tsx file
-// Assuming there's already a React Router setup
 
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import AudioRecorder from './pages/AudioRecorder';
+import Index from './pages/Index';
 
 function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<Index />} />
         <Route path="/audio-recorder" element={<AudioRecorder />} />
       </Routes>
     </Router>
