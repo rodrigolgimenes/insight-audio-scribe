@@ -1,16 +1,15 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Mic, MicOff, StopCircle, Loader, Upload, Circle } from 'lucide-react';
+import { Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRecorder, RecorderStatus } from '@/hooks/useRecorder';
-import { MicrophoneSelector } from '@/components/microphone/MicrophoneSelector';
 import { useDeviceManager } from '@/context/DeviceManagerContext';
-import { formatTime } from '@/utils/timeUtils';
 import { useFileUpload } from '@/hooks/upload/useFileUpload';
 import { useNavigate } from 'react-router-dom';
+import { AudioWaveformVisualizer } from '@/components/record/AudioWaveformVisualizer';
+import { AudioRecordingControls } from '@/components/record/AudioRecordingControls';
+import { AudioDeviceSettings } from '@/components/record/AudioDeviceSettings';
 
 // Helper function to format milliseconds to MM:SS
 const formatDuration = (ms: number): string => {
@@ -49,7 +48,6 @@ const AudioRecorder: React.FC = () => {
   } = useRecorder();
   
   // Refs
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const visualizerRef = useRef<{
     analyser?: AnalyserNode;
@@ -63,60 +61,12 @@ const AudioRecorder: React.FC = () => {
     localStorage.setItem('insightscribe-record-system-audio', isSystemAudio.toString());
   }, [isSystemAudio]);
 
-  // Handle recording status changes
-  useEffect(() => {
-    // Reset canvas when not recording
-    if (status !== 'recording' && visualizerRef.current.animationFrame) {
-      window.cancelAnimationFrame(visualizerRef.current.animationFrame);
-      visualizerRef.current = {};
-      
-      // Reset canvas
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-          ctx.fillStyle = '#f5f6fa';
-          ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-          ctx.fillStyle = '#9ca3af';
-          ctx.font = '14px Inter, system-ui, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            status === 'idle' && audioUrl ? 'Recording complete' : 'Loading waveform...',
-            canvasRef.current.width / 2,
-            canvasRef.current.height / 2
-          );
-        }
-      }
-    }
-  }, [status, audioUrl]);
-
-  // Initialize waveform canvas
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Set canvas to parent size
-    canvas.width = canvas.parentElement?.clientWidth || 640;
-    canvas.height = 110;
-    
-    // Set initial state
-    ctx.fillStyle = '#f5f6fa';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '14px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Loading waveform...', canvas.width / 2, canvas.height / 2);
-  }, []);
-
   // Setup audio visualizer during recording
   const setupVisualization = (stream: MediaStream) => {
-    if (!canvasRef.current) return;
+    const canvasRef = document.querySelector('canvas');
+    if (!canvasRef) return;
 
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvasRef.getContext('2d');
     if (!ctx) return;
 
     // Clear previous visualization
@@ -145,7 +95,7 @@ const AudioRecorder: React.FC = () => {
 
     // Draw function for the waveform visualization
     const draw = () => {
-      if (!canvasRef.current || !visualizerRef.current.analyser || !visualizerRef.current.dataArray) {
+      if (!canvasRef || !visualizerRef.current.analyser || !visualizerRef.current.dataArray) {
         return;
       }
 
@@ -153,7 +103,7 @@ const AudioRecorder: React.FC = () => {
       visualizerRef.current.animationFrame = requestAnimationFrame(draw);
 
       // Get canvas context
-      const canvas = canvasRef.current;
+      const canvas = canvasRef;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
@@ -211,12 +161,9 @@ const AudioRecorder: React.FC = () => {
       console.log('Starting recording');
       const success = await start(isSystemAudio);
       
-      // Fix: Explicitly cast status to RecorderStatus inside the timeout callback
-      // to avoid TypeScript narrowing issues
       if (success) {
         // Add delay for stream to be available
         setTimeout(() => {
-          // Get current status as a RecorderStatus to avoid type narrowing issues
           if (status === 'recording' && window.navigator.mediaDevices) {
             // Get all media devices for visualization
             window.navigator.mediaDevices.enumerateDevices()
@@ -278,98 +225,37 @@ const AudioRecorder: React.FC = () => {
     }
   };
 
-  // Get status text and color based on current status
-  const getStatusInfo = () => {
-    switch (status) {
-      case 'idle':
-        return { text: audioUrl ? 'Ready' : 'Ready', color: '#22c55e' };
-      case 'recording':
-        return { text: 'Recording...', color: '#ef4444' };
-      case 'saving':
-        return { text: 'Uploading...', color: '#4338ca' };
-      case 'error':
-        return { text: 'Error', color: '#9ca3af' };
-      default:
-        return { text: 'Ready', color: '#22c55e' };
-    }
-  };
-
-  const { text: statusText, color: statusColor } = getStatusInfo();
-
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
       <div className="bg-white rounded-lg shadow-md w-full max-w-2xl p-8">
         <h1 className="text-2xl font-semibold mb-6">Audio Recorder</h1>
         
         {/* Waveform visualization */}
-        <div className="mb-8 bg-[#f5f6fa] rounded-lg overflow-hidden">
-          <canvas ref={canvasRef} className="w-full h-[110px]"></canvas>
-        </div>
+        <AudioWaveformVisualizer 
+          isRecording={status === 'recording'} 
+          status={status} 
+          audioUrl={audioUrl}
+          setupVisualization={setupVisualization}
+        />
         
         {/* Microphone selection and system audio toggle */}
-        <div className="mb-8 space-y-4">
-          <div>
-            <Label htmlFor="microphone" className="block mb-2 text-sm">Select Microphone</Label>
-            <MicrophoneSelector className="w-full" disabled={status === 'recording'} />
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="system-audio" 
-              checked={isSystemAudio}
-              disabled={status === 'recording' || !navigator.mediaDevices.getDisplayMedia}
-              onCheckedChange={(checked) => setIsSystemAudio(checked)}
-            />
-            <Label htmlFor="system-audio" className="text-sm">
-              Also record system audio (Chrome only)
-            </Label>
-          </div>
-        </div>
+        <AudioDeviceSettings
+          isSystemAudio={isSystemAudio}
+          setIsSystemAudio={setIsSystemAudio}
+          status={status}
+        />
         
-        {/* Recording controls and status */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div 
-              className="w-3 h-3 rounded-full" 
-              style={{ backgroundColor: statusColor }}
-            ></div>
-            <span>{statusText}</span>
-            {status === 'recording' && (
-              <span className="text-sm font-medium">
-                {formatDuration(recordingTime)}
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            {audioUrl && status === 'idle' && (
-              <Button
-                onClick={handleTranscribe}
-                disabled={!audioUrl || duration < 1000 || isUploading}
-                className="bg-[#4338ca] hover:bg-[#3730a3] text-white flex items-center gap-2"
-              >
-                <Upload size={16} />
-                Transcribe
-              </Button>
-            )}
-            
-            <button
-              onClick={handleRecordClick}
-              disabled={!selectedDeviceId || status === 'saving'}
-              className={`w-16 h-16 rounded-full flex items-center justify-center focus:outline-none ${
-                status === 'recording' 
-                  ? 'bg-gray-500 hover:bg-gray-600' 
-                  : 'bg-[#ef4444] hover:bg-[#dc2626]'
-              }`}
-            >
-              {status === 'recording' ? (
-                <StopCircle className="text-white" size={32} />
-              ) : (
-                <Mic className="text-white" size={32} />
-              )}
-            </button>
-          </div>
-        </div>
+        {/* Recording controls */}
+        <AudioRecordingControls
+          status={status}
+          audioUrl={audioUrl}
+          duration={duration}
+          recordingTime={recordingTime}
+          selectedDeviceId={selectedDeviceId}
+          handleRecordClick={handleRecordClick}
+          handleTranscribe={handleTranscribe}
+          formatDuration={formatDuration}
+        />
         
         {/* Audio playback (hidden) */}
         {audioUrl && (
@@ -383,7 +269,7 @@ const AudioRecorder: React.FC = () => {
               <Loader className="animate-spin mb-4 text-[#4338ca]" size={48} />
               <h3 className="text-xl font-medium mb-2">Processing Recording</h3>
               <p className="text-gray-500 text-center">
-                Seu registro está sendo carregado na nuvem. Aguarde...
+                Your recording is being uploaded to the cloud. Please wait...
               </p>
             </div>
           </DialogContent>
