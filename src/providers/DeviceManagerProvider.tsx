@@ -14,7 +14,7 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
   // Initialize the device manager hook
   const deviceManager = useDeviceManager();
   
-  // Check and refresh devices on mount
+  // Combined effect: track route changes and refresh devices on mount if needed
   useEffect(() => {
     const handleRouteChange = () => {
       // Create a new history state object instead of modifying the existing one

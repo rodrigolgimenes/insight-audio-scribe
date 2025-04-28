@@ -117,18 +117,18 @@ export function useDeviceManager() {
       localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioDevices));
       localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
       
-      // Only show notifications if explicitly requested AND we're on a recording page
-      if (showNotifications && !isRestrictedRoute()) {
-        // Clear "no devices" notification if we found devices
-        if (audioDevices.length > 0) {
-          toast.dismiss('no-devices');
-        } else {
-          // Only show no devices warning if we don't already have one showing
+      // Handle no devices notification - fixed logic
+      if (audioDevices.length === 0) {
+        // Only show notification if explicitly requested AND on a recording page
+        if (showNotifications && !isRestrictedRoute()) {
           toast.warning("No microphones found", {
             id: 'no-devices',
             duration: 5000
           });
         }
+      } else {
+        // If we have devices, dismiss any "no devices" notification
+        toast.dismiss('no-devices');
       }
       
       // Auto-select first device if none selected

@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,6 +8,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthCallback } from "@/components/auth/AuthCallback";
+import { DeviceManagerProvider } from "@/providers/DeviceManagerProvider";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import TestRecordMeeting from "./pages/TestRecordMeeting";
@@ -166,6 +168,23 @@ const App = () => {
                   <ProtectedRoute>
                     <TestPage />
                   </ProtectedRoute>
+                }
+              />
+              {/* Device-dependent routes wrapped with DeviceManagerProvider */}
+              <Route
+                path="/simple-record"
+                element={
+                  <DeviceManagerProvider>
+                    <SimpleRecord />
+                  </DeviceManagerProvider>
+                }
+              />
+              <Route
+                path="/test-record-meeting"
+                element={
+                  <DeviceManagerProvider>
+                    <TestRecordMeeting />
+                  </DeviceManagerProvider>
                 }
               />
               <Route 
