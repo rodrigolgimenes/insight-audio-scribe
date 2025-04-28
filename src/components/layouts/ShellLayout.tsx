@@ -1,5 +1,6 @@
 
 import React from "react";
+import { Link } from "react-router-dom";
 
 interface ShellLayoutProps {
   children: React.ReactNode;
@@ -16,10 +17,22 @@ export const ShellLayout: React.FC<ShellLayoutProps> = ({ children }) => {
           <nav>
             <ul className="flex space-x-4">
               <li>
-                <a href="/" className="text-gray-700 hover:text-blue-500">Home</a>
+                <Link to="/" className="text-gray-700 hover:text-blue-500">Home</Link>
               </li>
               <li>
-                <a href="/audio-recorder" className="text-gray-700 hover:text-blue-500">Record Audio</a>
+                <Link to="/audio-recorder" className="text-gray-700 hover:text-blue-500">Record Audio</Link>
+              </li>
+              <li>
+                <Link to="/app" className="text-gray-700 hover:text-blue-500">Dashboard</Link>
+              </li>
+              <li>
+                <Link to="/SimpleRecord" className="text-gray-700 hover:text-blue-500">Simple Record</Link>
+              </li>
+              <li>
+                <Link to="/settings" className="text-gray-700 hover:text-blue-500">Settings</Link>
+              </li>
+              <li>
+                <Link to="/login" className="text-gray-700 hover:text-blue-500">Login</Link>
               </li>
             </ul>
           </nav>

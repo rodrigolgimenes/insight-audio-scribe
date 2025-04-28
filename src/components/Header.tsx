@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -31,7 +31,7 @@ export const Header = () => {
       <div className="container mx-auto px-4 py-4">
         <nav className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold gradient-text">InsightScribe</span>
+            <Link to="/" className="text-2xl font-bold gradient-text">InsightScribe</Link>
           </div>
 
           {/* Desktop Menu */}

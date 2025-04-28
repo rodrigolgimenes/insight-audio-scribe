@@ -5,6 +5,12 @@ import AudioRecorder from './pages/AudioRecorder';
 import Index from './pages/Index';
 import { Toaster } from 'sonner';
 import { DeviceManagerProvider } from './context/DeviceManagerContext';
+import NotFound from './pages/NotFound';
+import Dashboard from './pages/Dashboard';
+import Settings from './pages/Settings';
+import UncategorizedFolder from './pages/UncategorizedFolder';
+import RecordPage from './pages/record/RecordPage';
+import { LoginPage } from './components/auth/LoginPage';
 
 // Simple error fallback component
 const ErrorFallback = () => (
@@ -66,6 +72,13 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/audio-recorder" element={<AudioRecorder />} />
+                <Route path="/app" element={<Dashboard />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/uncategorized" element={<UncategorizedFolder />} />
+                <Route path="/SimpleRecord" element={<RecordPage />} />
+                <Route path="/simple-record" element={<RecordPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Router>
           </Suspense>
