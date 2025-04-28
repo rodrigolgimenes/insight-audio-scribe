@@ -50,12 +50,12 @@ export function RecordControls({
               disabled={disabled}
               size="lg"
               className={cn(
-                "rounded-full w-14 h-14 bg-green-500 hover:bg-green-600 text-white",
+                "rounded-full w-20 h-20 bg-green-500 hover:bg-green-600 text-white flex flex-col items-center justify-center",
                 disabled && "opacity-50 cursor-not-allowed"
               )}
               aria-label="Transcribe Recording"
             >
-              <span className="text-xs font-medium">TRANSCRIBE</span>
+              <span className="text-base font-bold">TRANSCRIBE</span>
             </Button>
             
             {!isPaused ? (

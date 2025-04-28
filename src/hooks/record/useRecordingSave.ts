@@ -20,36 +20,57 @@ export const useRecordingSave = () => {
     recordedDuration: number = 0
   ) => {
     try {
+      setIsProcessing(true);
+      setProcessingProgress(5);
+      setProcessingStage("Preparing audio data...");
+      
+      // Validate user authentication first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
       let recordingResult;
       let audioBlob: Blob | null = null;
       let finalDuration = recordedDuration;
 
       if (isRecording) {
+        setProcessingStage("Stopping recording...");
         recordingResult = await handleStopRecording();
         
-        if (recordingResult?.blob) {
+        if (!recordingResult) {
+          throw new Error('Failed to stop recording');
+        }
+        
+        if (recordingResult.blob) {
           audioBlob = recordingResult.blob;
         }
         
-        if (recordingResult?.duration) {
+        if (recordingResult.duration) {
           finalDuration = recordingResult.duration;
         }
       } else if (audioUrl) {
-        const response = await fetch(audioUrl);
-        audioBlob = await response.blob();
+        setProcessingStage("Reading audio data...");
+        try {
+          const response = await fetch(audioUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch audio data: ${response.statusText}`);
+          }
+          audioBlob = await response.blob();
+        } catch (error) {
+          console.error('Error fetching audio data:', error);
+          throw new Error('Failed to read audio data');
+        }
       }
 
-      if (!audioBlob) {
-        throw new Error('No audio data available to save');
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error('No valid audio data available to save');
       }
 
-      setIsProcessing(true);
-      setProcessingProgress(10);
-      setProcessingStage("Iniciando upload...");
+      setProcessingProgress(20);
+      setProcessingStage("Initializing upload...");
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
+      // Stop media stream if still active
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
           track.stop();
@@ -59,8 +80,8 @@ export const useRecordingSave = () => {
       const durationInMs = Math.round(finalDuration * 1000);
       console.log('Recording duration to save (ms):', durationInMs);
 
-      setProcessingProgress(20);
-      setProcessingStage("Criando registro da gravação...");
+      setProcessingProgress(30);
+      setProcessingStage("Creating recording entry...");
 
       // IMPORTANT: Use .mp3 extension to ensure correct content type detection
       const fileName = `${user.id}/${Date.now()}.mp3`;
@@ -73,7 +94,7 @@ export const useRecordingSave = () => {
           user_id: user.id,
           status: 'uploading',
           file_path: fileName,
-          needs_compression: true // Marcando que precisa de compressão
+          needs_compression: true
         })
         .select()
         .single();
@@ -83,10 +104,14 @@ export const useRecordingSave = () => {
         throw new Error(`Failed to save recording: ${dbError.message}`);
       }
 
+      if (!recordingData) {
+        throw new Error('Failed to create recording entry');
+      }
+
       console.log('Recording entry created:', recordingData);
       
-      setProcessingProgress(40);
-      setProcessingStage("Fazendo upload do áudio...");
+      setProcessingProgress(50);
+      setProcessingStage("Uploading audio...");
       
       // Upload the original audio file without compression
       const { error: uploadError } = await supabase.storage
@@ -101,8 +126,8 @@ export const useRecordingSave = () => {
         throw new Error(`Failed to upload audio: ${uploadError.message}`);
       }
 
-      setProcessingProgress(70);
-      setProcessingStage("Criando nota...");
+      setProcessingProgress(75);
+      setProcessingStage("Creating note...");
 
       // Create note entry
       const { error: noteError, data: noteData } = await supabase
@@ -123,8 +148,12 @@ export const useRecordingSave = () => {
         throw new Error(`Failed to create note: ${noteError.message}`);
       }
 
+      if (!noteData) {
+        throw new Error('Failed to create note entry');
+      }
+
       setProcessingProgress(90);
-      setProcessingStage("Iniciando processamento em segundo plano...");
+      setProcessingStage("Starting background processing...");
 
       // Start background processing
       const { error: processError } = await supabase.functions.invoke('process-recording', {
@@ -138,12 +167,12 @@ export const useRecordingSave = () => {
 
       if (processError) {
         console.error('Error starting processing:', processError);
-        sonnerToast.warning("Gravação salva, mas o processamento pode demorar para iniciar", {
-          description: "O sistema tentará processar automaticamente em breve"
+        sonnerToast.warning("Recording saved, but processing may be delayed", {
+          description: "The system will try to process automatically soon"
         });
       } else {
-        sonnerToast.success("Gravação salva!", {
-          description: "O processamento começará em breve"
+        sonnerToast.success("Recording saved successfully!", {
+          description: "Processing will begin shortly"
         });
       }
 
@@ -154,8 +183,8 @@ export const useRecordingSave = () => {
       setIsProcessing(false);
       
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Error saving recording",
+        title: "Error Saving Recording",
+        description: error instanceof Error ? error.message : "Failed to save recording",
         variant: "destructive",
       });
     } finally {

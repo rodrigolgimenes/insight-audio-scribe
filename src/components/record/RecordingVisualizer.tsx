@@ -7,108 +7,119 @@ interface RecordingVisualizerProps {
   isPaused: boolean;
 }
 
-export const RecordingVisualizer = ({ 
-  audioStream, 
+export const RecordingVisualizer = ({
+  audioStream,
   isRecording,
-  isPaused 
+  isPaused
 }: RecordingVisualizerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number | null>(null);
+  const animationRef = useRef<number>();
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current || !audioStream || !isRecording) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Create audio context and analyser
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
+    let audioContext: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
     
-    // Connect the stream to the analyser
-    const source = audioContext.createMediaStreamSource(audioStream);
-    source.connect(analyser);
-    
-    // Store references
-    audioContextRef.current = audioContext;
-    analyserRef.current = analyser;
-    
-    // Handle canvas sizing
-    const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+    const setupVisualizer = async () => {
+      if (!audioStream || !isRecording || !canvasRef.current) return;
+      
+      try {
+        // Create audio context and analyzer
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        analyserRef.current = analyser;
+        audioContextRef.current = audioContext;
+        
+        // Connect the stream to the analyzer
+        source = audioContext.createMediaStreamSource(audioStream);
+        source.connect(analyser);
+        
+        // Start visualization
+        if (!isPaused) {
+          visualize();
+        }
+      } catch (error) {
+        console.error("Error setting up audio visualizer:", error);
+      }
     };
     
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    
-    // Visualization function
-    const draw = () => {
-      if (!analyser || !ctx) return;
+    const visualize = () => {
+      if (!canvasRef.current || !analyserRef.current) return;
       
-      // Stop drawing if paused
-      if (isPaused) {
-        animationRef.current = requestAnimationFrame(draw);
-        return;
-      }
+      const canvas = canvasRef.current;
+      const canvasCtx = canvas.getContext('2d');
+      if (!canvasCtx) return;
       
-      // Get frequency data
+      const WIDTH = canvas.width;
+      const HEIGHT = canvas.height;
+      const analyser = analyserRef.current;
+      
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
       
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
       
-      // Set bar width based on canvas size and buffer length
-      const barWidth = canvas.width / bufferLength * 2.5;
-      let x = 0;
-      
-      // Draw bars
-      for (let i = 0; i < bufferLength; i++) {
-        const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+      const draw = () => {
+        if (!isRecording) return;
         
-        // Use a gradient based on amplitude
-        const hue = (i / bufferLength) * 180 + 200; // Blue to purple range
-        ctx.fillStyle = `hsl(${hue}, 100%, ${50 + (dataArray[i] / 10)}%)`;
+        animationRef.current = requestAnimationFrame(draw);
         
-        // Draw bar centered vertically
-        const y = (canvas.height - barHeight) / 2;
-        ctx.fillRect(x, y, barWidth, barHeight);
+        analyser.getByteFrequencyData(dataArray);
         
-        x += barWidth + 1; // Add a small gap between bars
-      }
+        canvasCtx.fillStyle = '#f5f5f5';
+        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        
+        const barWidth = (WIDTH / bufferLength) * 2.5;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = isPaused ? 5 : (dataArray[i] / 255) * HEIGHT;
+          
+          canvasCtx.fillStyle = isPaused 
+            ? '#F97316' // Amber color for paused state
+            : `rgb(${dataArray[i]}, 155, 245)`; // Dynamic purple-ish for active
+            
+          canvasCtx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+          
+          x += barWidth + 1;
+        }
+      };
       
-      animationRef.current = requestAnimationFrame(draw);
+      draw();
     };
     
-    draw();
+    if (isRecording && audioStream) {
+      setupVisualizer();
+    }
     
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      
       if (audioContextRef.current) {
-        audioContextRef.current.close();
+        audioContextRef.current.close().catch(console.error);
       }
     };
   }, [audioStream, isRecording, isPaused]);
-
+  
   return (
-    <div className="h-full w-full rounded-lg border bg-gray-50 overflow-hidden">
+    <div className="w-full h-full bg-gray-50 rounded-lg border overflow-hidden">
       {isRecording ? (
-        <canvas 
-          ref={canvasRef} 
+        <canvas
+          ref={canvasRef}
           className="w-full h-full"
-        />
+          width={300}
+          height={100}
+        ></canvas>
       ) : (
         <div className="h-full w-full flex items-center justify-center">
-          <p className="text-gray-400 text-sm">Ready to record</p>
+          <p className="text-gray-400 text-sm">
+            Waiting for recording to start...
+          </p>
         </div>
       )}
     </div>
