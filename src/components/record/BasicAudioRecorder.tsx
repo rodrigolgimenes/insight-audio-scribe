@@ -48,7 +48,6 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
                   <Button
                     onClick={() => {
                       setAudioUrl(null);
-                      setElapsedTime(0);
                     }}
                     variant="outline"
                     className="flex-1 border-red-500 text-red-500 hover:bg-red-50"
