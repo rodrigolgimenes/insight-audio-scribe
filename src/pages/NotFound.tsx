@@ -22,7 +22,7 @@ export default function NotFound() {
             </Button>
             
             <Button asChild variant="outline" size="lg">
-              <Link to="/simple-record">
+              <Link to="/SimpleRecord">
                 Go to Recording
               </Link>
             </Button>

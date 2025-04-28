@@ -165,7 +165,7 @@ const App = () => {
                     }
                   />
                   <Route
-                    path="/simple-record"
+                    path="/SimpleRecord"
                     element={<SimpleRecord />}
                   />
                   <Route
@@ -181,8 +181,8 @@ const App = () => {
                     }
                   />
                   <Route 
-                    path="/SimpleRecord" 
-                    element={<Navigate to="/simple-record" replace />} 
+                    path="/simple-record" 
+                    element={<Navigate to="/SimpleRecord" replace />} 
                   />
                   <Route 
                     path="/index" 
