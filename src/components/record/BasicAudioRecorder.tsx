@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Loader2 } from "lucide-react";
@@ -37,6 +38,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
   const handleTranscribe = async () => {
     try {
       console.log("Starting transcription process");
+      setStatus("Preparing recording...");
       
       // If we're currently recording, stop the recording first and get the blob
       let audioBlob: Blob | null = null;
@@ -49,11 +51,19 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
         try {
           // Wait for the recording to stop and get the blob
           const result = await stopRecording();
+          console.log("stopRecording completed with result:", result);
+          
+          if (!result.blob) {
+            throw new Error("Failed to get audio data from recording");
+          }
+          
           audioBlob = result.blob;
           audioDuration = result.duration;
-          console.log("Recording stopped successfully, blob size:", audioBlob?.size);
+          console.log("Recording stopped successfully, blob size:", audioBlob.size, "duration:", audioDuration);
         } catch (error) {
           console.error("Failed to stop recording:", error);
+          setStatus("Error stopping recording");
+          toast.error("Failed to stop recording properly");
           throw new Error("Failed to stop recording properly");
         }
       } else if (audioUrl) {
@@ -70,6 +80,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
           console.log("Fetched audio blob, size:", audioBlob.size);
         } catch (error) {
           console.error("Error fetching audio data:", error);
+          setStatus("Error preparing audio");
           throw new Error("Failed to prepare audio data");
         }
       }
@@ -77,6 +88,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
       // Validate we have a valid audio blob to process
       if (!audioBlob) {
         console.error("No audio data available for transcription");
+        setStatus("No audio available");
         throw new Error("No audio data available for transcription");
       }
 
@@ -84,14 +96,17 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
       setStatus("Processing audio...");
       console.log("Starting transcription with duration:", audioDuration);
       
-      // Fix: Pass audioBlob and audioDuration to handleSave instead of passing audioUrl
+      // Pass audioBlob and audioDuration to handleSave
       await handleSave(audioBlob, audioDuration);
       setStatus(""); // Clear status when done
+      console.log("Transcription process completed successfully");
       
     } catch (error) {
       console.error("Error in transcribe handler:", error);
-      setStatus("Error");
-      throw error; // Re-throw to allow the UI to show the error
+      setStatus("Error: " + (error instanceof Error ? error.message : "Unknown error"));
+      toast.error("Transcription failed", { 
+        description: error instanceof Error ? error.message : "Unknown error" 
+      });
     }
   };
 
@@ -167,6 +182,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
                   await stopRecording();
                 } catch (error) {
                   console.error("Error stopping recording:", error);
+                  toast.error("Failed to stop recording");
                 }
               }}
               disabled={disabled}

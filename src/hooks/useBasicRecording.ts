@@ -1,7 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 export const useBasicRecording = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -67,6 +66,7 @@ export const useBasicRecording = () => {
       chunksRef.current = [];
       resetRecording();
       
+      console.log("Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -75,24 +75,97 @@ export const useBasicRecording = () => {
         } 
       });
       
+      console.log("Microphone access granted, initializing MediaRecorder");
+      
       let options = {};
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         options = { mimeType: 'audio/webm;codecs=opus' };
+        console.log("Using audio/webm;codecs=opus format");
+      } else {
+        console.log("Opus codec not supported, using default format");
       }
       
+      // Create a new MediaRecorder instance
       const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+      console.log("MediaRecorder created with mime type:", mediaRecorder.mimeType);
       
-      // Set up event handlers before starting recording
+      // Important: Set up event handlers BEFORE starting recording
+      console.log("Setting up MediaRecorder event handlers");
+      
+      // Handle data available events
       mediaRecorder.ondataavailable = (e) => {
+        console.log(`MediaRecorder ondataavailable: chunk size = ${e.data.size}`);
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
+          console.log(`Total chunks: ${chunksRef.current.length}`);
         }
+      };
+      
+      // Handle stop event
+      mediaRecorder.onstop = () => {
+        console.log("MediaRecorder onstop event triggered");
+        
+        // Calculate duration
+        const endTime = Date.now();
+        const duration = recordingStartTime ? Math.max(0, endTime - recordingStartTime) : 0;
+        console.log(`Recording duration: ${duration}ms`);
+        setRecordingDuration(duration);
+        
+        // Stop all tracks from the stream
+        stream.getTracks().forEach(track => {
+          console.log(`Stopping track: ${track.kind}`);
+          track.stop();
+        });
+        
+        // Clear timer
+        if (timerRef.current) {
+          window.clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        
+        // Process recorded chunks with a small delay to ensure all chunks are processed
+        setTimeout(() => {
+          console.log(`Processing ${chunksRef.current.length} chunks to create blob`);
+          
+          // Create a blob from chunks
+          if (chunksRef.current.length > 0) {
+            const blob = new Blob(chunksRef.current, { 
+              type: mediaRecorder.mimeType || 'audio/webm' 
+            });
+            
+            console.log(`Created blob: size=${blob.size}, type=${blob.type}`);
+            
+            if (blob.size > 0) {
+              const url = URL.createObjectURL(blob);
+              setAudioUrl(url);
+              console.log(`Audio URL created: ${url}`);
+              setIsRecording(false);
+              toast.success("Recording completed");
+            } else {
+              console.error("Created blob is empty");
+              setIsRecording(false);
+              toast.error("Failed to create recording: Empty data");
+            }
+          } else {
+            console.error("No audio chunks recorded");
+            setIsRecording(false);
+            toast.error("Failed to create recording: No data captured");
+          }
+        }, 300); // Add a small delay to ensure all chunks are collected
+      };
+      
+      // Handle errors
+      mediaRecorder.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
+        toast.error("Recording error occurred");
+        cleanup();
       };
       
       // Start the media recorder
       try {
-        mediaRecorder.start(1000);
-        mediaRecorderRef.current = mediaRecorder;
+        console.log("Starting MediaRecorder...");
+        mediaRecorder.start(1000); // Collect data every second
         
         const startTime = Date.now();
         setRecordingStartTime(startTime);
@@ -104,6 +177,7 @@ export const useBasicRecording = () => {
         
         setIsRecording(true);
         toast.success("Recording started");
+        console.log("MediaRecorder successfully started");
       } catch (startError) {
         console.error("Error starting MediaRecorder:", startError);
         toast.error("Failed to start recording");
@@ -126,6 +200,11 @@ export const useBasicRecording = () => {
 
   const stopRecording = () => {
     return new Promise<{blob: Blob | null; duration: number}>((resolve, reject) => {
+      console.log("stopRecording called, current state:", {
+        isRecording,
+        mediaRecorderState: mediaRecorderRef.current?.state || "no recorder"
+      });
+      
       if (!mediaRecorderRef.current || !isRecording) {
         console.warn("No active recording to stop");
         setIsRecording(false);
@@ -139,58 +218,95 @@ export const useBasicRecording = () => {
         if (mediaRecorderRef.current.state !== 'inactive') {
           console.log("Stopping MediaRecorder...");
           
-          // CRITICAL FIX: Set up the onstop handler BEFORE calling stop()
-          mediaRecorderRef.current.onstop = () => {
+          // Create a local reference to chunks and mimeType for use in the timeout handler
+          const currentChunks = [...chunksRef.current];
+          const mimeType = mediaRecorderRef.current.mimeType || 'audio/webm';
+          const currentStartTime = recordingStartTime;
+          
+          // Set up a safety timeout in case onstop event doesn't fire
+          const safetyTimeout = setTimeout(() => {
+            console.warn("Safety timeout triggered - onstop event might not have fired");
+            
+            if (currentChunks.length === 0) {
+              console.error("No audio chunks recorded (safety handler)");
+              reject(new Error("No audio data captured"));
+              return;
+            }
+            
+            // Calculate duration
+            const endTime = Date.now();
+            const duration = currentStartTime ? Math.max(0, endTime - currentStartTime) : 0;
+            setRecordingDuration(duration);
+            
+            // Create blob from saved chunks
+            const blob = new Blob(currentChunks, { type: mimeType });
+            
+            if (blob.size <= 0) {
+              console.error("Created blob is empty (safety handler)");
+              reject(new Error("Empty audio data"));
+              return;
+            }
+            
+            const url = URL.createObjectURL(blob);
+            setAudioUrl(url);
+            setIsRecording(false);
+            
+            // Resolve the promise with blob and duration
+            resolve({blob, duration: duration / 1000}); // Convert to seconds
+          }, 1500);
+          
+          // CRITICAL FIX: The proper way to handle mediaRecorder events
+          const originalOnStop = mediaRecorderRef.current.onstop;
+          
+          // Override the onstop handler
+          mediaRecorderRef.current.onstop = (event) => {
+            // Clear the safety timeout since onstop fired normally
+            clearTimeout(safetyTimeout);
+            
+            // Call the original onstop handler if it exists
+            if (originalOnStop) {
+              originalOnStop.call(mediaRecorderRef.current, event);
+            }
+            
             try {
-              console.log("MediaRecorder stopped event triggered");
+              console.log("MediaRecorder stopped event triggered in promise handler");
               const endTime = Date.now();
-              const duration = recordingStartTime ? Math.max(0, endTime - recordingStartTime) : 0;
-              setRecordingDuration(duration);
+              const duration = currentStartTime ? Math.max(0, endTime - currentStartTime) : 0;
               
-              // Make sure we have chunks to process
-              if (chunksRef.current.length === 0) {
-                console.error("No audio chunks recorded");
-                reject(new Error("No audio data captured"));
-                return;
-              }
-              
-              const blob = new Blob(chunksRef.current, { 
-                type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
-              });
-              
-              // Validate blob
-              if (blob.size <= 0) {
-                console.error("Created blob is empty");
-                reject(new Error("Empty audio data"));
-                return;
-              }
-              
-              const url = URL.createObjectURL(blob);
-              setAudioUrl(url);
-              
-              // Stop all active tracks
-              if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
-                mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-              }
-              
-              setIsRecording(false);
-              
-              // Clear timer after updating state
-              if (timerRef.current) {
-                window.clearInterval(timerRef.current);
-                timerRef.current = null;
-              }
-              
-              toast.success("Recording completed");
-              resolve({blob, duration: duration / 1000}); // Convert to seconds
+              // Small delay to ensure all chunks are processed
+              setTimeout(() => {
+                // Make sure we have chunks to process
+                if (chunksRef.current.length === 0) {
+                  console.error("No audio chunks recorded in promise handler");
+                  reject(new Error("No audio data captured"));
+                  return;
+                }
+                
+                const blob = new Blob(chunksRef.current, { 
+                  type: mimeType
+                });
+                
+                // Validate blob
+                if (blob.size <= 0) {
+                  console.error("Created blob is empty in promise handler");
+                  reject(new Error("Empty audio data"));
+                  return;
+                }
+                
+                console.log(`Blob created successfully: size=${blob.size}, type=${blob.type}`);
+                
+                // Resolve the promise with blob and duration
+                resolve({blob, duration: duration / 1000}); // Convert to seconds
+              }, 300);
             } catch (error) {
-              console.error("Error in mediaRecorder.onstop:", error);
-              reject(new Error("Error finalizing recording"));
+              console.error("Error in mediaRecorder.onstop promise handler:", error);
+              reject(error);
             }
           };
           
           // Now call stop() after the onstop handler has been set up
           mediaRecorderRef.current.stop();
+          console.log("MediaRecorder.stop() called");
         } else {
           console.warn("MediaRecorder already inactive");
           setIsRecording(false);
