@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +11,15 @@ export const useRecordingSave = () => {
   const [processingProgress, setProcessingProgress] = useState(0);
   const [processingStage, setProcessingStage] = useState("");
 
+  const validateAudioData = async (blob: Blob | null): Promise<boolean> => {
+    if (!blob) return false;
+    if (blob.size === 0) return false;
+    
+    // Additional validation - check if the blob is actually audio data
+    const validAudioTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg'];
+    return validAudioTypes.includes(blob.type);
+  };
+
   const saveRecording = async (
     isRecording: boolean,
     handleStopRecording: () => Promise<{ blob?: Blob | null; duration?: number } | undefined | void>,
@@ -19,16 +27,18 @@ export const useRecordingSave = () => {
     audioUrl: string | null,
     recordedDuration: number = 0
   ) => {
+    console.log('[useRecordingSave] Starting save process with params:', {
+      isRecording,
+      hasMediaStream: !!mediaStream,
+      hasAudioUrl: !!audioUrl,
+      recordedDuration
+    });
+
     try {
       setIsProcessing(true);
       setProcessingProgress(5);
       setProcessingStage("Preparing audio data...");
       
-      // Validate audio data before proceeding
-      if (!audioUrl && !isRecording) {
-        throw new Error('No valid recording to save');
-      }
-
       // Validate user authentication first
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -42,7 +52,13 @@ export const useRecordingSave = () => {
       // If still recording, stop it first
       if (isRecording) {
         setProcessingStage("Stopping recording...");
+        console.log('[useRecordingSave] Stopping active recording');
+        
         recordingResult = await handleStopRecording();
+        console.log('[useRecordingSave] Stop recording result:', recordingResult);
+        
+        // Add a small delay after stopping
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         if (!recordingResult) {
           throw new Error('Failed to stop recording');
@@ -56,24 +72,31 @@ export const useRecordingSave = () => {
           finalDuration = recordingResult.duration;
         }
       } else if (audioUrl) {
-        // If we have an audioUrl, fetch the blob
         setProcessingStage("Reading audio data...");
         try {
+          console.log('[useRecordingSave] Fetching audio from URL');
           const response = await fetch(audioUrl);
           if (!response.ok) {
             throw new Error(`Failed to fetch audio data: ${response.statusText}`);
           }
           audioBlob = await response.blob();
         } catch (error) {
-          console.error('Error fetching audio data:', error);
+          console.error('[useRecordingSave] Error fetching audio data:', error);
           throw new Error('Failed to read audio data');
         }
       }
 
-      // Validate that we have valid audio data
-      if (!audioBlob || audioBlob.size === 0) {
-        throw new Error('No valid audio data available to save');
+      // Validate audio blob
+      const isValidAudio = await validateAudioData(audioBlob);
+      if (!isValidAudio) {
+        throw new Error('Invalid or corrupted audio data');
       }
+
+      console.log('[useRecordingSave] Audio validation passed:', {
+        blobSize: audioBlob?.size,
+        blobType: audioBlob?.type,
+        durationMs: finalDuration * 1000
+      });
 
       setProcessingProgress(20);
       setProcessingStage("Initializing upload...");
@@ -187,7 +210,7 @@ export const useRecordingSave = () => {
       navigate("/app");
       
     } catch (error) {
-      console.error('Error saving recording:', error);
+      console.error('[useRecordingSave] Error:', error);
       setIsProcessing(false);
       
       toast({

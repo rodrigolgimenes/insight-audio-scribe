@@ -6,6 +6,7 @@ import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
+import { toast } from "sonner";
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -74,9 +75,37 @@ export const RecordingSection = ({
   });
 
   const handleTranscribe = async () => {
-    if (onSave) {
-      await handleStopRecording();
-      await onSave();
+    console.log('[RecordingSection] Starting transcribe process');
+    console.log('[RecordingSection] Current state:', {
+      isRecording,
+      isPaused,
+      audioUrl: audioUrl ? 'exists' : null,
+      mediaStream: mediaStream ? 'active' : null
+    });
+
+    try {
+      if (isRecording) {
+        console.log('[RecordingSection] Stopping active recording first');
+        const stopResult = await handleStopRecording();
+        console.log('[RecordingSection] Stop recording result:', stopResult);
+        
+        // Add a small delay to ensure everything is processed
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!audioUrl && !mediaStream) {
+        throw new Error('No recording data available');
+      }
+
+      console.log('[RecordingSection] Initiating save process');
+      if (onSave) {
+        await onSave();
+      }
+    } catch (error) {
+      console.error('[RecordingSection] Error in transcribe process:', error);
+      toast.error("Failed to process recording", {
+        description: error instanceof Error ? error.message : "Unknown error occurred"
+      });
     }
   };
 
