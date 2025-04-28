@@ -108,7 +108,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
             )
           ) : (
             <Button
-              onClick={stopRecording}
+              onClick={() => stopRecording()}
               disabled={disabled}
               className="bg-red-500 hover:bg-red-600 text-white rounded-full h-16 w-16 flex items-center justify-center"
               aria-label="Stop Recording"

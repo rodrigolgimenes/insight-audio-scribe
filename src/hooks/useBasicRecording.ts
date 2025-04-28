@@ -82,55 +82,10 @@ export const useBasicRecording = () => {
       
       const mediaRecorder = new MediaRecorder(stream, options);
       
+      // Set up event handlers before starting recording
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        try {
-          const endTime = Date.now();
-          const duration = recordingStartTime ? Math.max(0, endTime - recordingStartTime) : 0;
-          setRecordingDuration(duration);
-          
-          // Make sure we have chunks to process
-          if (chunksRef.current.length === 0) {
-            console.error("No audio chunks recorded");
-            toast.error("Recording failed - no audio data captured");
-            return;
-          }
-          
-          const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
-          
-          // Validate blob
-          if (blob.size <= 0) {
-            console.error("Created blob is empty");
-            toast.error("Recording failed - empty audio data");
-            return;
-          }
-          
-          const url = URL.createObjectURL(blob);
-          setAudioUrl(url);
-          
-          // Stop all active tracks
-          if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-          }
-          
-          setIsRecording(false);
-          
-          // Clear timer after updating state
-          if (timerRef.current) {
-            window.clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          
-          toast.success("Recording completed");
-        } catch (error) {
-          console.error("Error in mediaRecorder.onstop:", error);
-          toast.error("Error finalizing recording");
-          setIsRecording(false);
         }
       };
       
@@ -170,16 +125,82 @@ export const useBasicRecording = () => {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    return new Promise<void>((resolve, reject) => {
+      if (!mediaRecorderRef.current || !isRecording) {
+        console.warn("No active recording to stop");
+        setIsRecording(false);
+        cleanup();
+        resolve();
+        return;
+      }
+
       try {
+        // Check if MediaRecorder is in a state where it can be stopped
         if (mediaRecorderRef.current.state !== 'inactive') {
+          console.log("Stopping MediaRecorder...");
+          
+          // CRITICAL FIX: Set up the onstop handler BEFORE calling stop()
+          // The onstop event will only trigger if the handler is registered before stopping
+          mediaRecorderRef.current.onstop = () => {
+            try {
+              console.log("MediaRecorder stopped event triggered");
+              const endTime = Date.now();
+              const duration = recordingStartTime ? Math.max(0, endTime - recordingStartTime) : 0;
+              setRecordingDuration(duration);
+              
+              // Make sure we have chunks to process
+              if (chunksRef.current.length === 0) {
+                console.error("No audio chunks recorded");
+                toast.error("Recording failed - no audio data captured");
+                reject(new Error("No audio data captured"));
+                return;
+              }
+              
+              const blob = new Blob(chunksRef.current, { 
+                type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
+              });
+              
+              // Validate blob
+              if (blob.size <= 0) {
+                console.error("Created blob is empty");
+                toast.error("Recording failed - empty audio data");
+                reject(new Error("Empty audio data"));
+                return;
+              }
+              
+              const url = URL.createObjectURL(blob);
+              setAudioUrl(url);
+              
+              // Stop all active tracks
+              if (mediaRecorderRef.current && mediaRecorderRef.current.stream) {
+                mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+              }
+              
+              setIsRecording(false);
+              
+              // Clear timer after updating state
+              if (timerRef.current) {
+                window.clearInterval(timerRef.current);
+                timerRef.current = null;
+              }
+              
+              toast.success("Recording completed");
+              resolve();
+            } catch (error) {
+              console.error("Error in mediaRecorder.onstop:", error);
+              toast.error("Error finalizing recording");
+              setIsRecording(false);
+              reject(error);
+            }
+          };
+          
+          // Now call stop() after the onstop handler has been set up
           mediaRecorderRef.current.stop();
-        }
-        
-        // Make sure we don't leave timer running
-        if (timerRef.current) {
-          window.clearInterval(timerRef.current);
-          timerRef.current = null;
+        } else {
+          console.warn("MediaRecorder already inactive");
+          setIsRecording(false);
+          cleanup();
+          resolve();
         }
       } catch (error) {
         console.error("Error stopping recording:", error);
@@ -190,13 +211,9 @@ export const useBasicRecording = () => {
         
         // Try to clean up the MediaRecorder
         cleanup();
+        reject(error);
       }
-    } else if (isRecording) {
-      // MediaRecorder is no longer available but we're still in recording state
-      console.warn("MediaRecorder not available but recording state is true");
-      setIsRecording(false);
-      cleanup();
-    }
+    });
   };
 
   return {
