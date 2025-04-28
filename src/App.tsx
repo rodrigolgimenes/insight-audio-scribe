@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -129,8 +128,6 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/simple-record" element={<SimpleRecord />} />
-              <Route path="/test-record-meeting" element={<TestRecordMeeting />} />
               <Route
                 path="/app/notes/:noteId"
                 element={
