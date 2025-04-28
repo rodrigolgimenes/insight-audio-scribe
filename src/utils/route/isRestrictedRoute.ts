@@ -1,3 +1,4 @@
+
 /**
  * Utility to check if current route is restricted (should suppress notifications)
  * These routes are typically high-level navigation pages where showing microphone
@@ -14,9 +15,5 @@ export const isRestrictedRoute = (): boolean => {
   ];
   
   // Check if the current path is in our allowed routes list
-  const isAllowedRoute = allowedNotificationRoutes.some(route => path === route);
-  
-  // If it's an allowed route, return false (not restricted)
-  // Otherwise, return true (is restricted)
-  return !isAllowedRoute;
+  return !allowedNotificationRoutes.includes(path);
 };

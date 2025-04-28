@@ -25,6 +25,7 @@ export const UploadSection = () => {
           buttonText="Upload and Transcribe"
           initiateTranscription={true}
           accept="audio/*,video/mp4,video/webm,video/quicktime,video/avi,video/mpeg,video/x-matroska"
+          skipDeviceCheck={true}
         />
       </div>
     </section>

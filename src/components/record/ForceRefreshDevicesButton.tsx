@@ -25,6 +25,7 @@ export function ForceRefreshDevicesButton({
       timestamp: new Date().toISOString()
     });
     
+    // Call onRefresh which should be connected to refreshDevices(true)
     onRefresh();
   };
 

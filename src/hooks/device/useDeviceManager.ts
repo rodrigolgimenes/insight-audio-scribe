@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
@@ -115,6 +116,7 @@ export function useDeviceManager() {
       const audioInputs = formatDevices(raw);
       setDevices(audioInputs);
 
+      // Handle notifications for no devices found
       if (showNotifications && !isRestrictedRoute()) {
         if (audioInputs.length === 0) {
           if (!notifiedEvents.has("no_devices")) {
@@ -182,7 +184,9 @@ export function useDeviceManager() {
       const lastDetection = localStorage.getItem(STORAGE_KEYS.LAST_DETECTION);
       const cacheExpired = !lastDetection || Date.now() - parseInt(lastDetection, 10) > CACHE_MAX_AGE;
       
-      if (!hasCachedData || cacheExpired) {
+      // Only refresh devices on mount if cache is expired and we're not on a restricted route
+      // This prevents unnecessary microphone permission prompts on pages like Index
+      if ((!hasCachedData || cacheExpired) && !isRestrictedRoute()) {
         await refreshDevices(false);
       }
     };
@@ -193,7 +197,10 @@ export function useDeviceManager() {
   // Listen for device changes
   useEffect(() => {
     const handleDeviceChange = () => {
-      refreshDevices(true);
+      // Only refresh with notifications if we're on a non-restricted route
+      if (!isRestrictedRoute()) {
+        refreshDevices(true);
+      }
     };
     
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
