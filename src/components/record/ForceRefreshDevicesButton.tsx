@@ -26,9 +26,11 @@ export function ForceRefreshDevicesButton({
       timestamp: new Date().toISOString()
     });
     
-    toast.info("Forcing device refresh...", {
+    // Use a consistent ID for refresh notifications
+    toast.info("Checking for microphones...", {
+      id: "force-refresh",
       description: "Attempting to detect all connected microphones",
-      id: "force-refresh"
+      duration: 3000
     });
     
     // Call the parent's refresh function

@@ -38,7 +38,7 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
     };
-  }, [deviceManager.devices.length, deviceManager.isLoading, deviceManager.refreshDevices]);
+  }, [deviceManager]);
   
   return (
     <DeviceContext.Provider value={deviceManager}>
