@@ -218,7 +218,7 @@ const AudioRecorder: React.FC = () => {
         setTimeout(() => {
           // We need to get the current status at the time this callback runs
           // not rely on the status value from the closure which TypeScript narrows
-          const currentStatus = status;
+          const currentStatus: 'idle' | 'recording' | 'saving' | 'error' = status;
           if (currentStatus === 'recording' && window.navigator.mediaDevices) {
             // Get all media devices for visualization
             window.navigator.mediaDevices.enumerateDevices()
