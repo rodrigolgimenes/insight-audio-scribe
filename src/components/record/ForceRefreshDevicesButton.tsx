@@ -2,7 +2,6 @@
 import React from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 interface ForceRefreshDevicesButtonProps {
   onRefresh: () => void;
@@ -26,14 +25,6 @@ export function ForceRefreshDevicesButton({
       timestamp: new Date().toISOString()
     });
     
-    // Use a consistent ID for refresh notifications
-    toast.info("Checking for microphones...", {
-      id: "force-refresh",
-      description: "Attempting to detect all connected microphones",
-      duration: 3000
-    });
-    
-    // Call the parent's refresh function
     onRefresh();
   };
 

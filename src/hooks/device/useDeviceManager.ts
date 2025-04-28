@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
@@ -71,7 +70,6 @@ export function useDeviceManager() {
       
       setPermissionState('granted');
       
-      // Only show notification if we're on a recording page and haven't shown this notification before
       if (!isRestrictedRoute() && !notifiedEvents.has('mic-permission-granted')) {
         notifiedEvents.add('mic-permission-granted');
         toast.success("Microphone access granted", {
@@ -84,7 +82,6 @@ export function useDeviceManager() {
     } catch (error) {
       setPermissionState('denied');
       
-      // Only show notification if we're on a recording page and haven't shown this notification before
       if (!isRestrictedRoute() && !notifiedEvents.has('mic-permission-denied')) {
         notifiedEvents.add('mic-permission-denied');
         toast.error("Microphone access denied", {
@@ -106,7 +103,6 @@ export function useDeviceManager() {
     setIsLoading(true);
     
     try {
-      // Ensure permission is granted
       if (permissionState !== 'granted') {
         const hasPermission = await requestPermission();
         if (!hasPermission) {
@@ -115,44 +111,41 @@ export function useDeviceManager() {
         }
       }
       
-      // Get devices
-      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const audioDevices = formatDevices(mediaDevices);
-      
-      // Update state and cache
-      setDevices(audioDevices);
-      localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioDevices));
-      localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
-      
-      // Handle no devices notification - fixed logic with proper id
-      if (audioDevices.length === 0) {
-        // Only show notification if explicitly requested AND on a recording page
-        if (showNotifications && !isRestrictedRoute()) {
-          // Use a consistent ID for the notification so we can dismiss it later
-          toast.warning("No microphones found", {
-            id: 'no-devices',
-            duration: 5000
-          });
-        }
-      } else {
-        // If we have devices, dismiss any "no devices" notification
-        toast.dismiss('no-devices');
-        
-        // Auto-select first device if none selected
-        if (!selectedDeviceId && audioDevices.length > 0) {
-          const defaultDevice = audioDevices.find(d => d.isDefault) || audioDevices[0];
-          handleSelectDevice(defaultDevice.deviceId);
+      const raw = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = formatDevices(raw);
+      setDevices(audioInputs);
+
+      if (showNotifications && !isRestrictedRoute()) {
+        if (audioInputs.length === 0) {
+          if (!notifiedEvents.has("no_devices")) {
+            notifiedEvents.add("no_devices");
+            toast.warning("No microphones found", {
+              id: "no_devices",
+              duration: 5000
+            });
+          }
+        } else {
+          toast.dismiss("no_devices");
+          notifiedEvents.delete("no_devices");
         }
       }
+      
+      // Auto-select first device if none selected
+      if (!selectedDeviceId && audioInputs.length > 0) {
+        const defaultDevice = audioInputs.find(d => d.isDefault) || audioInputs[0];
+        handleSelectDevice(defaultDevice.deviceId);
+      }
+      
+      localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioInputs));
+      localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
       
       return true;
     } catch (error) {
       console.error('[DeviceManager] Error refreshing devices:', error);
       
-      // Only show notifications if explicitly requested AND we're on a recording page
       if (showNotifications && !isRestrictedRoute()) {
         toast.error("Failed to refresh devices", {
-          id: 'refresh-error',
+          id: "refresh_error",
           duration: 5000
         });
       }
@@ -168,12 +161,10 @@ export function useDeviceManager() {
     setSelectedDeviceId(deviceId);
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
     
-    // Only show notifications if we're on a recording page and haven't shown this notification recently
     const notificationId = 'device-selected';
     if (!isRestrictedRoute()) {
       const deviceLabel = devices.find(d => d.deviceId === deviceId)?.label || 'Microphone';
       
-      // Clear any previous selection notification
       toast.dismiss(notificationId);
       
       toast.success(`Selected ${deviceLabel}`, {
@@ -183,17 +174,15 @@ export function useDeviceManager() {
     }
   }, [devices]);
 
-  // Initialize on mount
+  // Initialize on mount - silent refresh
   useEffect(() => {
     const init = async () => {
       const hasCachedData = loadFromCache();
       
-      // Check if we need to refresh
       const lastDetection = localStorage.getItem(STORAGE_KEYS.LAST_DETECTION);
       const cacheExpired = !lastDetection || Date.now() - parseInt(lastDetection, 10) > CACHE_MAX_AGE;
       
       if (!hasCachedData || cacheExpired) {
-        // Don't show notifications on initial silent load
         await refreshDevices(false);
       }
     };
@@ -204,8 +193,7 @@ export function useDeviceManager() {
   // Listen for device changes
   useEffect(() => {
     const handleDeviceChange = () => {
-      // When device configuration changes, refresh silently (no notifications)
-      refreshDevices(false);
+      refreshDevices(true);
     };
     
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
