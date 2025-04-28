@@ -1,46 +1,36 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { useToast } from "@/hooks/use-toast";
 import { useRecording } from "@/hooks/useRecording";
-import { useFileUpload } from "@/hooks";
 import { PageLoadTracker } from "@/utils/debug/pageLoadTracker";
-import { RecordPageError } from "@/components/record/RecordPageError";
-import { SimpleRecordContent } from "@/components/record/SimpleRecordContent";
 import { toast } from "sonner";
-import { RecordingSection } from "@/components/record/RecordingSection";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
-import { RecordTimer } from "@/components/record/RecordTimer";
-import { AudioVisualizer } from "@/components/record/AudioVisualizer";
-import { ProcessingLogs } from "@/components/record/ProcessingLogs";
-import { audioCompressor } from "@/utils/audio/processing/AudioCompressor";
-import { FileUpload } from "@/components/shared/FileUpload";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ConversionLogsPanel } from "@/components/shared/ConversionLogsPanel";
+import { DeviceControls } from "@/components/record/DeviceControls";
+import { RecordingPanel } from "@/components/record/RecordingPanel";
+import { UploadPanel } from "@/components/record/UploadPanel";
+import { ProcessingPanel } from "@/components/record/ProcessingPanel";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
   PageLoadTracker.trackPhase('SimpleRecord Component Mount', true);
   
   const navigate = useNavigate();
-  const { toast: legacyToast } = useToast();
-  const [error, setError] = useState<string | null>(null);
-  const [isSaveProcessing, setIsSaveProcessing] = useState(false);
-  const { isUploading } = useFileUpload();
   const { session } = useAuth();
-
   const recordingHook = useRecording();
 
+  const [isSaveProcessing, setIsSaveProcessing] = useState(false);
   const [showConversionLogs, setShowConversionLogs] = useState<boolean>(false);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'success' | 'error'>('idle');
   const [conversionProgress, setConversionProgress] = useState<number>(0);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [convertedFile, setConvertedFile] = useState<File | null>(null);
+  const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
+  const [currentUploadInfo, setCurrentUploadInfo] = useState<{
+    noteId: string;
+    recordingId: string;
+  } | null>(null);
   
   const handleWrappedStopRecording = async () => {
     try {
@@ -55,8 +45,7 @@ const SimpleRecord = () => {
   const handleWrappedRefreshDevices = async () => {
     try {
       if (recordingHook.refreshDevices) {
-        const result = await recordingHook.refreshDevices();
-        return Promise.resolve();
+        await recordingHook.refreshDevices();
       }
       return Promise.resolve();
     } catch (error) {
@@ -64,52 +53,36 @@ const SimpleRecord = () => {
       return Promise.reject(error);
     }
   };
+
+  const handleUploadComplete = (noteId: string, recordingId: string) => {
+    setCurrentUploadInfo({ noteId, recordingId });
+  };
   
-  useEffect(() => {
-    console.log("[SimpleRecord RENDER] Recording hook states:", {
-      compName: 'SimpleRecord',
-      deviceCount: recordingHook.audioDevices.length,
-      selectedDeviceId: recordingHook.selectedDeviceId,
-      deviceSelectionReady: recordingHook.deviceSelectionReady,
-      permissionState: recordingHook.permissionState,
-      devicesLoading: recordingHook.devicesLoading
-    });
-  }, [
-    recordingHook.audioDevices, 
-    recordingHook.selectedDeviceId, 
-    recordingHook.deviceSelectionReady,
-    recordingHook.permissionState,
-    recordingHook.devicesLoading
-  ]);
-
-  useEffect(() => {
-    if (
-      recordingHook.audioDevices.length > 0 && 
-      (!recordingHook.selectedDeviceId || 
-        !recordingHook.audioDevices.some(d => d.deviceId === recordingHook.selectedDeviceId))
-    ) {
-      console.log("[SimpleRecord] Auto-selecting first device:", recordingHook.audioDevices[0].deviceId);
-      recordingHook.setSelectedDeviceId(recordingHook.audioDevices[0].deviceId);
+  const handleConversionUpdate = (
+    status: 'idle' | 'converting' | 'success' | 'error', 
+    progress: number,
+    origFile: File | null,
+    convFile: File | null
+  ) => {
+    setConversionStatus(status);
+    setConversionProgress(progress);
+    setOriginalFile(origFile);
+    setConvertedFile(convFile);
+    setShowConversionLogs(true);
+  };
+  
+  const handleDownloadConvertedFile = () => {
+    if (convertedFile) {
+      const url = URL.createObjectURL(convertedFile);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = convertedFile.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
-  }, [recordingHook.audioDevices, recordingHook.selectedDeviceId, recordingHook.setSelectedDeviceId]);
-
-  useEffect(() => {
-    if (recordingHook.initError) {
-      PageLoadTracker.trackPhase('Initialization Error Detected', false, recordingHook.initError.message);
-      setError(recordingHook.initError.message);
-      toast.error("Recording initialization failed", {
-        description: recordingHook.initError.message
-      });
-    } else {
-      setError(null);
-    }
-  }, [recordingHook.initError]);
-
-  const [currentProcessingId, setCurrentProcessingId] = useState<string | null>(null);
-  const [currentUploadInfo, setCurrentUploadInfo] = useState<{
-    noteId: string;
-    recordingId: string;
-  } | null>(null);
+  };
 
   const saveRecording = async () => {
     if (!session) {
@@ -242,62 +215,22 @@ const SimpleRecord = () => {
     }
   };
 
-  const handleUploadComplete = (noteId: string, recordingId: string) => {
-    setCurrentUploadInfo({ noteId, recordingId });
-  };
-  
-  const handleConversionUpdate = (
-    status: 'idle' | 'converting' | 'success' | 'error', 
-    progress: number,
-    origFile: File | null,
-    convFile: File | null
-  ) => {
-    setConversionStatus(status);
-    setConversionProgress(progress);
-    setOriginalFile(origFile);
-    setConvertedFile(convFile);
-    setShowConversionLogs(true);
-  };
-  
-  const handleDownloadConvertedFile = () => {
-    if (convertedFile) {
-      const url = URL.createObjectURL(convertedFile);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = convertedFile.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const renderAuthAlert = () => {
-    if (!session) {
-      return (
-        <Alert variant="default" className="mb-6">
-          <InfoIcon className="h-5 w-5" />
-          <AlertTitle>Authentication Required</AlertTitle>
-          <AlertDescription>
-            You must be logged in to save recordings to your account.
-            <div className="mt-2">
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/login')}
-                className="mr-2"
-              >
-                Login
-              </Button>
-              <Button onClick={() => navigate('/signup')}>
-                Sign Up
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
-      );
-    }
-    return null;
-  };
+  useEffect(() => {
+    console.log("[SimpleRecord RENDER] Recording hook states:", {
+      compName: 'SimpleRecord',
+      deviceCount: recordingHook.audioDevices.length,
+      selectedDeviceId: recordingHook.selectedDeviceId,
+      deviceSelectionReady: recordingHook.deviceSelectionReady,
+      permissionState: recordingHook.permissionState,
+      devicesLoading: recordingHook.devicesLoading
+    });
+  }, [
+    recordingHook.audioDevices, 
+    recordingHook.selectedDeviceId, 
+    recordingHook.deviceSelectionReady,
+    recordingHook.permissionState,
+    recordingHook.devicesLoading
+  ]);
 
   PageLoadTracker.trackPhase('Render Main Content', true);
   
@@ -307,95 +240,36 @@ const SimpleRecord = () => {
         <AppSidebar activePage="recorder" />
         <div className="flex-1 bg-ghost-white">
           <main className="container mx-auto px-4 py-8 space-y-8">
-            {renderAuthAlert()}
+            <DeviceControls session={session} />
+            
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardContent className="p-6">
-                    <RecordingSection
-                      isRecording={recordingHook.isRecording}
-                      isPaused={recordingHook.isPaused}
-                      audioUrl={recordingHook.audioUrl}
-                      mediaStream={recordingHook.mediaStream}
-                      isSystemAudio={recordingHook.isSystemAudio}
-                      handleStartRecording={recordingHook.handleStartRecording}
-                      handleStopRecording={handleWrappedStopRecording}
-                      handlePauseRecording={recordingHook.handlePauseRecording}
-                      handleResumeRecording={recordingHook.handleResumeRecording}
-                      handleDelete={recordingHook.handleDelete}
-                      onSystemAudioChange={recordingHook.setIsSystemAudio}
-                      audioDevices={recordingHook.audioDevices}
-                      selectedDeviceId={recordingHook.selectedDeviceId}
-                      onDeviceSelect={recordingHook.setSelectedDeviceId}
-                      deviceSelectionReady={recordingHook.deviceSelectionReady}
-                      lastAction={recordingHook.lastAction as any}
-                      onRefreshDevices={handleWrappedRefreshDevices}
-                      devicesLoading={recordingHook.devicesLoading}
-                      permissionState={recordingHook.permissionState as any}
-                      showPlayButton={false}
-                      onSave={saveRecording}
-                      isLoading={isSaveProcessing}
-                    />
-                    
-                    {recordingHook.isRecording && (
-                      <div className="mt-6">
-                        <RecordTimer 
-                          isRecording={recordingHook.isRecording} 
-                          isPaused={recordingHook.isPaused} 
-                        />
-                        <div className="mt-4">
-                          <AudioVisualizer 
-                            mediaStream={recordingHook.mediaStream} 
-                            isRecording={recordingHook.isRecording} 
-                            isPaused={recordingHook.isPaused}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                <RecordingPanel 
+                  recordingHook={recordingHook}
+                  handleWrappedStopRecording={handleWrappedStopRecording}
+                  handleWrappedRefreshDevices={handleWrappedRefreshDevices}
+                  isSaveProcessing={isSaveProcessing}
+                  saveRecording={saveRecording}
+                />
                 
                 <div className="space-y-8">
-                  <Card>
-                    <CardContent className="p-6">
-                      <h3 className="text-lg font-medium mb-4">Already have a recording?</h3>
-                      <FileUpload 
-                        buttonText="Upload File"
-                        description="Upload audio or video to transcribe"
-                        accept="audio/*,video/mp4,video/webm,video/quicktime"
-                        initiateTranscription={true}
-                        buttonClassName="w-full rounded-md"
-                        onUploadComplete={handleUploadComplete}
-                        onConversionUpdate={handleConversionUpdate}
-                        disabled={recordingHook.isRecording || !session}
-                      />
-                      
-                      {showConversionLogs && (
-                        <div className="mt-4">
-                          <ConversionLogsPanel
-                            originalFile={originalFile}
-                            convertedFile={convertedFile}
-                            conversionStatus={conversionStatus}
-                            conversionProgress={conversionProgress}
-                            onDownload={convertedFile ? handleDownloadConvertedFile : undefined}
-                            onTranscribe={undefined}
-                          />
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <UploadPanel 
+                    session={session}
+                    isRecording={recordingHook.isRecording}
+                    handleUploadComplete={handleUploadComplete}
+                    handleConversionUpdate={handleConversionUpdate}
+                    showConversionLogs={showConversionLogs}
+                    conversionStatus={conversionStatus}
+                    conversionProgress={conversionProgress}
+                    originalFile={originalFile}
+                    convertedFile={convertedFile}
+                    handleDownloadConvertedFile={handleDownloadConvertedFile}
+                  />
                   
-                  {(currentProcessingId || (currentUploadInfo && currentUploadInfo.recordingId)) && (
-                    <Card>
-                      <CardContent className="p-6">
-                        <h3 className="text-lg font-medium mb-4">Processing Status</h3>
-                        <ProcessingLogs 
-                          recordingId={currentProcessingId || (currentUploadInfo ? currentUploadInfo.recordingId : null)} 
-                          noteId={currentUploadInfo ? currentUploadInfo.noteId : undefined}
-                        />
-                      </CardContent>
-                    </Card>
-                  )}
+                  <ProcessingPanel 
+                    currentProcessingId={currentProcessingId}
+                    currentUploadInfo={currentUploadInfo}
+                  />
                 </div>
               </div>
             </div>
