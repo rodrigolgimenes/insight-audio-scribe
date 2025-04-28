@@ -534,6 +534,7 @@ export type Database = {
           file_path: string
           id: string
           needs_audio_extraction: boolean | null
+          needs_compression: boolean | null
           original_file_path: string | null
           original_file_type: string | null
           processed_at: string | null
@@ -553,6 +554,7 @@ export type Database = {
           file_path: string
           id?: string
           needs_audio_extraction?: boolean | null
+          needs_compression?: boolean | null
           original_file_path?: string | null
           original_file_type?: string | null
           processed_at?: string | null
@@ -572,6 +574,7 @@ export type Database = {
           file_path?: string
           id?: string
           needs_audio_extraction?: boolean | null
+          needs_compression?: boolean | null
           original_file_path?: string | null
           original_file_type?: string | null
           processed_at?: string | null
