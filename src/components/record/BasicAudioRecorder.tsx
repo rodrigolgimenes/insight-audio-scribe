@@ -32,6 +32,21 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
     saveProgress
   } = useSaveRecording(onRecordingSaved);
 
+  // Safely handle the transcribe action with error handling
+  const handleTranscribe = async () => {
+    try {
+      if (!audioUrl) {
+        console.error("No audio URL available for transcription");
+        return;
+      }
+      
+      console.log("Starting transcription with duration:", recordingDuration);
+      await handleSave(audioUrl, recordingDuration);
+    } catch (error) {
+      console.error("Error in transcribe handler:", error);
+    }
+  };
+
   return (
     <div className="space-y-4 w-full">
       <div className="flex flex-col gap-3">
@@ -57,9 +72,9 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
                   </Button>
                   
                   <Button 
-                    onClick={() => handleSave(audioUrl, recordingDuration)}
+                    onClick={handleTranscribe}
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
-                    disabled={isSaving || disabled}
+                    disabled={isSaving || disabled || !audioUrl}
                   >
                     {isSaving ? (
                       <>
