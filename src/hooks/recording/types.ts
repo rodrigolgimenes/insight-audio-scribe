@@ -1,4 +1,5 @@
 
+
 export interface RecordingStateType {
   audioDevices: any[];
   selectedDeviceId: string | null;
@@ -10,3 +11,4 @@ export interface RecordingStateType {
   deviceSelectionReady: boolean;
   isSystemAudio: boolean;
 }
+
