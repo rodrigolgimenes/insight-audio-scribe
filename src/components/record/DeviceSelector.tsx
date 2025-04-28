@@ -22,7 +22,7 @@ export function DeviceSelector({
 }: DeviceSelectorProps) {
   const deviceContext = useDeviceContext();
   
-  // Check if permission is denied
+  // Unified permission check combining both component and context states
   if (permissionState === 'denied' || deviceContext?.permissionState === 'denied') {
     return <DevicePermissionError />;
   }
