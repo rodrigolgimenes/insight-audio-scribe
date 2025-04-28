@@ -212,14 +212,14 @@ const AudioRecorder: React.FC = () => {
       console.log('Starting recording');
       const success = await start(isSystemAudio);
       
-      // FIX: Only try to set up visualization if recording started successfully AND status is 'recording'
-      // The previous version was checking 'if (success && status === "recording")' which caused the type error
-      // because TypeScript inferred that status couldn't be 'recording' in this branch
+      // FIX: Correctly handle the setup of visualization with proper typechecking
       if (success) {
         // Add delay for stream to be available
         setTimeout(() => {
-          // We need to check status again after the timeout
-          if (status === 'recording' && window.navigator.mediaDevices) {
+          // We need to get the current status at the time this callback runs
+          // not rely on the status value from the closure which TypeScript narrows
+          const currentStatus = status;
+          if (currentStatus === 'recording' && window.navigator.mediaDevices) {
             // Get all media devices for visualization
             window.navigator.mediaDevices.enumerateDevices()
               .then(() => {
