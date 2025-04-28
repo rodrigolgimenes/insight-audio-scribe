@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -37,7 +36,6 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
 
-  // Estados para gerenciar a conversão de arquivos
   const [showConversionLogs, setShowConversionLogs] = useState<boolean>(false);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'success' | 'error'>('idle');
   const [conversionProgress, setConversionProgress] = useState<number>(0);
@@ -153,18 +151,7 @@ const SimpleRecord = () => {
       
       console.log('Original recording format:', recordingBlob.type, 'Size:', Math.round(recordingBlob.size / 1024 / 1024 * 100) / 100, 'MB');
       
-      toast.info("Compressing audio...");
-      const compressedBlob = await audioCompressor.compressAudio(recordingBlob, {
-        targetBitrate: 32,      // 32kbps for high compression
-        mono: true,             // Convert to mono
-        targetSampleRate: 16000 // 16kHz sample rate
-      });
-      
-      console.log('Compressed to MP3:', compressedBlob.type, 
-                  'Size:', Math.round(compressedBlob.size / 1024 / 1024 * 100) / 100, 'MB',
-                  'Compression ratio:', Math.round((1 - compressedBlob.size / recordingBlob.size) * 100) + '%');
-
-      const fileName = `${user.id}/${Date.now()}.mp3`;
+      const fileName = `${user.id}/${Date.now()}.${getExtensionFromMimeType(recordingBlob.type)}`;
       
       console.log('Creating recording with user ID:', user.id);
       console.log('Recording duration in seconds:', recordedDuration);
@@ -176,7 +163,9 @@ const SimpleRecord = () => {
           duration: Math.round(recordedDuration * 1000),
           file_path: fileName,
           user_id: user.id,
-          status: 'pending'
+          status: 'pending',
+          needs_compression: true,
+          original_file_type: recordingBlob.type
         })
         .select()
         .single();
@@ -189,8 +178,8 @@ const SimpleRecord = () => {
 
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
-        .upload(fileName, compressedBlob, {
-          contentType: 'audio/mp3',
+        .upload(fileName, recordingBlob, {
+          contentType: recordingBlob.type,
           upsert: true
         });
 
@@ -222,8 +211,13 @@ const SimpleRecord = () => {
           recording_id: recordingData.id,
           note_id: noteData.id,
           stage: 'upload_complete',
-          message: 'File uploaded successfully, starting processing',
-          status: 'success'
+          message: 'Original file uploaded successfully, pending compression and processing',
+          status: 'success',
+          details: {
+            originalFormat: recordingBlob.type,
+            originalSize: recordingBlob.size,
+            pendingCompression: true
+          }
         });
 
       const { error: processError } = await supabase.functions
@@ -234,7 +228,7 @@ const SimpleRecord = () => {
       if (processError) {
         toast.warning("Recording saved but processing failed to start. It will retry automatically.");
       } else {
-        toast.success("Recording saved and processing started!");
+        toast.success("Recording saved, compression and processing will start soon!");
       }
 
       navigate("/app");
@@ -252,7 +246,6 @@ const SimpleRecord = () => {
     setCurrentUploadInfo({ noteId, recordingId });
   };
   
-  // Novo handler para atualização de conversão
   const handleConversionUpdate = (
     status: 'idle' | 'converting' | 'success' | 'error', 
     progress: number,
@@ -335,7 +328,7 @@ const SimpleRecord = () => {
                       selectedDeviceId={recordingHook.selectedDeviceId}
                       onDeviceSelect={recordingHook.setSelectedDeviceId}
                       deviceSelectionReady={recordingHook.deviceSelectionReady}
-                      lastAction={recordingHook.lastAction as any} // Type assertion to fix the error
+                      lastAction={recordingHook.lastAction as any}
                       onRefreshDevices={handleWrappedRefreshDevices}
                       devicesLoading={recordingHook.devicesLoading}
                       permissionState={recordingHook.permissionState as any}
@@ -414,3 +407,18 @@ const SimpleRecord = () => {
 };
 
 export default SimpleRecord;
+
+const getExtensionFromMimeType = (mimeType: string): string => {
+  const mimeToExt: Record<string, string> = {
+    'audio/mpeg': 'mp3',
+    'audio/mp3': 'mp3',
+    'audio/wav': 'wav',
+    'audio/wave': 'wav',
+    'audio/webm': 'webm',
+    'audio/ogg': 'ogg',
+    'audio/aac': 'aac',
+    'audio/flac': 'flac'
+  };
+  
+  return mimeToExt[mimeType] || 'mp3';
+};
