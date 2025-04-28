@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 
@@ -17,6 +18,9 @@ interface RecordingResult {
 export const useRecorder = (options?: RecorderOptions) => {
   // State for tracking recording status
   const [status, setStatus] = useState<RecorderStatus>('idle');
+  // Add a ref to track the current status for async operations
+  const statusRef = useRef<RecorderStatus>('idle');
+  
   // Audio data
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -156,6 +160,7 @@ export const useRecorder = (options?: RecorderOptions) => {
         
         // Update status
         setStatus('idle');
+        statusRef.current = 'idle';
       };
 
       // Handle recording errors
@@ -166,12 +171,16 @@ export const useRecorder = (options?: RecorderOptions) => {
           duration: 3000
         });
         setStatus('error');
+        statusRef.current = 'error';
         cleanup();
       };
 
       // Start the recording
       mediaRecorder.start(options?.timeslice || undefined);
+      
+      // Update status
       setStatus('recording');
+      statusRef.current = 'recording';
       
       // Track start time
       startTimeRef.current = Date.now();
@@ -199,6 +208,7 @@ export const useRecorder = (options?: RecorderOptions) => {
       }
       
       setStatus('error');
+      statusRef.current = 'error';
       cleanup();
       return false;
     }
@@ -280,10 +290,12 @@ export const useRecorder = (options?: RecorderOptions) => {
         
         // Update status to saving
         setStatus('saving');
+        statusRef.current = 'saving';
       } catch (error) {
         console.error('Failed to stop recording:', error);
         cleanup();
         setStatus('error');
+        statusRef.current = 'error';
         resolve(null);
       }
     });
@@ -292,6 +304,7 @@ export const useRecorder = (options?: RecorderOptions) => {
   // Return the recorder controls and state
   return {
     status,
+    statusRef, // Add statusRef to the returned object
     audioBlob,
     audioUrl,
     duration,

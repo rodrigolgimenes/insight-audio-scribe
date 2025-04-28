@@ -39,6 +39,7 @@ const AudioRecorder: React.FC = () => {
   // Custom recorder hook
   const { 
     status, 
+    statusRef, // Use the statusRef
     audioBlob, 
     audioUrl, 
     recordingTime,
@@ -164,7 +165,7 @@ const AudioRecorder: React.FC = () => {
       if (success) {
         // Add delay for stream to be available
         setTimeout(() => {
-          if (status === 'recording' && window.navigator.mediaDevices) {
+          if (statusRef.current === 'recording' && window.navigator.mediaDevices) {
             // Get all media devices for visualization
             window.navigator.mediaDevices.enumerateDevices()
               .then(() => {
