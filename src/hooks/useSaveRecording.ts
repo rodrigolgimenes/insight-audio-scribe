@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -118,24 +119,26 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
       setSaveProgress(90);
       
       // Create a processing log
-      await supabase
-        .from('processing_logs')
-        .insert({
-          recording_id: recordingData.id,
-          note_id: noteData.id,
-          stage: 'upload_complete',
-          message: 'Original file uploaded successfully, pending compression and processing',
-          status: 'success',
-          details: {
-            originalFormat: recordingBlob.type,
-            originalSize: recordingBlob.size,
-            pendingCompression: true,
-            durationMs: durationInMs
-          }
-        }).catch(error => {
-          console.error("Error creating processing log:", error);
-          // Non-critical error, continue execution
-        });
+      try {
+        await supabase
+          .from('processing_logs')
+          .insert({
+            recording_id: recordingData.id,
+            note_id: noteData.id,
+            stage: 'upload_complete',
+            message: 'Original file uploaded successfully, pending compression and processing',
+            status: 'success',
+            details: {
+              originalFormat: recordingBlob.type,
+              originalSize: recordingBlob.size,
+              pendingCompression: true,
+              durationMs: durationInMs
+            }
+          });
+      } catch (error) {
+        console.error("Error creating processing log:", error);
+        // Non-critical error, continue execution
+      }
       
       // Start background processing
       try {

@@ -62,7 +62,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
                 <div className="flex gap-2">
                   <Button
                     onClick={() => {
-                      setAudioUrl(null);
+                      setAudioUrl();
                     }}
                     variant="outline"
                     className="flex-1 border-red-500 text-red-500 hover:bg-red-50"
