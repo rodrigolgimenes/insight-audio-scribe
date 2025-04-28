@@ -1,6 +1,8 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
+import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
 
 // Constants
 const STORAGE_KEYS = {
@@ -65,24 +67,34 @@ export function useDeviceManager() {
       stream.getTracks().forEach(track => track.stop());
       
       setPermissionState('granted');
-      toast.success("Microphone access granted", {
-        id: 'mic-permission-granted',
-        duration: 3000
-      });
+      
+      // Only show notification if we're on a recording page
+      if (!isRestrictedRoute()) {
+        toast.success("Microphone access granted", {
+          id: 'mic-permission-granted',
+          duration: 3000
+        });
+      }
+      
       return true;
     } catch (error) {
       setPermissionState('denied');
-      toast.error("Microphone access denied", {
-        id: 'mic-permission-denied',
-        duration: 5000
-      });
+      
+      // Only show notification if we're on a recording page
+      if (!isRestrictedRoute()) {
+        toast.error("Microphone access denied", {
+          id: 'mic-permission-denied',
+          duration: 5000
+        });
+      }
+      
       return false;
     }
   }, [isLoading]);
 
   // Refresh devices list with improved notification handling
-  const refreshDevices = useCallback(async (force = false): Promise<boolean> => {
-    if (isLoading && !force) return false;
+  const refreshDevices = useCallback(async (showNotifications = false): Promise<boolean> => {
+    if (isLoading) return false;
     
     setIsLoading(true);
     
@@ -105,15 +117,18 @@ export function useDeviceManager() {
       localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioDevices));
       localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
       
-      // Clear "no devices" notification if we found devices
-      if (audioDevices.length > 0) {
-        toast.dismiss('no-devices');
-      } else {
-        // Only show no devices warning if we don't already have one showing
-        toast.warning("No microphones found", {
-          id: 'no-devices',
-          duration: 5000
-        });
+      // Only show notifications if explicitly requested AND we're on a recording page
+      if (showNotifications && !isRestrictedRoute()) {
+        // Clear "no devices" notification if we found devices
+        if (audioDevices.length > 0) {
+          toast.dismiss('no-devices');
+        } else {
+          // Only show no devices warning if we don't already have one showing
+          toast.warning("No microphones found", {
+            id: 'no-devices',
+            duration: 5000
+          });
+        }
       }
       
       // Auto-select first device if none selected
@@ -125,10 +140,15 @@ export function useDeviceManager() {
       return true;
     } catch (error) {
       console.error('[DeviceManager] Error refreshing devices:', error);
-      toast.error("Failed to refresh devices", {
-        id: 'refresh-error',
-        duration: 5000
-      });
+      
+      // Only show notifications if explicitly requested AND we're on a recording page
+      if (showNotifications && !isRestrictedRoute()) {
+        toast.error("Failed to refresh devices", {
+          id: 'refresh-error',
+          duration: 5000
+        });
+      }
+      
       return false;
     } finally {
       setIsLoading(false);
@@ -140,11 +160,14 @@ export function useDeviceManager() {
     setSelectedDeviceId(deviceId);
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
     
-    const deviceLabel = devices.find(d => d.deviceId === deviceId)?.label || 'Microphone';
-    toast.success(`Selected ${deviceLabel}`, {
-      id: 'device-selected',
-      duration: 2000
-    });
+    // Only show notifications if we're on a recording page
+    if (!isRestrictedRoute()) {
+      const deviceLabel = devices.find(d => d.deviceId === deviceId)?.label || 'Microphone';
+      toast.success(`Selected ${deviceLabel}`, {
+        id: 'device-selected',
+        duration: 2000
+      });
+    }
   }, [devices]);
 
   // Initialize on mount
@@ -157,7 +180,7 @@ export function useDeviceManager() {
       const cacheExpired = !lastDetection || Date.now() - parseInt(lastDetection, 10) > CACHE_MAX_AGE;
       
       if (!hasCachedData || cacheExpired) {
-        await refreshDevices(false);
+        await refreshDevices(false); // Don't show notifications on initial load
       }
     };
     
@@ -166,7 +189,7 @@ export function useDeviceManager() {
 
   // Listen for device changes
   useEffect(() => {
-    const handleDeviceChange = () => refreshDevices(true);
+    const handleDeviceChange = () => refreshDevices(false); // Don't show notifications on auto-refresh
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
     
     return () => {

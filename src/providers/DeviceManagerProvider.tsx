@@ -32,7 +32,7 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     // Initial check on mount - with no toast notification
     if (deviceManager.devices.length === 0 && !deviceManager.isLoading && !isRestrictedRoute()) {
       console.log('[DeviceManagerProvider] No devices detected, refreshing on mount');
-      deviceManager.refreshDevices(false);
+      deviceManager.refreshDevices(false); // Pass false to avoid showing a notification
     }
     
     return () => {

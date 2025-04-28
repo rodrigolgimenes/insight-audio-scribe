@@ -1,4 +1,3 @@
-
 /**
  * Utility to check if current route is restricted (should suppress notifications)
  * These routes are typically high-level navigation pages where showing microphone
@@ -6,12 +5,18 @@
  */
 export const isRestrictedRoute = (): boolean => {
   const path = window.location.pathname.toLowerCase();
-  return path === '/' || 
-         path === '/index' || 
-         path === '/index.html' ||
-         path === '/dashboard' || 
-         path === '/app' ||
-         path.startsWith('/app/') ||
-         path.includes('simple-record') ||
-         path.includes('record');
+  
+  // Only allow notifications on specific recording pages
+  // For all other pages (dashboard, home, etc), restrict notifications
+  const allowedNotificationRoutes = [
+    '/simple-record', 
+    '/test-record-meeting'
+  ];
+  
+  // Check if the current path is in our allowed routes list
+  const isAllowedRoute = allowedNotificationRoutes.some(route => path === route);
+  
+  // If it's an allowed route, return false (not restricted)
+  // Otherwise, return true (is restricted)
+  return !isAllowedRoute;
 };
