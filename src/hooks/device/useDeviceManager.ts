@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
@@ -93,6 +94,8 @@ export function useDeviceManager() {
       }
       
       return false;
+    } finally {
+      setIsLoading(false);
     }
   }, [isLoading]);
 
@@ -121,7 +124,7 @@ export function useDeviceManager() {
       localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioDevices));
       localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
       
-      // Handle no devices notification - improved logic
+      // Handle no devices notification - fixed logic with proper id
       if (audioDevices.length === 0) {
         // Only show notification if explicitly requested AND on a recording page
         if (showNotifications && !isRestrictedRoute()) {
