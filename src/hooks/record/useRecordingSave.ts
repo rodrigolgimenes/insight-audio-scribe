@@ -24,6 +24,11 @@ export const useRecordingSave = () => {
       setProcessingProgress(5);
       setProcessingStage("Preparing audio data...");
       
+      // Validate audio data before proceeding
+      if (!audioUrl && !isRecording) {
+        throw new Error('No valid recording to save');
+      }
+
       // Validate user authentication first
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -34,6 +39,7 @@ export const useRecordingSave = () => {
       let audioBlob: Blob | null = null;
       let finalDuration = recordedDuration;
 
+      // If still recording, stop it first
       if (isRecording) {
         setProcessingStage("Stopping recording...");
         recordingResult = await handleStopRecording();
@@ -50,6 +56,7 @@ export const useRecordingSave = () => {
           finalDuration = recordingResult.duration;
         }
       } else if (audioUrl) {
+        // If we have an audioUrl, fetch the blob
         setProcessingStage("Reading audio data...");
         try {
           const response = await fetch(audioUrl);
@@ -63,6 +70,7 @@ export const useRecordingSave = () => {
         }
       }
 
+      // Validate that we have valid audio data
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error('No valid audio data available to save');
       }

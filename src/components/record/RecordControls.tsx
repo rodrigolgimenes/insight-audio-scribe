@@ -44,18 +44,18 @@ export function RecordControls({
             <Mic className="h-8 w-8" />
           </Button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <Button
               onClick={handleTranscribe}
               disabled={disabled}
               size="lg"
               className={cn(
-                "rounded-full w-20 h-20 bg-green-500 hover:bg-green-600 text-white flex flex-col items-center justify-center",
+                "rounded-full w-24 h-24 bg-green-500 hover:bg-green-600 text-white flex flex-col items-center justify-center text-lg font-bold",
                 disabled && "opacity-50 cursor-not-allowed"
               )}
               aria-label="Transcribe Recording"
             >
-              <span className="text-base font-bold">TRANSCRIBE</span>
+              TRANSCRIBE
             </Button>
             
             {!isPaused ? (
