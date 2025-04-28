@@ -1,9 +1,10 @@
 
-import React, { Suspense, ErrorBoundary } from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import AudioRecorder from './pages/AudioRecorder';
 import Index from './pages/Index';
 import { Toaster } from 'sonner';
+import { DeviceManagerProvider } from './context/DeviceManagerContext';
 
 // Simple error fallback component
 const ErrorFallback = () => (
@@ -26,8 +27,16 @@ const LoadingFallback = () => (
   </div>
 );
 
-// Error boundary class component (required by React)
-class AppErrorBoundary extends React.Component {
+// Error boundary class component with proper children prop typing
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class AppErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state = { hasError: false };
   
   static getDerivedStateFromError() {
@@ -50,16 +59,18 @@ class AppErrorBoundary extends React.Component {
 function App() {
   return (
     <>
-      <AppErrorBoundary>
-        <Suspense fallback={<LoadingFallback />}>
-          <Router>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/audio-recorder" element={<AudioRecorder />} />
-            </Routes>
-          </Router>
-        </Suspense>
-      </AppErrorBoundary>
+      <DeviceManagerProvider>
+        <AppErrorBoundary>
+          <Suspense fallback={<LoadingFallback />}>
+            <Router>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/audio-recorder" element={<AudioRecorder />} />
+              </Routes>
+            </Router>
+          </Suspense>
+        </AppErrorBoundary>
+      </DeviceManagerProvider>
       <Toaster position="top-right" />
     </>
   );
