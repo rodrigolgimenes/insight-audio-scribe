@@ -40,6 +40,7 @@ interface RecordingSectionProps {
   isRestrictedRoute?: boolean;
   showRecordingActions?: boolean;
   disabled?: boolean;
+  skipNotifications?: boolean;
 }
 
 export const RecordingSection = ({
@@ -73,7 +74,8 @@ export const RecordingSection = ({
   processingStage = "",
   isRestrictedRoute = false,
   showRecordingActions = false,
-  disabled = false
+  disabled = false,
+  skipNotifications = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,

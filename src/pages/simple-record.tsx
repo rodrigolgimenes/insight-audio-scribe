@@ -22,6 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConversionLogsPanel } from "@/components/shared/ConversionLogsPanel";
 
 const SimpleRecord = () => {
   PageLoadTracker.init();
@@ -36,7 +37,6 @@ const SimpleRecord = () => {
 
   const recordingHook = useRecording();
 
-  // Estados para gerenciar a conversão de arquivos
   const [showConversionLogs, setShowConversionLogs] = useState<boolean>(false);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'success' | 'error'>('idle');
   const [conversionProgress, setConversionProgress] = useState<number>(0);
@@ -251,7 +251,6 @@ const SimpleRecord = () => {
     setCurrentUploadInfo({ noteId, recordingId });
   };
   
-  // Novo handler para atualização de conversão
   const handleConversionUpdate = (
     status: 'idle' | 'converting' | 'success' | 'error', 
     progress: number,

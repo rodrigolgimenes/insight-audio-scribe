@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
@@ -61,7 +62,7 @@ export function useDeviceManager() {
   }, []);
 
   // Request microphone permission with improved notification handling
-  const requestPermission = useCallback(async (): Promise<boolean> => {
+  const requestPermission = useCallback(async (skipNotifications = false): Promise<boolean> => {
     if (isLoading) return false;
     
     try {
@@ -70,7 +71,7 @@ export function useDeviceManager() {
       
       setPermissionState('granted');
       
-      if (!isRestrictedRoute() && !notifiedEvents.has('mic-permission-granted')) {
+      if (!skipNotifications && !isRestrictedRoute() && !notifiedEvents.has('mic-permission-granted')) {
         notifiedEvents.add('mic-permission-granted');
         toast.success("Microphone access granted", {
           id: 'mic-permission-granted',
@@ -82,7 +83,7 @@ export function useDeviceManager() {
     } catch (error) {
       setPermissionState('denied');
       
-      if (!isRestrictedRoute() && !notifiedEvents.has('mic-permission-denied')) {
+      if (!skipNotifications && !isRestrictedRoute() && !notifiedEvents.has('mic-permission-denied')) {
         notifiedEvents.add('mic-permission-denied');
         toast.error("Microphone access denied", {
           id: 'mic-permission-denied',
@@ -97,14 +98,14 @@ export function useDeviceManager() {
   }, [isLoading]);
 
   // Refresh devices list with improved notification handling
-  const refreshDevices = useCallback(async (showNotifications = false): Promise<boolean> => {
+  const refreshDevices = useCallback(async (skipNotifications = false): Promise<boolean> => {
     if (isLoading) return false;
     
     setIsLoading(true);
     
     try {
       if (permissionState !== 'granted') {
-        const hasPermission = await requestPermission();
+        const hasPermission = await requestPermission(skipNotifications);
         if (!hasPermission) {
           setIsLoading(false);
           return false;
@@ -121,7 +122,7 @@ export function useDeviceManager() {
       // Auto-select first device if none selected
       if (!selectedDeviceId && audioInputs.length > 0) {
         const defaultDevice = audioInputs.find(d => d.isDefault) || audioInputs[0];
-        handleSelectDevice(defaultDevice.deviceId);
+        handleSelectDevice(defaultDevice.deviceId, skipNotifications);
       }
       
       localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioInputs));
@@ -137,12 +138,12 @@ export function useDeviceManager() {
   }, [isLoading, permissionState, requestPermission, formatDevices, selectedDeviceId]);
 
   // Handle device selection with improved notification
-  const handleSelectDevice = useCallback((deviceId: string) => {
+  const handleSelectDevice = useCallback((deviceId: string, skipNotifications = false) => {
     setSelectedDeviceId(deviceId);
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
     
     const notificationId = 'device-selected';
-    if (!isRestrictedRoute()) {
+    if (!skipNotifications && !isRestrictedRoute()) {
       const deviceLabel = devices.find(d => d.deviceId === deviceId)?.label || 'Microphone';
       
       toast.dismiss(notificationId);
