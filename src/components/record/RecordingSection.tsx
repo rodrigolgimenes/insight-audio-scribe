@@ -6,10 +6,6 @@ import { RecordingVisualizer } from "./RecordingVisualizer";
 import { Waveform } from "@/components/ui/waveform";
 import { useTimer } from "@/hooks/useTimer";
 import { AudioDevice } from "@/hooks/recording/capture/types";
-import { PermissionState as CapturePermissionState } from "@/hooks/recording/capture/permissions/types";
-
-// Remove duplicate PermissionState definition as we're now using the imported one
-// type PermissionState = 'prompt' | 'granted' | 'denied' | 'unknown';
 
 interface RecordingSectionProps {
   isRecording: boolean;
@@ -26,20 +22,15 @@ interface RecordingSectionProps {
   audioDevices: AudioDevice[];
   selectedDeviceId: string | null;
   onDeviceSelect: (deviceId: string) => void;
-  deviceSelectionReady: boolean;
+  deviceSelectionReady?: boolean;
   showPlayButton?: boolean;
   showDeleteButton?: boolean;
   onSave?: () => Promise<any>;
   isSaving?: boolean;
   isLoading?: boolean;
-  lastAction?: { action: string; timestamp: number; success: boolean };
   onRefreshDevices?: () => Promise<void>;
   devicesLoading?: boolean;
-  permissionState?: CapturePermissionState;
-  processingProgress?: number;
-  processingStage?: string;
-  isRestrictedRoute?: boolean;
-  showRecordingActions?: boolean;
+  permissionState?: 'prompt' | 'granted' | 'denied' | 'unknown';
   disabled?: boolean;
 }
 
@@ -64,14 +55,9 @@ export const RecordingSection = ({
   onSave,
   isSaving = false,
   isLoading = false,
-  lastAction,
   onRefreshDevices,
   devicesLoading = false,
   permissionState = 'unknown',
-  processingProgress = 0,
-  processingStage = "",
-  isRestrictedRoute = false,
-  showRecordingActions = false,
   disabled = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
@@ -82,7 +68,6 @@ export const RecordingSection = ({
   return (
     <div className="flex flex-col w-full items-center">
       <div className="w-full max-w-lg">
-        {/* Audio visualizer */}
         <div className="my-8 h-32 w-full">
           {isRecording ? (
             <RecordingVisualizer
@@ -95,33 +80,23 @@ export const RecordingSection = ({
           ) : (
             <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
               <p className="text-gray-400 text-sm">
-                Loading waveform...
+                Ready to record
               </p>
             </div>
           )}
         </div>
         
-        {/* Recording controls */}
         <RecordingControls
           isRecording={isRecording}
           isPaused={isPaused}
-          audioUrl={audioUrl}
-          onStart={handleStartRecording}
-          onStop={handleStopRecording}
-          onPause={handlePauseRecording}
-          onResume={handleResumeRecording}
-          onDelete={handleDelete}
-          showPlayButton={showPlayButton}
-          showDeleteButton={showDeleteButton}
-          isLoading={isLoading}
-          onSave={onSave}
-          isSaving={isSaving}
-          processingProgress={processingProgress}
-          processingStage={processingStage}
+          onStartRecording={handleStartRecording}
+          onStopRecording={handleStopRecording}
+          onPauseRecording={handlePauseRecording}
+          onResumeRecording={handleResumeRecording}
+          permissionState={permissionState}
           disabled={disabled}
         />
         
-        {/* Device settings */}
         <RecordingSettings
           isSystemAudio={isSystemAudio}
           onSystemAudioChange={onSystemAudioChange}
