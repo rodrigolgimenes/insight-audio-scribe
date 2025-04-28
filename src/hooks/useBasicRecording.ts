@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -40,16 +39,15 @@ export const useBasicRecording = () => {
     }
   };
 
-  // Cleanup on unmount
+  // FIX: Only run cleanup when component unmounts, not when isRecording or audioUrl change
   useEffect(() => {
     return () => {
-      // Clean up AudioURL if any
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
       cleanup();
     };
-  }, [isRecording, audioUrl]);
+  }, []); // Empty dependency array - only run on unmount
 
   // Handle setting audioUrl to null and resetting elapsed time
   const resetRecording = () => {
