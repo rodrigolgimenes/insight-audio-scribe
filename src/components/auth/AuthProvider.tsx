@@ -28,6 +28,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = React.useState<Session | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  
+  // Track initialization to avoid showing toast on page load/refresh
+  const isInitialMount = React.useRef(true);
+  // Track visibility changes to prevent duplicate notifications
+  const wasHidden = React.useRef(false);
+  // Track auth events to prevent duplicate notifications
+  const lastAuthEvent = React.useRef<{event: string, time: number}>({event: '', time: 0});
+
+  // Handle visibility change to prevent notifications on tab refocus
+  React.useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden.current = true;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   React.useEffect(() => {
     console.log("AuthProvider: Initializing auth state");
@@ -52,15 +73,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (event, newSession) => {
         console.log("Auth state changed:", event, !!newSession);
         
+        const now = Date.now();
+        const isRecentDuplicate = 
+          lastAuthEvent.current.event === event && 
+          (now - lastAuthEvent.current.time < 2000);
+        
+        // Update last event tracking
+        lastAuthEvent.current = { event, time: now };
+        
         if (event === 'SIGNED_IN' && newSession) {
           // Store session in localStorage for persistence across page refreshes
           localStorage.setItem('supabase.auth.session', JSON.stringify(newSession));
-          toast.success("Signed in successfully");
+          
+          // Only show toast for actual user sign-ins, not initial page loads or tab refocus
+          if (!isInitialMount.current && !wasHidden.current && !isRecentDuplicate) {
+            toast.success("Signed in successfully");
+          }
+          
+          // Reset visibility tracking after handling the event
+          wasHidden.current = false;
+          
           setSession(newSession);
         } else if (event === 'SIGNED_OUT') {
           // Clear localStorage on sign out
           localStorage.removeItem('supabase.auth.session');
-          toast.info("Signed out");
+          
+          // Only show toast for actual user sign-outs
+          if (!isRecentDuplicate) {
+            toast.info("Signed out");
+          }
+          
           setSession(null);
         } else if (event === 'TOKEN_REFRESHED' && newSession) {
           // Update localStorage with refreshed token
@@ -70,6 +112,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         setLoading(false);
+        
+        // After first auth state change, no longer on initial mount
+        if (isInitialMount.current) {
+          isInitialMount.current = false;
+        }
       }
     );
 
@@ -97,6 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setError("Failed to check authentication");
       } finally {
         setLoading(false);
+        // After initial session check, mark initial mount as complete
+        isInitialMount.current = false;
       }
     };
 

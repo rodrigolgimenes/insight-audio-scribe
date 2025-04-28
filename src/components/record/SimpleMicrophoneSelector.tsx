@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useRobustMicrophoneDetection } from "@/hooks/recording/device/useRobustMicrophoneDetection";
+import { useStableMicrophoneDetection } from "@/hooks/recording/device/useStableMicrophoneDetection";
 import { ChevronDown, Mic, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -12,7 +12,7 @@ export function SimpleMicrophoneSelector() {
     permissionState, 
     detectDevices, 
     requestMicrophoneAccess 
-  } = useRobustMicrophoneDetection();
+  } = useStableMicrophoneDetection();
   const [isOpen, setIsOpen] = useState(false);
   
   // Check if we're on a restricted route (dashboard, index, app)
@@ -26,6 +26,9 @@ export function SimpleMicrophoneSelector() {
            path.includes('simple-record') ||
            path.includes('record');
   }, []);
+  
+  // Track if we've already auto-selected a device to prevent multiple toasts
+  const hasAutoSelectedRef = React.useRef(false);
   
   // Log details on render and when state changes
   useEffect(() => {
@@ -41,16 +44,14 @@ export function SimpleMicrophoneSelector() {
   
   // Auto-select first device when devices load
   useEffect(() => {
-    if (devices.length > 0 && !selectedDeviceId) {
+    if (devices.length > 0 && !selectedDeviceId && !hasAutoSelectedRef.current) {
       console.log('[SimpleMicrophoneSelector] Auto-selecting first device');
       setSelectedDeviceId(devices[0].deviceId);
+      hasAutoSelectedRef.current = true;
       
-      // Only show toast on non-restricted routes
-      if (!isRestrictedRoute) {
-        console.log('[SimpleMicrophoneSelector] Suppressing auto-selection toast on restricted route');
-      }
+      // Don't show any toast for auto-selection
     }
-  }, [devices, selectedDeviceId, isRestrictedRoute]);
+  }, [devices, selectedDeviceId]);
   
   // Handle device selection
   const handleDeviceSelect = (deviceId: string) => {
@@ -59,7 +60,8 @@ export function SimpleMicrophoneSelector() {
     setIsOpen(false);
     
     // Only show toast notification about device selection on non-restricted routes
-    if (!isRestrictedRoute) {
+    // and only for explicit user selection (not auto-selection)
+    if (!isRestrictedRoute && selectedDeviceId !== null) {
       toast.success("Microphone selected", {
         id: "simple-mic-selected", 
         duration: 2000
