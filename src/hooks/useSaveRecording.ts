@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,12 +18,7 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
     return isValidType;
   };
 
-  const handleSave = async (audioUrl: string, recordingDuration: number) => {
-    if (!audioUrl) {
-      toast.error("No recording to save");
-      return;
-    }
-    
+  const handleSave = async (audioBlob: Blob, recordingDuration: number) => {
     try {
       setIsSaving(true);
       setSaveProgress(10);
@@ -35,16 +29,8 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
         throw new Error("You must be logged in to save recordings");
       }
       
-      // Get the blob from audio URL
-      const response = await fetch(audioUrl);
-      if (!response.ok) {
-        throw new Error("Failed to retrieve recording data");
-      }
-      
-      const recordingBlob = await response.blob();
-      
       // Validate blob before proceeding
-      const isValid = await validateAudioBlob(recordingBlob);
+      const isValid = await validateAudioBlob(audioBlob);
       if (!isValid) {
         throw new Error("Invalid audio recording format or empty recording");
       }
@@ -59,7 +45,7 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
       
       console.log(`[useSaveRecording] Original duration: ${recordingDuration}, Normalized: ${durationInMs}ms`);
       
-      const fileName = `${user.id}/${Date.now()}.${getExtensionFromMimeType(recordingBlob.type)}`;
+      const fileName = `${user.id}/${Date.now()}.${getExtensionFromMimeType(audioBlob.type)}`;
       
       // Create recording entry in database
       const { error: dbError, data: recordingData } = await supabase
@@ -71,7 +57,7 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
           user_id: user.id,
           status: 'pending',
           needs_compression: true,
-          original_file_type: recordingBlob.type
+          original_file_type: audioBlob.type
         })
         .select()
         .single();
@@ -105,8 +91,8 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
       // Upload the audio file
       const { error: uploadError } = await supabase.storage
         .from('audio_recordings')
-        .upload(fileName, recordingBlob, {
-          contentType: recordingBlob.type,
+        .upload(fileName, audioBlob, {
+          contentType: audioBlob.type,
           upsert: true
         });
       
@@ -129,8 +115,8 @@ export const useSaveRecording = (onRecordingSaved: (noteId: string) => void) => 
             message: 'Original file uploaded successfully, pending compression and processing',
             status: 'success',
             details: {
-              originalFormat: recordingBlob.type,
-              originalSize: recordingBlob.size,
+              originalFormat: audioBlob.type,
+              originalSize: audioBlob.size,
               pendingCompression: true,
               durationMs: durationInMs
             }

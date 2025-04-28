@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Loader2 } from "lucide-react";
@@ -84,6 +83,8 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
       // Now we have a valid audio blob, proceed with saving and transcription
       setStatus("Processing audio...");
       console.log("Starting transcription with duration:", audioDuration);
+      
+      // Fix: Pass audioBlob and audioDuration to handleSave instead of passing audioUrl
       await handleSave(audioBlob, audioDuration);
       setStatus(""); // Clear status when done
       
