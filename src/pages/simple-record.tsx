@@ -1,65 +1,26 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { useRecording } from "@/hooks/useRecording";
-import { RecordingSection } from "@/components/record/RecordingSection";
-import { RecordingActions } from "@/components/record/RecordingActions";
-import { useRecordingSave } from "@/components/record/useRecordingSave";
-import { FileUploadSection } from "@/components/record/FileUploadSection";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { SimpleRecorder } from "@/components/record/SimpleRecorder";
+import { FileUploadSection } from "@/components/record/FileUploadSection";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export default function SimpleRecord() {
   const { session } = useAuth();
-  const [keepAudio, setKeepAudio] = useState(true);
-  const [currentUploadInfo, setCurrentUploadInfo] = useState<{
-    noteId: string;
-    recordingId: string;
-  } | null>(null);
-  
-  const recordingHook = useRecording();
-  const {
-    saveRecording,
-    isProcessing,
-    processingProgress,
-    processingStage
-  } = useRecordingSave();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSave = async () => {
-    try {
-      // Get the current duration from the recording hook if available
-      const currentDuration = recordingHook.getCurrentDuration ? recordingHook.getCurrentDuration() : 0;
-      
-      await saveRecording(
-        recordingHook.isRecording,
-        recordingHook.handleStopRecording,
-        recordingHook.mediaStream,
-        recordingHook.audioUrl,
-        currentDuration // Use the current duration 
-      );
-    } catch (error) {
-      console.error('Error saving recording:', error);
-    }
-  };
-
-  const handleUploadComplete = (noteId: string, recordingId: string) => {
-    setCurrentUploadInfo({ noteId, recordingId });
+  // Handle successful recording save
+  const handleRecordingSaved = (noteId: string) => {
+    navigate("/app");
   };
 
   const isDisabled = !session;
   
-  // Create a wrapper for refreshDevices that returns Promise<void>
-  const handleRefreshDevices = async (): Promise<void> => {
-    if (recordingHook.refreshDevices) {
-      try {
-        await recordingHook.refreshDevices();
-      } catch (error) {
-        console.error("Error refreshing devices:", error);
-      }
-    }
-  };
-
   return (
     <div className="container py-8 max-w-5xl">
       <h1 className="text-3xl font-bold mb-8">Simple Recorder</h1>
@@ -77,45 +38,12 @@ export default function SimpleRecord() {
         <Card>
           <CardContent className="p-6">
             <h3 className="text-lg font-medium mb-4">Record Audio</h3>
-            <RecordingSection
-              isRecording={recordingHook.isRecording}
-              isPaused={recordingHook.isPaused}
-              audioUrl={recordingHook.audioUrl}
-              mediaStream={recordingHook.mediaStream}
-              isSystemAudio={recordingHook.isSystemAudio}
-              handleStartRecording={recordingHook.handleStartRecording}
-              handleStopRecording={recordingHook.handleStopRecording}
-              handlePauseRecording={recordingHook.handlePauseRecording}
-              handleResumeRecording={recordingHook.handleResumeRecording}
-              handleDelete={recordingHook.handleDelete}
-              onSystemAudioChange={recordingHook.setIsSystemAudio}
-              audioDevices={recordingHook.audioDevices}
-              selectedDeviceId={recordingHook.selectedDeviceId}
-              onDeviceSelect={recordingHook.setSelectedDeviceId}
-              deviceSelectionReady={recordingHook.deviceSelectionReady}
-              showPlayButton={true}
-              onRefreshDevices={handleRefreshDevices}
-              devicesLoading={recordingHook.devicesLoading}
-              permissionState={recordingHook.permissionState || 'unknown'}
-              isRestrictedRoute={false}
-              lastAction={recordingHook.lastAction}
+            <SimpleRecorder 
               disabled={isDisabled}
-              isSaving={isProcessing}
-              processingProgress={processingProgress}
-              processingStage={processingStage}
+              onRecordingSaved={handleRecordingSaved}
+              onError={(errorMsg) => setError(errorMsg)}
+              onLoadingChange={setIsLoading}
             />
-
-            <div className="mt-4">
-              <RecordingActions
-                onSave={handleSave}
-                isSaving={isProcessing}
-                isLoading={recordingHook.isLoading}
-                isRecording={recordingHook.isRecording}
-                hasRecording={!!recordingHook.audioUrl}
-                processingProgress={processingProgress}
-                processingStage={processingStage}
-              />
-            </div>
           </CardContent>
         </Card>
 
@@ -123,7 +51,7 @@ export default function SimpleRecord() {
           <CardContent className="p-6">
             <h3 className="text-lg font-medium mb-4">Already have a recording?</h3>
             <FileUploadSection 
-              isDisabled={recordingHook.isRecording || !session}
+              isDisabled={isLoading || !session}
               showDetailsPanel={true}
             />
           </CardContent>
