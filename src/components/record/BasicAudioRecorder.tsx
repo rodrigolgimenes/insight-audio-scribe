@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -32,18 +32,65 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
     saveProgress
   } = useSaveRecording(onRecordingSaved);
 
-  // Safely handle the transcribe action with error handling
+  const [status, setStatus] = useState<string>("");
+
+  // Safely handle the transcribe action with proper promise handling
   const handleTranscribe = async () => {
     try {
-      if (!audioUrl) {
-        console.error("No audio URL available for transcription");
-        return;
+      console.log("Starting transcription process");
+      
+      // If we're currently recording, stop the recording first and get the blob
+      let audioBlob: Blob | null = null;
+      let audioDuration = recordingDuration;
+      
+      if (isRecording) {
+        setStatus("Stopping recording...");
+        console.log("Stopping active recording before transcription");
+        
+        try {
+          // Wait for the recording to stop and get the blob
+          const result = await stopRecording();
+          audioBlob = result.blob;
+          audioDuration = result.duration;
+          console.log("Recording stopped successfully, blob size:", audioBlob?.size);
+        } catch (error) {
+          console.error("Failed to stop recording:", error);
+          throw new Error("Failed to stop recording properly");
+        }
+      } else if (audioUrl) {
+        // If we have an audioUrl but we're not recording, fetch the blob from the URL
+        setStatus("Preparing audio data...");
+        console.log("Fetching audio data from URL");
+        
+        try {
+          const response = await fetch(audioUrl);
+          if (!response.ok) {
+            throw new Error("Failed to fetch audio data");
+          }
+          audioBlob = await response.blob();
+          console.log("Fetched audio blob, size:", audioBlob.size);
+        } catch (error) {
+          console.error("Error fetching audio data:", error);
+          throw new Error("Failed to prepare audio data");
+        }
       }
       
-      console.log("Starting transcription with duration:", recordingDuration);
-      await handleSave(audioUrl, recordingDuration);
+      // Validate we have a valid audio blob to process
+      if (!audioBlob) {
+        console.error("No audio data available for transcription");
+        throw new Error("No audio data available for transcription");
+      }
+
+      // Now we have a valid audio blob, proceed with saving and transcription
+      setStatus("Processing audio...");
+      console.log("Starting transcription with duration:", audioDuration);
+      await handleSave(audioBlob, audioDuration);
+      setStatus(""); // Clear status when done
+      
     } catch (error) {
       console.error("Error in transcribe handler:", error);
+      setStatus("Error");
+      throw error; // Re-throw to allow the UI to show the error
     }
   };
 
@@ -72,14 +119,20 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
                   </Button>
                   
                   <Button 
-                    onClick={handleTranscribe}
+                    onClick={async () => {
+                      try {
+                        await handleTranscribe();
+                      } catch (error) {
+                        console.error("Transcription failed:", error);
+                      }
+                    }}
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
                     disabled={isSaving || disabled || !audioUrl}
                   >
                     {isSaving ? (
                       <>
                         <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                        Saving...
+                        {status || "Saving..."}
                       </>
                     ) : (
                       "Transcribe"
@@ -91,7 +144,7 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
                   <div className="space-y-2">
                     <Progress value={saveProgress} className="h-2" />
                     <p className="text-xs text-gray-500 text-center">
-                      {saveProgress < 100 ? `Saving: ${saveProgress}%` : "Complete"}
+                      {saveProgress < 100 ? `${status || "Saving"}: ${saveProgress}%` : "Complete"}
                     </p>
                   </div>
                 )}
@@ -108,7 +161,13 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
             )
           ) : (
             <Button
-              onClick={() => stopRecording()}
+              onClick={async () => {
+                try {
+                  await stopRecording();
+                } catch (error) {
+                  console.error("Error stopping recording:", error);
+                }
+              }}
               disabled={disabled}
               className="bg-red-500 hover:bg-red-600 text-white rounded-full h-16 w-16 flex items-center justify-center"
               aria-label="Stop Recording"

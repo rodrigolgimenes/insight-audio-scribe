@@ -125,12 +125,12 @@ export const useBasicRecording = () => {
   };
 
   const stopRecording = () => {
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<{blob: Blob | null; duration: number}>((resolve, reject) => {
       if (!mediaRecorderRef.current || !isRecording) {
         console.warn("No active recording to stop");
         setIsRecording(false);
         cleanup();
-        resolve();
+        resolve({blob: null, duration: 0});
         return;
       }
 
@@ -140,7 +140,6 @@ export const useBasicRecording = () => {
           console.log("Stopping MediaRecorder...");
           
           // CRITICAL FIX: Set up the onstop handler BEFORE calling stop()
-          // The onstop event will only trigger if the handler is registered before stopping
           mediaRecorderRef.current.onstop = () => {
             try {
               console.log("MediaRecorder stopped event triggered");
@@ -151,7 +150,6 @@ export const useBasicRecording = () => {
               // Make sure we have chunks to process
               if (chunksRef.current.length === 0) {
                 console.error("No audio chunks recorded");
-                toast.error("Recording failed - no audio data captured");
                 reject(new Error("No audio data captured"));
                 return;
               }
@@ -163,7 +161,6 @@ export const useBasicRecording = () => {
               // Validate blob
               if (blob.size <= 0) {
                 console.error("Created blob is empty");
-                toast.error("Recording failed - empty audio data");
                 reject(new Error("Empty audio data"));
                 return;
               }
@@ -185,12 +182,10 @@ export const useBasicRecording = () => {
               }
               
               toast.success("Recording completed");
-              resolve();
+              resolve({blob, duration: duration / 1000}); // Convert to seconds
             } catch (error) {
               console.error("Error in mediaRecorder.onstop:", error);
-              toast.error("Error finalizing recording");
-              setIsRecording(false);
-              reject(error);
+              reject(new Error("Error finalizing recording"));
             }
           };
           
@@ -200,7 +195,7 @@ export const useBasicRecording = () => {
           console.warn("MediaRecorder already inactive");
           setIsRecording(false);
           cleanup();
-          resolve();
+          resolve({blob: null, duration: 0});
         }
       } catch (error) {
         console.error("Error stopping recording:", error);
