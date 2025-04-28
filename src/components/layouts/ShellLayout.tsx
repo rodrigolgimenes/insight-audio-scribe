@@ -5,12 +5,36 @@ interface ShellLayoutProps {
   children: React.ReactNode;
 }
 
-export const ShellLayout = ({ children }: ShellLayoutProps) => {
+export const ShellLayout: React.FC<ShellLayoutProps> = ({ children }) => {
+  console.log("ShellLayout rendering");
+  
   return (
-    <div className="min-h-screen bg-white">
-      <main className="min-h-screen">
+    <div className="min-h-screen bg-white flex flex-col">
+      <header className="bg-white shadow-sm py-4 px-6">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-bold text-blue-600">InsightScribe</h1>
+          <nav>
+            <ul className="flex space-x-4">
+              <li>
+                <a href="/" className="text-gray-700 hover:text-blue-500">Home</a>
+              </li>
+              <li>
+                <a href="/audio-recorder" className="text-gray-700 hover:text-blue-500">Record Audio</a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </header>
+      
+      <main className="flex-grow">
         {children}
       </main>
+      
+      <footer className="bg-gray-100 py-6">
+        <div className="max-w-7xl mx-auto px-4">
+          <p className="text-center text-gray-600">© 2025 InsightScribe. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };
