@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +18,38 @@ export const useRecordingSave = () => {
     
     // Additional validation - check if the blob is actually audio data
     const validAudioTypes = ['audio/webm', 'audio/mp3', 'audio/wav', 'audio/ogg'];
+    console.log('[useRecordingSave] Validating audio blob:', { 
+      type: blob.type, 
+      size: blob.size,
+      isValidType: validAudioTypes.includes(blob.type)
+    });
+    
     return validAudioTypes.includes(blob.type);
+  };
+
+  const fetchAudioBlob = async (audioUrl: string | null): Promise<Blob | null> => {
+    if (!audioUrl) return null;
+    
+    try {
+      console.log('[useRecordingSave] Fetching audio from URL:', audioUrl);
+      const response = await fetch(audioUrl);
+      
+      if (!response.ok) {
+        console.error('[useRecordingSave] Failed to fetch audio:', response.statusText);
+        throw new Error(`Failed to fetch audio data: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('[useRecordingSave] Fetched audio blob:', { 
+        type: blob.type, 
+        size: blob.size
+      });
+      
+      return blob;
+    } catch (error) {
+      console.error('[useRecordingSave] Error fetching audio:', error);
+      throw new Error('Failed to read audio data');
+    }
   };
 
   const saveRecording = async (
@@ -48,45 +80,59 @@ export const useRecordingSave = () => {
       let recordingResult;
       let audioBlob: Blob | null = null;
       let finalDuration = recordedDuration;
+      let retryCount = 0;
+      const maxRetries = 2;
 
       // If still recording, stop it first
       if (isRecording) {
         setProcessingStage("Stopping recording...");
         console.log('[useRecordingSave] Stopping active recording');
         
-        recordingResult = await handleStopRecording();
-        console.log('[useRecordingSave] Stop recording result:', recordingResult);
+        // Try stopping with retries if needed
+        while (retryCount <= maxRetries) {
+          try {
+            recordingResult = await handleStopRecording();
+            console.log('[useRecordingSave] Stop recording result:', recordingResult);
+            
+            if (recordingResult) break;
+            
+            retryCount++;
+            if (retryCount <= maxRetries) {
+              console.log(`[useRecordingSave] Retry ${retryCount} to stop recording...`);
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+          } catch (error) {
+            console.error('[useRecordingSave] Error stopping recording:', error);
+            retryCount++;
+            if (retryCount > maxRetries) throw error;
+          }
+        }
         
-        // Add a small delay after stopping
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Add a delay after stopping to ensure processing completes
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         if (!recordingResult) {
-          throw new Error('Failed to stop recording');
+          throw new Error('Failed to stop recording after multiple attempts');
         }
         
         if (recordingResult.blob) {
           audioBlob = recordingResult.blob;
+        } else {
+          console.warn('[useRecordingSave] No blob in recordingResult, trying to use audioUrl');
         }
         
         if (recordingResult.duration) {
           finalDuration = recordingResult.duration;
         }
-      } else if (audioUrl) {
+      }
+      
+      // If we don't have a blob yet but have an audioUrl, try to get the blob from there
+      if (!audioBlob && audioUrl) {
         setProcessingStage("Reading audio data...");
-        try {
-          console.log('[useRecordingSave] Fetching audio from URL');
-          const response = await fetch(audioUrl);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch audio data: ${response.statusText}`);
-          }
-          audioBlob = await response.blob();
-        } catch (error) {
-          console.error('[useRecordingSave] Error fetching audio data:', error);
-          throw new Error('Failed to read audio data');
-        }
+        audioBlob = await fetchAudioBlob(audioUrl);
       }
 
-      // Validate audio blob
+      // Final validation of audio blob
       const isValidAudio = await validateAudioData(audioBlob);
       if (!isValidAudio) {
         throw new Error('Invalid or corrupted audio data');

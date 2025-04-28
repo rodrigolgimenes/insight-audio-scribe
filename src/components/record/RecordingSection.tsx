@@ -74,6 +74,18 @@ export const RecordingSection = ({
     isPaused,
   });
 
+  const validateAudioData = () => {
+    if (isRecording) {
+      return true; // We'll stop recording to get the data
+    }
+    
+    if (audioUrl) {
+      return true; // We have an audio URL to use
+    }
+    
+    return false;
+  };
+
   const handleTranscribe = async () => {
     console.log('[RecordingSection] Starting transcribe process');
     console.log('[RecordingSection] Current state:', {
@@ -84,22 +96,39 @@ export const RecordingSection = ({
     });
 
     try {
+      // Validate that we have or can get audio data
+      if (!validateAudioData()) {
+        throw new Error('No recording data available');
+      }
+      
+      let stopResult;
       if (isRecording) {
         console.log('[RecordingSection] Stopping active recording first');
-        const stopResult = await handleStopRecording();
+        stopResult = await handleStopRecording();
         console.log('[RecordingSection] Stop recording result:', stopResult);
         
         // Add a small delay to ensure everything is processed
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Validate that we got a result from stopping
+        if (!stopResult) {
+          console.error('[RecordingSection] Stop recording did not return a result');
+          throw new Error('Failed to stop recording properly');
+        }
       }
 
+      // Double check that we now have audio data after stopping
       if (!audioUrl && !mediaStream) {
-        throw new Error('No recording data available');
+        console.error('[RecordingSection] No audio data after stopping recording');
+        throw new Error('Failed to capture audio data');
       }
 
-      console.log('[RecordingSection] Initiating save process');
+      console.log('[RecordingSection] Audio data validated, initiating save process');
+      
       if (onSave) {
         await onSave();
+      } else {
+        console.warn('[RecordingSection] No onSave handler provided');
       }
     } catch (error) {
       console.error('[RecordingSection] Error in transcribe process:', error);

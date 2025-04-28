@@ -1,3 +1,4 @@
+
 import { useRecordingState } from "./useRecordingState";
 import { useRecordingLifecycle } from "./useRecordingLifecycle";
 import { useDeviceSelection } from "./useDeviceSelection";
@@ -125,7 +126,7 @@ export const useRecording = () => {
     resumeRecording
   } = useRecordingLifecycle(recorder, recordingState);
 
-  // Set up action handlers
+  // Set up action handlers with enhanced logging and validation
   const {
     handleStartRecording,
     handleStopRecording,
@@ -220,45 +221,8 @@ export const useRecording = () => {
     recordingSaveHook
   ]);
 
-  // Start recording handler
-  const handleStartRecording = useCallback(async () => {
-    console.log('[useRecordingHook] Starting recording');
-    try {
-      if (isRecording) {
-        console.warn('[useRecordingHook] Already recording, ignoring start request');
-        return;
-      }
-
-      setLastAction({
-        action: 'Start recording',
-        timestamp: Date.now(),
-        success: false
-      });
-
-      const result = await startRecording();
-      
-      if (!result) {
-        throw new Error('Failed to start recording');
-      }
-
-      setIsRecording(true);
-      setIsPaused(false);
-      setLastAction({
-        action: 'Start recording',
-        timestamp: Date.now(),
-        success: true
-      });
-    } catch (error) {
-      console.error('[useRecordingHook] Start recording error:', error);
-      setLastAction({
-        action: 'Start recording',
-        timestamp: Date.now(),
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
-    }
-  }, [isRecording, startRecording, setIsRecording, setIsPaused, setLastAction]);
+  // REMOVED the duplicate handleStartRecording declaration that was here
+  // We're now using the one from useRecordingActions
 
   console.log('[useRecordingHook] Hook initialized, returning methods');
   
