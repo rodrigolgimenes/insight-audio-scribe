@@ -1,20 +1,17 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { SimpleRecorder } from "@/components/record/SimpleRecorder";
-import { FileUploadSection } from "@/components/record/FileUploadSection";
+import { BasicAudioRecorder } from "@/components/record/BasicAudioRecorder";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 
 export default function SimpleRecord() {
   const { session } = useAuth();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle successful recording save
   const handleRecordingSaved = (noteId: string) => {
     navigate("/app");
   };
@@ -34,29 +31,15 @@ export default function SimpleRecord() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-medium mb-4">Record Audio</h3>
-            <SimpleRecorder 
-              disabled={isDisabled}
-              onRecordingSaved={handleRecordingSaved}
-              onError={(errorMsg) => setError(errorMsg)}
-              onLoadingChange={setIsLoading}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="text-lg font-medium mb-4">Already have a recording?</h3>
-            <FileUploadSection 
-              isDisabled={isLoading || !session}
-              showDetailsPanel={true}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-medium mb-4">Record Audio</h3>
+          <BasicAudioRecorder 
+            disabled={isDisabled}
+            onRecordingSaved={handleRecordingSaved}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
