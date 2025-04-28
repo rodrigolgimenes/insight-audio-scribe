@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -31,38 +31,38 @@ export const Header = () => {
       <div className="container mx-auto px-4 py-4">
         <nav className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Link to="/" className="text-2xl font-bold text-blue-600">InsightScribe</Link>
+            <span className="text-2xl font-bold gradient-text">InsightScribe</span>
           </div>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
             <button
               onClick={() => scrollToSection('features')}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
+              className="text-gray-600 hover:text-primary transition-colors"
             >
               Features
             </button>
             <button
               onClick={() => scrollToSection('use-cases')}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
+              className="text-gray-600 hover:text-primary transition-colors"
             >
               Use Cases
             </button>
             <button
               onClick={() => scrollToSection('pricing')}
-              className="text-gray-600 hover:text-blue-600 transition-colors"
+              className="text-gray-600 hover:text-primary transition-colors"
             >
               Pricing
             </button>
-            <Link 
-              to="/app" 
-              className="text-gray-600 hover:text-blue-600 transition-colors"
+            <button
+              onClick={() => scrollToSection('faq')}
+              className="text-gray-600 hover:text-primary transition-colors"
             >
-              Dashboard
-            </Link>
+              FAQ
+            </button>
             <Button 
               variant="default" 
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-primary hover:bg-primary-dark"
               onClick={handleGetStarted}
             >
               Get Started
@@ -84,31 +84,31 @@ export const Header = () => {
           <div className="md:hidden py-4 space-y-4">
             <button
               onClick={() => scrollToSection('features')}
-              className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
               Features
             </button>
             <button
               onClick={() => scrollToSection('use-cases')}
-              className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
               Use Cases
             </button>
             <button
               onClick={() => scrollToSection('pricing')}
-              className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
               Pricing
             </button>
-            <Link 
-              to="/app"
-              className="block w-full text-left text-gray-600 hover:text-blue-600 transition-colors"
+            <button
+              onClick={() => scrollToSection('faq')}
+              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
             >
-              Dashboard
-            </Link>
+              FAQ
+            </button>
             <Button 
               variant="default" 
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-primary hover:bg-primary-dark"
               onClick={handleGetStarted}
             >
               Get Started

@@ -30,16 +30,23 @@ export function RecordingOptions({
   devicesLoading = false,
   permissionState = 'unknown'
 }: RecordingOptionsProps) {
+  // Create a wrapper function that ensures we return a Promise
+  const handleRefreshDevices = async () => {
+    if (onRefreshDevices) {
+      return onRefreshDevices();
+    }
+    return Promise.resolve();
+  };
+
   return (
     <div className="space-y-6">
-      {/* The DeviceSelector now only needs disabled prop as it uses DeviceManagerContext */}
       <DeviceSelector
         audioDevices={audioDevices}
         selectedDeviceId={selectedDeviceId}
         onDeviceSelect={onDeviceSelect}
         disabled={isRecording}
         isReady={deviceSelectionReady}
-        onRefreshDevices={onRefreshDevices}
+        onRefreshDevices={handleRefreshDevices}
         devicesLoading={devicesLoading}
         permissionState={permissionState}
       />

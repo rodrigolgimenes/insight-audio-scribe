@@ -1,7 +1,7 @@
+
 import { useCallback } from "react";
 import { useAudioCapture } from "./useAudioCapture";
 import { useSystemAudio } from "./useSystemAudio";
-import { toast } from "sonner";
 
 /**
  * Hook for managing media stream access
@@ -59,68 +59,9 @@ export const useMediaStream = (
     }
   }, [requestMicrophoneAccess, setLastAction, captureSystemAudio]);
 
-  // Function to request screen capture with audio
-  const requestScreenAccess = useCallback(async (includeAudio: boolean) => {
-    try {
-      setLastAction({
-        action: `Request screen capture${includeAudio ? ' with audio' : ''}`,
-        timestamp: Date.now(),
-        success: false
-      });
-      
-      // Request screen capture
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({ 
-        video: { 
-          frameRate: { ideal: 30, max: 30 },
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 }
-        } 
-      });
-      
-      let finalStream = displayStream;
-      
-      // If audio is enabled, get audio stream and combine
-      if (includeAudio) {
-        try {
-          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          
-          // Combine streams
-          finalStream = new MediaStream([
-            ...displayStream.getVideoTracks(),
-            ...audioStream.getAudioTracks()
-          ]);
-          
-        } catch (error) {
-          console.error('[useMediaStream] Error accessing microphone:', error);
-          toast.warning("Microphone access denied. Continuing with screen capture only.");
-        }
-      }
-      
-      if (finalStream) {
-        setLastAction({
-          action: `Request screen capture${includeAudio ? ' with audio' : ''}`,
-          timestamp: Date.now(),
-          success: true
-        });
-      }
-      
-      return finalStream;
-    } catch (error) {
-      console.error('[useMediaStream] Error requesting screen capture:', error);
-      setLastAction({
-        action: `Request screen capture${includeAudio ? ' with audio' : ''}`,
-        timestamp: Date.now(),
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      return null;
-    }
-  }, [setLastAction]);
-
   return {
     streamManager: {
-      requestMicrophoneAccess: requestMicAccess,
-      requestScreenAccess
+      requestMicrophoneAccess: requestMicAccess
     }
   };
 };

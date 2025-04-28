@@ -1,13 +1,13 @@
 
 import React, { useEffect } from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
-import { useDeviceContext } from "@/providers/DeviceManagerProvider"; 
+import { useDeviceManager } from "@/context/DeviceManagerContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, RefreshCw, AlertCircle } from "lucide-react";
 
 export function UnifiedRecordingSection() {
-  const { selectedDeviceId, permissionState } = useDeviceContext();
+  const { selectedDeviceId, permissionState, refreshDevices } = useDeviceManager();
   const [isRecording, setIsRecording] = React.useState(false);
 
   // Log device and permission state for debugging
@@ -58,11 +58,7 @@ export function UnifiedRecordingSection() {
           
           {permissionState !== 'granted' && (
             <div className="bg-amber-50 border border-amber-200 rounded p-3 text-amber-700 text-sm flex items-center">
-              <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+              <AlertCircle className="h-4 w-4 mr-2" />
               Please allow microphone access to record audio
             </div>
           )}
@@ -90,6 +86,19 @@ export function UnifiedRecordingSection() {
                 Stop Recording
               </button>
             )}
+            
+            <button
+              onClick={() => refreshDevices()}
+              disabled={isRecording}
+              className={`flex items-center gap-2 px-4 py-2 rounded border ${
+                isRecording 
+                  ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+              } transition-colors`}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh Devices
+            </button>
           </div>
         </div>
       </CardContent>

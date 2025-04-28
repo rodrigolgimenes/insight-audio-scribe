@@ -1,53 +1,132 @@
 
 import React, { useState, useEffect } from "react";
+import { useRobustMicrophoneDetection } from "@/hooks/recording/device/useRobustMicrophoneDetection";
 import { ChevronDown, Mic, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
-import { useDeviceManager } from "@/context/DeviceManagerContext";
-import { isRestrictedRoute } from "@/utils/route/isRestrictedRoute";
+import { toast } from "sonner";
 
 export function SimpleMicrophoneSelector() {
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const { 
     devices, 
-    selectedDeviceId,
-    setSelectedDeviceId,
-    permissionState,
-    isLoading,
-    requestPermission
-  } = useDeviceManager();
+    isLoading, 
+    permissionState, 
+    detectDevices, 
+    requestMicrophoneAccess 
+  } = useRobustMicrophoneDetection();
   const [isOpen, setIsOpen] = useState(false);
   
-  // Ensure we respect restricted routes
-  const isRestricted = isRestrictedRoute();
+  // Check if we're on a restricted route (dashboard, index, app)
+  const isRestrictedRoute = React.useMemo(() => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/') ||
+           path.includes('simple-record') ||
+           path.includes('record');
+  }, []);
   
+  // Log details on render and when state changes
+  useEffect(() => {
+    console.log('[SimpleMicrophoneSelector] State updated:', {
+      deviceCount: devices.length,
+      devices: devices.map(d => ({ id: d.deviceId, label: d.label || 'No label' })),
+      selectedDeviceId,
+      permissionState,
+      isLoading,
+      isRestrictedRoute: isRestrictedRoute
+    });
+  }, [devices, selectedDeviceId, permissionState, isLoading, isRestrictedRoute]);
+  
+  // Auto-select first device when devices load
   useEffect(() => {
     if (devices.length > 0 && !selectedDeviceId) {
       console.log('[SimpleMicrophoneSelector] Auto-selecting first device');
       setSelectedDeviceId(devices[0].deviceId);
+      
+      // Only show toast on non-restricted routes
+      if (!isRestrictedRoute) {
+        console.log('[SimpleMicrophoneSelector] Suppressing auto-selection toast on restricted route');
+      }
     }
-  }, [devices, selectedDeviceId, setSelectedDeviceId]);
+  }, [devices, selectedDeviceId, isRestrictedRoute]);
   
+  // Handle device selection
   const handleDeviceSelect = (deviceId: string) => {
+    console.log('[SimpleMicrophoneSelector] Selected device:', deviceId);
     setSelectedDeviceId(deviceId);
     setIsOpen(false);
+    
+    // Only show toast notification about device selection on non-restricted routes
+    if (!isRestrictedRoute) {
+      toast.success("Microphone selected", {
+        id: "simple-mic-selected", 
+        duration: 2000
+      });
+    } else {
+      console.log('[SimpleMicrophoneSelector] Suppressing selection toast on restricted route');
+    }
   };
   
-  const handleRefresh = () => {
+  // Handle refreshing devices
+  const handleRefresh = async () => {
     console.log('[SimpleMicrophoneSelector] Refreshing devices');
-    requestPermission();
+    
+    try {
+      await detectDevices(true);
+      // Only show toast on non-restricted routes
+      if (!isRestrictedRoute) {
+        toast.success("Microphones refreshed", {
+          id: "mics-refreshed",
+          duration: 2000
+        });
+      }
+    } catch (error) {
+      console.error('[SimpleMicrophoneSelector] Error refreshing devices:', error);
+      if (!isRestrictedRoute) {
+        toast.error("Failed to refresh microphones");
+      }
+    }
   };
   
-  const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
+  // Handle requesting permission
+  const handleRequestPermission = async () => {
+    console.log('[SimpleMicrophoneSelector] Requesting permission');
+    
+    try {
+      await requestMicrophoneAccess();
+    } catch (error) {
+      console.error('[SimpleMicrophoneSelector] Error requesting permission:', error);
+    }
+  };
+  
+  // Find selected device in list
   const selectedDevice = devices.find(device => device.deviceId === selectedDeviceId);
-
-  // For restricted routes, only show minimal UI without notifications
+  
+  // Determine if we need to show permission request
+  const needsPermission = permissionState === 'prompt' || permissionState === 'denied';
+  
   return (
     <div className="w-full">
-      <div className="text-sm font-medium mb-2 text-gray-700">
+      <div className="text-sm font-medium mb-2 text-gray-700 flex items-center justify-between">
         <span>Select Microphone</span>
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <span className="text-xs text-blue-600 flex items-center">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              Scanning...
+            </span>
+          ) : (
+            <span className="text-xs text-blue-600">{devices.length} found</span>
+          )}
+        </div>
       </div>
       
+      {/* Permission Request Button */}
       {needsPermission && (
         <button
-          onClick={handleRefresh}
+          onClick={handleRequestPermission}
           disabled={isLoading}
           className="w-full p-3 flex items-center justify-center gap-2 bg-blue-50 border border-blue-300 rounded-md text-blue-700 hover:bg-blue-100"
         >
@@ -65,6 +144,7 @@ export function SimpleMicrophoneSelector() {
         </button>
       )}
       
+      {/* Microphone Selector Dropdown */}
       {!needsPermission && (
         <div className="relative">
           <button
@@ -94,6 +174,7 @@ export function SimpleMicrophoneSelector() {
             <ChevronDown className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </button>
           
+          {/* Device List */}
           {isOpen && (
             <div className="absolute z-10 mt-1 w-full">
               <div className="flex flex-col border border-gray-200 rounded-md shadow-sm max-h-60 overflow-auto bg-white">
@@ -123,6 +204,7 @@ export function SimpleMicrophoneSelector() {
                   </div>
                 )}
                 
+                {/* Refresh button */}
                 <button
                   type="button"
                   className="w-full text-left p-3 hover:bg-gray-100 text-blue-600 flex items-center justify-center border-t border-gray-200"
@@ -146,6 +228,12 @@ export function SimpleMicrophoneSelector() {
           )}
         </div>
       )}
+      
+      {/* Permission state and device count */}
+      <div className="mt-1 text-xs text-gray-500 flex justify-between">
+        <span>{isLoading ? "Scanning..." : `Devices: ${devices.length}`}</span>
+        <span>Permission: {permissionState}</span>
+      </div>
     </div>
   );
 }

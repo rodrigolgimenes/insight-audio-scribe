@@ -1,7 +1,5 @@
 
 import { useState } from "react";
-import { AudioDevice } from "@/hooks/recording/capture/types";
-import { PermissionState } from "@/hooks/recording/capture/permissions/types";
 
 export type RecordingStateType = {
   isRecording: boolean;
@@ -26,12 +24,6 @@ export type RecordingStateType = {
   setRecordingAttemptsCount: (count: number | ((prev: number) => number)) => void;
   deviceSelectionReady: boolean;
   setDeviceSelectionReady: (ready: boolean) => void;
-  audioDevices: AudioDevice[];
-  setAudioDevices: (devices: AudioDevice[]) => void;
-  permissionState: PermissionState;
-  setPermissionState: (state: PermissionState) => void;
-  recordingMode: 'audio' | 'screen';
-  setRecordingMode: (mode: 'audio' | 'screen') => void;
 };
 
 export const useRecordingState = (): RecordingStateType => {
@@ -51,9 +43,6 @@ export const useRecordingState = (): RecordingStateType => {
   } | null>(null);
   const [recordingAttemptsCount, setRecordingAttemptsCount] = useState(0);
   const [deviceSelectionReady, setDeviceSelectionReady] = useState(false);
-  const [audioDevices, setAudioDevices] = useState<AudioDevice[]>([]);
-  const [permissionState, setPermissionState] = useState<PermissionState>('unknown');
-  const [recordingMode, setRecordingMode] = useState<'audio' | 'screen'>('audio');
 
   return {
     isRecording,
@@ -77,12 +66,6 @@ export const useRecordingState = (): RecordingStateType => {
     recordingAttemptsCount,
     setRecordingAttemptsCount,
     deviceSelectionReady,
-    setDeviceSelectionReady,
-    audioDevices,
-    setAudioDevices,
-    permissionState,
-    setPermissionState,
-    recordingMode,
-    setRecordingMode
+    setDeviceSelectionReady
   };
 };

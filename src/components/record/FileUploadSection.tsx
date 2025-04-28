@@ -64,7 +64,6 @@ export const FileUploadSection = ({ isDisabled, showDetailsPanel = false }: File
           hideDescription={true}
           onUploadComplete={handleUploadComplete}
           onConversionUpdate={handleConversionUpdate}
-          skipDeviceCheck={true}
         />
       </div>
       
@@ -92,4 +91,4 @@ export const FileUploadSection = ({ isDisabled, showDetailsPanel = false }: File
       )}
     </div>
   );
-}
+};

@@ -3,7 +3,6 @@ import React from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { DevicePermissionError } from "./device/DevicePermissionError";
-import { useDeviceContext } from "@/providers/DeviceManagerProvider";
 
 interface DeviceSelectorProps {
   audioDevices: AudioDevice[];
@@ -17,19 +16,37 @@ interface DeviceSelectorProps {
 }
 
 export function DeviceSelector({
+  audioDevices,
+  selectedDeviceId,
+  onDeviceSelect,
   disabled = false,
+  isReady = false,
+  onRefreshDevices,
+  devicesLoading = false,
   permissionState = 'unknown'
 }: DeviceSelectorProps) {
-  const deviceContext = useDeviceContext();
-  
-  // Unified permission check combining both component and context states
-  if (permissionState === 'denied' || deviceContext?.permissionState === 'denied') {
+  // Check if permission is denied
+  if (permissionState === 'denied') {
     return <DevicePermissionError />;
   }
-  
-  // Just pass through the props that MicrophoneSelector accepts
+
+  // Define a wrapper function that ensures we return a Promise
+  const handleRefreshDevices = async () => {
+    if (onRefreshDevices) {
+      return onRefreshDevices();
+    }
+    return Promise.resolve();
+  };
+
+  // Just pass through to our centralized MicrophoneSelector component
   console.log("[DeviceSelector] Rendering unified MicrophoneSelector");
-  
-  // MicrophoneSelector now uses the DeviceManagerContext, so we only need to pass disabled prop
-  return <MicrophoneSelector disabled={disabled} />;
+  return <MicrophoneSelector 
+    disabled={disabled} 
+    audioDevices={audioDevices}
+    selectedDeviceId={selectedDeviceId}
+    onDeviceSelect={onDeviceSelect}
+    isReady={isReady}
+    onRefreshDevices={handleRefreshDevices}
+    devicesLoading={devicesLoading}
+  />;
 }

@@ -1,37 +1,13 @@
 
-import { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { FileUpload } from "@/components/shared/FileUpload";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Header } from "@/components/Header";
-import { Hero } from "@/components/landing/Hero";
-import { Features } from "@/components/landing/Features";
-import { PricingSection } from "@/components/payments/PricingSection";
-import { UploadSection } from "@/components/landing/UploadSection";
-import { Footer } from "@/components/Footer";
-import { AudioWaveform, Mic, PenTool, FileText, Share2 } from "lucide-react";
 
 export default function Index() {
   const [convertedFile, setConvertedFile] = useState<File | null>(null);
   const [conversionStatus, setConversionStatus] = useState<'idle' | 'converting' | 'success' | 'error'>('idle');
-  const location = useLocation();
-  
-  // Handle scroll to section on load if needed
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const section = searchParams.get('section');
-    
-    if (section) {
-      const element = document.getElementById(section);
-      if (element) {
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }, 500);
-      }
-    }
-  }, [location]);
   
   const handleConversionUpdate = (
     status: 'idle' | 'converting' | 'success' | 'error',
@@ -44,106 +20,61 @@ export default function Index() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
-      {/* Header */}
-      <Header />
-      
-      {/* Hero Section */}
-      <Hero />
-
-      {/* Main features with icons */}
-      <section id="use-cases" className="py-16 px-4">
-        <div className="container mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-            How InsightScribe Works
-          </h2>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-r from-blue-50 to-indigo-50">
+      <div className="max-w-3xl text-center px-4">
+        <h1 className="text-4xl font-bold text-blue-600 mb-6">
+          Audio Recording App
+        </h1>
+        <p className="text-lg text-gray-700 mb-8">
+          A powerful tool for recording, transcribing, and managing your audio notes
+        </p>
+        
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+          <Button asChild size="lg" className="bg-blue-500 hover:bg-blue-600 text-white">
+            <Link to="/simple-record">
+              Go to Recording Page
+            </Link>
+          </Button>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mic className="h-8 w-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Record</h3>
-              <p className="text-gray-600">
-                Record audio from meetings or upload existing recordings
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-green-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AudioWaveform className="h-8 w-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Transcribe</h3>
-              <p className="text-gray-600">
-                Advanced AI converts audio to accurate text with speaker detection
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-purple-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <PenTool className="h-8 w-8 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Analyze</h3>
-              <p className="text-gray-600">
-                Generate summaries, action items, and key meeting insights
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-orange-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Share2 className="h-8 w-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Share</h3>
-              <p className="text-gray-600">
-                Collaborate with your team and share meeting insights
-              </p>
-            </div>
-          </div>
+          <Button asChild variant="outline" size="lg">
+            <Link to="/app">
+              Dashboard
+            </Link>
+          </Button>
         </div>
-      </section>
-
-      {/* Features List */}
-      <Features />
-      
-      {/* Upload Section with Card */}
-      <UploadSection />
-      
-      {/* Pricing Section */}
-      <PricingSection />
-      
-      {/* Call to Action */}
-      <section className="py-24 px-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-        <div className="container mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to transform your meetings?
-          </h2>
-          <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Join thousands of professionals who save time and stay informed with InsightScribe.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              asChild 
-              size="lg"
-              className="bg-white text-blue-600 hover:bg-gray-100"
-            >
-              <Link to="/simple-record">Start Recording Now</Link>
-            </Button>
+        
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Audio File Upload</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FileUpload 
+              onConversionUpdate={handleConversionUpdate}
+              buttonText="Upload Audio File"
+              description="Upload MP3 files directly or convert other audio formats"
+              buttonClassName="w-full"
+            />
             
-            <Button 
-              asChild 
-              variant="outline" 
-              size="lg"
-              className="border-white text-white hover:bg-white hover:text-blue-600"
-            >
-              <Link to="/login">Create Free Account</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-      
-      {/* Footer */}
-      <Footer />
+            {conversionStatus === 'success' && (
+              <p className="text-green-600 mt-4">
+                Conversion successful! Your file is ready.
+              </p>
+            )}
+            
+            {conversionStatus === 'error' && (
+              <p className="text-red-600 mt-4">
+                There was an error processing your file. Please try again.
+              </p>
+            )}
+            
+            {conversionStatus === 'converting' && (
+              <p className="text-blue-600 mt-4">
+                Processing your audio file...
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

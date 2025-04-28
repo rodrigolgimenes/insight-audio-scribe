@@ -7,9 +7,11 @@ export function useDeviceAutoRefresh(
   onRefreshDevices?: () => void
 ) {
   const [autoRefreshCount, setAutoRefreshCount] = useState(0);
-  const isMounted = useRef(true);
-  const maxAutoRefreshes = 3; // Reduced number of auto-refreshes
+  const [lastDeviceCount, setLastDeviceCount] = useState(0);
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMounted = useRef(true);
+  const maxAutoRefreshes = 15; // Increased limit
+  const forcedRefreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clean up on unmount
   useEffect(() => {
@@ -18,39 +20,100 @@ export function useDeviceAutoRefresh(
       if (autoRefreshTimerRef.current) {
         clearTimeout(autoRefreshTimerRef.current);
       }
+      if (forcedRefreshTimeoutRef.current) {
+        clearTimeout(forcedRefreshTimeoutRef.current);
+      }
     };
   }, []);
 
-  // Attempt a few refreshes when no devices are found, using a more efficient approach
+  // Track device count changes to help diagnose issues
   useEffect(() => {
-    // Reset auto-refresh counter when we get devices
-    if (deviceCount > 0 && autoRefreshTimerRef.current) {
-      console.log(`[DeviceAutoRefresh] Devices found, clearing refresh timer`);
-      clearTimeout(autoRefreshTimerRef.current);
-      autoRefreshTimerRef.current = null;
-      return;
+    if (deviceCount !== lastDeviceCount) {
+      console.log(`[DeviceSelector] Device count changed: ${lastDeviceCount} -> ${deviceCount}`);
+      setLastDeviceCount(deviceCount);
+      
+      // Reset auto-refresh counter when we get devices
+      if (deviceCount > 0) {
+        setAutoRefreshCount(0);
+        if (autoRefreshTimerRef.current) {
+          clearTimeout(autoRefreshTimerRef.current);
+          autoRefreshTimerRef.current = null;
+        }
+        if (forcedRefreshTimeoutRef.current) {
+          clearTimeout(forcedRefreshTimeoutRef.current);
+          forcedRefreshTimeoutRef.current = null;
+        }
+      }
     }
-    
+  }, [deviceCount, lastDeviceCount]);
+
+  // Attempt periodic refreshes when no devices are found, with more aggressive strategy
+  useEffect(() => {
     const attemptDeviceRefresh = () => {
-      if (isMounted.current && deviceCount === 0 && onRefreshDevices && autoRefreshCount < maxAutoRefreshes) {
-        console.log(`[DeviceAutoRefresh] Auto-refreshing devices (attempt #${autoRefreshCount + 1})`);
+      if (isMounted.current && deviceCount === 0 && onRefreshDevices) {
+        console.log(`[DeviceSelector] Auto-refreshing devices (attempt #${autoRefreshCount + 1})`);
+        
         onRefreshDevices();
         setAutoRefreshCount(prev => prev + 1);
       }
     };
     
-    // Start a refresh cycle only if needed
     if (deviceCount === 0 && !devicesLoading && onRefreshDevices && autoRefreshCount < maxAutoRefreshes) {
       // Clear any existing timer
       if (autoRefreshTimerRef.current) {
         clearTimeout(autoRefreshTimerRef.current);
       }
       
-      // Use exponential backoff for retries (1s, 2s, 4s)
-      const delay = 1000 * Math.pow(2, autoRefreshCount);
+      // Implement a more aggressive refresh strategy with shorter initial delays
+      // Use very short initial delays, then progressively longer ones
+      let delay: number;
       
-      console.log(`[DeviceAutoRefresh] Setting auto-refresh timer #${autoRefreshCount + 1} for ${delay}ms`);
+      if (autoRefreshCount < 3) {
+        // Very aggressive for first few attempts (500ms, 700ms, 900ms)
+        delay = 500 + (autoRefreshCount * 200);
+      } else if (autoRefreshCount < 7) {
+        // Medium delays for next few attempts
+        delay = 1000 + (autoRefreshCount * 300);
+      } else {
+        // Longer delays for later attempts
+        delay = Math.min(2000 + (autoRefreshCount * 500), 10000);
+      }
+      
+      console.log(`[DeviceSelector] Setting auto-refresh timer #${autoRefreshCount + 1} for ${delay}ms`);
+      
       autoRefreshTimerRef.current = setTimeout(attemptDeviceRefresh, delay);
+      
+      // If we have had multiple retries without success, try a complete different approach
+      // by forcing the browser to request permissions again
+      if (autoRefreshCount === 5) {
+        console.log('[DeviceSelector] Setting up forced permission request after delays');
+        forcedRefreshTimeoutRef.current = setTimeout(() => {
+          if (isMounted.current && deviceCount === 0) {
+            console.log('[DeviceSelector] Trying forced permission approach');
+            // Force a permission prompt with a different constraint set
+            navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false
+              }
+            }).then(stream => {
+              console.log('[DeviceSelector] Got stream from forced approach, stopping tracks');
+              stream.getTracks().forEach(track => track.stop());
+              
+              // Wait a moment and refresh devices
+              setTimeout(() => {
+                if (isMounted.current && onRefreshDevices) {
+                  console.log('[DeviceSelector] Refreshing after forced approach');
+                  onRefreshDevices();
+                }
+              }, 500);
+            }).catch(err => {
+              console.error('[DeviceSelector] Forced approach failed:', err);
+            });
+          }
+        }, 4000);
+      }
     }
     
     return () => {

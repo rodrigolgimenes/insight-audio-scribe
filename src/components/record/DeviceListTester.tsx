@@ -22,7 +22,7 @@ export function DeviceListTester() {
   // Handle refresh
   const handleRefresh = async () => {
     console.log('[DeviceListTester] Refreshing devices...');
-    await detectDevices();
+    await detectDevices(true);
   };
   
   return (

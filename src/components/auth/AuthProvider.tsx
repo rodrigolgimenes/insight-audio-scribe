@@ -32,6 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   React.useEffect(() => {
     console.log("AuthProvider: Initializing auth state");
     
+    // Restore session from localStorage if available (for page refreshes)
     const storedSession = localStorage.getItem('supabase.auth.session');
     if (storedSession) {
       try {
@@ -46,19 +47,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    // Set up the auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         console.log("Auth state changed:", event, !!newSession);
         
         if (event === 'SIGNED_IN' && newSession) {
-          // Removed toast.success("Signed in successfully")
+          // Store session in localStorage for persistence across page refreshes
           localStorage.setItem('supabase.auth.session', JSON.stringify(newSession));
+          toast.success("Signed in successfully");
           setSession(newSession);
         } else if (event === 'SIGNED_OUT') {
+          // Clear localStorage on sign out
           localStorage.removeItem('supabase.auth.session');
           toast.info("Signed out");
           setSession(null);
         } else if (event === 'TOKEN_REFRESHED' && newSession) {
+          // Update localStorage with refreshed token
           localStorage.setItem('supabase.auth.session', JSON.stringify(newSession));
           console.log("Auth token refreshed");
           setSession(newSession);
@@ -68,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // THEN check the current session
     const checkSession = async () => {
       try {
         console.log("AuthProvider: Checking current session");
@@ -78,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setError(sessionError.message);
         } else if (data?.session) {
           console.log("Initial session check:", !!data.session);
+          // Store valid session in localStorage
           localStorage.setItem('supabase.auth.session', JSON.stringify(data.session));
           setSession(data.session);
           setError(null);
@@ -112,4 +119,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-

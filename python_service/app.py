@@ -1,3 +1,4 @@
+
 import os
 import uvicorn
 import requests
@@ -65,8 +66,9 @@ def process_transcription(transcription_id: str, audio_url: str, language: str):
                 
                 logger.info(f"Loading WhisperModel on {device} with compute type {compute_type}")
                 
-                # Initialize the model - Using small instead of medium
-                model = WhisperModel("small", device=device, compute_type=compute_type)
+                # Initialize the model - choose model size based on your needs
+                # Options: "tiny", "base", "small", "medium", "large-v2", "large-v3" 
+                model = WhisperModel("medium", device=device, compute_type=compute_type)
                 
                 # Perform transcription
                 logger.info(f"Starting transcription with model for language: {language}")

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -97,8 +96,8 @@ export function RecordingSettings({
   const getStatusBadgeVariant = () => {
     if (isRecording) return "destructive";
     if (permissionState === 'denied') return "destructive";
-    if (permissionState === 'prompt' || audioDevices.length === 0 || !selectedDeviceId) return "secondary";
-    if (deviceSelectionReady) return "default";
+    if (permissionState === 'prompt' || audioDevices.length === 0 || !selectedDeviceId) return "warning";
+    if (deviceSelectionReady) return "success";
     return "secondary";
   };
 

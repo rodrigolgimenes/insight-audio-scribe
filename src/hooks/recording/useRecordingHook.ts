@@ -38,18 +38,24 @@ export const useRecording = () => {
   // Set deviceSelectionReady if not already in the state
   useEffect(() => {
     // Set deviceSelectionReady based on available devices and selected device
-    if (recordingState.recordingMode === 'screen' || 
-        (audioDevices.length > 0 && recordingState.selectedDeviceId)) {
+    if (audioDevices.length > 0 && recordingState.selectedDeviceId) {
       recordingState.setDeviceSelectionReady(true);
     } else {
       recordingState.setDeviceSelectionReady(false);
     }
-  }, [recordingState.selectedDeviceId, recordingState.recordingMode]);
+  }, [recordingState.selectedDeviceId]);
   
   // Create a wrapped version of setSelectedDeviceId that adds logging
+  // and prevents toasts on restricted routes
   const originalSetSelectedDeviceId = recordingState.setSelectedDeviceId;
   recordingState.setSelectedDeviceId = (deviceId: string | null) => {
     console.log('[useRecordingHook] setSelectedDeviceId called with:', deviceId);
+    console.log('[useRecordingHook] Current state before update:', {
+      selectedDeviceId: recordingState.selectedDeviceId,
+      deviceSelectionReady: recordingState.deviceSelectionReady,
+      isRecording: recordingState.isRecording,
+      isRestrictedRoute: isRestrictedRoute()
+    });
     
     // Call original function
     originalSetSelectedDeviceId(deviceId);
@@ -58,6 +64,17 @@ export const useRecording = () => {
     if (deviceId && !isRestrictedRoute()) {
       console.log('[useRecordingHook] Would show toast for device selection, but route is restricted');
     }
+    
+    // Log after update (will show previous value due to closure)
+    console.log('[useRecordingHook] State update initiated, will verify in next render');
+    
+    // Add timeout to verify state update
+    setTimeout(() => {
+      console.log('[useRecordingHook] State after update (timeout check):', {
+        selectedDeviceId: recordingState.selectedDeviceId,
+        deviceId
+      });
+    }, 100);
   };
 
   // Error handling
@@ -77,12 +94,19 @@ export const useRecording = () => {
 
   // Update the recording state deviceSelectionReady when device selection changes
   useEffect(() => {
-    if (recordingState.recordingMode === 'screen') {
-      recordingState.setDeviceSelectionReady(true);
-    } else {
-      recordingState.setDeviceSelectionReady(deviceSelectionReady);
-    }
-  }, [deviceSelectionReady, recordingState.recordingMode]);
+    recordingState.setDeviceSelectionReady(deviceSelectionReady);
+  }, [deviceSelectionReady]);
+
+  // Log device selection state changes
+  useEffect(() => {
+    console.log('[useRecordingHook] Device selection state updated:', {
+      deviceSelectionReady,
+      audioDevicesCount: audioDevices.length,
+      permissionState,
+      selectedDeviceId: recordingState.selectedDeviceId,
+      isRestrictedRoute: isRestrictedRoute()
+    });
+  }, [deviceSelectionReady, audioDevices.length, permissionState, recordingState.selectedDeviceId, isRestrictedRoute]);
 
   // Media stream handling
   const { streamManager } = useMediaStream(recordingState.setLastAction);
@@ -102,147 +126,10 @@ export const useRecording = () => {
     resumeRecording
   } = useRecordingLifecycle(recorder, recordingState);
 
-  // Toggle recording mode
-  const toggleRecordingMode = useCallback(() => {
-    recordingState.setRecordingMode(recordingState.recordingMode === 'audio' ? 'screen' : 'audio');
-  }, [recordingState]);
-
-  // Modify start recording to handle different modes
-  const handleStartRecording = useCallback(async () => {
-    if (recordingState.isRecording) {
-      console.log('[useRecordingHook] Already recording, ignoring start request');
-      return;
-    }
-
-    console.log('[useRecordingHook] Starting recording in mode:', recordingState.recordingMode);
-    recordingState.setLastAction({
-      action: `Start ${recordingState.recordingMode} recording`,
-      timestamp: Date.now(),
-      success: false
-    });
-
-    try {
-      // Get media stream based on recording mode
-      let stream = null;
-      
-      if (recordingState.recordingMode === 'screen') {
-        // Get display media for screen recording
-        stream = await streamManager.requestScreenAccess(recordingState.isSystemAudio);
-      } else {
-        // Get microphone for audio recording
-        stream = await streamManager.requestMicrophoneAccess(
-          recordingState.selectedDeviceId,
-          recordingState.isSystemAudio
-        );
-      }
-      
-      if (!stream) {
-        throw new Error(`Failed to get ${recordingState.recordingMode} stream`);
-      }
-
-      // Set the media stream
-      recordingState.setMediaStream(stream);
-      
-      // Start the recording
-      const result = await startRecording(recordingState.selectedDeviceId, recordingState.isSystemAudio);
-      
-      if (!result) {
-        throw new Error(`Failed to start ${recordingState.recordingMode} recording`);
-      }
-
-      recordingState.setIsRecording(true);
-      
-      // Log success
-      recordingState.setLastAction({
-        action: `Start ${recordingState.recordingMode} recording`,
-        timestamp: Date.now(),
-        success: true
-      });
-      
-      // Don't show notification on restricted routes
-      if (!isRestrictedRoute()) {
-        toast.success(`${recordingState.recordingMode === 'audio' ? 'Audio' : 'Screen'} recording started`);
-      }
-      
-    } catch (error) {
-      console.error('[useRecordingHook] Error starting recording:', error);
-      
-      recordingState.setLastAction({
-        action: `Start ${recordingState.recordingMode} recording`,
-        timestamp: Date.now(),
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Don't show notification on restricted routes
-      if (!isRestrictedRoute()) {
-        toast.error(`Could not start recording: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    }
-  }, [
-    recordingState.isRecording,
-    recordingState.recordingMode,
-    recordingState.selectedDeviceId,
-    recordingState.isSystemAudio,
-    recordingState.setIsRecording,
-    recordingState.setMediaStream,
-    recordingState.setLastAction,
-    startRecording,
-    streamManager,
-    isRestrictedRoute
-  ]);
-
-  // Modified stop recording handler
-  const handleStopRecording = useCallback(async (): Promise<{blob?: Blob, duration?: number} | void> => {
-    if (!recordingState.isRecording) {
-      console.log('[useRecordingHook] Not recording, ignoring stop request');
-      return;
-    }
-    
-    try {
-      recordingState.setLastAction({
-        action: `Stop ${recordingState.recordingMode} recording`,
-        timestamp: Date.now(),
-        success: false
-      });
-      
-      const result = await stopRecording();
-      recordingState.setIsRecording(false);
-      recordingState.setIsPaused(false);
-      
-      recordingState.setLastAction({
-        action: `Stop ${recordingState.recordingMode} recording`,
-        timestamp: Date.now(),
-        success: true
-      });
-      
-      // Don't show notification on restricted routes
-      if (!isRestrictedRoute()) {
-        toast.success(`${recordingState.recordingMode === 'audio' ? 'Audio' : 'Screen'} recording stopped`);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('[useRecordingHook] Error stopping recording:', error);
-      
-      recordingState.setLastAction({
-        action: `Stop ${recordingState.recordingMode} recording`,
-        timestamp: Date.now(),
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Don't show notification on restricted routes
-      if (!isRestrictedRoute()) {
-        toast.error(`Error stopping recording: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-      
-      return;
-    }
-  }, [recordingState, stopRecording, isRestrictedRoute]);
-
-  // Set up action handlers for pause/resume
+  // Set up action handlers
   const {
+    handleStartRecording,
+    handleStopRecording,
     handlePauseRecording,
     handleResumeRecording
   } = useRecordingActions(
@@ -256,13 +143,14 @@ export const useRecording = () => {
   // System audio handler
   const { handleSystemAudioChange } = useSystemAudio(recordingState.setIsSystemAudio);
 
-  // Wrap the delete handler to prevent toasts on restricted routes
+  // Save and delete functionality with toast suppression on restricted routes
   const originalHandleDelete = useSaveDeleteRecording(
     recordingState, 
     stopRecording, 
     recordingState.setLastAction
   ).handleDelete;
   
+  // Wrap the delete handler to prevent toasts on restricted routes
   const handleDelete = () => {
     // Execute the original handler
     originalHandleDelete();
@@ -280,6 +168,19 @@ export const useRecording = () => {
 
   // Track recording attempts
   useRecordingAttemptTracker(recordingState.isRecording, recordingState.setRecordingAttemptsCount);
+
+  // Log state changes
+  useRecordingLogger(
+    recordingState.isRecording, 
+    recordingState.isPaused, 
+    recordingState.audioUrl, 
+    recordingState.mediaStream, 
+    recordingState.selectedDeviceId, 
+    recordingState.deviceSelectionReady, 
+    recordingState.recordingAttemptsCount, 
+    recordingState.isSystemAudio, 
+    recordingState.lastAction
+  );
 
   // Add new state for processing progress
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -331,7 +232,6 @@ export const useRecording = () => {
     handleDelete,
     handleSaveRecording,
     setIsSystemAudio: handleSystemAudioChange,
-    toggleRecordingMode,
     audioDevices,
     deviceSelectionReady: recordingState.deviceSelectionReady,
     getCurrentDuration,

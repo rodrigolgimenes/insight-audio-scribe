@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,8 +12,7 @@ export const useFileUploadHandler = (
 
   const processFileUpload = async (
     file: File,
-    initiateTranscription = true,
-    skipDeviceCheck = true
+    initiateTranscription = true
   ): Promise<{ noteId: string; recordingId: string } | undefined> => {
     const { data: userData } = await supabase.auth.getUser();
     const user = userData?.user;
@@ -28,7 +28,7 @@ export const useFileUploadHandler = (
 
     try {
       setUploadProgress(10);
-      console.log('Starting file upload process...', { skipDeviceCheck });
+      console.log('Starting file upload process...');
 
       // For progress tracking
       let fetchController: AbortController | null = null;

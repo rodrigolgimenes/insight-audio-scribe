@@ -1,5 +1,7 @@
 
 import { useState, useCallback, useRef } from "react";
+import { toast } from "sonner";
+import { useBrowserCompatibilityCheck } from "./useBrowserCompatibilityCheck";
 
 export const usePermissionRequest = (
   checkPermissions: () => Promise<boolean>,
@@ -9,59 +11,86 @@ export const usePermissionRequest = (
   const [hasAttemptedPermission, setHasAttemptedPermission] = useState(false);
   const detectionInProgressRef = useRef(false);
   const mountedRef = useRef(true);
+  
+  const { checkBrowserCompatibility } = useBrowserCompatibilityCheck();
 
-  // Single, efficient permission request function
-  const requestPermission = useCallback(async (): Promise<boolean> => {
-    // Prevent concurrent permission requests
+  // Clean up on unmount
+  const cleanup = () => {
+    mountedRef.current = false;
+  };
+
+  // Improved check for restricted routes - includes app/ as a path segment
+  const isRestrictedRoute = (): boolean => {
+    const path = window.location.pathname.toLowerCase();
+    return path === '/' || 
+           path === '/index' || 
+           path === '/dashboard' || 
+           path === '/app' ||
+           path.startsWith('/app/');
+  };
+
+  // Enhanced permission check with multiple retry strategies
+  const requestPermission = useCallback(async (showToast = true): Promise<boolean> => {
     if (detectionInProgressRef.current) {
-      console.log('[usePermissionRequest] Permission check already in progress');
+      console.log('[usePermissionRequest] Permission check already in progress, skipping duplicate request');
       return permissionState === 'granted';
     }
 
-    // If permission is already granted, no need to request again
-    if (permissionState === 'granted') {
-      console.log('[usePermissionRequest] Permission already granted');
-      return true;
-    }
-
     detectionInProgressRef.current = true;
-    console.log('[usePermissionRequest] Requesting microphone permission');
+    console.log('[usePermissionRequest] Requesting microphone permission explicitly...');
     
     try {
-      // Mark that we've attempted to get permission
       setHasAttemptedPermission(true);
       
-      // Direct permission check
+      // Check if browser is fully compatible
+      checkBrowserCompatibility();
+      
+      // Use our improved checkPermissions method
       const hasPermission = await checkPermissions();
       
-      // Only update state if component is still mounted
-      if (!mountedRef.current) return false;
+      if (!mountedRef.current) {
+        detectionInProgressRef.current = false;
+        return false;
+      }
       
-      // Update permission state based on result
+      // Update our permission state based on the result
       setPermissionState(hasPermission ? 'granted' : 'denied');
+      detectionInProgressRef.current = false;
       
-      console.log(`[usePermissionRequest] Permission ${hasPermission ? 'granted' : 'denied'}`);
+      // Only show toast if on a non-restricted route
+      if (hasPermission && showToast && !isRestrictedRoute()) {
+        toast.success("Microphone access granted", {
+          id: "mic-permission-granted",
+          duration: 3000
+        });
+      }
+      
       return hasPermission;
     } catch (err) {
-      console.error('[usePermissionRequest] Error during permission request:', err);
+      console.error('[usePermissionRequest] Unexpected error during permission request:', err);
       
       if (mountedRef.current) {
         setPermissionState('unknown');
+        
+        // Only show toast if on a non-restricted route
+        if (showToast && !isRestrictedRoute()) {
+          toast.error("Failed to access microphone", {
+            description: err instanceof Error ? err.message : "Unknown error",
+            id: "mic-access-failed"
+          });
+        }
       }
       
-      return false;
-    } finally {
       detectionInProgressRef.current = false;
+      return false;
     }
-  }, [checkPermissions, permissionState]);
+  }, [checkPermissions, permissionState, checkBrowserCompatibility]);
 
   return {
     permissionState,
     setPermissionState,
     hasAttemptedPermission,
     requestPermission,
-    cleanup: () => {
-      mountedRef.current = false;
-    }
+    cleanup
   };
 };

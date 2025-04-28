@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,7 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthCallback } from "@/components/auth/AuthCallback";
-import { DeviceManagerProvider } from "@/providers/DeviceManagerProvider";
+import { AudioDeviceProvider } from "@/context/AudioDeviceContext";
+import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import TestRecordMeeting from "./pages/TestRecordMeeting";
@@ -107,96 +107,91 @@ const App = () => {
       <BrowserRouter>
         <AuthProvider>
           <TooltipProvider>
-            <RouteLogger />
-            <Toaster />
-            <Sonner />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/notes/:noteId"
-                element={
-                  <ProtectedRoute>
-                    <NotePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/folder/:folderId"
-                element={
-                  <ProtectedRoute>
-                    <FolderPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/uncategorized"
-                element={
-                  <ProtectedRoute>
-                    <UncategorizedFolder />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/app/tag/:tagId"
-                element={
-                  <ProtectedRoute>
-                    <TagPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/test"
-                element={
-                  <ProtectedRoute>
-                    <TestPage />
-                  </ProtectedRoute>
-                }
-              />
-              {/* IMPORTANT: Only wrap recording routes with DeviceManagerProvider */}
-              <Route
-                path="/simple-record"
-                element={
-                  <DeviceManagerProvider>
-                    <SimpleRecord />
-                  </DeviceManagerProvider>
-                }
-              />
-              <Route
-                path="/test-record-meeting"
-                element={
-                  <DeviceManagerProvider>
-                    <TestRecordMeeting />
-                  </DeviceManagerProvider>
-                }
-              />
-              <Route 
-                path="/SimpleRecord" 
-                element={<Navigate to="/simple-record" replace />} 
-              />
-              <Route 
-                path="/index" 
-                element={<Navigate to="/" replace />} 
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <DeviceManagerProvider>
+              <AudioDeviceProvider>
+                <RouteLogger />
+                <Toaster />
+                <Sonner />
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route
+                    path="/settings"
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/app"
+                    element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/app/notes/:noteId"
+                    element={
+                      <ProtectedRoute>
+                        <NotePage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/app/folder/:folderId"
+                    element={
+                      <ProtectedRoute>
+                        <FolderPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/app/uncategorized"
+                    element={
+                      <ProtectedRoute>
+                        <UncategorizedFolder />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/app/tag/:tagId"
+                    element={
+                      <ProtectedRoute>
+                        <TagPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/simple-record"
+                    element={<SimpleRecord />}
+                  />
+                  <Route
+                    path="/test-record-meeting"
+                    element={<TestRecordMeeting />}
+                  />
+                  <Route
+                    path="/test"
+                    element={
+                      <ProtectedRoute>
+                        <TestPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route 
+                    path="/SimpleRecord" 
+                    element={<Navigate to="/simple-record" replace />} 
+                  />
+                  <Route 
+                    path="/index" 
+                    element={<Navigate to="/" replace />} 
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AudioDeviceProvider>
+            </DeviceManagerProvider>
           </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>

@@ -15,8 +15,6 @@ export const useFileUpload = () => {
     providedFile?: File
   ): Promise<{ noteId: string, recordingId: string }> => {
     let file: File | null = null;
-    // Check if we're skipping device check
-    const skipDeviceCheck = e?.target?.getAttribute('data-skip-device-check') === 'true' || false;
 
     try {
       // Get file from input or provided file
@@ -40,8 +38,7 @@ export const useFileUpload = () => {
         });
       }
 
-      console.log(`[useFileUpload] Processing upload with skipDeviceCheck: ${skipDeviceCheck}`);
-      const result = await processFileUpload(file, initiateTranscription, skipDeviceCheck);
+      const result = await processFileUpload(file, initiateTranscription);
       
       if (!result) {
         throw new Error('File upload processed but no result returned');
