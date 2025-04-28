@@ -30,7 +30,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
   const [isBugReportDialogOpen, setIsBugReportDialogOpen] = useState(false);
   
   const menuItems = [
-    { icon: Mic, label: "Record", href: "/SimpleRecord", id: "recorder" },
+    { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
     { icon: FileText, label: "Notes", href: "/app", id: "notes" },
     { icon: Settings, label: "Settings", href: "/settings", id: "settings" },
   ];
@@ -55,8 +55,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
                 const isActive = 
                   (activePage === item.id) || 
                   (location.pathname === item.href) ||
-                  (item.href === '/SimpleRecord' && 
-                   (location.pathname === '/SimpleRecord' || location.pathname === '/simple-record'));
+                  (item.href === '/simple-record' && location.pathname === '/simple-record');
                 
                 return (
                   <SidebarMenuItem key={item.id}>
