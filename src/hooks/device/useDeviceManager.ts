@@ -56,7 +56,7 @@ export function useDeviceManager() {
     return false;
   }, []);
 
-  // Request microphone permission - centralized notifications
+  // Request microphone permission with improved notification handling
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (isLoading) return false;
     
@@ -65,22 +65,22 @@ export function useDeviceManager() {
       stream.getTracks().forEach(track => track.stop());
       
       setPermissionState('granted');
-      if (!notifiedEvents.has('permission_granted')) {
-        notifiedEvents.add('permission_granted');
-        toast.success("Microphone access granted");
-      }
+      toast.success("Microphone access granted", {
+        id: 'mic-permission-granted',
+        duration: 3000
+      });
       return true;
     } catch (error) {
       setPermissionState('denied');
-      if (!notifiedEvents.has('permission_denied')) {
-        notifiedEvents.add('permission_denied');
-        toast.error("Microphone access denied");
-      }
+      toast.error("Microphone access denied", {
+        id: 'mic-permission-denied',
+        duration: 5000
+      });
       return false;
     }
   }, [isLoading]);
 
-  // Refresh devices list - centralized notifications
+  // Refresh devices list with improved notification handling
   const refreshDevices = useCallback(async (force = false): Promise<boolean> => {
     if (isLoading && !force) return false;
     
@@ -105,10 +105,15 @@ export function useDeviceManager() {
       localStorage.setItem(STORAGE_KEYS.DEVICES_CACHE, JSON.stringify(audioDevices));
       localStorage.setItem(STORAGE_KEYS.LAST_DETECTION, Date.now().toString());
       
-      // Handle no devices found
-      if (audioDevices.length === 0 && !notifiedEvents.has('no_devices')) {
-        notifiedEvents.add('no_devices');
-        toast.warning("No microphones found");
+      // Clear "no devices" notification if we found devices
+      if (audioDevices.length > 0) {
+        toast.dismiss('no-devices');
+      } else {
+        // Only show no devices warning if we don't already have one showing
+        toast.warning("No microphones found", {
+          id: 'no-devices',
+          duration: 5000
+        });
       }
       
       // Auto-select first device if none selected
@@ -120,21 +125,27 @@ export function useDeviceManager() {
       return true;
     } catch (error) {
       console.error('[DeviceManager] Error refreshing devices:', error);
+      toast.error("Failed to refresh devices", {
+        id: 'refresh-error',
+        duration: 5000
+      });
       return false;
     } finally {
       setIsLoading(false);
     }
   }, [isLoading, permissionState, requestPermission, formatDevices, selectedDeviceId]);
 
-  // Handle device selection
+  // Handle device selection with improved notification
   const handleSelectDevice = useCallback((deviceId: string) => {
     setSelectedDeviceId(deviceId);
     localStorage.setItem(STORAGE_KEYS.SELECTED_DEVICE, deviceId);
-    if (!notifiedEvents.has('device_selected')) {
-      notifiedEvents.add('device_selected');
-      toast.success("Microphone selected");
-    }
-  }, []);
+    
+    const deviceLabel = devices.find(d => d.deviceId === deviceId)?.label || 'Microphone';
+    toast.success(`Selected ${deviceLabel}`, {
+      id: 'device-selected',
+      duration: 2000
+    });
+  }, [devices]);
 
   // Initialize on mount
   useEffect(() => {
