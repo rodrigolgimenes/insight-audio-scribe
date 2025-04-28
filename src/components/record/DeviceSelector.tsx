@@ -3,6 +3,7 @@ import React from "react";
 import { MicrophoneSelector } from "@/components/device/MicrophoneSelector";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 import { DevicePermissionError } from "./device/DevicePermissionError";
+import { useDeviceContext } from "@/providers/DeviceManagerProvider";
 
 interface DeviceSelectorProps {
   audioDevices: AudioDevice[];
@@ -19,8 +20,10 @@ export function DeviceSelector({
   disabled = false,
   permissionState = 'unknown'
 }: DeviceSelectorProps) {
+  const deviceContext = useDeviceContext();
+  
   // Check if permission is denied
-  if (permissionState === 'denied') {
+  if (permissionState === 'denied' || deviceContext?.permissionState === 'denied') {
     return <DevicePermissionError />;
   }
   

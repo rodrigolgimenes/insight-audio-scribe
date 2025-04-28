@@ -2,14 +2,14 @@
 import React from "react";
 import { Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useDeviceManager } from "@/context/DeviceManagerContext";
+import { useDeviceContext } from "@/providers/DeviceManagerProvider";
 
 interface NoDevicesMessageProps {
   className?: string;
 }
 
 export function NoDevicesMessage({ className = "" }: NoDevicesMessageProps) {
-  const { devices, isLoading, permissionState, refreshDevices } = useDeviceManager();
+  const { devices, isLoading, permissionState, refreshDevices } = useDeviceContext();
   
   // Only show the warning if permission is not granted, not loading, and no devices found
   if (permissionState === 'granted' || isLoading || devices.length > 0) {

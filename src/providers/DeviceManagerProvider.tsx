@@ -10,21 +10,13 @@ interface DeviceManagerProviderProps {
   children: ReactNode;
 }
 
-// Track displayed toast IDs to prevent duplicates
-const displayedToastIds = new Set<string>();
-
 export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) {
   // Initialize the device manager hook
   const deviceManager = useDeviceManager();
   
-  // Clear toast tracking on route change
+  // Check and refresh devices on mount
   useEffect(() => {
     const handleRouteChange = () => {
-      // Only clear toast tracking on navigation
-      if (window.location.pathname !== window.history.state?.prevPath) {
-        displayedToastIds.clear();
-      }
-      
       // Create a new history state object instead of modifying the existing one
       const newHistoryState = {
         ...window.history.state,
@@ -37,15 +29,16 @@ export function DeviceManagerProvider({ children }: DeviceManagerProviderProps) 
     
     window.addEventListener('popstate', handleRouteChange);
     
-    // Initial check on mount - removed toast.info call
+    // Initial check on mount
     if (deviceManager.devices.length === 0 && !deviceManager.isLoading && !isRestrictedRoute()) {
+      console.log('[DeviceManagerProvider] No devices detected, refreshing on mount');
       deviceManager.refreshDevices(false);
     }
     
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
     };
-  }, [deviceManager.devices.length, deviceManager.isLoading]);
+  }, [deviceManager.devices.length, deviceManager.isLoading, deviceManager.refreshDevices]);
   
   return (
     <DeviceContext.Provider value={deviceManager}>

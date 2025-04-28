@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -5,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
-import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthCallback } from "@/components/auth/AuthCallback";
 import Dashboard from "./pages/Dashboard";
@@ -129,22 +129,8 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/simple-record"
-                element={
-                  <DeviceManagerProvider>
-                    <SimpleRecord />
-                  </DeviceManagerProvider>
-                }
-              />
-              <Route
-                path="/test-record-meeting"
-                element={
-                  <DeviceManagerProvider>
-                    <TestRecordMeeting />
-                  </DeviceManagerProvider>
-                }
-              />
+              <Route path="/simple-record" element={<SimpleRecord />} />
+              <Route path="/test-record-meeting" element={<TestRecordMeeting />} />
               <Route
                 path="/app/notes/:noteId"
                 element={
