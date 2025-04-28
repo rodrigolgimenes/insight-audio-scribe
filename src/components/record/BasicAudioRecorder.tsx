@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, StopCircle, Loader2 } from "lucide-react";
@@ -8,6 +7,7 @@ import { useBasicRecording } from "@/hooks/useBasicRecording";
 import { useSaveRecording } from "@/hooks/useSaveRecording";
 import { RecordingTimer } from "./RecordingTimer";
 import { PermissionError } from "./PermissionError";
+import { toast } from "sonner";
 
 interface BasicAudioRecorderProps {
   onRecordingSaved: (noteId: string) => void;
@@ -34,13 +34,11 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
 
   const [status, setStatus] = useState<string>("");
 
-  // Safely handle the transcribe action with proper promise handling
   const handleTranscribe = async () => {
     try {
       console.log("Starting transcription process");
       setStatus("Preparing recording...");
       
-      // If we're currently recording, stop the recording first and get the blob
       let audioBlob: Blob | null = null;
       let audioDuration = recordingDuration;
       
@@ -49,7 +47,6 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
         console.log("Stopping active recording before transcription");
         
         try {
-          // Wait for the recording to stop and get the blob
           const result = await stopRecording();
           console.log("stopRecording completed with result:", result);
           
@@ -67,7 +64,6 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
           throw new Error("Failed to stop recording properly");
         }
       } else if (audioUrl) {
-        // If we have an audioUrl but we're not recording, fetch the blob from the URL
         setStatus("Preparing audio data...");
         console.log("Fetching audio data from URL");
         
@@ -85,20 +81,17 @@ export const BasicAudioRecorder = ({ onRecordingSaved, disabled = false }: Basic
         }
       }
       
-      // Validate we have a valid audio blob to process
       if (!audioBlob) {
         console.error("No audio data available for transcription");
         setStatus("No audio available");
         throw new Error("No audio data available for transcription");
       }
 
-      // Now we have a valid audio blob, proceed with saving and transcription
       setStatus("Processing audio...");
       console.log("Starting transcription with duration:", audioDuration);
       
-      // Pass audioBlob and audioDuration to handleSave
       await handleSave(audioBlob, audioDuration);
-      setStatus(""); // Clear status when done
+      setStatus("");
       console.log("Transcription process completed successfully");
       
     } catch (error) {
