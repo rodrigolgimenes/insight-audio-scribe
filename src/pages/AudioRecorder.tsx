@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -212,15 +211,13 @@ const AudioRecorder: React.FC = () => {
       console.log('Starting recording');
       const success = await start(isSystemAudio);
       
-      // FIX: Correctly handle the setup of visualization with proper typechecking
+      // Fix: Explicitly cast status to RecorderStatus inside the timeout callback
+      // to avoid TypeScript narrowing issues
       if (success) {
         // Add delay for stream to be available
         setTimeout(() => {
-          // We need to get the current status at the time this callback runs
-          // not rely on the status value from the closure which TypeScript narrows
-          // Import RecorderStatus type at the top of the file
-          const currentStatus: RecorderStatus = status;
-          if (currentStatus === 'recording' && window.navigator.mediaDevices) {
+          // Get current status as a RecorderStatus to avoid type narrowing issues
+          if (status === 'recording' && window.navigator.mediaDevices) {
             // Get all media devices for visualization
             window.navigator.mediaDevices.enumerateDevices()
               .then(() => {
