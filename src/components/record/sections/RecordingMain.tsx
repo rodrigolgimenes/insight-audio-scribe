@@ -131,13 +131,10 @@ export const RecordingMain = ({
       <RecordControls 
         isRecording={isRecording} 
         isPaused={isPaused} 
-        onStartRecording={handleStartRecording} 
-        onStopRecording={handleStopRecording} 
-        onPauseRecording={handlePauseRecording} 
-        onResumeRecording={handleResumeRecording} 
-        deviceSelectionReady={deviceSelectionReady}
-        selectedDeviceId={selectedDeviceId}
-        audioDevices={audioDevices}
+        handleStartRecording={handleStartRecording} 
+        handleTranscribe={handleStopRecording}
+        handlePauseRecording={handlePauseRecording} 
+        handleResumeRecording={handleResumeRecording} 
         permissionState={permissionState}
       />
       

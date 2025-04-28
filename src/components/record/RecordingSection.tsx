@@ -25,6 +25,7 @@ interface RecordingSectionProps {
   onDeviceSelect: (deviceId: string) => void;
   deviceSelectionReady?: boolean;
   showDeleteButton?: boolean;
+  showPlayButton?: boolean;
   isSaving?: boolean;
   isLoading?: boolean;
   onRefreshDevices?: () => Promise<void>;
@@ -34,6 +35,7 @@ interface RecordingSectionProps {
   lastAction?: any;
   processingProgress?: number;
   processingStage?: string;
+  isRestrictedRoute?: boolean;
 }
 
 export const RecordingSection = ({
@@ -54,6 +56,7 @@ export const RecordingSection = ({
   onDeviceSelect,
   deviceSelectionReady,
   showDeleteButton = true,
+  showPlayButton = true,
   isSaving = false,
   isLoading = false,
   onRefreshDevices,
@@ -62,7 +65,8 @@ export const RecordingSection = ({
   disabled = false,
   lastAction,
   processingProgress,
-  processingStage
+  processingStage,
+  isRestrictedRoute = false
 }: RecordingSectionProps) => {
   const { time, isRunning } = useTimer({
     isRecording,
