@@ -7,10 +7,8 @@
 export const isRestrictedRoute = (): boolean => {
   const path = window.location.pathname.toLowerCase();
   
-  // Only allow notifications on specific recording pages
-  // For all other pages (dashboard, home, etc), restrict notifications
+  // Only allow notifications on specific testing/debug pages
   const allowedNotificationRoutes = [
-    '/simple-record', 
     '/test-record-meeting'
   ];
   

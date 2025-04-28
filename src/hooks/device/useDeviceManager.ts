@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { AudioDevice } from "../recording/capture/types";
 import { toast } from "sonner";
@@ -116,21 +115,8 @@ export function useDeviceManager() {
       const audioInputs = formatDevices(raw);
       setDevices(audioInputs);
 
-      // Handle notifications for no devices found
-      if (showNotifications && !isRestrictedRoute()) {
-        if (audioInputs.length === 0) {
-          if (!notifiedEvents.has("no_devices")) {
-            notifiedEvents.add("no_devices");
-            toast.warning("No microphones found", {
-              id: "no_devices",
-              duration: 5000
-            });
-          }
-        } else {
-          toast.dismiss("no_devices");
-          notifiedEvents.delete("no_devices");
-        }
-      }
+      // Skip notifications always - we no longer show device-related notifications
+      // as they were causing UX issues
       
       // Auto-select first device if none selected
       if (!selectedDeviceId && audioInputs.length > 0) {
@@ -144,14 +130,6 @@ export function useDeviceManager() {
       return true;
     } catch (error) {
       console.error('[DeviceManager] Error refreshing devices:', error);
-      
-      if (showNotifications && !isRestrictedRoute()) {
-        toast.error("Failed to refresh devices", {
-          id: "refresh_error",
-          duration: 5000
-        });
-      }
-      
       return false;
     } finally {
       setIsLoading(false);
