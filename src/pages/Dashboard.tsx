@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useNoteManagement } from "@/hooks/useNoteManagement";
@@ -6,10 +6,15 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { BulkActions } from "@/components/dashboard/BulkActions";
 import { ProjectDialog } from "@/components/dashboard/ProjectDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRecordingSheetOpen, setIsRecordingSheetOpen] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const { toast } = useToast();
 
   const {
     notes,
@@ -28,6 +33,25 @@ const Dashboard = () => {
     handleDeleteNotes,
   } = useNoteManagement();
 
+  useEffect(() => {
+    // Check if user is authenticated
+    const checkAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        setIsAuthReady(true);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+        toast({
+          title: "Authentication Error",
+          description: "Please try logging in again",
+          variant: "destructive",
+        });
+      }
+    };
+
+    checkAuth();
+  }, [toast]);
+
   const handleSelectAll = () => {
     if (notes && selectedNotes.length === notes.length) {
       setIsSelectionMode(false);
@@ -36,20 +60,37 @@ const Dashboard = () => {
     }
   };
 
+  if (!isAuthReady) {
+    return (
+      <SidebarProvider>
+        <div className="flex h-screen w-full bg-ghost-white">
+          <AppSidebar activePage="notes" />
+          <main className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <Loader2 className="h-10 w-10 animate-spin mx-auto mb-4 text-palatinate-blue" />
+              <p className="text-lg">Checking authentication...</p>
+            </div>
+          </main>
+        </div>
+      </SidebarProvider>
+    );
+  }
+
   // Error handling component that keeps the SidebarProvider intact
   if (error) {
     return (
       <SidebarProvider>
-        <div className="flex h-screen w-full bg-gray-50">
+        <div className="flex h-screen w-full bg-ghost-white">
           <AppSidebar activePage="notes" />
-          <main className="flex-1">
-            <div className="w-full px-6 py-8">
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  Please try refreshing the page.
-                </p>
-              </div>
+          <main className="flex-1 p-6">
+            <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-red-100">
+              <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                Please try refreshing the page or check your network connection.
+              </p>
+              <pre className="mt-4 bg-gray-50 p-4 rounded text-xs text-left max-w-xl mx-auto overflow-auto">
+                {JSON.stringify(error, null, 2)}
+              </pre>
             </div>
           </main>
         </div>

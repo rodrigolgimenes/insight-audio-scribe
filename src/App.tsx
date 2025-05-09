@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -20,6 +21,7 @@ import Settings from './pages/Settings';
 import SimpleRecord from './pages/SimpleRecord';
 import TestPage from './pages/TestPage';
 import NotFound from './pages/NotFound';
+import Index from './pages/Index';
 
 interface ShellLayoutProps {
   children: React.ReactNode;
@@ -54,17 +56,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
   return <>{children}</>;
 };
-
-function Index() {
-  return (
-    <div className="grid h-screen place-items-center">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold mb-4">Welcome to InsightScribe</h1>
-        <p className="text-gray-600">Your AI-powered note-taking assistant.</p>
-      </div>
-    </div>
-  );
-}
 
 function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
