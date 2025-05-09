@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -83,7 +82,7 @@ function App() {
             <Dashboard />
           </ProtectedRoute>
         } />
-        <Route path="/app/note/:noteId" element={
+        <Route path="/app/notes/:noteId" element={
           <ProtectedRoute>
             <NotePage />
           </ProtectedRoute>
