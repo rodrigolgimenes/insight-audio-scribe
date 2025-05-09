@@ -1,9 +1,10 @@
+
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 import { LoginPage } from "@/components/auth/LoginPage";
 import { AuthCallback } from "@/components/auth/AuthCallback";
@@ -52,6 +53,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   return <>{children}</>;
+};
+
+// Create a wrapper component for folder to project redirect
+const FolderToProjectRedirect = () => {
+  const { folderId } = useParams<{ folderId: string }>();
+  return <Navigate to={`/app/project/${folderId}`} replace />;
 };
 
 const queryClient = new QueryClient({
@@ -185,7 +192,7 @@ const App = () => {
                   />
                   <Route 
                     path="/app/folder/:folderId" 
-                    element={<Navigate to={params => `/app/project/${params.folderId}`} replace />} 
+                    element={<FolderToProjectRedirect />} 
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
