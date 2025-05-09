@@ -41,13 +41,15 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
     formData.append('response_format', 'json');
     formData.append('temperature', '0');
     
-    console.log('[transcribe-audio] Sending request to OpenAI Whisper API...');
+    // Get the transcription service URL from environment variables
+    const transcriptionServiceUrl = Deno.env.get('TRANSCRIPTION_SERVICE_URL') || 'https://api.openai.com/v1/audio/transcriptions';
+    console.log('[transcribe-audio] Using transcription service URL:', transcriptionServiceUrl);
     
     // Send the request with a timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 minute timeout
     
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const response = await fetch(transcriptionServiceUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`
@@ -60,8 +62,8 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error(`[transcribe-audio] OpenAI API Error (${response.status}):`, errorData);
-      throw new Error(`OpenAI API Error (${response.status}): ${errorData}`);
+      console.error(`[transcribe-audio] API Error (${response.status}):`, errorData);
+      throw new Error(`API Error (${response.status}): ${errorData}`);
     }
 
     const result = await response.json();

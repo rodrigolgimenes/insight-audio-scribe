@@ -49,10 +49,12 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
   openAIFormData.append('model', 'whisper-1');
   openAIFormData.append('language', 'pt');
 
-  console.log('Sending request to OpenAI Whisper API with MP3 format...');
+  // Get transcription service URL from environment variables
+  const transcriptionServiceUrl = Deno.env.get('TRANSCRIPTION_SERVICE_URL') || 'https://api.openai.com/v1/audio/transcriptions';
+  console.log('Sending request to transcription service:', transcriptionServiceUrl);
   
   const makeRequest = async () => {
-    const openAIResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const openAIResponse = await fetch(transcriptionServiceUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
@@ -62,11 +64,11 @@ export async function transcribeAudio(audioBlob: Blob, openAIApiKey: string) {
 
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.json();
-      console.error('OpenAI API error response:', JSON.stringify(errorData, null, 2));
+      console.error('API error response:', JSON.stringify(errorData, null, 2));
       console.log('Response status:', openAIResponse.status);
       console.log('Response headers:', JSON.stringify(Object.fromEntries(openAIResponse.headers.entries()), null, 2));
       
-      const error = new Error(`OpenAI API error: ${errorData.error?.message || openAIResponse.statusText}`);
+      const error = new Error(`API error: ${errorData.error?.message || openAIResponse.statusText}`);
       if (errorData.error?.type === 'server_error') {
         error.message = 'server_error: ' + error.message;
       }
