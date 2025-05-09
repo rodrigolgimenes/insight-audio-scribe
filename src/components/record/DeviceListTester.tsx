@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { useRobustMicrophoneDetection } from "@/hooks/recording/device/useRobustMicrophoneDetection";
-import { TestDeviceSelector } from "@/components/meetings/TestDeviceSelector";
+import { TestDeviceSelector } from "@/components/record/TestDeviceSelector";
 import { Mic, RefreshCw } from "lucide-react";
 
 export function DeviceListTester() {
