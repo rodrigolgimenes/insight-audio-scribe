@@ -1,27 +1,29 @@
 
-import React from "react";
-import { AlertCircle, CheckCircle, Clock, FileText, File, Info, Loader } from "lucide-react";
+import { 
+  CheckCircle2, 
+  Loader2, 
+  AlertCircle, 
+  Clock
+} from "lucide-react";
 
 interface StatusIconProps {
   status: string;
-  className?: string;
 }
 
-export const StatusIcon: React.FC<StatusIconProps> = ({ status, className = "" }) => {
+export const StatusIcon = ({ status }: StatusIconProps) => {
   switch (status) {
-    case "pending":
-      return <Clock className={`h-5 w-5 text-amber-600 ${className}`} />;
-    case "processing":
-      return <Loader className={`h-5 w-5 text-palatinate-blue animate-spin ${className}`} />;
-    case "transcribing":
-      return <File className={`h-5 w-5 text-palatinate-blue ${className}`} />;
-    case "generating_minutes":
-      return <FileText className={`h-5 w-5 text-palatinate-blue ${className}`} />;
-    case "completed":
-      return <CheckCircle className={`h-5 w-5 text-green-600 ${className}`} />;
-    case "error":
-      return <AlertCircle className={`h-5 w-5 text-red-600 ${className}`} />;
+    case 'completed':
+      return <CheckCircle2 className="h-5 w-5 text-green-600" />;
+    case 'error':
+      return <AlertCircle className="h-5 w-5 text-red-600" />;
+    case 'pending':
+      return <Clock className="h-5 w-5 text-yellow-500" />;
+    case 'awaiting_transcription':
+      return <Loader2 className="h-5 w-5 animate-spin text-blue-600" />;
+    case 'processing':
+    case 'transcribing':
+    case 'generating_minutes':
     default:
-      return <Info className={`h-5 w-5 text-gray-600 ${className}`} />;
+      return <Loader2 className="h-5 w-5 animate-spin text-blue-600" />;
   }
 };

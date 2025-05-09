@@ -151,16 +151,54 @@ export async function handleTranscription(requestBody: {
     throw error;
   }
 
-  // Processar a transcrição
-  return await processTranscription(
-    supabase, 
-    note, 
-    recording, // Pode ser indefinido para transcrição direta de URL
-    audioData, 
-    progressTracker,
-    isExtremelyLargeFile,
-    isChunkedTranscription,
-    chunkIndex,
-    totalChunks
-  );
+  // Processar a transcrição assincronamente
+  try {
+    // Iniciar processamento assíncrono
+    const { text, task_id } = await processTranscription(
+      supabase, 
+      note, 
+      recording, 
+      audioData, 
+      progressTracker,
+      isExtremelyLargeFile,
+      isChunkedTranscription,
+      chunkIndex,
+      totalChunks
+    );
+    
+    if (task_id) {
+      // Criar uma entrada na tabela transcription_tasks
+      const { error: taskError } = await supabase
+        .from('transcription_tasks')
+        .insert({
+          note_id: note.id,
+          recording_id: recording?.id || note.recording_id,
+          task_id: task_id,
+          created_at: new Date().toISOString(),
+          status: 'pending'
+        });
+        
+      if (taskError) {
+        console.error('[transcribe-audio] Erro ao criar entrada de tarefa:', taskError);
+      } else {
+        console.log('[transcribe-audio] Tarefa de transcrição registrada com ID:', task_id);
+        
+        // Atualizar nota para status awaiting_transcription
+        await supabase
+          .from('notes')
+          .update({
+            status: 'awaiting_transcription',
+            processing_progress: 30
+          })
+          .eq('id', note.id);
+          
+        console.log('[transcribe-audio] Status da nota atualizado para awaiting_transcription');
+      }
+    }
+    
+    return task_id || text;
+  } catch (error) {
+    console.error('[transcribe-audio] Erro durante processamento:', error);
+    throw error;
+  }
 }

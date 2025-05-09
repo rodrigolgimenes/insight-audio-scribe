@@ -1,7 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { formatDistanceToNow } from "date-fns";
 
-interface UseTranscriptionStatusProps {
+interface TranscriptionStatusProps {
   status: string;
   progress: number;
   duration?: number;
@@ -13,30 +14,29 @@ export const useTranscriptionStatus = ({
   progress,
   duration,
   transcript
-}: UseTranscriptionStatusProps) => {
+}: TranscriptionStatusProps) => {
   const [transcriptionTimeout, setTranscriptionTimeout] = useState(false);
-  const [lastProgressUpdate, setLastProgressUpdate] = useState<Date | null>(null);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState<string | null>(null);
   
-  // Convert milliseconds to minutes
-  const durationInMinutes = duration && Math.round(duration / 1000 / 60);
+  // Calculate duration in minutes for display
+  const durationInMinutes = duration ? Math.round(duration / 1000 / 60) : 0;
   
-  // Audio length categories
-  const isLongAudio = Boolean(durationInMinutes && durationInMinutes > 30);
-  const isVeryLongAudio = Boolean(durationInMinutes && durationInMinutes > 60);
+  // Determine if it's a long recording (over 10 minutes)
+  const isLongAudio = durationInMinutes > 10;
   
-  // Detect inconsistent state - completed generating minutes but status still shows transcribing
-  const hasInconsistentState = Boolean(
-    (status === 'transcribing' || status === 'processing') && transcript
-  );
+  // Very long audio (over 30 minutes) might need special handling
+  const isVeryLongAudio = durationInMinutes > 30;
+  
+  // Check for inconsistent state - transcript exists but status is still processing
+  const hasInconsistentState = (transcript && transcript.trim() !== '' && 
+    (status === 'processing' || status === 'transcribing' || status === 'generating_minutes'));
+  
+  // Determine when to show retry button
+  const showRetryButton = status === 'error' || transcriptionTimeout || hasInconsistentState;
+  
+  // When to show progress indicators
+  const showProgress = ['pending', 'processing', 'transcribing', 'generating_minutes', 'awaiting_transcription'].includes(status);
 
-  // Show retry button for errors, pending status, or stalled transcriptions
-  const showRetryButton = Boolean(
-    status === 'error' || status === 'pending' || transcriptionTimeout
-  );
-  
-  // Show progress bar for in-progress statuses
-  const showProgress = status !== 'completed' && status !== 'error' && progress > 0;
-  
   return {
     transcriptionTimeout,
     setTranscriptionTimeout,

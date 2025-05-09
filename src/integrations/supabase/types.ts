@@ -785,6 +785,73 @@ export type Database = {
         }
         Relationships: []
       }
+      transcription_tasks: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          last_checked_at: string | null
+          note_id: string
+          processed_at: string | null
+          recording_id: string | null
+          retries: number | null
+          status: string
+          task_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          last_checked_at?: string | null
+          note_id: string
+          processed_at?: string | null
+          recording_id?: string | null
+          retries?: number | null
+          status?: string
+          task_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          last_checked_at?: string | null
+          note_id?: string
+          processed_at?: string | null
+          recording_id?: string | null
+          retries?: number | null
+          status?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcription_tasks_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transcription_tasks_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transcription_tasks_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transcriptions: {
         Row: {
           audio_url: string
