@@ -11,7 +11,6 @@ import { AudioDeviceProvider } from "@/context/AudioDeviceContext";
 import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
-import TestRecordMeeting from "./pages/TestRecordMeeting";
 import NotePage from "./pages/NotePage";
 import FolderPage from "./pages/FolderPage";
 import TagPage from "./pages/TagPage";
@@ -167,10 +166,6 @@ const App = () => {
                   <Route
                     path="/simple-record"
                     element={<SimpleRecord />}
-                  />
-                  <Route
-                    path="/test-record-meeting"
-                    element={<TestRecordMeeting />}
                   />
                   <Route
                     path="/test"
