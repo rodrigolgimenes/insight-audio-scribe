@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -9,8 +8,8 @@ import {
 } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth } from './components/auth/AuthProvider';
-import { LoginPage } from './components/auth/LoginPage';
-import { AuthCallback } from './components/auth/AuthCallback';
+import LoginPage from './pages/LoginPage';
+import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import NotePage from './pages/NotePage';
 import ProjectPage from './pages/ProjectPage';
@@ -18,7 +17,7 @@ import CreateProjectPage from './pages/CreateProjectPage';
 import TagPage from './pages/TagPage';
 import UncategorizedFolder from './pages/UncategorizedFolder';
 import Settings from './pages/Settings';
-import { SimpleRecord } from './pages/SimpleRecord';
+import SimpleRecord from './pages/SimpleRecord';
 import TestPage from './pages/TestPage';
 import NotFound from './pages/NotFound';
 
