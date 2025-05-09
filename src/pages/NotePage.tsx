@@ -31,7 +31,44 @@ const NotePage = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { note, isLoadingNote, folders, currentFolder, tags } = useNoteData();
-  const { moveNoteToFolder, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
+  const { moveNoteToProject, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
+  
+  // Fetch projects for the move dialog
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .order("name");
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+  
+  // Fetch current project for the note
+  const { data: currentProject } = useQuery({
+    queryKey: ["note-project", noteId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notes_projects")
+        .select(`
+          project:projects (
+            id,
+            name
+          )
+        `)
+        .eq("note_id", noteId)
+        .maybeSingle();
+      
+      return data?.project ? {
+        id: (data.project as any).id as string,
+        name: (data.project as any).name as string
+      } : null;
+    },
+    enabled: !!noteId,
+  });
 
   // Fetch audio URL with improved caching
   const { data: audioUrl } = useQuery({
@@ -106,7 +143,7 @@ const NotePage = () => {
                 title={note.title}
                 createdAt={note.created_at}
                 duration={note.duration}
-                folder={currentFolder}
+                folder={currentProject || currentFolder}
                 onRenameNote={renameNote}
                 onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
                 onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
@@ -131,9 +168,9 @@ const NotePage = () => {
           <MoveNoteDialog
             isOpen={isMoveDialogOpen}
             onOpenChange={setIsMoveDialogOpen}
-            folders={folders || []}
-            currentFolderId={currentFolder?.id || null}
-            onMoveToFolder={moveNoteToFolder}
+            projects={projects || []}
+            currentProjectId={currentProject?.id || null}
+            onMoveToProject={moveNoteToProject}
           />
 
           <TagsDialog

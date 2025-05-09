@@ -23,16 +23,16 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   const [isRenaming, setIsRenaming] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { deleteNote, renameNote, isRenaming: isRenamingNote, moveNoteToFolder } = useNoteOperations(note.id);
+  const { deleteNote, renameNote, isRenaming: isRenamingNote, moveNoteToProject } = useNoteOperations(note.id);
 
-  // Fetch current folder for the note
-  const { data: currentFolder } = useQuery({
-    queryKey: ["note-folder", note.id],
+  // Fetch current project for the note
+  const { data: currentProject } = useQuery({
+    queryKey: ["note-project", note.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from("notes_folders")
+        .from("notes_projects")
         .select(`
-          folder:folders (
+          project:projects (
             id,
             name
           )
@@ -41,19 +41,19 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         .maybeSingle();
       
       // Ensure we return an object with the correct shape, not an array
-      return data?.folder ? {
-        id: (data.folder as any).id as string,
-        name: (data.folder as any).name as string
+      return data?.project ? {
+        id: (data.project as any).id as string,
+        name: (data.project as any).name as string
       } : null;
     },
   });
 
-  // Fetch available folders
-  const { data: folders = [] } = useQuery({
-    queryKey: ["folders"],
+  // Fetch available projects
+  const { data: projects = [] } = useQuery({
+    queryKey: ["projects"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("folders")
+        .from("projects")
         .select("*")
         .order("created_at", { ascending: true });
 
@@ -129,9 +129,9 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
     }
   };
 
-  const handleMove = async (folderId: string) => {
+  const handleMove = async (projectId: string) => {
     try {
-      await moveNoteToFolder(folderId);
+      await moveNoteToProject(projectId);
       setIsMoveDialogOpen(false);
       setIsDropdownOpen(false);
     } catch (error) {
@@ -172,7 +172,7 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
         transcript={note.original_transcript}
         duration={note.duration}
         createdAt={note.created_at}
-        folder={currentFolder}
+        folder={currentProject}
         status={noteStatus?.status}
         progress={noteStatus?.processing_progress}
         noteId={note.id}
@@ -189,9 +189,9 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
       <MoveNoteDialog
         isOpen={isMoveDialogOpen}
         onOpenChange={setIsMoveDialogOpen}
-        folders={folders}
-        currentFolderId={currentFolder?.id || null}
-        onMoveToFolder={handleMove}
+        projects={projects}
+        currentProjectId={currentProject?.id || null}
+        onMoveToProject={handleMove}
       />
     </Card>
   );

@@ -184,10 +184,10 @@ const App = () => {
                     path="/index" 
                     element={<Navigate to="/" replace />} 
                   />
-                  {/* Redirect old folder URLs to new project URLs */}
+                  {/* Fix the redirect to use a string instead of a function */}
                   <Route 
                     path="/app/folder/:folderId" 
-                    element={<Navigate to={location => `/app/project/${location.pathname.split('/').pop()}`} replace />} 
+                    element={<Navigate to="/app/project/:folderId" replace />} 
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

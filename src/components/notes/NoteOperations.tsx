@@ -6,14 +6,14 @@ import { useDeleteNote } from "./operations/useDeleteNote";
 
 export const useNoteOperations = (noteId: string) => {
   const { renameNote, isRenaming } = useRenameNote(noteId);
-  const { moveNoteToFolder } = useMoveNote(noteId);
+  const { moveNoteToProject } = useMoveNote(noteId);
   const { addTagToNote } = useNoteTag(noteId);
   const { deleteNote } = useDeleteNote(noteId);
 
   return {
     renameNote,
     isRenaming,
-    moveNoteToFolder,
+    moveNoteToProject,
     addTagToNote,
     deleteNote,
   };
