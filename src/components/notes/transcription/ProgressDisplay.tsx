@@ -23,8 +23,7 @@ export const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   return (
     <div className="mt-2">
       {showProgress && (
-        <Progress value={progress} className="w-full mt-3 h-2 bg-blue-100" 
-                 indicatorClassName="bg-blue-500" />
+        <Progress value={progress} className="w-full mt-3 h-2 bg-blue-100" />
       )}
       
       {lastProgressUpdate && status !== 'completed' && status !== 'error' && (
