@@ -37,13 +37,16 @@ export const RequestLogger = ({ urlPattern, setMonitoring }: RequestLoggerProps)
     // Also intercept HEAD requests which might be harder to catch
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
+        // Cast to PerformanceResourceTiming which has initiatorType
+        const resourceEntry = entry as PerformanceResourceTiming;
+        
         if (
-          entry.initiatorType === 'fetch' || 
-          entry.initiatorType === 'xmlhttprequest' || 
-          entry.initiatorType === 'other'
+          resourceEntry.initiatorType === 'fetch' || 
+          resourceEntry.initiatorType === 'xmlhttprequest' || 
+          resourceEntry.initiatorType === 'other'
         ) {
-          // @ts-ignore - name property exists in performance entries
-          const url = entry.name;
+          // Use name property which exists on all performance entries
+          const url = resourceEntry.name;
           if (url.includes(urlPattern)) {
             console.error(`🔍 PerformanceObserver caught request to ${url}`);
           }
