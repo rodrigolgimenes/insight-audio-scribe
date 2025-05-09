@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 interface ProjectDialogProps {
   isOpen: boolean;
@@ -31,6 +32,13 @@ export const ProjectDialog = ({
   onCreateNewProject,
   onSelectProject,
 }: ProjectDialogProps) => {
+  const navigate = useNavigate();
+
+  const goToCreateProjectPage = () => {
+    onOpenChange(false);
+    navigate("/app/projects/create");
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -47,14 +55,23 @@ export const ProjectDialog = ({
               value={newProjectName}
               onChange={(e) => onNewProjectNameChange(e.target.value)}
             />
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={onCreateNewProject}
-            >
-              <FolderPlus className="w-4 h-4 mr-2" />
-              Create new project
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={onCreateNewProject}
+              >
+                <FolderPlus className="w-4 h-4 mr-2" />
+                Quick create
+              </Button>
+              <Button
+                className="w-full"
+                variant="default"
+                onClick={goToCreateProjectPage}
+              >
+                Advanced create
+              </Button>
+            </div>
           </div>
           {projects?.map((project) => (
             <div

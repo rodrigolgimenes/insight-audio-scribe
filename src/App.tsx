@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -14,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
 import ProjectPage from "./pages/ProjectPage";
+import CreateProjectPage from "./pages/CreateProjectPage";
 import TagPage from "./pages/TagPage";
 import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
@@ -151,6 +151,14 @@ const App = () => {
                     element={
                       <ProtectedRoute>
                         <ProjectPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/app/projects/create"
+                    element={
+                      <ProtectedRoute>
+                        <CreateProjectPage />
                       </ProtectedRoute>
                     }
                   />

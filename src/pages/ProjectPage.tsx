@@ -6,6 +6,7 @@ import { ProjectHeader } from "@/components/project/ProjectHeader";
 import { ProjectActions } from "@/components/project/ProjectActions";
 import { ProjectEmptyState } from "@/components/project/ProjectEmptyState";
 import { ProjectNotesGrid } from "@/components/project/ProjectNotesGrid";
+import { ProjectDetails } from "@/components/project/ProjectDetails";
 import { useProjectQuery } from "@/hooks/project/useProjectQuery";
 import { useProjectNotesQuery } from "@/hooks/project/useProjectNotesQuery";
 import { useProjectNoteSelection } from "@/hooks/project/useProjectNoteSelection";
@@ -78,7 +79,7 @@ const ProjectPage = () => {
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
         <AppSidebar activePage="notes" />
-        <main className="flex-1 p-8">
+        <main className="flex-1 p-8 overflow-auto">
           <ProjectHeader 
             projectName={project?.name || ""} 
             projectId={projectId || ''}
@@ -87,6 +88,8 @@ const ProjectPage = () => {
             isRenaming={isRenaming}
             isDeleting={isDeleting}
           />
+          
+          {project && <ProjectDetails project={project} />}
           
           <ProjectActions
             tags={projectTags}

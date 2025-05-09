@@ -8,7 +8,19 @@ export const useProjectQuery = (projectId: string | undefined) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
-        .select("*")
+        .select(`
+          id,
+          name,
+          description,
+          scope,
+          objective,
+          business_area,
+          key_terms,
+          user_role,
+          meeting_types,
+          created_at,
+          updated_at
+        `)
         .eq("id", projectId)
         .single();
 

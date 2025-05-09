@@ -500,28 +500,46 @@ export type Database = {
       }
       projects: {
         Row: {
+          business_area: string[] | null
           created_at: string
           description: string | null
           id: string
+          key_terms: string[] | null
+          meeting_types: string[] | null
           name: string
+          objective: string | null
+          scope: string | null
           updated_at: string
           user_id: string
+          user_role: string | null
         }
         Insert: {
+          business_area?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          key_terms?: string[] | null
+          meeting_types?: string[] | null
           name: string
+          objective?: string | null
+          scope?: string | null
           updated_at?: string
           user_id: string
+          user_role?: string | null
         }
         Update: {
+          business_area?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          key_terms?: string[] | null
+          meeting_types?: string[] | null
           name?: string
+          objective?: string | null
+          scope?: string | null
           updated_at?: string
           user_id?: string
+          user_role?: string | null
         }
         Relationships: []
       }
