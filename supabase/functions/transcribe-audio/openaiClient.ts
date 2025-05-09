@@ -14,8 +14,8 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
     const formData = new FormData();
     formData.append('file', audioData, 'audio.mp3');
     
-    // Start transcription and get task ID - Removed /transcribe since it's already in the URL
-    const response = await fetch(`${transcriptionServiceUrl}`, {
+    // Start transcription and get task ID - Adding /api/transcribe to the URL
+    const response = await fetch(`${transcriptionServiceUrl}/api/transcribe`, {
       method: 'POST',
       body: formData,
     });
