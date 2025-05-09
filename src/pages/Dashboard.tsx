@@ -6,6 +6,7 @@ import { useNoteManagement } from "@/hooks/useNoteManagement";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { BulkActions } from "@/components/dashboard/BulkActions";
+import { ProjectDialog } from "@/components/dashboard/ProjectDialog";
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,12 +20,12 @@ const Dashboard = () => {
     setIsSelectionMode,
     selectedNotes,
     toggleNoteSelection,
-    isFolderDialogOpen,
-    setIsFolderDialogOpen,
-    newFolderName,
-    setNewFolderName,
-    createNewFolder,
-    handleMoveToFolder,
+    isProjectDialogOpen,
+    setIsProjectDialogOpen,
+    newProjectName,
+    setNewProjectName,
+    createNewProject,
+    handleMoveToProject,
     handleDeleteNotes,
   } = useNoteManagement();
 
@@ -86,12 +87,23 @@ const Dashboard = () => {
             <div className="fixed bottom-0 left-[280px] right-0 bg-ghost-white">
               <BulkActions
                 selectedCount={selectedNotes.length}
-                onExport={() => setIsFolderDialogOpen(true)}
-                onMove={() => setIsFolderDialogOpen(true)}
+                onExport={() => setIsProjectDialogOpen(true)}
+                onMove={() => setIsProjectDialogOpen(true)}
                 onDelete={handleDeleteNotes}
               />
             </div>
           )}
+
+          <ProjectDialog
+            isOpen={isProjectDialogOpen}
+            onOpenChange={setIsProjectDialogOpen}
+            projects={[]} // We'll fetch projects in the component
+            currentProjectId={null}
+            newProjectName={newProjectName}
+            onNewProjectNameChange={setNewProjectName}
+            onCreateNewProject={createNewProject}
+            onSelectProject={handleMoveToProject}
+          />
         </main>
       </div>
     </SidebarProvider>

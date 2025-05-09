@@ -1,7 +1,7 @@
 
 import { useNotesQuery } from "./notes/useNotesQuery";
 import { useNoteSelection } from "./notes/useNoteSelection";
-import { useFolderActions } from "./notes/useFolderActions";
+import { useProjectActions } from "./notes/useProjectActions";
 import { useNoteActions } from "./notes/useNoteActions";
 
 export const useNoteManagement = () => {
@@ -14,13 +14,13 @@ export const useNoteManagement = () => {
     toggleNoteSelection,
   } = useNoteSelection();
   const {
-    isFolderDialogOpen,
-    setIsFolderDialogOpen,
-    newFolderName,
-    setNewFolderName,
-    createNewFolder,
-    handleMoveToFolder,
-  } = useFolderActions();
+    isProjectDialogOpen,
+    setIsProjectDialogOpen,
+    newProjectName,
+    setNewProjectName,
+    createNewProject,
+    handleMoveToProject,
+  } = useProjectActions();
   const { handleDeleteNotes } = useNoteActions();
 
   return {
@@ -31,12 +31,12 @@ export const useNoteManagement = () => {
     setIsSelectionMode,
     selectedNotes,
     toggleNoteSelection,
-    isFolderDialogOpen,
-    setIsFolderDialogOpen,
-    newFolderName,
-    setNewFolderName,
-    createNewFolder,
-    handleMoveToFolder: (folderId: string) => handleMoveToFolder(selectedNotes, folderId),
+    isProjectDialogOpen,
+    setIsProjectDialogOpen,
+    newProjectName,
+    setNewProjectName,
+    createNewProject,
+    handleMoveToProject: (projectId: string) => handleMoveToProject(selectedNotes, projectId),
     handleDeleteNotes: () => handleDeleteNotes(selectedNotes).then(() => {
       setIsSelectionMode(false);
       setSelectedNotes([]);

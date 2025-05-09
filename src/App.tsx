@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -184,10 +183,9 @@ const App = () => {
                     path="/index" 
                     element={<Navigate to="/" replace />} 
                   />
-                  {/* Fix the redirect to use a string instead of a function */}
                   <Route 
                     path="/app/folder/:folderId" 
-                    element={<Navigate to="/app/project/:folderId" replace />} 
+                    element={<Navigate to="/app/project/:projectId" replace />} 
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
