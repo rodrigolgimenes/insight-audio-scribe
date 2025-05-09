@@ -42,7 +42,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xl font-semibold text-palatinate-blue">InsightScribe</span>
           </div>
-          <Button className="w-full bg-palatinate-blue hover:bg-primary-dark text-white">
+          <Button className="w-full bg-palatinate-blue hover:bg-hover-blue text-white">
             Upgrade Now
           </Button>
         </div>

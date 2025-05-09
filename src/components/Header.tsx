@@ -38,31 +38,31 @@ export const Header = () => {
           <div className="hidden md:flex items-center gap-8">
             <button
               onClick={() => scrollToSection('features')}
-              className="text-gray-600 hover:text-primary transition-colors"
+              className="text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               Features
             </button>
             <button
               onClick={() => scrollToSection('use-cases')}
-              className="text-gray-600 hover:text-primary transition-colors"
+              className="text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               Use Cases
             </button>
             <button
               onClick={() => scrollToSection('pricing')}
-              className="text-gray-600 hover:text-primary transition-colors"
+              className="text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               Pricing
             </button>
             <button
               onClick={() => scrollToSection('faq')}
-              className="text-gray-600 hover:text-primary transition-colors"
+              className="text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               FAQ
             </button>
             <Button 
               variant="default" 
-              className="bg-primary hover:bg-primary-dark"
+              className="bg-palatinate-blue hover:bg-hover-blue"
               onClick={handleGetStarted}
             >
               Get Started
@@ -84,31 +84,31 @@ export const Header = () => {
           <div className="md:hidden py-4 space-y-4">
             <button
               onClick={() => scrollToSection('features')}
-              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               Features
             </button>
             <button
               onClick={() => scrollToSection('use-cases')}
-              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               Use Cases
             </button>
             <button
               onClick={() => scrollToSection('pricing')}
-              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               Pricing
             </button>
             <button
               onClick={() => scrollToSection('faq')}
-              className="block w-full text-left text-gray-600 hover:text-primary transition-colors"
+              className="block w-full text-left text-gray-600 hover:text-palatinate-blue transition-colors"
             >
               FAQ
             </button>
             <Button 
               variant="default" 
-              className="w-full bg-primary hover:bg-primary-dark"
+              className="w-full bg-palatinate-blue hover:bg-hover-blue"
               onClick={handleGetStarted}
             >
               Get Started

@@ -43,7 +43,7 @@
 
   /* Button styles */
   .btn-primary {
-    @apply bg-palatinate-blue hover:bg-primary-dark text-white transition-colors duration-200;
+    @apply bg-palatinate-blue hover:bg-hover-blue text-white transition-colors duration-200;
   }
 
   .btn-secondary {
