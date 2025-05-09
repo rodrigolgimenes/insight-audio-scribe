@@ -14,7 +14,9 @@ export const useNoteData = () => {
     isLoadingNote, 
     folders,
     currentFolder,
-    tags 
+    tags,
+    projects,    // Add projects
+    currentProject // Add currentProject
   } = useNoteFetching(noteId, isValidNoteId);
   
   const { retryTranscription } = useNoteTranscription();
@@ -25,6 +27,8 @@ export const useNoteData = () => {
     folders,
     currentFolder,
     tags,
-    retryTranscription
+    retryTranscription,
+    projects,    // Return projects
+    currentProject // Return currentProject
   };
 };
