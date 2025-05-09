@@ -1,6 +1,6 @@
 
-import { render, waitFor } from '@testing-library/react';
-import { screen, fireEvent } from '@testing-library/dom';
+import { render } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/dom';
 import userEvent from '@testing-library/user-event';
 import SimpleRecord from '@/pages/SimpleRecord';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
