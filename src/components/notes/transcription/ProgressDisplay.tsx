@@ -15,14 +15,16 @@ export const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   lastProgressUpdate,
   status
 }) => {
+  // Only render when there's something to show: either progress bar or last update time
   if (!showProgress && (!lastProgressUpdate || status === 'completed' || status === 'error')) {
     return null;
   }
   
   return (
-    <>
+    <div className="mt-2">
       {showProgress && (
-        <Progress value={progress} className="w-full mt-3" />
+        <Progress value={progress} className="w-full mt-3 h-2 bg-blue-100" 
+                 indicatorClassName="bg-blue-500" />
       )}
       
       {lastProgressUpdate && status !== 'completed' && status !== 'error' && (
@@ -30,6 +32,6 @@ export const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
           Last activity: {lastProgressUpdate.toLocaleTimeString()}
         </div>
       )}
-    </>
+    </div>
   );
 };

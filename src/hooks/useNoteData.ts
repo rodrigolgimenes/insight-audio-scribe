@@ -12,18 +12,22 @@ export const useNoteData = () => {
   const { 
     note, 
     isLoadingNote, 
-    folders, 
-    currentFolder, 
+    projects, 
+    currentProject, 
     tags 
   } = useNoteFetching(noteId, isValidNoteId);
   
   const { retryTranscription } = useNoteTranscription();
 
+  // Map projects to folders and currentProject to currentFolder for backward compatibility
+  const folders = projects;
+  const currentFolder = currentProject;
+
   return {
     note,
     isLoadingNote,
-    folders,
-    currentFolder,
+    folders, // Map projects to folders for backward compatibility
+    currentFolder, // Map currentProject to currentFolder for backward compatibility
     tags,
     retryTranscription
   };
