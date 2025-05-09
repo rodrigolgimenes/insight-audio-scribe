@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
@@ -6,20 +7,20 @@ import {
   useNavigate,
   useLocation,
 } from 'react-router-dom';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
 import { useAuth } from './components/auth/AuthProvider';
-import { LoginPage } from './pages/LoginPage';
-import { AuthCallback } from './pages/AuthCallback';
-import { Dashboard } from './pages/Dashboard';
-import { NotePage } from './pages/NotePage';
-import { ProjectPage } from './pages/ProjectPage';
-import { CreateProjectPage } from './pages/CreateProjectPage';
-import { TagPage } from './pages/TagPage';
-import { UncategorizedFolder } from './pages/UncategorizedFolder';
-import { Settings } from './pages/Settings';
+import { LoginPage } from './components/auth/LoginPage';
+import { AuthCallback } from './components/auth/AuthCallback';
+import Dashboard from './pages/Dashboard';
+import NotePage from './pages/NotePage';
+import ProjectPage from './pages/ProjectPage';
+import CreateProjectPage from './pages/CreateProjectPage';
+import TagPage from './pages/TagPage';
+import UncategorizedFolder from './pages/UncategorizedFolder';
+import Settings from './pages/Settings';
 import { SimpleRecord } from './pages/SimpleRecord';
-import { TestPage } from './pages/TestPage';
-import { NotFound } from './pages/NotFound';
+import TestPage from './pages/TestPage';
+import NotFound from './pages/NotFound';
 
 interface ShellLayoutProps {
   children: React.ReactNode;
@@ -34,17 +35,17 @@ const ShellLayout: React.FC<ShellLayoutProps> = ({ children }) => {
 };
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session, isLoading } = useAuth();
+  const { session, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !session) {
+    if (!loading && !session) {
       navigate('/login', { replace: true, state: { from: location } });
     }
-  }, [session, isLoading, navigate, location]);
+  }, [session, loading, navigate, location]);
 
-  if (isLoading) {
+  if (loading) {
     return <div>Loading...</div>;
   }
 

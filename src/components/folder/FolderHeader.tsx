@@ -1,10 +1,22 @@
-// This component is being updated to use projects instead of folders
-// This file is being kept as a placeholder until it's fully integrated or removed
-import { useState, useRef, useEffect } from "react";
-import { Edit2, Check, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  MoreHorizontal, 
+  PlusCircle, 
+  Trash2, 
+  Pencil,
+  CheckCircle, 
+  XCircle
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,141 +26,157 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 
 interface FolderHeaderProps {
   folderName: string;
   folderId: string;
-  onRename: (newName: string) => Promise<void>;
-  onDelete: (deleteNotes: boolean) => Promise<void>;
-  isRenaming?: boolean;
-  isDeleting?: boolean;
+  isSelectionMode: boolean;
+  setIsSelectionMode: (value: boolean) => void;
+  selectedNotes: any[];
+  onAddNote?: () => void;
+  onRenameFolder: (name: string) => void;
+  onDeleteFolder: () => void;
 }
 
-export const FolderHeader = ({ 
-  folderName, 
-  folderId, 
-  onRename, 
-  onDelete,
-  isRenaming = false,
-  isDeleting = false 
-}: FolderHeaderProps) => {
-  const [isEditing, setIsEditing] = useState(false);
+export const FolderHeader: React.FC<FolderHeaderProps> = ({
+  folderName,
+  folderId,
+  isSelectionMode,
+  setIsSelectionMode,
+  selectedNotes,
+  onAddNote,
+  onRenameFolder,
+  onDeleteFolder,
+}) => {
+  const navigate = useNavigate();
+  const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(folderName);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
+  const handleRenameStart = () => {
+    setEditedName(folderName);
+    setIsEditingName(true);
+  };
 
-  const handleSubmit = async () => {
-    if (editedName.trim() && editedName !== folderName) {
-      await onRename(editedName.trim());
+  const handleRenameSubmit = () => {
+    if (editedName.trim() !== '' && editedName !== folderName) {
+      onRenameFolder(editedName);
     }
-    setIsEditing(false);
+    setIsEditingName(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSubmit();
-    } else if (e.key === "Escape") {
+    if (e.key === 'Enter') {
+      handleRenameSubmit();
+    } else if (e.key === 'Escape') {
+      setIsEditingName(false);
       setEditedName(folderName);
-      setIsEditing(false);
     }
   };
 
+  const handleDeleteConfirm = () => {
+    onDeleteFolder();
+    setIsDeleteDialogOpen(false);
+  };
+
   return (
-    <>
-      <div className="flex items-center gap-2 mb-6">
-        {isEditing ? (
-          <div className="flex items-center gap-2">
-            <Input
-              ref={inputRef}
+    <div className="flex justify-between items-center mb-6">
+      <div className="flex items-center space-x-4">
+        {isEditingName ? (
+          <div className="flex items-center space-x-2">
+            <input
               type="text"
               value={editedName}
               onChange={(e) => setEditedName(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="text-2xl font-bold h-auto py-1 px-2"
-              disabled={isRenaming}
+              autoFocus
+              className="border border-gray-300 rounded px-2 py-1 text-xl font-semibold"
             />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={handleSubmit}
-              disabled={isRenaming}
-              className="h-9 w-9"
+            <button onClick={handleRenameSubmit} className="text-green-600 hover:text-green-800">
+              <CheckCircle className="h-5 w-5" />
+            </button>
+            <button 
+              onClick={() => {
+                setIsEditingName(false);
+                setEditedName(folderName);
+              }}
+              className="text-red-600 hover:text-red-800"
             >
-              {isRenaming ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-            </Button>
+              <XCircle className="h-5 w-5" />
+            </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">{folderName}</h1>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => {
-                setEditedName(folderName);
-                setIsEditing(true);
-              }}
-              className="h-9 w-9"
+          <h1 className="text-2xl font-semibold">{folderName}</h1>
+        )}
+      </div>
+
+      <div className="flex items-center space-x-2">
+        {!isSelectionMode ? (
+          <>
+            <Button 
+              onClick={() => setIsSelectionMode(true)}
+              variant="outline"
+              size="sm"
             >
-              <Edit2 className="h-4 w-4" />
+              Select
             </Button>
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9 text-red-500 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-5 w-5" />
                 </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6 pb-8">
-                <AlertDialogHeader className="space-y-3">
-                  <AlertDialogTitle className="text-xl font-semibold text-center">
-                    Delete Folder
-                  </AlertDialogTitle>
-                  <AlertDialogDescription className="text-center text-gray-600">
-                    What would you like to do with the notes in this folder?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex flex-col items-center gap-2 mt-4">
-                  <AlertDialogAction
-                    onClick={() => onDelete(false)}
-                    disabled={isDeleting}
-                    className="w-auto px-6 bg-[#9b87f5] hover:bg-[#7E69AB] text-white font-medium py-2.5 rounded-lg transition-colors"
-                  >
-                    Move notes to Uncategorized
-                  </AlertDialogAction>
-                  <AlertDialogAction
-                    onClick={() => onDelete(true)}
-                    disabled={isDeleting}
-                    className="w-auto px-6 bg-[#ea384c] hover:bg-red-600 text-white font-medium py-2.5 rounded-lg transition-colors"
-                  >
-                    Delete folder and all notes
-                  </AlertDialogAction>
-                  <AlertDialogCancel className="w-auto px-6 mt-0 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
-                    Cancel
-                  </AlertDialogCancel>
-                </div>
-              </AlertDialogContent>
-            </AlertDialog>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Folder Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleRenameStart}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Rename Folder
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  className="text-red-600"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              {selectedNotes.length} selected
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsSelectionMode(false)}
+            >
+              Cancel
+            </Button>
           </div>
         )}
       </div>
-    </>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Folder</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this folder? Notes inside this folder will be moved to Uncategorized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
-
-export { FolderHeader };
