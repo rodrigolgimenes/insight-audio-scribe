@@ -38,7 +38,7 @@
   }
 
   .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-palatinate-blue to-primary-dark;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-palatinate-blue to-[#3A26AD];
   }
 
   /* Button styles */

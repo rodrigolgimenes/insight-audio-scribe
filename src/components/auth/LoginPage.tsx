@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useEffect } from "react";
+import { Spinner } from "@/components/ui/spinner";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -23,24 +24,30 @@ export const LoginPage = () => {
       hasStoredSession
     });
 
-    // Redirect if we have a session from the context or localStorage
+    // Only redirect if we have a session and loading is finished
     if ((session || hasStoredSession) && !loading) {
       console.log("User already authenticated, redirecting to app");
       navigate(from);
     }
   }, [session, loading, navigate, from]);
 
-  // Don't render the auth UI if we're loading or already have a session
+  // Show a loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-ghost-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <Spinner size="lg" />
       </div>
     );
   }
 
+  // If we have a session, don't render the login form (will redirect in the useEffect)
   if (session) {
-    return null; // Will redirect in the useEffect
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-ghost-white">
+        <Spinner size="lg" />
+        <p className="ml-2 text-gray-600">Redirecting...</p>
+      </div>
+    );
   }
 
   return (

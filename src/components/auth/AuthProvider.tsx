@@ -53,22 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   React.useEffect(() => {
     console.log("AuthProvider: Initializing auth state");
     
-    // Restore session from localStorage if available (for page refreshes)
-    const storedSession = localStorage.getItem('supabase.auth.session');
-    if (storedSession) {
-      try {
-        const parsedSession = JSON.parse(storedSession);
-        if (parsedSession && !parsedSession.error) {
-          console.log("AuthProvider: Found stored session");
-          setSession(parsedSession);
-        }
-      } catch (err) {
-        console.error("Failed to parse stored session:", err);
-        localStorage.removeItem('supabase.auth.session');
-      }
-    }
-
-    // Set up the auth state listener FIRST
+    // Set up the auth state listener FIRST to avoid missing any auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         console.log("Auth state changed:", event, !!newSession);
@@ -94,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           wasHidden.current = false;
           
           setSession(newSession);
+          setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           // Clear localStorage on sign out
           localStorage.removeItem('supabase.auth.session');
@@ -104,14 +90,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           
           setSession(null);
+          setLoading(false);
         } else if (event === 'TOKEN_REFRESHED' && newSession) {
           // Update localStorage with refreshed token
           localStorage.setItem('supabase.auth.session', JSON.stringify(newSession));
           console.log("Auth token refreshed");
           setSession(newSession);
+          setLoading(false);
         }
-        
-        setLoading(false);
         
         // After first auth state change, no longer on initial mount
         if (isInitialMount.current) {
@@ -143,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Unexpected error checking session:", err);
         setError("Failed to check authentication");
       } finally {
+        // Always set loading to false after checking session, even if there's no session
         setLoading(false);
         // After initial session check, mark initial mount as complete
         isInitialMount.current = false;

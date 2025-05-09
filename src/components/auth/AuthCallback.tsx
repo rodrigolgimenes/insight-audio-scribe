@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 
 export const AuthCallback = () => {
   const navigate = useNavigate();
@@ -71,7 +72,7 @@ export const AuthCallback = () => {
           <p className="text-gray-700 mb-6">{error}</p>
           <button 
             onClick={() => navigate('/login')} 
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition-colors"
+            className="w-full bg-palatinate-blue text-white p-2 rounded hover:bg-hover-blue transition-colors"
           >
             Return to Login
           </button>
@@ -83,7 +84,7 @@ export const AuthCallback = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-ghost-white">
       <div className="bg-white p-8 rounded-lg shadow-md max-w-md w-full text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <Spinner size="lg" className="mx-auto mb-4" />
         <p className="text-gray-700">Completing your login...</p>
       </div>
     </div>
