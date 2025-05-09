@@ -7,19 +7,19 @@ export const useMoveNote = (noteId: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const moveNoteToFolder = async (folderId: string) => {
+  const moveNoteToProject = async (projectId: string) => {
     try {
-      console.log("Moving note", noteId, "to folder", folderId);
+      console.log("Moving note", noteId, "to project", projectId);
       
       // Use the database function to move the note
       const { error: moveError } = await supabase
-        .rpc('move_note_to_folder', {
+        .rpc('move_note_to_project', {
           p_note_id: noteId,
-          p_folder_id: folderId
+          p_project_id: projectId
         });
 
       if (moveError) {
-        console.error("Error from move_note_to_folder:", moveError);
+        console.error("Error from move_note_to_project:", moveError);
         throw moveError;
       }
 
@@ -27,19 +27,19 @@ export const useMoveNote = (noteId: string) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
         queryClient.invalidateQueries({ queryKey: ["note", noteId] }),
-        queryClient.invalidateQueries({ queryKey: ["note-folder", noteId] }),
-        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["folders"] })
+        queryClient.invalidateQueries({ queryKey: ["note-project", noteId] }),
+        queryClient.invalidateQueries({ queryKey: ["project-notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["projects"] })
       ]);
 
       toast({
-        title: "Nota movida",
-        description: "A nota foi movida para a pasta selecionada.",
+        title: "Note moved",
+        description: "The note has been moved to the selected project.",
       });
     } catch (error: any) {
       console.error("Error moving note:", error);
       toast({
-        title: "Erro ao mover nota",
+        title: "Error moving note",
         description: error.message,
         variant: "destructive",
       });
@@ -47,6 +47,5 @@ export const useMoveNote = (noteId: string) => {
     }
   };
 
-  return { moveNoteToFolder };
+  return { moveNoteToProject };
 };
-

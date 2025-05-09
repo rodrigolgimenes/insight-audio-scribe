@@ -12,20 +12,20 @@ import { Badge } from "@/components/ui/badge";
 interface MoveNoteDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  folders: any[];
-  currentFolderId: string | null;
-  onMoveToFolder: (folderId: string) => void;
+  projects: any[];
+  currentProjectId: string | null;
+  onMoveToProject: (projectId: string) => void;
 }
 
 export const MoveNoteDialog = ({
   isOpen,
   onOpenChange,
-  folders,
-  currentFolderId,
-  onMoveToFolder,
+  projects,
+  currentProjectId,
+  onMoveToProject,
 }: MoveNoteDialogProps) => {
-  const handleMoveToFolder = (folderId: string) => {
-    onMoveToFolder(folderId);
+  const handleMoveToProject = (projectId: string) => {
+    onMoveToProject(projectId);
     onOpenChange(false); // Close the dialog after moving
   };
 
@@ -33,36 +33,36 @@ export const MoveNoteDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Move note to folder:</DialogTitle>
+          <DialogTitle>Move note to project:</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-4">
-          {folders?.length === 0 && (
-            <p className="text-center text-gray-500">No folders found</p>
+          {projects?.length === 0 && (
+            <p className="text-center text-gray-500">No projects found</p>
           )}
           <div className="space-y-2">
-            {folders?.map((folder) => {
-              const isCurrentFolder = folder.id === currentFolderId;
+            {projects?.map((project) => {
+              const isCurrentProject = project.id === currentProjectId;
               return (
                 <div
-                  key={folder.id}
+                  key={project.id}
                   className={`flex items-center justify-between p-2 rounded-lg border ${
-                    isCurrentFolder ? "bg-gray-50" : ""
+                    isCurrentProject ? "bg-gray-50" : ""
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <Folder className="w-4 h-4" />
-                    <span>{folder.name}</span>
-                    {isCurrentFolder && (
-                      <Badge variant="secondary">Current folder</Badge>
+                    <span>{project.name}</span>
+                    {isCurrentProject && (
+                      <Badge variant="secondary">Current project</Badge>
                     )}
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={isCurrentFolder}
-                    onClick={() => handleMoveToFolder(folder.id)}
+                    disabled={isCurrentProject}
+                    onClick={() => handleMoveToProject(project.id)}
                   >
-                    {isCurrentFolder ? "Current" : "Move here"}
+                    {isCurrentProject ? "Current" : "Move here"}
                   </Button>
                 </div>
               );

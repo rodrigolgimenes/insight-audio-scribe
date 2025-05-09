@@ -5,15 +5,15 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader
+  SidebarMenuItem
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Mic, FileText, Settings } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FolderList } from "./folders/FolderList";
+import { ProjectList } from "./projects/ProjectList";
 import { TagList } from "./tags/TagList";
 import { useState } from "react";
 import { SuggestionDialog } from "./suggestions/SuggestionDialog";
@@ -78,7 +78,7 @@ export function AppSidebar({ activePage }: AppSidebarProps) {
 
         <SidebarGroup>
           <SidebarGroupContent>
-            <FolderList />
+            <ProjectList />
           </SidebarGroupContent>
         </SidebarGroup>
 

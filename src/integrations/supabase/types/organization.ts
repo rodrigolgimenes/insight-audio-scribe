@@ -1,5 +1,6 @@
+
 export interface OrganizationTables {
-  folders: {
+  projects: {
     Row: {
       id: string;
       user_id: string;
@@ -26,32 +27,32 @@ export interface OrganizationTables {
     };
     Relationships: [];
   };
-  notes_folders: {
+  notes_projects: {
     Row: {
       note_id: string;
-      folder_id: string;
+      project_id: string;
       created_at: string;
     };
     Insert: {
       note_id: string;
-      folder_id: string;
+      project_id: string;
       created_at?: string;
     };
     Update: {
       note_id?: string;
-      folder_id?: string;
+      project_id?: string;
       created_at?: string;
     };
     Relationships: [
       {
-        foreignKeyName: "notes_folders_folder_id_fkey";
-        columns: ["folder_id"];
+        foreignKeyName: "notes_projects_project_id_fkey";
+        columns: ["project_id"];
         isOneToOne: false;
-        referencedRelation: "folders";
+        referencedRelation: "projects";
         referencedColumns: ["id"];
       },
       {
-        foreignKeyName: "notes_folders_note_id_fkey";
+        foreignKeyName: "notes_projects_note_id_fkey";
         columns: ["note_id"];
         isOneToOne: false;
         referencedRelation: "notes";

@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -12,7 +13,7 @@ import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
 import Dashboard from "./pages/Dashboard";
 import SimpleRecord from "./pages/SimpleRecord";
 import NotePage from "./pages/NotePage";
-import FolderPage from "./pages/FolderPage";
+import ProjectPage from "./pages/ProjectPage";
 import TagPage from "./pages/TagPage";
 import TestPage from "./pages/TestPage";
 import Index from "./pages/Index";
@@ -140,10 +141,10 @@ const App = () => {
                     }
                   />
                   <Route
-                    path="/app/folder/:folderId"
+                    path="/app/project/:projectId"
                     element={
                       <ProtectedRoute>
-                        <FolderPage />
+                        <ProjectPage />
                       </ProtectedRoute>
                     }
                   />
@@ -182,6 +183,11 @@ const App = () => {
                   <Route 
                     path="/index" 
                     element={<Navigate to="/" replace />} 
+                  />
+                  {/* Redirect old folder URLs to new project URLs */}
+                  <Route 
+                    path="/app/folder/:folderId" 
+                    element={<Navigate to={location => `/app/project/${location.pathname.split('/').pop()}`} replace />} 
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>

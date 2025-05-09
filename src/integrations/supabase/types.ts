@@ -110,33 +110,6 @@ export type Database = {
         }
         Relationships: []
       }
-      folders: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          name: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       meeting_minutes: {
         Row: {
           content: string
@@ -168,13 +141,6 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: true
             referencedRelation: "notes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "meeting_minutes_note_id_fkey"
-            columns: ["note_id"]
-            isOneToOne: true
-            referencedRelation: "notes_without_folders"
             referencedColumns: ["id"]
           },
         ]
@@ -268,42 +234,35 @@ export type Database = {
           },
         ]
       }
-      notes_folders: {
+      notes_projects: {
         Row: {
           created_at: string
-          folder_id: string
           note_id: string
+          project_id: string
         }
         Insert: {
           created_at?: string
-          folder_id: string
           note_id: string
+          project_id: string
         }
         Update: {
           created_at?: string
-          folder_id?: string
           note_id?: string
+          project_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "notes_folders_folder_id_fkey"
-            columns: ["folder_id"]
-            isOneToOne: false
-            referencedRelation: "folders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notes_folders_note_id_fkey"
+            foreignKeyName: "notes_projects_note_id_fkey"
             columns: ["note_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "notes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notes_folders_note_id_fkey"
-            columns: ["note_id"]
-            isOneToOne: true
-            referencedRelation: "notes_without_folders"
+            foreignKeyName: "notes_projects_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -330,13 +289,6 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notes_tags_note_id_fkey"
-            columns: ["note_id"]
-            isOneToOne: false
-            referencedRelation: "notes_without_folders"
             referencedColumns: ["id"]
           },
           {
@@ -444,13 +396,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "processing_logs_note_id_fkey"
-            columns: ["note_id"]
-            isOneToOne: false
-            referencedRelation: "notes_without_folders"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "processing_logs_recording_id_fkey"
             columns: ["recording_id"]
             isOneToOne: false
@@ -522,6 +467,33 @@ export type Database = {
           last_name?: string | null
           payment_method?: Json | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -861,30 +833,6 @@ export type Database = {
       }
     }
     Views: {
-      notes_without_folders: {
-        Row: {
-          audio_url: string | null
-          created_at: string | null
-          duration: number | null
-          full_prompt: string | null
-          id: string | null
-          original_transcript: string | null
-          processed_content: string | null
-          recording_id: string | null
-          title: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notes_recording_id_fkey"
-            columns: ["recording_id"]
-            isOneToOne: true
-            referencedRelation: "recordings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pending_transcriptions: {
         Row: {
           audio_url: string | null
@@ -934,6 +882,10 @@ export type Database = {
       }
       move_note_to_folder: {
         Args: { p_note_id: string; p_folder_id: string }
+        Returns: undefined
+      }
+      move_note_to_project: {
+        Args: { p_note_id: string; p_project_id: string }
         Returns: undefined
       }
     }

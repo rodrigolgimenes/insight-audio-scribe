@@ -17,11 +17,11 @@ interface MoveDialogProps {
 }
 
 export function MoveDialog({ open, onOpenChange, selectedIds }: MoveDialogProps) {
-  const { data: folders = [] } = useQuery({
-    queryKey: ['folders'],
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('folders')
+        .from('projects')
         .select('*')
         .order('name');
       
@@ -30,13 +30,13 @@ export function MoveDialog({ open, onOpenChange, selectedIds }: MoveDialogProps)
     },
   });
 
-  const handleMove = async (folderId: string) => {
+  const handleMove = async (projectId: string) => {
     try {
-      // Move files to selected folder
+      // Move files to selected project
       for (const noteId of selectedIds) {
-        await supabase.rpc('move_note_to_folder', {
+        await supabase.rpc('move_note_to_project', {
           p_note_id: noteId,
-          p_folder_id: folderId
+          p_project_id: projectId
         });
       }
       onOpenChange(false);
@@ -49,22 +49,22 @@ export function MoveDialog({ open, onOpenChange, selectedIds }: MoveDialogProps)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Move {selectedIds.length} files to folder</DialogTitle>
+          <DialogTitle>Move {selectedIds.length} files to project</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          {folders.map((folder) => (
+          {projects.map((project) => (
             <div
-              key={folder.id}
+              key={project.id}
               className="flex items-center justify-between p-2 rounded-lg border hover:bg-gray-50"
             >
               <div className="flex items-center gap-2">
                 <Folder className="h-4 w-4 text-gray-500" />
-                <span>{folder.name}</span>
+                <span>{project.name}</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleMove(folder.id)}
+                onClick={() => handleMove(project.id)}
               >
                 Move here
               </Button>

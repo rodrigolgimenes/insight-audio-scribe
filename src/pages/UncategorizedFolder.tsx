@@ -2,14 +2,14 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { useFolderActions } from "@/hooks/notes/useFolderActions";
+import { useProjectActions } from "@/hooks/notes/useProjectActions";
 import { useNoteSelection } from "@/hooks/notes/useNoteSelection";
 import { useNoteActions } from "@/hooks/notes/useNoteActions";
 import { useNotesQuery } from "@/hooks/notes/useNotesQuery";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { UncategorizedHeader } from "@/components/folder/UncategorizedHeader";
-import { UncategorizedContent } from "@/components/folder/UncategorizedContent";
+import { UncategorizedHeader } from "@/components/project/UncategorizedHeader";
+import { UncategorizedContent } from "@/components/project/UncategorizedContent";
 
 const UncategorizedFolder = () => {
   const { toast } = useToast();
@@ -17,19 +17,19 @@ const UncategorizedFolder = () => {
   const { handleDeleteNotes } = useNoteActions();
   const { data: notes, isLoading } = useNotesQuery();
   const {
-    isFolderDialogOpen,
-    setIsFolderDialogOpen,
-    newFolderName,
-    setNewFolderName,
-    createNewFolder,
-    handleMoveToFolder,
-  } = useFolderActions();
+    isProjectDialogOpen,
+    setIsProjectDialogOpen,
+    newProjectName,
+    setNewProjectName,
+    createNewProject,
+    handleMoveToProject,
+  } = useProjectActions();
 
-  const { data: folders } = useQuery({
-    queryKey: ["folders"],
+  const { data: projects } = useQuery({
+    queryKey: ["projects"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("folders")
+        .from("projects")
         .select("*")
         .order("created_at", { ascending: true });
 
@@ -50,19 +50,19 @@ const UncategorizedFolder = () => {
   };
 
   const handleMoveNotes = () => {
-    setIsFolderDialogOpen(true);
+    setIsProjectDialogOpen(true);
   };
 
-  const handleSelectFolder = async (folderId: string) => {
+  const handleSelectProject = async (projectId: string) => {
     try {
-      await handleMoveToFolder(selectedNotes, folderId);
+      await handleMoveToProject(selectedNotes, projectId);
       setSelectedNotes([]);
       setIsSelectionMode(false);
-      setIsFolderDialogOpen(false);
+      setIsProjectDialogOpen(false);
       
       toast({
         title: "Success",
-        description: "Notes moved to folder successfully.",
+        description: "Notes moved to project successfully.",
       });
     } catch (error) {
       console.error("Error moving notes:", error);
@@ -90,13 +90,13 @@ const UncategorizedFolder = () => {
             isSelectionMode={isSelectionMode}
             selectedNotes={selectedNotes}
             toggleNoteSelection={toggleNoteSelection}
-            isFolderDialogOpen={isFolderDialogOpen}
-            setIsFolderDialogOpen={setIsFolderDialogOpen}
-            folders={folders || []}
-            newFolderName={newFolderName}
-            setNewFolderName={setNewFolderName}
-            createNewFolder={createNewFolder}
-            handleSelectFolder={handleSelectFolder}
+            isProjectDialogOpen={isProjectDialogOpen}
+            setIsProjectDialogOpen={setIsProjectDialogOpen}
+            projects={projects || []}
+            newProjectName={newProjectName}
+            setNewProjectName={setNewProjectName}
+            createNewProject={createNewProject}
+            handleSelectProject={handleSelectProject}
             handleMoveNotes={handleMoveNotes}
             handleDeleteNotes={handleDeleteNotes}
           />
