@@ -1,4 +1,5 @@
-
+// This component is being updated to use projects instead of folders
+// This file is being kept as a placeholder until it's fully integrated or removed
 import { useState, useRef, useEffect } from "react";
 import { Edit2, Check, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -149,3 +150,5 @@ export const FolderHeader = ({
     </>
   );
 };
+
+export { FolderHeader };

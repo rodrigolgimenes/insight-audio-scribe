@@ -1,4 +1,6 @@
 
+// This component is being updated to use projects instead of folders
+// This file is being kept as a placeholder until it's fully integrated or removed
 import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -85,4 +87,4 @@ export const FolderActions = ({
       )}
     </div>
   );
-};
+}

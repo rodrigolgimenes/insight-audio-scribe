@@ -1,4 +1,5 @@
 
+// This component can be reused for project notes with minor updates
 import { Clock, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/utils/formatDuration";

@@ -12,12 +12,12 @@ export const useDeleteNote = (noteId: string) => {
   const deleteNote = async () => {
     try {
       // Delete related records first
-      const { error: folderError } = await supabase
-        .from("notes_folders")
+      const { error: projectError } = await supabase
+        .from("notes_projects")
         .delete()
         .eq("note_id", noteId);
 
-      if (folderError) throw folderError;
+      if (projectError) throw projectError;
 
       const { error: tagError } = await supabase
         .from("notes_tags")
@@ -36,7 +36,7 @@ export const useDeleteNote = (noteId: string) => {
       // Immediately invalidate all relevant queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["notes"] }),
-        queryClient.invalidateQueries({ queryKey: ["folder-notes"] }),
+        queryClient.invalidateQueries({ queryKey: ["project-notes"] }),
       ]);
 
       toast({

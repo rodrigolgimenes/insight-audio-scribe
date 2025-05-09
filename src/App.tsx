@@ -1,216 +1,135 @@
-import * as React from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
-import { LoginPage } from "@/components/auth/LoginPage";
-import { AuthCallback } from "@/components/auth/AuthCallback";
-import { AudioDeviceProvider } from "@/context/AudioDeviceContext";
-import { DeviceManagerProvider } from "@/context/DeviceManagerContext";
-import Dashboard from "./pages/Dashboard";
-import SimpleRecord from "./pages/SimpleRecord";
-import NotePage from "./pages/NotePage";
-import ProjectPage from "./pages/ProjectPage";
-import CreateProjectPage from "./pages/CreateProjectPage";
-import TagPage from "./pages/TagPage";
-import TestPage from "./pages/TestPage";
-import Index from "./pages/Index";
-import Settings from "./pages/Settings";
-import UncategorizedFolder from "./pages/UncategorizedFolder";
-import NotFound from "./pages/NotFound";
+import React, { useState, useEffect } from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
+import { Toaster } from "@/components/ui/toaster"
+import { useAuth } from './components/auth/AuthProvider';
+import { LoginPage } from './pages/LoginPage';
+import { AuthCallback } from './pages/AuthCallback';
+import { Dashboard } from './pages/Dashboard';
+import { NotePage } from './pages/NotePage';
+import { ProjectPage } from './pages/ProjectPage';
+import { CreateProjectPage } from './pages/CreateProjectPage';
+import { TagPage } from './pages/TagPage';
+import { UncategorizedFolder } from './pages/UncategorizedFolder';
+import { Settings } from './pages/Settings';
+import { SimpleRecord } from './pages/SimpleRecord';
+import { TestPage } from './pages/TestPage';
+import { NotFound } from './pages/NotFound';
 
-const RouteLogger = () => {
-  const location = useLocation();
-  
-  React.useEffect(() => {
-    console.log('[App] Route changed:', {
-      pathname: location.pathname,
-      isRestricted: ["/", "/index", "/dashboard", "/app"].includes(location.pathname) || 
-                    location.pathname.startsWith("/app/")
-    });
-  }, [location]);
-  
-  return null;
+interface ShellLayoutProps {
+  children: React.ReactNode;
+}
+
+const ShellLayout: React.FC<ShellLayoutProps> = ({ children }) => {
+  return (
+    <div className="h-screen bg-gray-50">
+      {children}
+    </div>
+  );
 };
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth();
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { session, isLoading } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-ghost-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
+
+  useEffect(() => {
+    if (!isLoading && !session) {
+      navigate('/login', { replace: true, state: { from: location } });
+    }
+  }, [session, isLoading, navigate, location]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
-  
+
   if (!session) {
-    console.log("[ProtectedRoute] No session, redirecting to login");
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return null;
   }
 
   return <>{children}</>;
 };
 
-// Create a wrapper component for folder to project redirect
-const FolderToProjectRedirect = () => {
-  const { folderId } = useParams<{ folderId: string }>();
-  return <Navigate to={`/app/project/${folderId}`} replace />;
-};
+function Index() {
+  return (
+    <div className="grid h-screen place-items-center">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold mb-4">Welcome to InsightScribe</h1>
+        <p className="text-gray-600">Your AI-powered note-taking assistant.</p>
+      </div>
+    </div>
+  );
+}
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      retry: 1,
-      meta: {
-        onError: (error: Error) => {
-          console.error("Query error:", error);
-        }
-      }
-    },
-  },
-});
+function App() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-const App = () => {
-  const [hasError, setHasError] = React.useState(false);
-  const [errorMessage, setErrorMessage] = React.useState("");
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-  React.useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      console.error("Global error caught:", event.error);
-      setHasError(true);
-      setErrorMessage(event.error?.message || "Unknown error occurred");
-      event.preventDefault();
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
-
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
   }, []);
 
-  if (hasError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-ghost-white p-4">
-        <div className="bg-white p-6 rounded-lg shadow-md max-w-md w-full">
-          <h1 className="text-xl font-bold text-red-600 mb-4">Application Error</h1>
-          <p className="text-gray-700 mb-4">{errorMessage}</p>
-          <button 
-            onClick={() => window.location.href = '/'}
-            className="bg-palatinate-blue text-white px-4 py-2 rounded hover:bg-palatinate-blue/90"
-          >
-            Return to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <TooltipProvider>
-            <DeviceManagerProvider>
-              <AudioDeviceProvider>
-                <RouteLogger />
-                <Toaster />
-                <Sonner />
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/app"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/app/notes/:noteId"
-                    element={
-                      <ProtectedRoute>
-                        <NotePage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/app/project/:projectId"
-                    element={
-                      <ProtectedRoute>
-                        <ProjectPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/app/projects/create"
-                    element={
-                      <ProtectedRoute>
-                        <CreateProjectPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/app/uncategorized"
-                    element={
-                      <ProtectedRoute>
-                        <UncategorizedFolder />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/app/tag/:tagId"
-                    element={
-                      <ProtectedRoute>
-                        <TagPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/simple-record"
-                    element={<SimpleRecord />}
-                  />
-                  <Route
-                    path="/test"
-                    element={
-                      <ProtectedRoute>
-                        <TestPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route 
-                    path="/SimpleRecord" 
-                    element={<Navigate to="/simple-record" replace />} 
-                  />
-                  <Route 
-                    path="/index" 
-                    element={<Navigate to="/" replace />} 
-                  />
-                  <Route 
-                    path="/app/folder/:folderId" 
-                    element={<FolderToProjectRedirect />} 
-                  />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AudioDeviceProvider>
-            </DeviceManagerProvider>
-          </TooltipProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+    <Router>
+      <Routes>
+        <Route path="/" element={<ShellLayout><Index /></ShellLayout>} />
+        <Route path="/app" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/app/note/:noteId" element={
+          <ProtectedRoute>
+            <NotePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/app/project/:projectId" element={
+          <ProtectedRoute>
+            <ProjectPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/app/projects/create" element={
+          <ProtectedRoute>
+            <CreateProjectPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/app/tag/:tagId" element={
+          <ProtectedRoute>
+            <TagPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/app/uncategorized" element={
+          <ProtectedRoute>
+            <UncategorizedFolder />
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path="/simple-record" element={<ShellLayout><SimpleRecord /></ShellLayout>} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/test" element={<TestPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Toaster />
+    </Router>
   );
-};
+}
 
 export default App;
