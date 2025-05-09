@@ -7,8 +7,19 @@ export const useRecordingAuth = () => {
   const { session, loading: authLoading, error: authContextError } = useAuth();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  
+  // Only check authentication status if we're in an authenticated route
+  const isAuthenticatedRoute = window.location.pathname.startsWith('/app') || 
+                              window.location.pathname === '/settings';
 
   useEffect(() => {
+    // Skip the check if we're not in an authenticated route
+    if (!isAuthenticatedRoute) {
+      console.log('useRecordingAuth: Skipping auth check - not in authenticated route');
+      setIsCheckingAuth(false);
+      return;
+    }
+
     const checkAuth = async () => {
       setIsCheckingAuth(true);
       try {
@@ -45,7 +56,7 @@ export const useRecordingAuth = () => {
     };
 
     checkAuth();
-  }, [authLoading, authContextError, session]);
+  }, [authLoading, authContextError, session, isAuthenticatedRoute]);
 
   return {
     isAuthenticated: !!session,

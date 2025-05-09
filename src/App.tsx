@@ -10,6 +10,7 @@ import {
 import { Toaster } from "@/components/ui/toaster";
 import { useAuth } from './components/auth/AuthProvider';
 import LoginPage from './pages/LoginPage';
+import SimpleLoginPage from './pages/SimpleLoginPage';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import NotePage from './pages/NotePage';
@@ -114,6 +115,7 @@ function App() {
         } />
         <Route path="/simple-record" element={<ShellLayout><SimpleRecord /></ShellLayout>} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/simple-login" element={<SimpleLoginPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/test" element={<TestPage />} />
         <Route path="*" element={<NotFound />} />
