@@ -143,6 +143,13 @@ export type Database = {
             referencedRelation: "notes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "meeting_minutes_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: true
+            referencedRelation: "notes_without_projects"
+            referencedColumns: ["id"]
+          },
         ]
       }
       meeting_personas: {
@@ -259,6 +266,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "notes_projects_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_projects"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "notes_projects_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -289,6 +303,13 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_tags_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_projects"
             referencedColumns: ["id"]
           },
           {
@@ -393,6 +414,13 @@ export type Database = {
             columns: ["note_id"]
             isOneToOne: false
             referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processing_logs_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes_without_projects"
             referencedColumns: ["id"]
           },
           {
@@ -833,6 +861,33 @@ export type Database = {
       }
     }
     Views: {
+      notes_without_projects: {
+        Row: {
+          audio_url: string | null
+          created_at: string | null
+          duration: number | null
+          error_message: string | null
+          full_prompt: string | null
+          id: string | null
+          original_transcript: string | null
+          processed_content: string | null
+          processing_progress: number | null
+          recording_id: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: true
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_transcriptions: {
         Row: {
           audio_url: string | null

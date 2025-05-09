@@ -13,11 +13,11 @@ interface NoteWithTags extends Note {
 
 export const useNotesQuery = () => {
   return useQuery({
-    queryKey: ["uncategorized-notes"],
+    queryKey: ["uncategorized-notes-projects"],
     queryFn: async () => {
-      // First, get notes without folders from the view
+      // First, get notes without projects from the view
       const { data, error } = await supabase
-        .from("notes_without_folders")
+        .from("notes_without_projects")
         .select(`
           id,
           title,
@@ -91,7 +91,7 @@ export const useNotesQuery = () => {
         });
       }
       
-      // Merge the data from notes_without_folders with status information
+      // Merge the data from notes_without_projects with status information
       const notesWithTags = (data || []).map(note => {
         const statusInfo = statusMap.get(note.id) || { 
           status: 'processing', 
@@ -108,6 +108,6 @@ export const useNotesQuery = () => {
       
       return notesWithTags;
     },
-    refetchInterval: 4000, // Changed to 4 seconds as requested
+    refetchInterval: 4000, // Refetch every 4 seconds
   });
 };
