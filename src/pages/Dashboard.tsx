@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -37,21 +36,24 @@ const Dashboard = () => {
     }
   };
 
+  // Error handling component that keeps the SidebarProvider intact
   if (error) {
     return (
-      <div className="flex h-screen w-full bg-gray-50">
-        <AppSidebar activePage="notes" />
-        <main className="flex-1">
-          <div className="w-full px-6 py-8">
-            <div className="text-center py-12">
-              <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
-              <p className="mt-2 text-sm text-gray-500">
-                Please try refreshing the page.
-              </p>
+      <SidebarProvider>
+        <div className="flex h-screen w-full bg-gray-50">
+          <AppSidebar activePage="notes" />
+          <main className="flex-1">
+            <div className="w-full px-6 py-8">
+              <div className="text-center py-12">
+                <h3 className="text-lg font-medium text-red-600">Error loading notes</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Please try refreshing the page.
+                </p>
+              </div>
             </div>
-          </div>
-        </main>
-      </div>
+          </main>
+        </div>
+      </SidebarProvider>
     );
   }
 

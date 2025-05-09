@@ -185,7 +185,7 @@ const App = () => {
                   />
                   <Route 
                     path="/app/folder/:folderId" 
-                    element={<Navigate to="/app/project/:projectId" replace />} 
+                    element={<Navigate to={params => `/app/project/${params.folderId}`} replace />} 
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
