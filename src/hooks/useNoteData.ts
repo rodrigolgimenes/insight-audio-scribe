@@ -12,8 +12,8 @@ export const useNoteData = () => {
   const { 
     note, 
     isLoadingNote, 
-    projects, 
-    currentProject, 
+    projects, // This comes from useNoteFetching
+    currentProject, // This comes from useNoteFetching
     tags 
   } = useNoteFetching(noteId, isValidNoteId);
   
