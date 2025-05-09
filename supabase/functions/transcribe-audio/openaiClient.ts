@@ -14,7 +14,7 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string }
     const formData = new FormData();
     formData.append('file', audioData, 'audio.mp3');
     
-    // Start transcription and get task ID
+    // Start transcription and get task ID - FIX: Use the correct endpoint
     const response = await fetch(`${transcriptionServiceUrl}/api/transcribe`, {
       method: 'POST',
       body: formData,
