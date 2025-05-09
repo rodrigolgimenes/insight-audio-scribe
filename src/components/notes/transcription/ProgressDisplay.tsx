@@ -27,7 +27,7 @@ export const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
       
       {lastProgressUpdate && status !== 'completed' && status !== 'error' && (
         <div className="mt-2 text-xs text-gray-500">
-          Last activity: {new Date(lastProgressUpdate).toLocaleTimeString()}
+          Last activity: {lastProgressUpdate.toLocaleTimeString()}
         </div>
       )}
     </>

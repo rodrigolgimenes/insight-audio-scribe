@@ -16,7 +16,7 @@ export const useTranscriptionStatus = ({
   transcript
 }: TranscriptionStatusProps) => {
   const [transcriptionTimeout, setTranscriptionTimeout] = useState(false);
-  const [lastProgressUpdate, setLastProgressUpdate] = useState<string | null>(null);
+  const [lastProgressUpdate, setLastProgressUpdate] = useState<Date | null>(null);
   
   // Calculate duration in minutes for display
   const durationInMinutes = duration ? Math.round(duration / 1000 / 60) : 0;
