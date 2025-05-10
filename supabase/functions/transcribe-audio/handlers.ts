@@ -103,15 +103,19 @@ export async function handleTranscription(params: TranscriptionParams): Promise<
     // Create form data for the file
     const formData = new FormData();
     formData.append('file', audioBlob, 'audio.mp3');
-    if (callbackUrl) {
-      formData.append('callback_url', callbackUrl);
-    }
     
+    // MODIFICAÇÃO: Não anexar o callback_url ao FormData, mas à URL como parâmetro de query
     console.log('[transcribe-audio] Iniciando transcrição...');
     await updateTranscriptionStatus(noteId, 'processing', 30);
     
-    // Start transcription and get task ID
-    const response = await fetch(`${svcUrl}/api/transcribe`, {
+    // Start transcription and get task ID - com callbackUrl como parâmetro de query
+    const apiUrl = callbackUrl 
+      ? `${svcUrl}/api/transcribe?callback_url=${encodeURIComponent(callbackUrl)}`
+      : `${svcUrl}/api/transcribe`;
+      
+    console.log('[transcribe-audio] Calling API with URL:', apiUrl);
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       body: formData,
     });

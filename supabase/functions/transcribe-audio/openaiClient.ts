@@ -23,13 +23,19 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
       // Make sure we have the full URL with https://
       callbackUrl = `https://${projectRef}.functions.supabase.co/on-transcription-complete`;
       console.log('[transcribe-audio] Using callback URL:', callbackUrl);
-      formData.append('callback_url', callbackUrl);
     } else {
       console.warn('[transcribe-audio] Could not generate callback URL, webhooks will not work');
     }
     
+    // MODIFICAÇÃO: Passar callback_url como parâmetro de query em vez de FormData
+    const apiUrl = callbackUrl 
+      ? `${transcriptionServiceUrl}/api/transcribe?callback_url=${encodeURIComponent(callbackUrl)}`
+      : `${transcriptionServiceUrl}/api/transcribe`;
+    
+    console.log('[transcribe-audio] Calling API with URL:', apiUrl);
+    
     // Start transcription and get task ID - Using /api/transcribe endpoint
-    const response = await fetch(`${transcriptionServiceUrl}/api/transcribe`, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       body: formData,
     });
