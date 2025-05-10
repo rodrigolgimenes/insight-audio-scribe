@@ -36,7 +36,7 @@ export async function processTranscription(
       try {
         console.log('[transcribe-audio] Saving task_id to recording:', task_id);
         
-        // First try with the standard client
+        // Direct update approach - simpler and less error-prone
         const { error: updateError } = await supabase
           .from('recordings')
           .update({
@@ -47,24 +47,14 @@ export async function processTranscription(
           .eq('id', recordingId);
           
         if (updateError) {
-          console.error('[transcribe-audio] Error saving task_id with standard client:', updateError);
+          console.error('[transcribe-audio] Error saving task_id with direct update:', updateError);
           
-          // Try with direct RPC call as fallback (using service role privileges)
-          console.log('[transcribe-audio] Attempting to update with direct RPC call...');
-          const { error: rpcError } = await supabase.rpc('update_recording_task_id', {
-            p_recording_id: recordingId,
-            p_task_id: task_id,
-            p_status: 'transcribing'
-          });
-          
-          if (rpcError) {
-            console.error('[transcribe-audio] Error with RPC fallback:', rpcError);
-            throw rpcError;
-          } else {
-            console.log('[transcribe-audio] Successfully updated task_id with RPC fallback');
-          }
+          // As a last resort, log the values we're trying to save
+          console.log('[transcribe-audio] Recording ID:', recordingId);
+          console.log('[transcribe-audio] Task ID:', task_id);
+          console.log('[transcribe-audio] Status:', 'transcribing');
         } else {
-          console.log('[transcribe-audio] Successfully updated task_id with standard client');
+          console.log('[transcribe-audio] Successfully updated task_id with direct update');
         }
         
         // Update note status to transcribing and set initial progress

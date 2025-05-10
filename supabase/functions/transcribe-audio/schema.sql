@@ -21,29 +21,10 @@ CREATE POLICY "Service can manage all transcription chunks"
   USING (true)
   WITH CHECK (true);
 
--- Function to update task_id in recording table with service role privileges
-CREATE OR REPLACE FUNCTION public.update_recording_task_id(
-  p_recording_id UUID, 
-  p_task_id TEXT,
-  p_status TEXT DEFAULT 'transcribing'
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  UPDATE public.recordings
-  SET 
-    task_id = p_task_id,
-    status = p_status,
-    updated_at = NOW()
-  WHERE id = p_recording_id;
-  
-  RETURN FOUND;
-END;
-$$;
-
--- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION public.update_recording_task_id TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_recording_task_id TO service_role;
-
+-- RLS policy to allow service_role to update recordings
+CREATE POLICY IF NOT EXISTS "Service role can update recordings"
+  ON public.recordings
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
