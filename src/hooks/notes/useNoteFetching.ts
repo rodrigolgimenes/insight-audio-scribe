@@ -256,11 +256,56 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
     gcTime: 1000 * 60 * 30,
   });
 
+  // Add queries for projects and currentProject
+  const { data: currentProject } = useQuery({
+    queryKey: ["note-project", noteId],
+    queryFn: async () => {
+      if (!noteId || !isValidNoteId) return null;
+      
+      console.log("Fetching current project for note:", noteId);
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*, notes_projects!inner(*)")
+        .eq("notes_projects.note_id", noteId)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching project:", error);
+        throw error;
+      }
+      return data;
+    },
+    enabled: !!noteId && isValidNoteId,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+  });
+
+  const { data: projects } = useQuery({
+    queryKey: ["projects"],
+    queryFn: async () => {
+      if (!noteId || !isValidNoteId) return [];
+      
+      console.log("Fetching projects");
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!noteId && isValidNoteId,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+  });
+
   return {
     note,
     isLoadingNote,
     folders,
     currentFolder,
-    tags
+    tags,
+    projects,       // Add projects to the return object
+    currentProject  // Add currentProject to the return object
   };
 };
