@@ -1,9 +1,14 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { handleTranscription, corsHeaders } from './handlers.ts';
-import { createSupabaseClient } from './supabaseClient.ts';
-import { handleTranscriptionError } from './supabaseClient.ts';
+import { handleTranscription, TranscriptionParams } from './handlers.ts';
+import { createSupabaseClient } from './utils/clientUtils.ts';
+import { handleTranscriptionError } from './statusUpdater.ts';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -116,7 +121,7 @@ serve(async (req) => {
           
           // Only update the main note status if this is not a chunk in a chunked transcription
           if (!isChunkedTranscription) {
-            await handleTranscriptionError(supabase, note.id, errorMessage);
+            await handleTranscriptionError(note.id, error);
           }
         }
       }

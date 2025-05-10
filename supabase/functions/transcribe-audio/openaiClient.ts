@@ -1,4 +1,5 @@
 
+
 // This file contains the OpenAI API client for transcription
 
 // For simplicity, we're now redirecting to the Python service
@@ -48,3 +49,4 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
     throw error;
   }
 }
+

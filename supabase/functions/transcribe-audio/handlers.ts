@@ -1,5 +1,5 @@
 
-import { createSupabaseClient } from './supabaseClient';
+import { createSupabaseClient } from './utils/clientUtils.ts';
 import { processTranscription } from './transcriptionService';
 import { updateTranscriptionStatus, handleTranscriptionError } from './statusUpdater';
 
