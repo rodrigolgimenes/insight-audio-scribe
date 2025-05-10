@@ -1,6 +1,6 @@
 
 import { createSupabaseClient } from './utils/clientUtils.ts';
-import { processTranscription } from './transcriptionService.ts';
+// import { processTranscription } from './transcriptionService.ts';
 import { updateTranscriptionStatus, handleTranscriptionError } from './statusUpdater.ts';
 
 const corsHeaders = {
@@ -84,10 +84,87 @@ export async function handleTranscription(params: TranscriptionParams): Promise<
     await updateTranscriptionStatus(noteId, 'processing', 20);
     console.log('[transcribe-audio] Dados e áudio recuperados:', { noteId, audioSize: `${(audioBlob.size / (1024 * 1024)).toFixed(2)}MB` });
     
-    // Process transcription
-    await processTranscription(noteId, audioBlob, params.isRetry);
+    // --- 1) Chama o serviço Python para criar a task ---
+    const svcUrl = Deno.env.get('TRANSCRIPTION_SERVICE_URL') || 'http://167.88.42.2:8001';
     
-    return "Transcription process started successfully";
+    // Generate callback URL using Supabase URL
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+    let callbackUrl = '';
+    
+    if (projectRef) {
+      // Make sure we have the full URL with https://
+      callbackUrl = `https://${projectRef}.functions.supabase.co/on-transcription-complete`;
+      console.log('[transcribe-audio] Using callback URL:', callbackUrl);
+    } else {
+      console.warn('[transcribe-audio] Could not generate callback URL, webhooks will not work');
+    }
+    
+    // Create form data for the file
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio.mp3');
+    if (callbackUrl) {
+      formData.append('callback_url', callbackUrl);
+    }
+    
+    console.log('[transcribe-audio] Iniciando transcrição...');
+    await updateTranscriptionStatus(noteId, 'processing', 30);
+    
+    // Start transcription and get task ID
+    const response = await fetch(`${svcUrl}/api/transcribe`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      if (response.status === 422) {
+        throw new Error('Invalid audio format or missing file');
+      } else {
+        throw new Error(`Transcription service returned status ${response.status}`);
+      }
+    }
+    
+    const result = await response.json();
+    console.log('[transcribe-audio] Transcription service response:', result);
+    
+    if (result.error) {
+      throw new Error(`Transcription failed: ${result.error}`);
+    }
+    
+    // Use either task_id or id field from the response
+    const taskId = result.task_id || result.id;
+    
+    if (!taskId) {
+      throw new Error('Task ID is empty or invalid');
+    }
+    
+    console.log('[transcribe-audio] Transcription task created with ID:', taskId);
+    console.log('[transcribe-audio] Status:', result.status || 'unknown');
+    
+    // --- 2) Salva o task_id na tabela recordings ---
+    if (recordingId) {
+      console.log('[transcribe-audio] Saving task_id to recording:', recordingId);
+      
+      const { error: updateError } = await supabase
+        .from('recordings')
+        .update({ 
+          task_id: taskId,
+          status: 'processing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', recordingId);
+        
+      if (updateError) {
+        console.error('[transcribe-audio] Error updating task_id:', updateError);
+      } else {
+        console.log('[transcribe-audio] Successfully updated task_id with direct update');
+      }
+    }
+    
+    // Update note status to show it's now being transcribed by the service
+    await updateTranscriptionStatus(noteId, 'transcribing', 50);
+    
+    return taskId;
   } catch (error) {
     console.error('[transcribe-audio] Erro durante processamento:', error);
     
