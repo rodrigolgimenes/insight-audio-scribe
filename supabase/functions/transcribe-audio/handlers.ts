@@ -1,204 +1,91 @@
 
-import { 
-  createSupabaseClient, 
-  getRecordingData, 
-  getNoteData 
-} from './supabaseClient.ts';
-import { downloadAndValidateAudio, processTranscription, downloadAudioFromUrl } from './transcriptionService.ts';
-import { ProgressTracker } from './progressTracker.ts';
-import { MAX_AUDIO_DURATION_MS, corsHeaders } from './constants.ts';
+import { createSupabaseClient } from './supabaseClient';
+import { processTranscription } from './transcriptionService';
+import { updateTranscriptionStatus, handleTranscriptionError } from './statusUpdater';
 
-export { corsHeaders } from './constants.ts';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-export async function handleTranscription(requestBody: {
+export interface TranscriptionParams {
+  noteId: string;
   recordingId?: string;
-  noteId?: string;
   duration?: number;
   isLargeFile?: boolean;
   isRetry?: boolean;
-  isExtremelyLargeFile?: boolean;
   audioUrl?: string;
   isChunkedTranscription?: boolean;
   chunkIndex?: number;
   totalChunks?: number;
-}) {
-  const { 
-    recordingId, 
-    noteId, 
-    duration, 
-    isLargeFile, 
-    isRetry, 
-    isExtremelyLargeFile,
-    audioUrl,
-    isChunkedTranscription,
-    chunkIndex,
-    totalChunks
-  } = requestBody;
-  
-  console.log('[transcribe-audio] Iniciando processo de transcrição com parâmetros:', { 
-    recordingId, 
-    noteId, 
-    duration: duration ? `${Math.round(duration/1000/60)} minutos` : 'desconhecido',
-    isLargeFile, 
-    isExtremelyLargeFile,
-    isRetry,
-    audioUrl: audioUrl ? 'fornecido' : 'não fornecido',
-    isChunkedTranscription,
-    chunkIndex,
-    totalChunks
-  });
-  
-  if ((!recordingId && !noteId) && !audioUrl) {
-    throw new Error('ID da Gravação, ID da Nota ou URL do Áudio é obrigatório');
-  }
+}
 
-  // Verifica restrições de tamanho do arquivo - agora apenas registrando um aviso
-  if (duration && duration > MAX_AUDIO_DURATION_MS) {
-    console.warn('[transcribe-audio] Arquivo de áudio excede a duração máxima recomendada:', 
-      `${Math.round(duration/1000/60)} minutos. Máximo: ${MAX_AUDIO_DURATION_MS/1000/60} minutos`);
-  }
-
+export async function handleTranscription(params: TranscriptionParams): Promise<string> {
+  const { noteId, recordingId, audioUrl } = params;
   const supabase = createSupabaseClient();
 
-  // Obter dados da gravação e da nota
-  let recording;
-  let note;
-  let progressTracker;
-  let audioData;
-  
   try {
-    if (audioUrl && noteId && isChunkedTranscription) {
-      // Tratamento especial para transcrição em blocos - baixar áudio diretamente da URL
-      console.log(`[transcribe-audio] Processando bloco ${chunkIndex || 0} de ${totalChunks || 1}`);
-      
-      note = await getNoteData(supabase, noteId, true);
-      
-      // Para transcrições em blocos, não atualize o progresso da nota principal para evitar conflitos
-      progressTracker = new ProgressTracker(
-        supabase, 
-        noteId, 
-        isChunkedTranscription, 
-        chunkIndex, 
-        totalChunks
-      );
-      
-      // Baixar áudio diretamente da URL
-      console.log('[transcribe-audio] Baixando bloco de áudio da URL');
-      audioData = await downloadAudioFromUrl(audioUrl);
-      
-      console.log('[transcribe-audio] Bloco de áudio baixado com sucesso:', 
-        `Tamanho: ${Math.round(audioData.size/1024/1024*100)/100}MB`);
-    } else if (noteId && isRetry) {
-      // Para operações de repetição, obtenha primeiro a nota e depois a gravação
-      note = await getNoteData(supabase, noteId, true);
-      recording = await getRecordingData(supabase, note.recording_id);
-      
-      // Inicializar rastreador de progresso
-      progressTracker = new ProgressTracker(supabase, note.id);
-      
-      // Atualização inicial de progresso - iniciado
-      await progressTracker.markStarted();
-      
-      // Baixar e validar o arquivo de áudio
-      audioData = await downloadAndValidateAudio(
-        supabase, 
-        recording.file_path, 
-        progressTracker
-      );
-    } else if (recordingId) {
-      // Fluxo normal - obter gravação primeiro
-      recording = await getRecordingData(supabase, recordingId);
-      note = noteId ? 
-        await getNoteData(supabase, noteId, true) : 
-        await getNoteData(supabase, recordingId);
-      
-      // Inicializar rastreador de progresso
-      progressTracker = new ProgressTracker(supabase, note.id);
-      
-      // Atualização inicial de progresso - iniciado
-      await progressTracker.markStarted();
-      
-      // Baixar e validar o arquivo de áudio
-      audioData = await downloadAndValidateAudio(
-        supabase, 
-        recording.file_path, 
-        progressTracker
-      );
-    } else if (audioUrl && noteId) {
-      // Transcrição direta de URL (não dividida em blocos)
-      note = await getNoteData(supabase, noteId, true);
-      
-      // Inicializar rastreador de progresso
-      progressTracker = new ProgressTracker(supabase, note.id);
-      
-      // Atualização inicial de progresso - iniciado
-      await progressTracker.markStarted();
-      
-      // Baixar áudio diretamente da URL
-      console.log('[transcribe-audio] Baixando áudio da URL');
-      audioData = await downloadAudioFromUrl(audioUrl);
-      progressTracker.markDownloaded();
-    } else {
-      throw new Error('Parâmetros inválidos para transcrição');
+    // Set initial processing status if not a retry
+    if (!params.isRetry) {
+      await updateTranscriptionStatus(noteId, 'processing', 10);
     }
-    
-    console.log('[transcribe-audio] Dados e áudio recuperados:', {
-      noteId: note.id,
-      audioSize: audioData ? `${Math.round(audioData.size/1024/1024*100)/100}MB` : 'null'
-    });
-  } catch (error) {
-    console.error('[transcribe-audio] Erro ao recuperar dados ou áudio:', error);
-    throw error;
-  }
 
-  // Processar a transcrição assincronamente
-  try {
-    // Iniciar processamento assíncrono
-    const { text, task_id } = await processTranscription(
-      supabase, 
-      note, 
-      recording, 
-      audioData, 
-      progressTracker,
-      isExtremelyLargeFile,
-      isChunkedTranscription,
-      chunkIndex,
-      totalChunks
-    );
-    
-    if (task_id) {
-      // Criar uma entrada na tabela transcription_tasks
-      const { error: taskError } = await supabase
-        .from('transcription_tasks')
-        .insert({
-          note_id: note.id,
-          recording_id: recording?.id || note.recording_id,
-          task_id: task_id,
-          created_at: new Date().toISOString(),
-          status: 'pending'
-        });
-        
-      if (taskError) {
-        console.error('[transcribe-audio] Erro ao criar entrada de tarefa:', taskError);
-      } else {
-        console.log('[transcribe-audio] Tarefa de transcrição registrada com ID:', task_id);
-        
-        // Atualizar nota para status awaiting_transcription
-        await supabase
-          .from('notes')
-          .update({
-            status: 'awaiting_transcription',
-            processing_progress: 30
-          })
-          .eq('id', note.id);
-          
-        console.log('[transcribe-audio] Status da nota atualizado para awaiting_transcription');
+    // Load audio file
+    let audioBlob: Blob;
+    let filePath: string;
+
+    if (audioUrl) {
+      // If audio URL is provided directly
+      const response = await fetch(audioUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audio from ${audioUrl}`);
       }
+      audioBlob = await response.blob();
+      filePath = audioUrl;
+    } else {
+      // Get recording data to find the audio file path
+      const { data: recording, error: recordingError } = await supabase
+        .from('recordings')
+        .select('file_path')
+        .eq('id', recordingId)
+        .single();
+
+      if (recordingError) {
+        throw new Error(`Failed to find recording: ${recordingError.message}`);
+      }
+
+      filePath = recording.file_path;
+      
+      // Download file from storage
+      console.log('[transcribe-audio] Downloading file:', filePath);
+      const { data, error: downloadError } = await supabase
+        .storage
+        .from('audio_recordings')
+        .download(filePath);
+
+      if (downloadError) {
+        throw new Error(`Failed to download audio file: ${downloadError.message}`);
+      }
+
+      audioBlob = data;
     }
+
+    console.log('[transcribe-audio] File downloaded successfully, size:', `${(audioBlob.size / (1024 * 1024)).toFixed(2)} MB`);
+    console.log('[transcribe-audio] Arquivo baixado com sucesso: Tamanho:', `${(audioBlob.size / (1024 * 1024)).toFixed(2)}MB`);
+
+    // Process the transcription
+    await updateTranscriptionStatus(noteId, 'processing', 20);
+    console.log('[transcribe-audio] Dados e áudio recuperados:', { noteId, audioSize: `${(audioBlob.size / (1024 * 1024)).toFixed(2)}MB` });
     
-    return task_id || text;
+    // Process transcription
+    await processTranscription(noteId, audioBlob, params.isRetry);
+    
+    return "Transcription process started successfully";
   } catch (error) {
     console.error('[transcribe-audio] Erro durante processamento:', error);
+    
+    // Handle the error properly
+    await handleTranscriptionError(noteId, error);
     throw error;
   }
 }

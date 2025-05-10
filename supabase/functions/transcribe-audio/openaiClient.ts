@@ -29,6 +29,7 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
     }
     
     const result = await response.json();
+    console.log('[transcribe-audio] Transcription service response:', result);
     
     if (result.error) {
       throw new Error(`Transcription failed: ${result.error}`);
@@ -40,7 +41,6 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
     
     console.log('[transcribe-audio] Transcription task created with ID:', result.task_id);
     
-    // Return object with the task ID - we'll check it later
     return { text: '', task_id: result.task_id };
     
   } catch (error) {

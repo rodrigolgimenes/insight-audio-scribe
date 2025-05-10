@@ -57,9 +57,15 @@ async function processPendingTasks(supabase: any): Promise<{
       const taskStatusUrl = `${TRANSCRIPTION_SERVICE_URL}/api/tasks/${task.task_id}`;
       console.log(`Checking task status: ${taskStatusUrl}`);
       
-      const response = await fetch(taskStatusUrl);
+      const response = await fetch(taskStatusUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (!response.ok) {
+        console.error(`Failed to check task status: ${response.status} ${response.statusText}`);
         throw new Error(`Failed to check task status: ${response.status} ${response.statusText}`);
       }
       

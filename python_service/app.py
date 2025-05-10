@@ -4,9 +4,9 @@ import uvicorn
 import requests
 import tempfile
 import uuid
-from fastapi import FastAPI, BackgroundTasks, File, UploadFile, Form
+from fastapi import FastAPI, BackgroundTasks, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 import json
 import logging
@@ -22,12 +22,21 @@ app = FastAPI(title="Fast Whisper Transcription Service")
 # Supabase config
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-supabase: Client = create_client(supabase_url, supabase_key)
+supabase: Client = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
 
 class TranscriptionRequest(BaseModel):
     transcription_id: str
     audio_url: str
     language: Optional[str] = "pt"  # Default to Portuguese
+
+class TranscriptionTask(BaseModel):
+    task_id: str
+
+class TaskStatusResponse(BaseModel):
+    status: str
+    result: Optional[Dict[str, Any]] = None
+    duration_ms: Optional[int] = None
+    error: Optional[str] = None
 
 @app.get("/")
 async def root():
@@ -36,6 +45,50 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# Task status endpoint - THIS IS THE MISSING ENDPOINT
+@app.get("/api/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    try:
+        logger.info(f"Checking status for task: {task_id}")
+        
+        # Check if task exists in the database
+        if not supabase:
+            # If no Supabase connection, check local storage
+            # This is a simplified example - in production you'd have better storage
+            return TaskStatusResponse(status="processing")
+            
+        result = supabase.table("transcriptions").select("*").eq("id", task_id).execute()
+        
+        if not result.data:
+            logger.warning(f"Task {task_id} not found in database")
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+            
+        task = result.data[0]
+        logger.info(f"Found task: {task}")
+        
+        # Extract relevant data
+        status = task.get("status", "processing")
+        content = task.get("content")
+        duration_ms = task.get("duration_ms")
+        error_message = task.get("error_message")
+        
+        # Build response
+        response = TaskStatusResponse(
+            status=status,
+            duration_ms=duration_ms,
+            error=error_message
+        )
+        
+        # Add result if completed
+        if status == "completed" and content:
+            response.result = {"text": content}
+            
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error checking task status: {e}")
+        raise HTTPException(status_code=500, detail=f"Error checking task status: {str(e)}")
 
 # New endpoint: File upload API that Edge Function is calling
 @app.post("/api/transcribe")
@@ -67,8 +120,9 @@ async def transcribe_file(
         }
         
         try:
-            supabase.table("transcriptions").insert(transcription_data).execute()
-            logger.info(f"Created transcription entry with ID: {task_id}")
+            if supabase:
+                supabase.table("transcriptions").insert(transcription_data).execute()
+                logger.info(f"Created transcription entry with ID: {task_id}")
         except Exception as db_error:
             logger.error(f"Error creating transcription entry: {db_error}")
             # Continue even if database entry fails
@@ -95,7 +149,8 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
         logger.info(f"Processing transcription {transcription_id} for audio {audio_path}")
         
         # Update status to processing
-        supabase.table("transcriptions").update({"status": "processing"}).eq("id", transcription_id).execute()
+        if supabase:
+            supabase.table("transcriptions").update({"status": "processing"}).eq("id", transcription_id).execute()
         
         # Import and use fast-whisper here
         try:
@@ -131,11 +186,13 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
             logger.info(f"Transcription completed successfully, length: {len(transcription)}")
             
             # Update the transcription in the database
-            supabase.table("transcriptions").update({
-                "content": transcription,
-                "status": "completed",
-                "processed_at": datetime.now().isoformat()
-            }).eq("id", transcription_id).execute()
+            if supabase:
+                supabase.table("transcriptions").update({
+                    "content": transcription,
+                    "status": "completed",
+                    "processed_at": datetime.now().isoformat(),
+                    "duration_ms": int(info.duration * 1000) if hasattr(info, 'duration') else None
+                }).eq("id", transcription_id).execute()
             
         except ImportError as e:
             logger.warning(f"Fast-whisper not available, using simulated transcription: {e}")
@@ -148,21 +205,23 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
             transcription = "Esta é uma transcrição de teste do serviço fast-whisper. Em produção, este texto seria gerado pelo processamento real do áudio usando a biblioteca fast-whisper."
             
             # Update the transcription in the database
-            supabase.table("transcriptions").update({
-                "content": transcription,
-                "status": "completed",
-                "processed_at": datetime.now().isoformat()
-            }).eq("id", transcription_id).execute()
+            if supabase:
+                supabase.table("transcriptions").update({
+                    "content": transcription,
+                    "status": "completed",
+                    "processed_at": datetime.now().isoformat()
+                }).eq("id", transcription_id).execute()
             
         logger.info(f"Transcrição completa para task {transcription_id}")
         
     except Exception as e:
         logger.error(f"Error processing transcription: {str(e)}")
         # Update transcription status to error
-        supabase.table("transcriptions").update({
-            "status": "error",
-            "error_message": str(e)
-        }).eq("id", transcription_id).execute()
+        if supabase:
+            supabase.table("transcriptions").update({
+                "status": "error",
+                "error_message": str(e)
+            }).eq("id", transcription_id).execute()
     finally:
         # Clean up temporary file
         if os.path.exists(audio_path):
@@ -173,9 +232,10 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
 async def transcribe(request: TranscriptionRequest, background_tasks: BackgroundTasks):
     try:
         # Validate transcription ID exists
-        result = supabase.table("transcriptions").select("*").eq("id", request.transcription_id).execute()
-        if len(result.data) == 0:
-            return {"success": False, "error": f"Transcription ID {request.transcription_id} not found"}
+        if supabase:
+            result = supabase.table("transcriptions").select("*").eq("id", request.transcription_id).execute()
+            if len(result.data) == 0:
+                return {"success": False, "error": f"Transcription ID {request.transcription_id} not found"}
         
         # Process transcription in the background
         background_tasks.add_task(
@@ -197,9 +257,8 @@ async def transcribe(request: TranscriptionRequest, background_tasks: Background
 if __name__ == "__main__":
     # Check if required environment variables are set
     if not supabase_url or not supabase_key:
-        logger.error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        exit(1)
+        logger.warning("SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY not set. Some features will be limited.")
         
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 8001))  # Using 8001 as default port
     logger.info(f"Starting FastAPI server on port {port}")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
