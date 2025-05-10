@@ -12,11 +12,9 @@ export const useNoteData = () => {
   const { 
     note, 
     isLoadingNote, 
-    folders,
-    currentFolder,
     tags,
-    projects,    // Add projects
-    currentProject // Add currentProject
+    projects,
+    currentProject
   } = useNoteFetching(noteId, isValidNoteId);
   
   const { retryTranscription } = useNoteTranscription();
@@ -24,11 +22,9 @@ export const useNoteData = () => {
   return {
     note,
     isLoadingNote,
-    folders,
-    currentFolder,
     tags,
     retryTranscription,
-    projects,    // Return projects
-    currentProject // Return currentProject
+    projects,
+    currentProject
   };
 };

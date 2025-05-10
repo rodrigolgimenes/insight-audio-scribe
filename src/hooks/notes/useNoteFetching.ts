@@ -22,8 +22,8 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
           notes_tags!left(
             tags:tag_id(*)
           ),
-          notes_folders!left(
-            folders:folder_id(*)
+          notes_projects!left(
+            projects:project_id(*)
           ),
           recordings!inner (id, duration, status, transcription)
         `)
@@ -214,49 +214,9 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
     gcTime: 1000 * 60 * 30,
   });
 
-  const { data: currentFolder } = useQuery({
-    queryKey: ["note-folder", noteId],
-    queryFn: async () => {
-      if (!noteId || !isValidNoteId) return null;
-      
-      console.log("Fetching current folder for note:", noteId);
-      const { data, error } = await supabase
-        .from("folders")
-        .select("*, notes_folders!inner(*)")
-        .eq("notes_folders.note_id", noteId)
-        .maybeSingle();
+  // Remove folders & notes_folders queries
+  // Only use projects & notes_projects
 
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching folder:", error);
-        throw error;
-      }
-      return data;
-    },
-    enabled: !!noteId && isValidNoteId,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 30,
-  });
-
-  const { data: folders } = useQuery({
-    queryKey: ["folders"],
-    queryFn: async () => {
-      if (!noteId || !isValidNoteId) return [];
-      
-      console.log("Fetching folders");
-      const { data, error } = await supabase
-        .from("folders")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!noteId && isValidNoteId,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 30,
-  });
-
-  // Add queries for projects and currentProject
   const { data: currentProject } = useQuery({
     queryKey: ["note-project", noteId],
     queryFn: async () => {
@@ -302,10 +262,8 @@ export const useNoteFetching = (noteId: string | undefined, isValidNoteId: boole
   return {
     note,
     isLoadingNote,
-    folders,
-    currentFolder,
     tags,
-    projects,       // Add projects to the return object
-    currentProject  // Add currentProject to the return object
+    projects,
+    currentProject
   };
 };
