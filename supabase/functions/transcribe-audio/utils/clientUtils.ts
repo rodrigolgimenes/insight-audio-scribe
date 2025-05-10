@@ -13,7 +13,17 @@ export function createSupabaseClient() {
     throw new Error('Missing Supabase environment variables');
   }
 
-  return createClient(supabaseUrl, supabaseKey);
+  console.log('[supabase-client] Creating client with service role');
+  
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    },
+    db: {
+      schema: 'public'
+    }
+  });
 }
 
 // CORS headers for cross-origin requests

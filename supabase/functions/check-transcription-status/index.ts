@@ -36,6 +36,16 @@ async function processPendingTasks(supabase: any): Promise<{
   
   console.log(`Found ${recordings?.length || 0} recordings with pending transcription tasks`);
   
+  if (!recordings || recordings.length === 0) {
+    console.log('No pending transcription tasks found');
+    return { success: 0, failed: 0, pending: 0 };
+  }
+  
+  // Log details of tasks found
+  recordings.forEach(rec => {
+    console.log(`Processing task for recording: ${rec.id}, Task ID: ${rec.task_id}, Title: ${rec.title}`);
+  });
+  
   // Stats counters
   const results = {
     success: 0,
@@ -47,13 +57,20 @@ async function processPendingTasks(supabase: any): Promise<{
   for (const recording of recordings || []) {
     try {
       // Get the associated note
-      const { data: notes } = await supabase
+      const { data: notes, error: notesError } = await supabase
         .from('notes')
         .select('id')
         .eq('recording_id', recording.id);
         
+      if (notesError) {
+        console.error(`Error fetching note for recording ${recording.id}:`, notesError);
+        results.failed++;
+        continue;
+      }
+        
       if (!notes || notes.length === 0) {
         console.error(`No note found for recording ${recording.id}`);
+        results.failed++;
         continue;
       }
       
@@ -61,7 +78,8 @@ async function processPendingTasks(supabase: any): Promise<{
       const taskId = recording.task_id;
       
       if (!taskId) {
-        console.error(`No task_id for recording ${recording.id}`);
+        console.error(`No task_id for recording ${recording.id} despite query filter`);
+        results.failed++;
         continue;
       }
       
@@ -78,44 +96,70 @@ async function processPendingTasks(supabase: any): Promise<{
       
       if (!response.ok) {
         console.error(`Failed to check task status: ${response.status} ${response.statusText}`);
-        throw new Error(`Failed to check task status: ${response.status} ${response.statusText}`);
+        
+        // Log the error response body for debugging
+        try {
+          const errorText = await response.text();
+          console.error(`Error response body: ${errorText}`);
+        } catch (e) {
+          console.error(`Could not read error response body: ${e}`);
+        }
+        
+        results.failed++;
+        continue;
       }
       
       const taskStatus = await response.json();
-      console.log(`Task ${taskId} status:`, taskStatus);
+      console.log(`Task ${taskId} status:`, JSON.stringify(taskStatus, null, 2));
       
       // Handle completed task
       if (taskStatus.status === 'completed') {
         // Update the recording with the transcription result
-        await supabase
+        const transcriptionText = taskStatus.result?.text || '';
+        console.log(`Task completed with text of length: ${transcriptionText.length}`);
+        
+        const { error: recordingUpdateError } = await supabase
           .from('recordings')
           .update({
-            transcription: taskStatus.result?.text || '',
+            transcription: transcriptionText,
             status: 'completed',
             processed_at: new Date().toISOString()
           })
           .eq('id', recording.id);
+          
+        if (recordingUpdateError) {
+          console.error(`Failed to update recording ${recording.id}:`, recordingUpdateError);
+          results.failed++;
+          continue;
+        }
         
         // Update the note with the transcription
-        await supabase
+        const { error: noteUpdateError } = await supabase
           .from('notes')
           .update({
             status: 'generating_minutes',
             processing_progress: 80,
-            original_transcript: taskStatus.result?.text || ''
+            original_transcript: transcriptionText
           })
           .eq('id', noteId);
+          
+        if (noteUpdateError) {
+          console.error(`Failed to update note ${noteId}:`, noteUpdateError);
+          results.failed++;
+          continue;
+        }
         
         // Start meeting minutes generation
         try {
           await supabase.functions.invoke('generate-meeting-minutes', {
             body: {
               noteId: noteId,
-              transcript: taskStatus.result?.text || ''
+              transcript: transcriptionText
             }
           });
           
           console.log(`Started meeting minutes generation for note ${noteId}`);
+          results.success++;
         } catch (minutesError) {
           console.error('Error starting meeting minutes generation:', minutesError);
           
@@ -127,12 +171,14 @@ async function processPendingTasks(supabase: any): Promise<{
               processing_progress: 100
             })
             .eq('id', noteId);
+            
+          results.success++; // Still count as success since transcription was completed
         }
-        
-        results.success++;
       } 
       // Handle failed task
       else if (taskStatus.status === 'failed') {
+        console.log(`Task ${taskId} failed with error: ${taskStatus.error || 'Unknown error'}`);
+        
         await supabase
           .from('recordings')
           .update({
@@ -152,15 +198,27 @@ async function processPendingTasks(supabase: any): Promise<{
         results.failed++;
       } 
       // Handle in-progress tasks
-      else if (taskStatus.status === 'processing') {
-        // Update note progress to show activity
+      else if (taskStatus.status === 'processing' || taskStatus.status === 'queued') {
+        console.log(`Task ${taskId} is still ${taskStatus.status}`);
+        
+        // Update note progress to show activity - use more granular progress for better UX
+        const progressValue = taskStatus.status === 'processing' ? 
+          Math.min(40 + Math.floor(Math.random() * 30), 70) : // Between 40-70% for processing
+          Math.min(30 + Math.floor(Math.random() * 10), 40);  // Between 30-40% for queued
+        
         await supabase
           .from('notes')
           .update({
             status: 'transcribing',
-            processing_progress: Math.min(30 + Math.floor(Math.random() * 40), 70) // Random progress between 30-70%
+            processing_progress: progressValue
           })
           .eq('id', noteId);
+          
+        // This is neither success nor failure yet
+        results.pending++;
+      } else {
+        console.warn(`Unknown task status for task ${taskId}: ${taskStatus.status}`);
+        results.pending++;
       }
     } catch (error) {
       console.error(`Error processing task for recording ${recording.id}:`, error);
@@ -168,7 +226,11 @@ async function processPendingTasks(supabase: any): Promise<{
     }
   }
   
-  return results;
+  return {
+    success: results.success,
+    failed: results.failed,
+    pending: results.pending - results.success - results.failed
+  };
 }
 
 serve(async (req) => {
@@ -187,7 +249,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${results.pending} tasks: ${results.success} succeeded, ${results.failed} failed`,
+        message: `Processed ${results.pending} tasks: ${results.success} succeeded, ${results.failed} failed, ${results.pending - results.success - results.failed} still pending`,
         results
       }),
       { 

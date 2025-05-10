@@ -46,13 +46,20 @@ export async function handleTranscription(params: TranscriptionParams): Promise<
       // Get recording data to find the audio file path
       const { data: recording, error: recordingError } = await supabase
         .from('recordings')
-        .select('file_path')
+        .select('file_path, id, status, task_id')
         .eq('id', recordingId)
         .single();
 
       if (recordingError) {
         throw new Error(`Failed to find recording: ${recordingError.message}`);
       }
+
+      // Log the current recording status for debugging
+      console.log('[transcribe-audio] Recording current state:', {
+        id: recording.id,
+        status: recording.status,
+        task_id: recording.task_id || 'null'
+      });
 
       filePath = recording.file_path;
       
