@@ -29,7 +29,10 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
-    const { noteId, transcript: providedTranscript, isRegeneration = false } = await req.json();
+    // IMPORTANT: Parse the request body ONCE and store it
+    // This fixes the "Body already consumed" error
+    const requestBody = await req.json();
+    const { noteId, transcript: providedTranscript, isRegeneration = false } = requestBody;
     
     console.log('[generate-meeting-minutes] Request received for note:', noteId);
     console.log('[generate-meeting-minutes] Is regeneration:', isRegeneration);
@@ -64,6 +67,8 @@ serve(async (req) => {
       throw new Error('No transcript available for this note');
     }
 
+    console.log('[generate-meeting-minutes] Transcript length:', transcript.length, 'characters');
+
     // Initialize OpenAI API
     const configuration = new Configuration({
       apiKey: openaiApiKey,
@@ -72,28 +77,74 @@ serve(async (req) => {
 
     console.log('[generate-meeting-minutes] Generating meeting minutes...');
 
-    // Generate meeting minutes using OpenAI
-    const response = await openai.createChatCompletion({
+    // CHUNKING IMPLEMENTATION - Fix for token limit exceeded
+    // 1) Divide the transcript into chunks of ~15.000 characters (~3k tokens)
+    const MAX_CHARS = 15000;
+    const chunks: string[] = [];
+    
+    for (let i = 0; i < transcript.length; i += MAX_CHARS) {
+      chunks.push(transcript.slice(i, i + MAX_CHARS));
+    }
+    
+    console.log(`[generate-meeting-minutes] Divided transcript into ${chunks.length} chunks`);
+    
+    // 2) For each chunk, ask GPT to "summarize" in 1-2 paragraphs
+    const miniSummaries: string[] = [];
+    
+    for (const [idx, chunk] of chunks.entries()) {
+      console.log(`[generate-meeting-minutes] Summarizing chunk ${idx+1}/${chunks.length}`);
+      try {
+        const sumResp = await openai.createChatCompletion({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "You are a summarization assistant. Condense the transcript chunk into 2-3 concise bullet points highlighting key points and decisions."
+            },
+            { role: "user", content: chunk }
+          ],
+          temperature: 0.3,
+          max_tokens: 500
+        });
+        
+        if (sumResp.data.choices[0].message?.content) {
+          const sum = sumResp.data.choices[0].message.content;
+          console.log(`[generate-meeting-minutes] Chunk ${idx+1} summary length:`, sum.length);
+          miniSummaries.push(sum);
+        } else {
+          console.error(`[generate-meeting-minutes] Empty summary returned for chunk ${idx+1}`);
+          miniSummaries.push(`[Empty summary for transcript chunk ${idx+1}]`);
+        }
+      } catch (chunkError) {
+        console.error(`[generate-meeting-minutes] Error summarizing chunk ${idx+1}:`, chunkError);
+        miniSummaries.push(`[Error summarizing transcript chunk ${idx+1}]`);
+      }
+    }
+    
+    // 3) Join all mini-summaries into a single text
+    const combined = miniSummaries.join("\n\n");
+    console.log('[generate-meeting-minutes] Combined summaries length:', combined.length);
+    
+    // 4) Generate final meeting minutes from the combined summaries
+    console.log("[generate-meeting-minutes] Generating final minutes from combined summaries");
+    const finalResp = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: "You are a professional assistant that creates well-structured meeting minutes from transcripts. Format the output in markdown with appropriate sections like 'Date & Time', 'Participants', 'Meeting Objective', 'Discussion Points', 'Action Items', and 'Decisions Made'."
+          content: "You are a professional assistant that creates well-structured meeting minutes from transcripts. Format the output in markdown with appropriate sections like 'Date & Time', 'Participants', 'Meeting Objective', 'Discussion Points', 'Action Items', and 'Decisions Made'. Base your minutes on the following summaries."
         },
-        {
-          role: "user",
-          content: `Please create meeting minutes from this transcription: ${transcript}`
-        }
+        { role: "user", content: combined }
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 1500,
     });
 
-    if (!response.data.choices[0].message?.content) {
+    if (!finalResp.data.choices[0].message?.content) {
       throw new Error('Failed to generate meeting minutes: Empty response from OpenAI');
     }
 
-    const minutes = response.data.choices[0].message.content;
+    const minutes = finalResp.data.choices[0].message.content;
     console.log('[generate-meeting-minutes] Minutes generated successfully, length:', minutes.length);
 
     // Save meeting minutes to the database
@@ -151,8 +202,9 @@ serve(async (req) => {
 
     try {
       // If we have a noteId from the request, update the note status to error
-      const requestData = await req.json();
-      if (requestData.noteId) {
+      // IMPORTANT: We're accessing the parsed request data, not parsing it again
+      const noteId = requestBody?.noteId;
+      if (noteId) {
         await supabase
           .from('notes')
           .update({ 
@@ -160,7 +212,7 @@ serve(async (req) => {
             processing_progress: 0,
             error_message: error instanceof Error ? error.message : 'Unknown error'
           })
-          .eq('id', requestData.noteId);
+          .eq('id', noteId);
       }
     } catch (updateError) {
       console.error('[generate-meeting-minutes] Error updating note status:', updateError);
