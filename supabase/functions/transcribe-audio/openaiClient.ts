@@ -14,6 +14,19 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
     const formData = new FormData();
     formData.append('file', audioData, 'audio.mp3');
     
+    // Generate callback URL using Supabase URL
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+    let callbackUrl = '';
+    
+    if (projectRef) {
+      callbackUrl = `https://${projectRef}.functions.supabase.co/on-transcription-complete`;
+      console.log('[transcribe-audio] Using callback URL:', callbackUrl);
+      formData.append('callback_url', callbackUrl);
+    } else {
+      console.warn('[transcribe-audio] Could not generate callback URL, webhooks will not work');
+    }
+    
     // Start transcription and get task ID - Using /api/transcribe endpoint
     const response = await fetch(`${transcriptionServiceUrl}/api/transcribe`, {
       method: 'POST',
@@ -47,6 +60,7 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
     }
     
     console.log('[transcribe-audio] Transcription task created with ID:', task_id);
+    console.log('[transcribe-audio] Status:', result.status || 'unknown');
     
     return { text: '', task_id };
     

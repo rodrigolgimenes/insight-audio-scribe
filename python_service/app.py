@@ -28,6 +28,7 @@ class TranscriptionRequest(BaseModel):
     transcription_id: str
     audio_url: str
     language: Optional[str] = "pt"  # Default to Portuguese
+    callback_url: Optional[str] = None  # New: callback URL parameter
 
 class TranscriptionTask(BaseModel):
     task_id: str
@@ -46,7 +47,7 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-# Task status endpoint - THIS IS THE MISSING ENDPOINT
+# Task status endpoint
 @app.get("/api/tasks/{task_id}")
 async def get_task_status(task_id: str):
     try:
@@ -94,10 +95,13 @@ async def get_task_status(task_id: str):
 @app.post("/api/transcribe")
 async def transcribe_file(
     file: UploadFile = File(...), 
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
+    callback_url: Optional[str] = Form(None)  # Add callback_url as a form parameter
 ):
     try:
         logger.info(f"Received file upload: {file.filename}, content_type: {file.content_type}")
+        if callback_url:
+            logger.info(f"Callback URL provided: {callback_url}")
         
         # Generate a task ID
         task_id = str(uuid.uuid4())
@@ -133,7 +137,8 @@ async def transcribe_file(
                 process_transcription,
                 task_id, 
                 temp_file_path, 
-                "pt"  # Default language 
+                "pt",  # Default language 
+                callback_url  # Pass the callback URL
             )
             logger.info(f"Added transcription task to background tasks: {task_id}")
         
@@ -144,13 +149,28 @@ async def transcribe_file(
         logger.error(f"Error processing file upload: {e}")
         return {"error": str(e)}, 500
 
-def process_transcription(transcription_id: str, audio_path: str, language: str):
+def process_transcription(transcription_id: str, audio_path: str, language: str, callback_url: Optional[str] = None):
     try:
         logger.info(f"Processing transcription {transcription_id} for audio {audio_path}")
         
         # Update status to processing
         if supabase:
             supabase.table("transcriptions").update({"status": "processing"}).eq("id", transcription_id).execute()
+        
+        # If we have a callback URL, send a processing status update
+        if callback_url:
+            try:
+                requests.post(
+                    callback_url,
+                    json={
+                        "task_id": transcription_id,
+                        "status": "processing"
+                    },
+                    timeout=5  # Short timeout for status updates
+                )
+                logger.info(f"Sent processing status to callback URL: {callback_url}")
+            except Exception as callback_error:
+                logger.error(f"Error sending processing callback: {callback_error}")
         
         # Import and use fast-whisper here
         try:
@@ -194,6 +214,24 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
                     "duration_ms": int(info.duration * 1000) if hasattr(info, 'duration') else None
                 }).eq("id", transcription_id).execute()
             
+            # Send the result to the callback URL if provided
+            if callback_url:
+                try:
+                    requests.post(
+                        callback_url,
+                        json={
+                            "task_id": transcription_id,
+                            "status": "completed",
+                            "result": {
+                                "text": transcription
+                            }
+                        },
+                        timeout=10  # Longer timeout for the final result
+                    )
+                    logger.info(f"Sent completed transcription to callback URL: {callback_url}")
+                except Exception as callback_error:
+                    logger.error(f"Error sending completion callback: {callback_error}")
+            
         except ImportError as e:
             logger.warning(f"Fast-whisper not available, using simulated transcription: {e}")
             # For when fast-whisper isn't installed, use a mock transcription
@@ -211,6 +249,24 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
                     "status": "completed",
                     "processed_at": datetime.now().isoformat()
                 }).eq("id", transcription_id).execute()
+                
+            # Send the result to the callback URL if provided
+            if callback_url:
+                try:
+                    requests.post(
+                        callback_url,
+                        json={
+                            "task_id": transcription_id,
+                            "status": "completed",
+                            "result": {
+                                "text": transcription
+                            }
+                        },
+                        timeout=10  # Longer timeout for the final result
+                    )
+                    logger.info(f"Sent simulated transcription to callback URL: {callback_url}")
+                except Exception as callback_error:
+                    logger.error(f"Error sending simulated completion callback: {callback_error}")
             
         logger.info(f"Transcrição completa para task {transcription_id}")
         
@@ -222,6 +278,22 @@ def process_transcription(transcription_id: str, audio_path: str, language: str)
                 "status": "error",
                 "error_message": str(e)
             }).eq("id", transcription_id).execute()
+            
+        # Send error to callback URL if provided
+        if callback_url:
+            try:
+                requests.post(
+                    callback_url,
+                    json={
+                        "task_id": transcription_id,
+                        "status": "error",
+                        "error": str(e)
+                    },
+                    timeout=5
+                )
+                logger.info(f"Sent error notification to callback URL: {callback_url}")
+            except Exception as callback_error:
+                logger.error(f"Error sending error callback: {callback_error}")
     finally:
         # Clean up temporary file
         if os.path.exists(audio_path):
@@ -242,7 +314,8 @@ async def transcribe(request: TranscriptionRequest, background_tasks: Background
             process_transcription, 
             request.transcription_id, 
             request.audio_url, 
-            request.language
+            request.language,
+            request.callback_url  # Pass the callback URL
         )
         
         return {
