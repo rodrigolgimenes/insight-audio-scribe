@@ -1,5 +1,4 @@
 
-
 // This file contains the OpenAI API client for transcription
 
 // For simplicity, we're now redirecting to the Python service
@@ -36,17 +35,23 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
       throw new Error(`Transcription failed: ${result.error}`);
     }
     
-    if (!result.task_id) {
+    if (!result.task_id && !result.id) {
       throw new Error('No task ID returned from transcription service');
     }
     
-    console.log('[transcribe-audio] Transcription task created with ID:', result.task_id);
+    // Use either task_id or id field from the response
+    const task_id = result.task_id || result.id;
     
-    return { text: '', task_id: result.task_id };
+    if (!task_id) {
+      throw new Error('Task ID is empty or invalid');
+    }
+    
+    console.log('[transcribe-audio] Transcription task created with ID:', task_id);
+    
+    return { text: '', task_id };
     
   } catch (error) {
     console.error('[transcribe-audio] Error in transcription:', error);
     throw error;
   }
 }
-

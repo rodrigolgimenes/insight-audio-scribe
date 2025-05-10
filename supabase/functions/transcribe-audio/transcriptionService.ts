@@ -14,30 +14,43 @@ export async function processTranscription(
     // Update status to processing
     await updateTranscriptionStatus(noteId, 'processing', 30);
     
+    // Get recording id from note
+    const { data: note, error: noteError } = await supabase
+      .from('notes')
+      .select('recording_id')
+      .eq('id', noteId)
+      .single();
+      
+    if (noteError) {
+      console.error('[transcribe-audio] Error getting note:', noteError);
+      throw noteError;
+    }
+    
+    const recordingId = note.recording_id;
+    
     // Start transcription
     const { task_id, text } = await transcribeAudio(audioFile);
     
-    // If we get a task_id, save it to the database for later checking
+    // If we get a task_id, save it directly to the recordings table
     if (task_id) {
       try {
-        console.log('[transcribe-audio] Creating transcription task for later processing:', task_id);
+        console.log('[transcribe-audio] Saving task_id to recording:', task_id);
         
         await supabase
-          .from('transcription_tasks')
-          .insert({
-            note_id: noteId,
+          .from('recordings')
+          .update({
             task_id: task_id,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            last_checked_at: new Date().toISOString()
-          });
+            status: 'transcribing',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', recordingId);
         
         // Update note status to transcribing and set initial progress
         await updateTranscriptionStatus(noteId, 'transcribing', 50);
         
         return 'Task created and queued for processing';
       } catch (dbError) {
-        console.error('[transcribe-audio] Error saving transcription task:', dbError);
+        console.error('[transcribe-audio] Error saving task_id to recording:', dbError);
         throw dbError;
       }
     }
@@ -52,6 +65,15 @@ export async function processTranscription(
           processing_progress: 100
         })
         .eq('id', noteId);
+        
+      await supabase
+        .from('recordings')
+        .update({
+          transcription: text,
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', recordingId);
         
       return text;
     }

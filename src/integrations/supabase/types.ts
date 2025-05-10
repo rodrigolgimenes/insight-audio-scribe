@@ -559,6 +559,7 @@ export type Database = {
           processed_audio_url: string | null
           processed_content: string | null
           status: string | null
+          task_id: string | null
           title: string
           transcription: string | null
           updated_at: string
@@ -579,6 +580,7 @@ export type Database = {
           processed_audio_url?: string | null
           processed_content?: string | null
           status?: string | null
+          task_id?: string | null
           title: string
           transcription?: string | null
           updated_at?: string
@@ -599,6 +601,7 @@ export type Database = {
           processed_audio_url?: string | null
           processed_content?: string | null
           status?: string | null
+          task_id?: string | null
           title?: string
           transcription?: string | null
           updated_at?: string

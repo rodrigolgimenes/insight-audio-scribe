@@ -20,41 +20,53 @@ async function processPendingTasks(supabase: any): Promise<{
 }> {
   console.log('Starting to process pending transcription tasks');
   
-  // Get pending tasks that haven't been checked recently
-  const { data: tasks, error: tasksError } = await supabase
-    .from('transcription_tasks')
-    .select('id, note_id, recording_id, task_id, retries, created_at')
-    .eq('status', 'pending')
-    .lt('retries', MAX_RETRIES)
-    .lt('last_checked_at', new Date(Date.now() - (RETRY_DELAY_MINUTES * 60 * 1000)).toISOString())
-    .order('created_at', { ascending: true })
+  // Get recordings with pending task_ids
+  const { data: recordings, error: recordingsError } = await supabase
+    .from('recordings')
+    .select('id, task_id, title')
+    .not('task_id', 'is', null)
+    .eq('status', 'transcribing')
+    .order('updated_at', { ascending: true })
     .limit(MAX_TASKS_PER_RUN);
     
-  if (tasksError) {
-    console.error('Error fetching pending tasks:', tasksError);
+  if (recordingsError) {
+    console.error('Error fetching recordings with tasks:', recordingsError);
     return { success: 0, failed: 0, pending: 0 };
   }
   
-  console.log(`Found ${tasks?.length || 0} pending transcription tasks to process`);
+  console.log(`Found ${recordings?.length || 0} recordings with pending transcription tasks`);
   
   // Stats counters
   const results = {
     success: 0,
     failed: 0,
-    pending: tasks?.length || 0,
+    pending: recordings?.length || 0,
   };
   
-  // Process each task
-  for (const task of tasks || []) {
+  // Process each recording with a task
+  for (const recording of recordings || []) {
     try {
-      // Update the last checked timestamp
-      await supabase
-        .from('transcription_tasks')
-        .update({ last_checked_at: new Date().toISOString() })
-        .eq('id', task.id);
+      // Get the associated note
+      const { data: notes } = await supabase
+        .from('notes')
+        .select('id')
+        .eq('recording_id', recording.id);
+        
+      if (!notes || notes.length === 0) {
+        console.error(`No note found for recording ${recording.id}`);
+        continue;
+      }
+      
+      const noteId = notes[0].id;
+      const taskId = recording.task_id;
+      
+      if (!taskId) {
+        console.error(`No task_id for recording ${recording.id}`);
+        continue;
+      }
       
       // Check status with the transcription service
-      const taskStatusUrl = `${TRANSCRIPTION_SERVICE_URL}/api/tasks/${task.task_id}`;
+      const taskStatusUrl = `${TRANSCRIPTION_SERVICE_URL}/api/tasks/${taskId}`;
       console.log(`Checking task status: ${taskStatusUrl}`);
       
       const response = await fetch(taskStatusUrl, {
@@ -70,20 +82,19 @@ async function processPendingTasks(supabase: any): Promise<{
       }
       
       const taskStatus = await response.json();
-      console.log(`Task ${task.task_id} status:`, taskStatus);
+      console.log(`Task ${taskId} status:`, taskStatus);
       
       // Handle completed task
       if (taskStatus.status === 'completed') {
-        // Update the task in the database
+        // Update the recording with the transcription result
         await supabase
-          .from('transcription_tasks')
+          .from('recordings')
           .update({
+            transcription: taskStatus.result?.text || '',
             status: 'completed',
-            content: taskStatus.result?.text || '',
-            processed_at: new Date().toISOString(),
-            duration_ms: taskStatus.duration_ms
+            processed_at: new Date().toISOString()
           })
-          .eq('id', task.id);
+          .eq('id', recording.id);
         
         // Update the note with the transcription
         await supabase
@@ -93,29 +104,18 @@ async function processPendingTasks(supabase: any): Promise<{
             processing_progress: 80,
             original_transcript: taskStatus.result?.text || ''
           })
-          .eq('id', task.note_id);
-          
-        // Update the recording with the transcription
-        if (task.recording_id) {
-          await supabase
-            .from('recordings')
-            .update({
-              status: 'completed',
-              transcription: taskStatus.result?.text || ''
-            })
-            .eq('id', task.recording_id);
-        }
+          .eq('id', noteId);
         
         // Start meeting minutes generation
         try {
           await supabase.functions.invoke('generate-meeting-minutes', {
             body: {
-              noteId: task.note_id,
+              noteId: noteId,
               transcript: taskStatus.result?.text || ''
             }
           });
           
-          console.log(`Started meeting minutes generation for note ${task.note_id}`);
+          console.log(`Started meeting minutes generation for note ${noteId}`);
         } catch (minutesError) {
           console.error('Error starting meeting minutes generation:', minutesError);
           
@@ -126,7 +126,7 @@ async function processPendingTasks(supabase: any): Promise<{
               status: 'completed',
               processing_progress: 100
             })
-            .eq('id', task.note_id);
+            .eq('id', noteId);
         }
         
         results.success++;
@@ -134,14 +134,12 @@ async function processPendingTasks(supabase: any): Promise<{
       // Handle failed task
       else if (taskStatus.status === 'failed') {
         await supabase
-          .from('transcription_tasks')
+          .from('recordings')
           .update({
-            status: 'failed',
-            error_message: taskStatus.error || 'Transcription failed',
-            processed_at: new Date().toISOString(),
-            retries: task.retries + 1
+            status: 'error',
+            error_message: taskStatus.error || 'Transcription failed'
           })
-          .eq('id', task.id);
+          .eq('id', recording.id);
           
         await supabase
           .from('notes')
@@ -149,50 +147,23 @@ async function processPendingTasks(supabase: any): Promise<{
             status: 'error',
             error_message: taskStatus.error || 'Transcription failed'
           })
-          .eq('id', task.note_id);
+          .eq('id', noteId);
           
-        if (task.recording_id) {
-          await supabase
-            .from('recordings')
-            .update({
-              status: 'error',
-              error_message: taskStatus.error || 'Transcription failed'
-            })
-            .eq('id', task.recording_id);
-        }
-        
         results.failed++;
       } 
       // Handle in-progress tasks
       else if (taskStatus.status === 'processing') {
-        await supabase
-          .from('transcription_tasks')
-          .update({
-            retries: task.retries + 1
-          })
-          .eq('id', task.id);
-          
         // Update note progress to show activity
         await supabase
           .from('notes')
           .update({
             status: 'transcribing',
-            processing_progress: 30 + Math.min(task.retries * 10, 40)
+            processing_progress: Math.min(30 + Math.floor(Math.random() * 40), 70) // Random progress between 30-70%
           })
-          .eq('id', task.note_id);
+          .eq('id', noteId);
       }
-      
     } catch (error) {
-      console.error(`Error processing task ${task.task_id}:`, error);
-      
-      await supabase
-        .from('transcription_tasks')
-        .update({
-          retries: task.retries + 1,
-          error_message: error.message
-        })
-        .eq('id', task.id);
-        
+      console.error(`Error processing task for recording ${recording.id}:`, error);
       results.failed++;
     }
   }
