@@ -41,7 +41,7 @@ export async function processTranscription(
           .from('recordings')
           .update({
             task_id: task_id,
-            status: 'transcribing',
+            status: 'processing',
             updated_at: new Date().toISOString()
           })
           .eq('id', recordingId);
@@ -52,7 +52,7 @@ export async function processTranscription(
           // As a last resort, log the values we're trying to save
           console.log('[transcribe-audio] Recording ID:', recordingId);
           console.log('[transcribe-audio] Task ID:', task_id);
-          console.log('[transcribe-audio] Status:', 'transcribing');
+          console.log('[transcribe-audio] Status:', 'processing');
         } else {
           console.log('[transcribe-audio] Successfully updated task_id with direct update');
         }
