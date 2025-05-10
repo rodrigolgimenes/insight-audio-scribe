@@ -30,46 +30,9 @@ const NotePage = () => {
   const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const { note, isLoadingNote, folders, currentFolder, tags } = useNoteData();
+  const { note, isLoadingNote, tags, projects, currentProject } = useNoteData();
   const { moveNoteToProject, addTagToNote, deleteNote, renameNote } = useNoteOperations(noteId || '');
   
-  // Fetch projects for the move dialog
-  const { data: projects = [] } = useQuery({
-    queryKey: ["projects"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .order("name");
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-  
-  // Fetch current project for the note
-  const { data: currentProject } = useQuery({
-    queryKey: ["note-project", noteId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("notes_projects")
-        .select(`
-          project:projects (
-            id,
-            name
-          )
-        `)
-        .eq("note_id", noteId)
-        .maybeSingle();
-      
-      return data?.project ? {
-        id: (data.project as any).id as string,
-        name: (data.project as any).name as string
-      } : null;
-    },
-    enabled: !!noteId,
-  });
-
   // Fetch audio URL with improved caching
   const { data: audioUrl } = useQuery({
     queryKey: ['audio-url', note?.audio_url],
@@ -143,7 +106,7 @@ const NotePage = () => {
                 title={note.title}
                 createdAt={note.created_at}
                 duration={note.duration}
-                folder={currentProject || currentFolder}
+                folder={currentProject}
                 onRenameNote={renameNote}
                 onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
                 onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
