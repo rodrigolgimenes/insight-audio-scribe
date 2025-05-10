@@ -14,9 +14,10 @@ export default function SimpleRecord() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Handle successful recording save
-  const handleRecordingSaved = (noteId: string) => {
+  // Handle successful recording save - ensure it returns a Promise
+  const handleRecordingSaved = async (noteId: string) => {
     navigate("/app");
+    return Promise.resolve();
   };
 
   const isDisabled = !session;
@@ -59,4 +60,4 @@ export default function SimpleRecord() {
       </div>
     </div>
   );
-}
+};

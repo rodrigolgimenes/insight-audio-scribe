@@ -190,16 +190,22 @@ export const useRecording = () => {
   const recordingSaveHook = useRecordingSave();
 
   // Create save recording handler
-  const handleSaveRecording = useCallback(() => {
-    if (!recordingSaveHook) return;
+  const handleSaveRecording = useCallback(async () => {
+    if (!recordingSaveHook) return Promise.resolve();
     
-    recordingSaveHook.saveRecording(
-      recordingState.isRecording,
-      handleStopRecording,
-      recordingState.mediaStream,
-      recordingState.audioUrl,
-      getCurrentDuration ? getCurrentDuration() : 0
-    );
+    try {
+      await recordingSaveHook.saveRecording(
+        recordingState.isRecording,
+        handleStopRecording,
+        recordingState.mediaStream,
+        recordingState.audioUrl,
+        getCurrentDuration ? getCurrentDuration() : 0
+      );
+      return Promise.resolve();
+    } catch (error) {
+      console.error('[useRecordingHook] Error saving recording:', error);
+      return Promise.reject(error);
+    }
   }, [
     recordingSaveHook, 
     recordingState.isRecording, 
@@ -220,10 +226,7 @@ export const useRecording = () => {
     recordingSaveHook?.processingStage,
     recordingSaveHook
   ]);
-
-  // REMOVED the duplicate handleStartRecording declaration that was here
-  // We're now using the one from useRecordingActions
-
+  
   console.log('[useRecordingHook] Hook initialized, returning methods');
   
   return {

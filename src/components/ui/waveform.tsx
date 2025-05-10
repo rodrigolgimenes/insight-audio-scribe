@@ -1,116 +1,113 @@
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 
 interface WaveformProps {
   src: string;
   height?: number;
+  barWidth?: number;
+  barGap?: number;
+  className?: string;
+  barColor?: string;
 }
 
-export const Waveform = ({ src, height = 128 }: WaveformProps) => {
+export const Waveform = ({ 
+  src, 
+  height = 128, 
+  barWidth = 2, 
+  barGap = 1, 
+  className = "",
+  barColor = "#4285F4" 
+}: WaveformProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!canvasRef.current || !src) return;
-
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
     const drawWaveform = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
-        // Fetch audio data
+        const audioContext = new AudioContext();
         const response = await fetch(src);
         const arrayBuffer = await response.arrayBuffer();
+        const audioData = await audioContext.decodeAudioData(arrayBuffer);
         
-        // Decode audio data
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        // Get the waveform data
+        const channelData = audioData.getChannelData(0);
         
-        // Get channel data (mono - channel 0)
-        const channelData = audioBuffer.getChannelData(0);
-        
-        // Resize canvas
-        canvas.width = canvas.offsetWidth;
-        canvas.height = height;
+        // Canvas setup
+        const width = canvas.width;
+        const drawHeight = height;
         
         // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, width, drawHeight);
+        ctx.fillStyle = '#F5F5F5';
+        ctx.fillRect(0, 0, width, drawHeight);
         
-        // Set drawing style
-        ctx.fillStyle = '#4285F4';
+        // Calculate number of bars based on width and bar settings
+        const totalBars = Math.floor(width / (barWidth + barGap));
+        const samplesPerBar = Math.floor(channelData.length / totalBars);
         
-        // Determine how many samples to skip
-        const step = Math.ceil(channelData.length / canvas.width);
+        // Draw bars
+        ctx.fillStyle = barColor;
         
-        // Draw waveform
-        for (let i = 0; i < canvas.width; i++) {
-          let min = 1.0;
-          let max = -1.0;
+        for (let i = 0; i < totalBars; i++) {
+          let sum = 0;
           
-          // Find min/max in this segment
-          for (let j = 0; j < step; j++) {
-            const datum = channelData[(i * step) + j];
-            if (datum < min) min = datum;
-            if (datum > max) max = datum;
+          // Average the samples for this bar
+          for (let j = 0; j < samplesPerBar; j++) {
+            const index = (i * samplesPerBar) + j;
+            if (index < channelData.length) {
+              sum += Math.abs(channelData[index]);
+            }
           }
           
-          // Draw bar
-          const barHeight = (max - min) * canvas.height * 0.8;
-          const y = ((canvas.height - barHeight) / 2) + (min * canvas.height * 0.5);
+          const average = sum / samplesPerBar;
+          const barHeight = average * drawHeight * 2;
           
-          ctx.fillRect(i, y, 1, barHeight > 0 ? barHeight : 1);
+          // Draw the bar
+          const x = i * (barWidth + barGap);
+          const y = (drawHeight - barHeight) / 2;
+          
+          ctx.fillRect(x, y, barWidth, barHeight);
         }
         
         setIsLoading(false);
       } catch (err) {
-        console.error('Error drawing waveform:', err);
-        setError('Failed to load audio waveform');
+        console.error("Error generating waveform:", err);
+        setError("Failed to generate waveform");
         setIsLoading(false);
       }
     };
     
     drawWaveform();
-    
-    // Handle resize
-    const handleResize = () => {
-      if (canvas.width !== canvas.offsetWidth) {
-        drawWaveform();
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      audioContext.close();
-    };
-  }, [src, height]);
-
-  if (error) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
-        <p className="text-red-500 text-sm">{error}</p>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-gray-50 rounded-lg border">
-        <p className="text-gray-400 text-sm">Loading waveform...</p>
-      </div>
-    );
-  }
+  }, [src, height, barWidth, barGap, barColor]);
 
   return (
-    <div className="h-full w-full bg-gray-50 rounded-lg border overflow-hidden">
-      <canvas ref={canvasRef} className="w-full h-full" />
+    <div className={`relative ${className}`}>
+      <canvas 
+        ref={canvasRef} 
+        width={1000} 
+        height={height}
+        className="w-full h-full rounded-md border border-gray-200"
+      />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 bg-opacity-50">
+          <div className="animate-pulse text-sm text-gray-400">Loading...</div>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+          <div className="text-sm text-red-500">{error}</div>
+        </div>
+      )}
     </div>
   );
 };

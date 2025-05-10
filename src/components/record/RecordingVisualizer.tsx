@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from 'react';
 
 interface RecordingVisualizerProps {
   audioStream: MediaStream | null;
@@ -7,121 +7,107 @@ interface RecordingVisualizerProps {
   isPaused: boolean;
 }
 
-export const RecordingVisualizer = ({
-  audioStream,
+export const RecordingVisualizer = ({ 
+  audioStream, 
   isRecording,
-  isPaused
+  isPaused 
 }: RecordingVisualizerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    let audioContext: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let source: MediaStreamAudioSourceNode | null = null;
-    
-    const setupVisualizer = async () => {
-      if (!audioStream || !isRecording || !canvasRef.current) return;
-      
-      try {
-        // Create audio context and analyzer
-        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 256;
-        analyserRef.current = analyser;
-        audioContextRef.current = audioContext;
-        
-        // Connect the stream to the analyzer
-        source = audioContext.createMediaStreamSource(audioStream);
-        source.connect(analyser);
-        
-        // Start visualization
-        if (!isPaused) {
-          visualize();
-        }
-      } catch (error) {
-        console.error("Error setting up audio visualizer:", error);
-      }
-    };
-    
-    const visualize = () => {
-      if (!canvasRef.current || !analyserRef.current) return;
-      
+    // Clean up previous animation frame if exists
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+
+    // Clean up previous audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(console.error);
+      audioContextRef.current = null;
+      analyserRef.current = null;
+    }
+
+    // Only initialize if we are recording and have a stream
+    if (isRecording && audioStream && !isPaused) {
       const canvas = canvasRef.current;
-      const canvasCtx = canvas.getContext('2d');
-      if (!canvasCtx) return;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Create audio context and analyzer
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
       
-      const WIDTH = canvas.width;
-      const HEIGHT = canvas.height;
-      const analyser = analyserRef.current;
+      const analyzer = audioContext.createAnalyser();
+      analyserRef.current = analyzer;
+      analyzer.fftSize = 256;
       
-      const bufferLength = analyser.frequencyBinCount;
+      const source = audioContext.createMediaStreamSource(audioStream);
+      source.connect(analyzer);
+      
+      const bufferLength = analyzer.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       
-      canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+      const width = canvas.width;
+      const height = canvas.height;
+      const barWidth = (width / bufferLength) * 2.5;
       
-      const draw = () => {
-        if (!isRecording) return;
+      let barHeight;
+      let x = 0;
+      
+      const renderFrame = () => {
+        if (!analyserRef.current || !ctx) return;
+
+        x = 0;
+        animationRef.current = requestAnimationFrame(renderFrame);
         
-        animationRef.current = requestAnimationFrame(draw);
+        analyserRef.current.getByteFrequencyData(dataArray);
         
-        analyser.getByteFrequencyData(dataArray);
-        
-        canvasCtx.fillStyle = '#f5f5f5';
-        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
-        
-        const barWidth = (WIDTH / bufferLength) * 2.5;
-        let x = 0;
+        ctx.fillStyle = 'rgb(240, 240, 240)';
+        ctx.fillRect(0, 0, width, height);
         
         for (let i = 0; i < bufferLength; i++) {
-          const barHeight = isPaused ? 5 : (dataArray[i] / 255) * HEIGHT;
+          barHeight = dataArray[i] / 2;
           
-          canvasCtx.fillStyle = isPaused 
-            ? '#F97316' // Amber color for paused state
-            : `rgb(${dataArray[i]}, 155, 245)`; // Dynamic purple-ish for active
-            
-          canvasCtx.fillRect(x, HEIGHT - barHeight, barWidth, barHeight);
+          const r = barHeight + 25;
+          const g = 100;
+          const b = 200;
+          
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x, height - barHeight, barWidth, barHeight);
           
           x += barWidth + 1;
         }
       };
       
-      draw();
-    };
-    
-    if (isRecording && audioStream) {
-      setupVisualizer();
+      renderFrame();
     }
     
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
       
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(console.error);
+        audioContextRef.current = null;
+        analyserRef.current = null;
       }
     };
   }, [audioStream, isRecording, isPaused]);
-  
+
   return (
-    <div className="w-full h-full bg-gray-50 rounded-lg border overflow-hidden">
-      {isRecording ? (
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full"
-          width={300}
-          height={100}
-        ></canvas>
-      ) : (
-        <div className="h-full w-full flex items-center justify-center">
-          <p className="text-gray-400 text-sm">
-            Waiting for recording to start...
-          </p>
-        </div>
-      )}
-    </div>
+    <canvas 
+      ref={canvasRef} 
+      className="w-full h-full rounded-md border border-gray-200 bg-gray-50"
+      width={700} 
+      height={128} 
+    />
   );
 };

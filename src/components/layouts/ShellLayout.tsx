@@ -8,7 +8,7 @@ interface ShellLayoutProps {
 export const ShellLayout = ({ children }: ShellLayoutProps) => {
   return (
     <div className="min-h-screen bg-white">
-      <main className="min-h-screen">
+      <main className="flex-1">
         {children}
       </main>
     </div>
