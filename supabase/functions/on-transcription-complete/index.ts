@@ -94,10 +94,37 @@ serve(async (req) => {
     console.log('[on-transcription-complete] Found note:', note.id);
     
     // Handle different status cases
-    if (status === 'completed' && result && result.text) {
+    if (status === 'completed' && result) {
       console.log('[on-transcription-complete] Processing completed transcription');
       
-      const transcriptionText = result.text;
+      // Extract transcription text
+      let transcriptionText = '';
+      
+      // Check if result contains direct text property (old format)
+      if (typeof result.text === 'string') {
+        transcriptionText = result.text;
+      } 
+      // Check if result contains segments (new format)
+      else if (result.segments && Array.isArray(result.segments)) {
+        console.log('[on-transcription-complete] Found segments in result, concatenating text');
+        
+        // Extract and concatenate text from all segments
+        transcriptionText = result.segments
+          .map(segment => segment.text)
+          .join(' ')
+          .trim();
+          
+        console.log('[on-transcription-complete] Concatenated text from segments:', 
+          transcriptionText.substring(0, 100) + (transcriptionText.length > 100 ? '...' : ''));
+      } else {
+        console.error('[on-transcription-complete] Could not extract text from result:', result);
+        throw new Error('Transcription result does not contain text or segments');
+      }
+      
+      if (!transcriptionText || transcriptionText.trim() === '') {
+        console.error('[on-transcription-complete] Empty transcription text extracted');
+        throw new Error('Empty transcription text extracted from result');
+      }
       
       // Update recording with transcription
       const { error: updateRecordingError } = await supabase
