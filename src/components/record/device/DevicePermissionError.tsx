@@ -1,22 +1,52 @@
 
 import React from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export function DevicePermissionError() {
+  const handleOpenSettings = () => {
+    // This only works on Chrome and Edge
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName })
+        .then(permissionStatus => {
+          if (permissionStatus.state === 'denied') {
+            // Attempt to open browser settings
+            window.open('chrome://settings/content/microphone');
+          }
+        })
+        .catch(error => {
+          console.error('Error checking permissions:', error);
+        });
+    }
+  };
+
   return (
-    <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md mt-2">
-      <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-1" />
-      <div>
-        <h3 className="text-sm font-medium text-red-700">Microphone Access Denied</h3>
-        <p className="text-xs text-red-600 mt-1">
-          You've denied microphone access. To use recording features, you'll need to:
+    <Alert variant="destructive" className="mb-4">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle>Microphone access denied</AlertTitle>
+      <AlertDescription className="flex flex-col space-y-4">
+        <p>
+          You've denied access to your microphone. To use the recording feature, 
+          please allow microphone access in your browser settings.
         </p>
-        <ol className="list-decimal ml-4 text-xs text-red-600 mt-1">
-          <li>Click the camera/microphone icon in your browser's address bar</li>
-          <li>Change the microphone permission to "Allow"</li>
-          <li>Refresh this page to apply the changes</li>
-        </ol>
-      </div>
-    </div>
+        <div className="flex gap-2 mt-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleOpenSettings}
+          >
+            Open Settings
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+          >
+            Refresh Page
+          </Button>
+        </div>
+      </AlertDescription>
+    </Alert>
   );
 }

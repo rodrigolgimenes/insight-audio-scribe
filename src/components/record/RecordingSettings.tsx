@@ -1,8 +1,7 @@
 
 import React from "react";
-import { DeviceSelector } from "../DeviceSelector";
-import { LanguageSelector } from "../LanguageSelector";
-import { SystemAudioToggle } from "../SystemAudioToggle";
+import { DeviceSelector } from "@/components/record/device/DeviceSelector";
+import { SystemAudioToggle } from "@/components/record/SystemAudioToggle";
 import { AudioDevice } from "@/hooks/recording/capture/types";
 
 interface RecordingSettingsProps {
