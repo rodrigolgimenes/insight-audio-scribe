@@ -28,9 +28,21 @@ serve(async (req) => {
     
     // Create Supabase client with service role key
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Log the raw request body for debugging
+    const rawBody = await req.text();
+    console.log('[on-transcription-complete] Raw request body:', rawBody);
     
     // Parse the request body
-    const { task_id, status, result, error: transcriptionError } = await req.json();
+    let bodyData;
+    try {
+      bodyData = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error('[on-transcription-complete] Error parsing JSON:', parseError);
+      throw new Error('Invalid JSON format in webhook payload');
+    }
+    
+    const { task_id, status, result, error: transcriptionError } = bodyData;
     
     console.log('[on-transcription-complete] Received data:', { 
       task_id, 

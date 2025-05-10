@@ -20,6 +20,7 @@ export async function transcribeAudio(audioData: Blob): Promise<{ text: string, 
     let callbackUrl = '';
     
     if (projectRef) {
+      // Make sure we have the full URL with https://
       callbackUrl = `https://${projectRef}.functions.supabase.co/on-transcription-complete`;
       console.log('[transcribe-audio] Using callback URL:', callbackUrl);
       formData.append('callback_url', callbackUrl);

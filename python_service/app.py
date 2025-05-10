@@ -4,6 +4,7 @@ import uvicorn
 import requests
 import tempfile
 import uuid
+import time
 from fastapi import FastAPI, BackgroundTasks, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
@@ -216,21 +217,48 @@ def process_transcription(transcription_id: str, audio_path: str, language: str,
             
             # Send the result to the callback URL if provided
             if callback_url:
-                try:
-                    requests.post(
-                        callback_url,
-                        json={
+                # Add retry mechanism for the webhook callback
+                max_retries = 3
+                retry_count = 0
+                success = False
+                
+                while retry_count < max_retries and not success:
+                    try:
+                        callback_data = {
                             "task_id": transcription_id,
                             "status": "completed",
                             "result": {
                                 "text": transcription
                             }
-                        },
-                        timeout=10  # Longer timeout for the final result
-                    )
-                    logger.info(f"Sent completed transcription to callback URL: {callback_url}")
-                except Exception as callback_error:
-                    logger.error(f"Error sending completion callback: {callback_error}")
+                        }
+                        
+                        logger.info(f"Sending completion callback (attempt {retry_count+1}/{max_retries}): {callback_url}")
+                        logger.info(f"Callback data: {json.dumps(callback_data)}")
+                        
+                        response = requests.post(
+                            callback_url,
+                            json=callback_data,
+                            timeout=10  # Longer timeout for the final result
+                        )
+                        
+                        logger.info(f"Callback response status: {response.status_code}")
+                        logger.info(f"Callback response body: {response.text[:100]}...")
+                        
+                        if response.ok:
+                            logger.info(f"Successfully sent completed transcription to callback URL: {callback_url}")
+                            success = True
+                        else:
+                            retry_count += 1
+                            logger.warning(f"Callback failed with status {response.status_code}, retrying ({retry_count}/{max_retries})")
+                            time.sleep(2)  # Wait before retrying
+                    
+                    except Exception as callback_error:
+                        retry_count += 1
+                        logger.error(f"Error sending completion callback (attempt {retry_count}/{max_retries}): {callback_error}")
+                        time.sleep(2)  # Wait before retrying
+                
+                if not success:
+                    logger.error(f"Failed to send webhook after {max_retries} attempts")
             
         except ImportError as e:
             logger.warning(f"Fast-whisper not available, using simulated transcription: {e}")
@@ -252,21 +280,39 @@ def process_transcription(transcription_id: str, audio_path: str, language: str,
                 
             # Send the result to the callback URL if provided
             if callback_url:
-                try:
-                    requests.post(
-                        callback_url,
-                        json={
+                max_retries = 3
+                retry_count = 0
+                success = False
+                
+                while retry_count < max_retries and not success:
+                    try:
+                        callback_data = {
                             "task_id": transcription_id,
                             "status": "completed",
                             "result": {
                                 "text": transcription
                             }
-                        },
-                        timeout=10  # Longer timeout for the final result
-                    )
-                    logger.info(f"Sent simulated transcription to callback URL: {callback_url}")
-                except Exception as callback_error:
-                    logger.error(f"Error sending simulated completion callback: {callback_error}")
+                        }
+                        
+                        logger.info(f"Sending simulated callback (attempt {retry_count+1}/{max_retries}): {callback_url}")
+                        response = requests.post(
+                            callback_url,
+                            json=callback_data,
+                            timeout=10  # Longer timeout for the final result
+                        )
+                        
+                        if response.ok:
+                            logger.info(f"Successfully sent simulated transcription to callback URL: {callback_url}")
+                            success = True
+                        else:
+                            retry_count += 1
+                            logger.warning(f"Callback failed with status {response.status_code}, retrying ({retry_count}/{max_retries})")
+                            time.sleep(2)
+                    
+                    except Exception as callback_error:
+                        retry_count += 1
+                        logger.error(f"Error sending simulated callback (attempt {retry_count}/{max_retries}): {callback_error}")
+                        time.sleep(2)
             
         logger.info(f"Transcrição completa para task {transcription_id}")
         
