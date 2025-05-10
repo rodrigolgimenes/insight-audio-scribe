@@ -1,7 +1,7 @@
 
 import { createSupabaseClient } from './utils/clientUtils.ts';
-import { processTranscription } from './transcriptionService';
-import { updateTranscriptionStatus, handleTranscriptionError } from './statusUpdater';
+import { processTranscription } from './transcriptionService.ts';
+import { updateTranscriptionStatus, handleTranscriptionError } from './statusUpdater.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

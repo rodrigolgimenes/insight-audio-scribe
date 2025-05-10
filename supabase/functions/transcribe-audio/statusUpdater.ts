@@ -1,5 +1,5 @@
 
-import { supabase } from './supabaseClient';
+import { supabase } from './supabaseClient.ts';
 
 export async function updateTranscriptionStatus(
   noteId: string, 

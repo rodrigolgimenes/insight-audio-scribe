@@ -1,7 +1,7 @@
 
-import { supabase } from './supabaseClient';
-import { transcribeAudio } from './openaiClient';
-import { updateTranscriptionStatus } from './statusUpdater';
+import { supabase } from './supabaseClient.ts';
+import { transcribeAudio } from './openaiClient.ts';
+import { updateTranscriptionStatus } from './statusUpdater.ts';
 
 export async function processTranscription(
   noteId: string,
