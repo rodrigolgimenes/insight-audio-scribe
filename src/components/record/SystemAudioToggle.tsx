@@ -2,7 +2,7 @@
 import React from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { InfoCircle } from "lucide-react";
+import { Info } from "lucide-react";
 
 interface SystemAudioToggleProps {
   isSystemAudio: boolean;
@@ -24,7 +24,7 @@ export function SystemAudioToggle({
             className="text-sm font-medium text-gray-700 flex items-center"
           >
             Record System Audio
-            <InfoCircle className="h-4 w-4 ml-1 text-gray-400" />
+            <Info className="h-4 w-4 ml-1 text-gray-400" />
           </Label>
           <Switch
             id="system-audio"

@@ -60,7 +60,6 @@ export function RecordingOptions({
       <SystemAudioToggle
         isSystemAudio={isSystemAudio}
         onSystemAudioChange={onSystemAudioChange}
-        onChange={onSystemAudioChange} // Add this line to fix the type error
         disabled={isRecording}
       />
     </div>

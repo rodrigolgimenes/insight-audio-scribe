@@ -23,7 +23,7 @@ export function NoDevicesMessage({
   if (!showWarning) return null;
 
   return (
-    <Alert variant="warning" className="mt-4">
+    <Alert variant="destructive" className="mt-4">
       <HelpCircle className="h-4 w-4" />
       <AlertDescription className="flex flex-col gap-2">
         <div>

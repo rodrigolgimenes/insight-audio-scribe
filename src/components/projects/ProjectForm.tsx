@@ -146,9 +146,8 @@ export function ProjectForm() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: checked }));
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData(prev => ({ ...prev, is_template: checked }));
   };
 
   const handleArrayChange = (name: string, value: string) => {
@@ -395,7 +394,6 @@ export function ProjectForm() {
             <Label htmlFor="is_template" className="flex items-center space-x-2">
               <Checkbox
                 id="is_template"
-                name="is_template"
                 checked={formData.is_template}
                 onCheckedChange={handleCheckboxChange}
               />
@@ -406,7 +404,7 @@ export function ProjectForm() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="primary" className="bg-blue-500 text-white" onClick={handleSubmit} disabled={isSaving}>
+          <Button variant="default" className="bg-blue-500 text-white" onClick={handleSubmit} disabled={isSaving}>
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
           {projectId && (
