@@ -11,6 +11,7 @@ import { useProjectQuery } from "@/hooks/project/useProjectQuery";
 import { useProjectNotesQuery } from "@/hooks/project/useProjectNotesQuery";
 import { useProjectNoteSelection } from "@/hooks/project/useProjectNoteSelection";
 import { useProjectOperations } from "@/hooks/project/useProjectOperations";
+import { useProjectEmbeddings } from "@/hooks/useProjectEmbeddings";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Note } from "@/integrations/supabase/types/notes";
@@ -34,11 +35,17 @@ const ProjectPage = () => {
     toggleNoteSelection,
     deleteSelectedNotes,
   } = useProjectNoteSelection();
+  const { ensureEmbeddings } = useProjectEmbeddings();
 
   // Refetch data when component mounts or becomes active
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ["project-notes", projectId] });
-  }, [queryClient, projectId]);
+    if (projectId) {
+      queryClient.invalidateQueries({ queryKey: ["project-notes", projectId] });
+      
+      // Ensure the project has embeddings generated
+      ensureEmbeddings(projectId);
+    }
+  }, [queryClient, projectId, ensureEmbeddings]);
 
   const projectTags = notes?.reduce((acc: any[], note) => {
     note.notes_tags?.forEach((noteTag: any) => {

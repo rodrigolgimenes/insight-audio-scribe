@@ -498,6 +498,44 @@ export type Database = {
         }
         Relationships: []
       }
+      project_embeddings: {
+        Row: {
+          content: string | null
+          content_hash: string
+          created_at: string
+          embedding: Json | null
+          id: string
+          project_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          content_hash: string
+          created_at?: string
+          embedding?: Json | null
+          id?: string
+          project_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          content_hash?: string
+          created_at?: string
+          embedding?: Json | null
+          id?: string
+          project_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_embeddings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           business_area: string[] | null
@@ -1011,9 +1049,24 @@ export type Database = {
       }
     }
     Functions: {
+      cosine_similarity: {
+        Args: { vector1: Json; vector2: Json }
+        Returns: number
+      }
       count_transcription_chunks: {
         Args: { note_id_param: string }
         Returns: number
+      }
+      find_similar_projects: {
+        Args: {
+          project_embedding: Json
+          similarity_threshold?: number
+          max_results?: number
+        }
+        Returns: {
+          project_id: string
+          similarity: number
+        }[]
       }
       generate_audio_url: {
         Args: { file_path: string }

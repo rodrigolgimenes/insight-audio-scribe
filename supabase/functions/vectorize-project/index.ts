@@ -2,8 +2,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.3.0";
-// Remove problematic hash import and implement a simpler hash function
-// import { createHash } from "https://deno.land/std@0.177.0/hash/mod.ts";
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -30,10 +28,9 @@ interface RequestData {
   manual_trigger?: boolean;
 }
 
-// Simple MD5 hash function alternative
+// Simple hash function for content change detection
 function createContentHash(content: string): string {
-  // Simple hash function that will provide a unique string based on content
-  // Not cryptographically secure, but sufficient for content change detection
+  // Simple hash function that provides a unique string based on content
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
@@ -138,12 +135,12 @@ async function vectorizeProject(projectId: string, manualTrigger = false): Promi
 
     const [{ embedding }] = embeddingResponse.data.data;
     
-    // Store the embedding in the database
+    // Store the embedding as a JSON array instead of vector type
     const { error: upsertError } = await supabase
       .from('project_embeddings')
       .upsert({
         project_id: projectId,
-        embedding,
+        embedding: JSON.stringify(embedding), // Convert array to JSON string for jsonb column
         content_hash: contentHash,
         updated_at: new Date().toISOString(),
         content: normalizedText // Store the normalized content for debugging

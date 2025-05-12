@@ -1,6 +1,10 @@
 
 import { useState } from 'react';
-import { generateProjectEmbeddings, findSimilarProjects } from '@/utils/embeddings/projectEmbeddings';
+import { 
+  generateProjectEmbeddings, 
+  findSimilarProjects, 
+  ensureProjectEmbeddings 
+} from '@/utils/embeddings/projectEmbeddings';
 import { toast } from 'sonner';
 
 /**
@@ -59,10 +63,25 @@ export function useProjectEmbeddings() {
     }
   };
 
+  /**
+   * Ensure a project has embeddings generated
+   * Called automatically when viewing a project
+   */
+  const ensureEmbeddings = async (projectId: string) => {
+    if (!projectId) return;
+    
+    try {
+      await ensureProjectEmbeddings(projectId);
+    } catch (error) {
+      console.error('Error ensuring project embeddings:', error);
+    }
+  };
+
   return {
     isProcessing,
     similarProjects,
     generateEmbeddings,
-    searchSimilarProjects
+    searchSimilarProjects,
+    ensureEmbeddings
   };
 }

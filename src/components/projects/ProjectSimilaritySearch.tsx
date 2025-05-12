@@ -4,8 +4,14 @@ import { useProjectEmbeddings } from "@/hooks/useProjectEmbeddings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, SearchIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+type SimilarProject = {
+  projectId: string;
+  similarity: number;
+  projectName?: string;
+};
 
 export function ProjectSimilaritySearch() {
   const [searchText, setSearchText] = useState("");
@@ -43,22 +49,27 @@ export function ProjectSimilaritySearch() {
               Searching...
             </>
           ) : (
-            'Search'
+            <>
+              <SearchIcon className="h-4 w-4 mr-2" />
+              Search
+            </>
           )}
         </Button>
       </form>
 
-      {similarProjects.length > 0 ? (
+      {similarProjects.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-medium text-gray-500">Similar projects:</h3>
-          {similarProjects.map((project) => (
+          {(similarProjects as SimilarProject[]).map((project) => (
             <Card 
               key={project.projectId} 
               className="p-3 cursor-pointer hover:bg-gray-50"
               onClick={() => navigateToProject(project.projectId)}
             >
               <div className="flex justify-between items-center">
-                <span>{project.projectId}</span>
+                <span className="font-medium">
+                  {project.projectName || project.projectId.substring(0, 8) + '...'}
+                </span>
                 <span className="text-sm text-gray-500">
                   {Math.round(project.similarity * 100)}% match
                 </span>
@@ -66,7 +77,7 @@ export function ProjectSimilaritySearch() {
             </Card>
           ))}
         </div>
-      ) : null}
+      )}
 
       {isProcessing && similarProjects.length === 0 && (
         <div className="text-center py-4 text-gray-500">
