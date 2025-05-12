@@ -2,39 +2,41 @@
 import React from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Volume2 } from "lucide-react";
+import { InfoCircle } from "lucide-react";
 
-export interface SystemAudioToggleProps {
+interface SystemAudioToggleProps {
   isSystemAudio: boolean;
-  onSystemAudioChange?: (enabled: boolean) => void;
-  onChange?: (enabled: boolean) => void;
+  onSystemAudioChange: (enabled: boolean) => void;
   disabled?: boolean;
 }
 
 export function SystemAudioToggle({
   isSystemAudio,
   onSystemAudioChange,
-  onChange,
   disabled = false
 }: SystemAudioToggleProps) {
-  const handleChange = (checked: boolean) => {
-    // Call both handlers if they exist
-    if (onSystemAudioChange) onSystemAudioChange(checked);
-    if (onChange) onChange(checked);
-  };
-
   return (
-    <div className="flex items-center space-x-2 p-2 rounded border border-gray-200 bg-slate-50 dark:bg-slate-900 dark:border-slate-800">
-      <Volume2 className="h-5 w-5 text-blue-500" />
-      <Label htmlFor="system-audio" className="flex-1">
-        Record system audio (includes sound from your computer)
-      </Label>
-      <Switch
-        id="system-audio"
-        checked={isSystemAudio}
-        onCheckedChange={handleChange}
-        disabled={disabled}
-      />
+    <div className="w-full">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label 
+            htmlFor="system-audio"
+            className="text-sm font-medium text-gray-700 flex items-center"
+          >
+            Record System Audio
+            <InfoCircle className="h-4 w-4 ml-1 text-gray-400" />
+          </Label>
+          <Switch
+            id="system-audio"
+            checked={isSystemAudio}
+            onCheckedChange={onSystemAudioChange}
+            disabled={disabled}
+          />
+        </div>
+        <p className="text-xs text-gray-500">
+          When enabled, audio from your browser tabs will be recorded along with your microphone
+        </p>
+      </div>
     </div>
   );
 }
