@@ -243,19 +243,28 @@ export type Database = {
       }
       notes_projects: {
         Row: {
+          classification_reason: string | null
+          classified_at: string | null
           created_at: string
           note_id: string
           project_id: string
+          similarity_score: number | null
         }
         Insert: {
+          classification_reason?: string | null
+          classified_at?: string | null
           created_at?: string
           note_id: string
           project_id: string
+          similarity_score?: number | null
         }
         Update: {
+          classification_reason?: string | null
+          classified_at?: string | null
           created_at?: string
           note_id?: string
           project_id?: string
+          similarity_score?: number | null
         }
         Relationships: [
           {

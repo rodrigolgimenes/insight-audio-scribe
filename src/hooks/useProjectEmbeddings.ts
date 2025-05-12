@@ -6,13 +6,14 @@ import {
   ensureProjectEmbeddings 
 } from '@/utils/embeddings/projectEmbeddings';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Hook for managing project embeddings
  */
 export function useProjectEmbeddings() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [similarProjects, setSimilarProjects] = useState<Array<{ projectId: string; similarity: number }>>([]);
+  const [similarProjects, setSimilarProjects] = useState<Array<{ projectId: string; similarity: number; projectName?: string }>>([]);
 
   /**
    * Generate embeddings for a project
@@ -77,11 +78,41 @@ export function useProjectEmbeddings() {
     }
   };
 
+  /**
+   * Classify a note into relevant projects
+   */
+  const classifyNote = async (noteId: string) => {
+    if (!noteId) return null;
+    
+    setIsProcessing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('classify-note-to-projects', {
+        body: { noteId }
+      });
+      
+      if (error) {
+        console.error('Error classifying note:', error);
+        toast.error(`Failed to classify note: ${error.message}`);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error in classifyNote:', error);
+      toast.error(`Error classifying note: ${error.message || 'Unknown error'}`);
+      return null;
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return {
     isProcessing,
     similarProjects,
     generateEmbeddings,
     searchSimilarProjects,
-    ensureEmbeddings
+    ensureEmbeddings,
+    classifyNote
   };
 }

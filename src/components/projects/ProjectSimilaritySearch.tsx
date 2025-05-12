@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Loader2, SearchIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 type SimilarProject = {
   projectId: string;
@@ -27,6 +28,20 @@ export function ProjectSimilaritySearch() {
 
   const navigateToProject = (projectId: string) => {
     navigate(`/app/projects/${projectId}`);
+  };
+
+  // Format similarity score as percentage
+  const formatSimilarity = (score: number) => {
+    return `${Math.round(score * 100)}%`;
+  };
+
+  // Determine color class based on similarity score
+  const getSimilarityColorClass = (score: number) => {
+    if (score >= 0.9) return "bg-green-500";
+    if (score >= 0.8) return "bg-green-400";
+    if (score >= 0.7) return "bg-blue-500";
+    if (score >= 0.6) return "bg-blue-400";
+    return "bg-gray-500";
   };
 
   return (
@@ -70,9 +85,9 @@ export function ProjectSimilaritySearch() {
                 <span className="font-medium">
                   {project.projectName || project.projectId.substring(0, 8) + '...'}
                 </span>
-                <span className="text-sm text-gray-500">
-                  {Math.round(project.similarity * 100)}% match
-                </span>
+                <Badge className={getSimilarityColorClass(project.similarity)}>
+                  {formatSimilarity(project.similarity)} match
+                </Badge>
               </div>
             </Card>
           ))}
