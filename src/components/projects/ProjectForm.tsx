@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -36,7 +37,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { cn } from "@/lib/utils";
 import { generateProjectEmbeddings } from '@/utils/embeddings/projectEmbeddings';
-import { toast } from 'sonner';
 
 interface ProjectFormData {
   name: string;
@@ -201,10 +201,15 @@ export function ProjectForm() {
 
       projectIdToUse = project.id;
 
+      // Generate project embeddings
       if (projectIdToUse) {
-        generateProjectEmbeddings(projectIdToUse).catch(error => {
-          console.error('Error generating project embeddings:', error);
-        });
+        try {
+          await generateProjectEmbeddings(projectIdToUse);
+          console.log('Project embeddings generation initiated');
+        } catch (embeddingError) {
+          console.error('Error generating project embeddings:', embeddingError);
+          // Don't throw here, as we don't want to block project saving if embedding generation fails
+        }
       }
       
       toast({

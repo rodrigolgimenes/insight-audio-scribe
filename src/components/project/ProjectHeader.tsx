@@ -1,151 +1,82 @@
 
-import { useState, useRef, useEffect } from "react";
-import { Edit2, Check, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { EditIcon, Trash2Icon, ArrowLeftIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useProjectOperations } from "@/hooks/project/useProjectOperations";
+import { ProjectEmbeddingsManager } from "@/components/projects/ProjectEmbeddingsManager"; 
 
 interface ProjectHeaderProps {
   projectName: string;
   projectId: string;
-  onRename: (newName: string) => Promise<void>;
-  onDelete: (deleteNotes: boolean) => Promise<void>;
-  isRenaming?: boolean;
-  isDeleting?: boolean;
+  description?: string;
+  onRename?: () => void;
+  onDelete?: () => void;
 }
 
-export const ProjectHeader = ({ 
-  projectName, 
-  projectId, 
-  onRename, 
+export const ProjectHeader = ({
+  projectName,
+  projectId,
+  description,
+  onRename,
   onDelete,
-  isRenaming = false,
-  isDeleting = false 
 }: ProjectHeaderProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedName, setEditedName] = useState(projectName);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
-
-  const handleSubmit = async () => {
-    if (editedName.trim() && editedName !== projectName) {
-      await onRename(editedName.trim());
-    }
-    setIsEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSubmit();
-    } else if (e.key === "Escape") {
-      setEditedName(projectName);
-      setIsEditing(false);
-    }
-  };
+  const navigate = useNavigate();
+  const { isDeleting } = useProjectOperations(projectId);
 
   return (
-    <>
-      <div className="flex items-center gap-2 mb-6">
-        {isEditing ? (
-          <div className="flex items-center gap-2">
-            <Input
-              ref={inputRef}
-              type="text"
-              value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="text-2xl font-bold h-auto py-1 px-2"
-              disabled={isRenaming}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={handleSubmit}
-              disabled={isRenaming}
-              className="h-9 w-9"
-            >
-              {isRenaming ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-            </Button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => navigate("/app")}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+            <span className="sr-only">Back</span>
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-800">{projectName}</h1>
+            {description && (
+              <p className="text-sm text-gray-500">{description}</p>
+            )}
           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">{projectName}</h1>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          {/* Add the embeddings manager */}
+          <ProjectEmbeddingsManager projectId={projectId} />
+          
+          {/* Edit button */}
+          {onRename && (
             <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => {
-                setEditedName(projectName);
-                setIsEditing(true);
-              }}
-              className="h-9 w-9"
+              onClick={onRename}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1"
             >
-              <Edit2 className="h-4 w-4" />
+              <EditIcon className="h-3.5 w-3.5" />
+              Edit
             </Button>
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-              <AlertDialogTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9 text-red-500 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent className="max-w-[90%] w-full sm:max-w-[425px] p-6 pb-8">
-                <AlertDialogHeader className="space-y-3">
-                  <AlertDialogTitle className="text-xl font-semibold text-center">
-                    Delete Project
-                  </AlertDialogTitle>
-                  <AlertDialogDescription className="text-center text-gray-600">
-                    What would you like to do with the notes in this project?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div className="flex flex-col items-center gap-2 mt-4">
-                  <AlertDialogAction
-                    onClick={() => onDelete(false)}
-                    disabled={isDeleting}
-                    className="w-auto px-6 bg-[#9b87f5] hover:bg-[#7E69AB] text-white font-medium py-2.5 rounded-lg transition-colors"
-                  >
-                    Move notes to Uncategorized
-                  </AlertDialogAction>
-                  <AlertDialogAction
-                    onClick={() => onDelete(true)}
-                    disabled={isDeleting}
-                    className="w-auto px-6 bg-[#ea384c] hover:bg-red-600 text-white font-medium py-2.5 rounded-lg transition-colors"
-                  >
-                    Delete project and all notes
-                  </AlertDialogAction>
-                  <AlertDialogCancel className="w-auto px-6 mt-0 py-2.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
-                    Cancel
-                  </AlertDialogCancel>
-                </div>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+          )}
+          
+          {/* Delete button */}
+          {onDelete && (
+            <Button
+              onClick={onDelete}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1 border-red-200 hover:bg-red-50 hover:text-red-600"
+              disabled={isDeleting}
+            >
+              <Trash2Icon className="h-3.5 w-3.5" />
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 };
