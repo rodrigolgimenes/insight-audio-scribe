@@ -33,6 +33,12 @@ export function NoteContent({
   const [isAddToProjectDialogOpen, setIsAddToProjectDialogOpen] = useState(false);
   const { validTranscript } = TranscriptValidation({ note });
 
+  const handleRenameNote = () => {
+    refetchNote();
+    // Return Promise.resolve() to satisfy TypeScript
+    return Promise.resolve();
+  };
+
   return (
     <div className="space-y-6">
       <NoteHeader
@@ -40,7 +46,7 @@ export function NoteContent({
         createdAt={note.created_at}
         duration={note.duration}
         folder={null}
-        onRenameNote={() => refetchNote()}
+        onRenameNote={handleRenameNote}
         onOpenTagsDialog={() => {}}
         onOpenMoveDialog={() => {}}
         onOpenDeleteDialog={() => {}}
@@ -94,7 +100,7 @@ export function NoteContent({
               />
 
               <MeetingMinutes 
-                transcript={note.original_transcript}
+                transcript={note.original_transcript || ""}
                 noteId={note.id}
                 audioUrl={audioUrl || note.audio_url}
                 initialContent={meetingMinutes}

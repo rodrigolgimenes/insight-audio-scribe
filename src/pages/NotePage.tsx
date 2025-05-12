@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -123,6 +124,7 @@ const NotePage = () => {
                     isLoadingMinutes={isLoadingMinutes}
                     refetchNote={() => {
                       // We could add a refetch function here if needed
+                      return Promise.resolve();
                     }}
                   />
                 </div>

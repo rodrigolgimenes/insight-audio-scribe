@@ -10,7 +10,7 @@ interface UncategorizedContentProps {
   notes: Note[] | undefined;
   isSelectionMode: boolean;
   selectedNotes: Note[];
-  toggleNoteSelection: (noteId: string) => void;
+  toggleNoteSelection: (note: Note) => void;
   isProjectDialogOpen: boolean;
   setIsProjectDialogOpen: (value: boolean) => void;
   projects: any[];

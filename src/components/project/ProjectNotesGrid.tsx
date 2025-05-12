@@ -13,8 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface ProjectNotesGridProps {
   notes: Note[];
   isSelectionMode: boolean;
-  selectedNotes: Note[];
-  toggleNoteSelection: (note: Note) => void;
+  selectedNotes: string[];
+  toggleNoteSelection: (noteId: string) => void;
 }
 
 export const ProjectNotesGrid = ({
@@ -59,7 +59,7 @@ export const ProjectNotesGrid = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
       {notes.map((note) => {
-        const isSelected = selectedNotes.some((n) => n.id === note.id);
+        const isSelected = selectedNotes.includes(note.id);
         
         // Get classification metadata for this note if available
         const classification = classificationsData?.[note.id];
@@ -82,7 +82,7 @@ export const ProjectNotesGrid = ({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  toggleNoteSelection(note);
+                  toggleNoteSelection(note.id);
                 }}
               >
                 <CheckSquare
