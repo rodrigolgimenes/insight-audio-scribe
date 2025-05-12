@@ -45,7 +45,7 @@ export function useNoteClassification(noteId: string | undefined) {
       }
       
       return [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in classifyNote:', error);
       toast.error(`Unexpected error during classification: ${error.message || 'Unknown error'}`);
       return null;
@@ -96,7 +96,7 @@ export function useNoteClassification(noteId: string | undefined) {
 
   // Remove a classification
   const removeClassification = async (projectId: string) => {
-    if (!noteId) return;
+    if (!noteId) return false;
     
     try {
       const { error } = await supabase
@@ -115,7 +115,7 @@ export function useNoteClassification(noteId: string | undefined) {
       setClassifications(prev => prev.filter(c => c.project_id !== projectId));
       toast.success('Classification removed successfully');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in removeClassification:', error);
       toast.error(`Unexpected error: ${error.message || 'Unknown error'}`);
       return false;
@@ -124,7 +124,7 @@ export function useNoteClassification(noteId: string | undefined) {
 
   // Manually add a classification
   const addManualClassification = async (projectId: string) => {
-    if (!noteId) return;
+    if (!noteId) return false;
     
     try {
       const { data: project, error: projectError } = await supabase
@@ -167,7 +167,7 @@ export function useNoteClassification(noteId: string | undefined) {
       setClassifications(prev => [newClassification, ...prev]);
       toast.success('Project added to note successfully');
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in addManualClassification:', error);
       toast.error(`Unexpected error: ${error.message || 'Unknown error'}`);
       return false;

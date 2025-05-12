@@ -8,14 +8,14 @@ interface TranscriptValidationProps {
 export const TranscriptValidation = ({ note }: TranscriptValidationProps) => {
   const getTranscriptWithoutFirstLine = (transcript: string | null): string => {
     if (!transcript) {
-      console.log('TranscriptValidation - Transcrição não encontrada:', { 
+      console.log('TranscriptValidation - Transcript not found:', { 
         noteId: note.id,
         transcript: 'null'
       });
       return '';
     }
 
-    console.log('TranscriptValidation - Processando transcrição:', {
+    console.log('TranscriptValidation - Processing transcript:', {
       noteId: note.id,
       transcriptLength: transcript.length,
       transcriptPreview: transcript.substring(0, 100) + '...'
@@ -32,13 +32,13 @@ export const TranscriptValidation = ({ note }: TranscriptValidationProps) => {
     return transcript;
   };
 
-  // Primeiro verificamos a transcrição processada, depois a original
+  // First check processed content, then original transcript
   const transcript = note.processed_content || note.original_transcript;
   const transcriptWithoutFirstLine = getTranscriptWithoutFirstLine(transcript);
   const processedTranscript = processTranscript(transcriptWithoutFirstLine);
   const validTranscript = processedTranscript;
 
-  console.log('TranscriptValidation - Resultado final do processamento:', {
+  console.log('TranscriptValidation - Final processing result:', {
     noteId: note.id,
     hasValidTranscript: !!validTranscript,
     processedTranscriptLength: processedTranscript.length,

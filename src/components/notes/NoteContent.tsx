@@ -15,25 +15,42 @@ import { AddToProjectDialog } from "./AddToProjectDialog";
 
 interface NoteContentProps {
   note: Note;
-  hasTranscriptError: boolean;
-  refetchNote: () => void;
+  hasTranscriptError?: boolean;
+  refetchNote?: () => void;
+  audioUrl?: string | null;
+  meetingMinutes?: string | null;
+  isLoadingMinutes?: boolean;
 }
 
-export function NoteContent({ note, hasTranscriptError, refetchNote }: NoteContentProps) {
+export function NoteContent({ 
+  note, 
+  hasTranscriptError = false, 
+  refetchNote = () => {}, 
+  audioUrl = null,
+  meetingMinutes = null,
+  isLoadingMinutes = false
+}: NoteContentProps) {
   const [isAddToProjectDialogOpen, setIsAddToProjectDialogOpen] = useState(false);
+  const { validTranscript } = TranscriptValidation({ note });
 
   return (
     <div className="space-y-6">
       <NoteHeader
         title={note.title}
-        noteId={note.id}
-        onRename={refetchNote}
+        createdAt={note.created_at}
+        duration={note.duration}
+        folder={null}
+        onRenameNote={() => refetchNote()}
+        onOpenTagsDialog={() => {}}
+        onOpenMoveDialog={() => {}}
+        onOpenDeleteDialog={() => {}}
       />
 
-      {note.audio_url && (
+      {(audioUrl || note.audio_url) && (
         <AudioPlayer
-          audioUrl={note.audio_url}
-          duration={note.duration || 0}
+          audioUrl={audioUrl || note.audio_url || ''}
+          isPlaying={false}
+          onPlayPause={() => {}}
         />
       )}
 
@@ -67,11 +84,8 @@ export function NoteContent({ note, hasTranscriptError, refetchNote }: NoteConte
             {hasTranscriptError && <TranscriptError noteId={note.id} />}
 
             <div className="space-y-6">
-              <TranscriptValidation note={note} />
-
               <ProcessedContentAccordion
                 content={note.processed_content}
-                noteId={note.id}
               />
 
               <TranscriptAccordion
@@ -79,7 +93,14 @@ export function NoteContent({ note, hasTranscriptError, refetchNote }: NoteConte
                 noteId={note.id}
               />
 
-              <MeetingMinutes noteId={note.id} />
+              <MeetingMinutes 
+                transcript={note.original_transcript}
+                noteId={note.id}
+                audioUrl={audioUrl || note.audio_url}
+                initialContent={meetingMinutes}
+                isLoadingInitialContent={isLoadingMinutes}
+              />
+              
               <NoteSummary noteId={note.id} />
             </div>
           </Tab.Panel>
