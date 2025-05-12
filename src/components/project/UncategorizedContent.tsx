@@ -56,7 +56,10 @@ export const UncategorizedContent = ({
           notes={notes}
           isSelectionMode={isSelectionMode}
           selectedNotes={selectedNotes.map(note => note.id)}
-          toggleNoteSelection={toggleNoteSelection}
+          toggleNoteSelection={(noteId: string) => {
+            const note = notes.find(n => n.id === noteId);
+            if (note) toggleNoteSelection(note);
+          }}
         />
       ) : (
         <ProjectEmptyState />

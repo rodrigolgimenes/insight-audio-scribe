@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { UncategorizedHeader } from "@/components/project/UncategorizedHeader";
 import { UncategorizedContent } from "@/components/project/UncategorizedContent";
+import { Note } from "@/integrations/supabase/types/notes";
 
 const UncategorizedFolder = () => {
   const { toast } = useToast();
@@ -38,13 +39,10 @@ const UncategorizedFolder = () => {
     },
   });
 
-  const toggleNoteSelection = (noteId: string) => {
-    const note = notes?.find((n) => n.id === noteId);
-    if (!note) return;
-
+  const toggleNoteSelection = (note: Note) => {
     setSelectedNotes((prev) =>
-      prev.some((n) => n.id === noteId)
-        ? prev.filter((n) => n.id !== noteId)
+      prev.some((n) => n.id === note.id)
+        ? prev.filter((n) => n.id !== note.id)
         : [...prev, note]
     );
   };

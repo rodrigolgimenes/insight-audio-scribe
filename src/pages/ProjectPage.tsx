@@ -101,6 +101,11 @@ const ProjectPage = () => {
     }
   };
 
+  // Create a wrapper function for toggleNoteSelection
+  const handleToggleNoteSelection = (noteId: string) => {
+    toggleNoteSelection(noteId);
+  };
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
@@ -132,7 +137,7 @@ const ProjectPage = () => {
               notes={transformedNotes}
               isSelectionMode={isSelectionMode}
               selectedNotes={selectedNotes}
-              toggleNoteSelection={toggleNoteSelection}
+              toggleNoteSelection={handleToggleNoteSelection}
             />
           ) : (
             <ProjectEmptyState />

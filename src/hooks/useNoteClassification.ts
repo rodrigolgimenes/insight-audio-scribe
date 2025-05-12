@@ -81,8 +81,8 @@ export function useNoteClassification(noteId: string | undefined) {
       if (data && data.length > 0) {
         const formattedClassifications = data.map(item => ({
           project_id: item.project_id,
-          project_name: item.projects?.name || 'Unknown Project',
-          project_description: item.projects?.description || null,
+          project_name: item.projects ? item.projects.name || 'Unknown Project' : 'Unknown Project',
+          project_description: item.projects ? item.projects.description || null : null,
           similarity_score: item.similarity_score || 0,
           classification_reason: item.classification_reason || 'Manual classification'
         }));
