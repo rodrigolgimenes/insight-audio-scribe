@@ -74,6 +74,25 @@ const ProjectPage = () => {
       color: tag.color || null
     })) : []
   })) || [];
+  
+  // Create wrapper functions to handle the function arguments
+  const handleRename = () => {
+    // This function will call renameProject with appropriate arguments when needed
+    if (project) {
+      const newName = window.prompt("Enter new project name:", project.name);
+      if (newName && newName !== project.name) {
+        renameProject(newName);
+      }
+    }
+  };
+  
+  const handleDelete = () => {
+    // This function will call deleteProject with appropriate arguments when needed
+    const confirmDelete = window.confirm("Are you sure you want to delete this project? This action cannot be undone.");
+    if (confirmDelete) {
+      deleteProject(false); // Default to not deleting notes
+    }
+  };
 
   return (
     <SidebarProvider>
@@ -83,8 +102,8 @@ const ProjectPage = () => {
           <ProjectHeader 
             projectName={project?.name || ""} 
             projectId={projectId || ''}
-            onRename={renameProject}
-            onDelete={deleteProject}
+            onRename={handleRename}
+            onDelete={handleDelete}
             isRenaming={isRenaming}
             isDeleting={isDeleting}
           />

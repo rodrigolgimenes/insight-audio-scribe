@@ -12,6 +12,8 @@ interface ProjectHeaderProps {
   description?: string;
   onRename?: () => void;
   onDelete?: () => void;
+  isRenaming?: boolean;
+  isDeleting?: boolean;
 }
 
 export const ProjectHeader = ({
@@ -20,9 +22,10 @@ export const ProjectHeader = ({
   description,
   onRename,
   onDelete,
+  isRenaming,
+  isDeleting,
 }: ProjectHeaderProps) => {
   const navigate = useNavigate();
-  const { isDeleting } = useProjectOperations(projectId);
 
   return (
     <div className="space-y-4">
@@ -56,9 +59,10 @@ export const ProjectHeader = ({
               variant="outline"
               size="sm"
               className="flex items-center gap-1"
+              disabled={isRenaming}
             >
               <EditIcon className="h-3.5 w-3.5" />
-              Edit
+              {isRenaming ? "Renaming..." : "Edit"}
             </Button>
           )}
           
