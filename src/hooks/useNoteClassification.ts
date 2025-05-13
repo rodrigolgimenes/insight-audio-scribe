@@ -21,8 +21,10 @@ export function useNoteClassification(noteId: string | undefined) {
     setIsClassifying(true);
     
     try {
-      // Call the edge function to classify the note
-      const { data, error } = await supabase.functions.invoke('classify-note-to-projects', {
+      console.log('Calling classify-transcription with:', { noteId, threshold, limit });
+      
+      // Call the edge function with the correct name: classify-transcription
+      const { data, error } = await supabase.functions.invoke('classify-transcription', {
         body: { 
           noteId,
           threshold,
