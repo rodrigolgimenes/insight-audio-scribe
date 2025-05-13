@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useProjectActions } from "@/hooks/notes/useProjectActions";
 import { useNoteSelection } from "@/hooks/notes/useNoteSelection";
 import { useNoteActions } from "@/hooks/notes/useNoteActions";
-import { useNotesQuery } from "@/hooks/notes/useNotesQuery";
+import { useUncategorizedNotes } from "@/hooks/notes/useUncategorizedNotes";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { UncategorizedHeader } from "@/components/project/UncategorizedHeader";
@@ -16,7 +16,7 @@ const UncategorizedFolder = () => {
   const { toast } = useToast();
   const { isSelectionMode, setIsSelectionMode, selectedNotes, setSelectedNotes } = useNoteSelection();
   const { handleDeleteNotes } = useNoteActions();
-  const { data: notes, isLoading } = useNotesQuery();
+  const { data: notes, isLoading } = useUncategorizedNotes();
   const {
     isProjectDialogOpen,
     setIsProjectDialogOpen,

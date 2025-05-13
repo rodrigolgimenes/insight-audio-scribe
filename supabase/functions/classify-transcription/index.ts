@@ -1,3 +1,4 @@
+
 // 1) Necessary for some Deno libraries that use XMLHttpRequest
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 // 2) HTTP server
@@ -139,6 +140,34 @@ async function classifyNoteToProjects(
     // Record the classification in the database
     if (similarProjects.length > 0) {
       const now = new Date().toISOString();
+      
+      // Update the note with classification data
+      if (similarProjects.length > 0) {
+        const bestMatch = similarProjects[0]; // Get the best match
+        const matchOk = bestMatch.similarity >= threshold;
+        
+        const updates: any = {
+          classified_at: now,
+          classification_score: bestMatch.similarity,
+          classification_reason: 'automatic-embedding'
+        };
+        
+        // Only set project_id if match is good enough
+        if (matchOk) {
+          updates.project_id = bestMatch.projectId;
+        }
+        
+        const { error: updateError } = await supabase
+          .from('notes')
+          .update(updates)
+          .eq('id', noteId);
+        
+        if (updateError) {
+          console.error('Error updating note with classification:', updateError);
+        }
+      }
+      
+      // Also record all classifications in the notes_projects table for history
       const classifications = similarProjects.map(project => ({
         note_id: noteId,
         project_id: project.projectId,

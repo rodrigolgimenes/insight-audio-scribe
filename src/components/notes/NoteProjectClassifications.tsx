@@ -28,7 +28,7 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
     if (noteId) {
       fetchClassifications();
     }
-  }, [noteId]);
+  }, [noteId, fetchClassifications]);
 
   const handleClassify = async () => {
     await classifyNote(threshold);
@@ -115,7 +115,7 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
                     size="icon" 
                     asChild
                   >
-                    <a href={`/app/projects/${classification.project_id}`} target="_blank">
+                    <a href={`/app/project/${classification.project_id}`} target="_blank">
                       <MoveRight className="h-4 w-4 text-gray-500" />
                     </a>
                   </Button>
