@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
-import { Configuration, OpenAIApi } from "openai";
+import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.3.0";
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
