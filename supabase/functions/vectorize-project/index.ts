@@ -1,36 +1,36 @@
-
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+// 1) Necessary for some Deno libraries that use XMLHttpRequest
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+// 2) HTTP server
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// 3) Supabase client (absolute URL, no import_map)
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+// 4) OpenAI client (absolute URL)
 import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.3.0";
 
 // CORS headers for cross-origin requests
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Initialize OpenAI API client
-const configuration = new Configuration({ 
-  apiKey: Deno.env.get("OPENAI_API_KEY") 
-});
-const openai = new OpenAIApi(configuration);
-
-// Create Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Maximum number of tokens to send to OpenAI API
-const MAX_TOKENS = 8000;
-
-interface RequestData {
-  project_id: string;
-  manual_trigger?: boolean;
-  content?: string;
-  contentHash?: string;
-  fieldType?: string;
-  forceUpdate?: boolean;
+// Load and validate environment variables
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const OPENAI_KEY = Deno.env.get("OPENAI_API_KEY")!;
+if (!SUPABASE_URL || !SUPABASE_KEY || !OPENAI_KEY) {
+  console.error("❌ Missing SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY or OPENAI_API_KEY");
+  throw new Error("Missing environment variables");
 }
+
+// Initialize Supabase and OpenAI clients
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const openai = new OpenAIApi(new Configuration({ apiKey: OPENAI_KEY }));
+
+// Constants
+const EMBEDDING_MODEL = "text-embedding-ada-002";
+const MAX_TOKENS = 8000;
+const MAX_RETRIES = 3;
 
 // Simple hash function for content change detection
 function createContentHash(content: string): string {
@@ -42,6 +42,26 @@ function createContentHash(content: string): string {
     hash = hash & hash; // Convert to 32bit integer
   }
   return hash.toString(16);
+}
+
+// Generate embedding with retry logic
+async function generateEmbedding(text: string): Promise<number[]> {
+  const input = text.slice(0, MAX_TOKENS);
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await openai.createEmbedding({
+        model: EMBEDDING_MODEL,
+        input,
+      });
+      return response.data.data[0].embedding;
+    } catch (err) {
+      console.error(`Embedding generation attempt ${attempt + 1} failed:`, err);
+      if (attempt === MAX_RETRIES - 1) throw err;
+      // Exponential backoff
+      await new Promise((r) => setTimeout(r, 2 ** attempt * 500));
+    }
+  }
+  throw new Error("Failed to generate embedding after multiple attempts");
 }
 
 // Generate and store embeddings for a project
@@ -75,7 +95,7 @@ async function vectorizeProject(
         console.error('Error fetching project:', projectError);
         return new Response(
           JSON.stringify({ error: `Project not found: ${projectError?.message || 'Unknown error'}` }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 404 }
         );
       }
 
@@ -131,7 +151,7 @@ async function vectorizeProject(
           success: true, 
           message: 'Embedding already exists and content unchanged' 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -143,19 +163,14 @@ async function vectorizeProject(
           success: false, 
           message: 'No text content to generate embeddings for' 
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
     console.log('Generating embedding for text of length:', normalizedText.length);
     
     // Generate embedding using OpenAI
-    const embeddingResponse = await openai.createEmbedding({
-      model: "text-embedding-ada-002",
-      input: normalizedText,
-    });
-
-    const [{ embedding }] = embeddingResponse.data.data;
+    const embedding = await generateEmbedding(normalizedText);
     
     // Store the embedding as a JSONB array
     const { error: upsertError } = await supabase
@@ -173,7 +188,7 @@ async function vectorizeProject(
       console.error('Error upserting embedding:', upsertError);
       return new Response(
         JSON.stringify({ error: `Failed to store embedding: ${upsertError.message}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
@@ -186,13 +201,13 @@ async function vectorizeProject(
         project_id: projectId,
         vector_length: embedding.length
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Error in vectorizeProject:', error);
     return new Response(
       JSON.stringify({ error: `Unexpected error: ${error.message || 'Unknown error'}` }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 }
@@ -200,18 +215,18 @@ async function vectorizeProject(
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: CORS_HEADERS });
   }
 
   try {
     // For POST requests, process the embedding
     if (req.method === 'POST') {
-      const requestData: RequestData = await req.json();
+      const requestData = await req.json();
       
       if (!requestData.project_id) {
         return new Response(
           JSON.stringify({ error: 'project_id is required' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 400 }
         );
       }
 
@@ -228,13 +243,13 @@ serve(async (req) => {
     // Handle unsupported methods
     return new Response(
       JSON.stringify({ error: `Method ${req.method} not allowed` }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 405 }
+      { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 405 }
     );
   } catch (error) {
     console.error('Unhandled error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Unknown server error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
