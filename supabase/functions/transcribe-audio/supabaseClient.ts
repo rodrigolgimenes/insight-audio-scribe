@@ -1,15 +1,15 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+// Este arquivo já existe, mas vamos atualizá-lo para ter certeza de que está correto
 
-// Create a Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase environment variables');
-}
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Re-export any other utilities that might be needed
-export { createSupabaseClient, corsHeaders } from './utils/clientUtils.ts';
+// Adicione CORS headers para consistência
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
