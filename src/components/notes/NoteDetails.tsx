@@ -17,7 +17,7 @@ export const NoteDetails = () => {
     <>
       <NoteTags noteId={noteId} />
       <div className="space-y-6">
-        <NoteSummary />
+        <NoteSummary noteId={noteId} />
         <ProjectDetails />
         <RiskManagement />
         <ActionItems />
