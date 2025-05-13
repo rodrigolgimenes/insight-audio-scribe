@@ -11,7 +11,7 @@ export interface Note {
   user_id: string;
   duration: number | null;
   audio_url: string | null;
-  status: 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error' | 'pending' | 'failed';
+  status: 'pending' | 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error' | 'failed';
   processing_progress?: number;
   error_message?: string | null;
   tags?: any[];

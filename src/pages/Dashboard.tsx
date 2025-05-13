@@ -9,6 +9,7 @@ import { ProjectDialog } from "@/components/dashboard/ProjectDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { Note } from "@/types/notes"; // Import from types/notes.ts
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,7 +77,6 @@ const Dashboard = () => {
     );
   }
 
-  // Error handling component that keeps the SidebarProvider intact
   if (error) {
     return (
       <SidebarProvider>
@@ -100,7 +100,7 @@ const Dashboard = () => {
 
   const filteredNotes = notes?.filter(note =>
     note.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) as Note[];
 
   return (
     <SidebarProvider>

@@ -1,7 +1,7 @@
 
 import React from "react";
-import { TranscriptAccordion } from "../TranscriptAccordion";
-import { TranscriptChat } from "../TranscriptChat";
+import { TranscriptAccordion } from "./TranscriptAccordion";
+import { TranscriptChat } from "./TranscriptChat";
 import { Note } from "@/types/notes";
 
 interface TranscriptSectionProps {
