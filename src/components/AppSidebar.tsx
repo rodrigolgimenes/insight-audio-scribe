@@ -1,123 +1,130 @@
-
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem
-} from "@/components/ui/sidebar";
+  LayoutDashboard,
+  FileText,
+  Folder,
+  Settings,
+  Plus,
+  Search,
+  Home,
+  Book,
+  User,
+  HelpCircle,
+} from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Mic, FileText, Settings } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { ProjectList } from "./projects/ProjectList";
-import { TagList } from "./tags/TagList";
-import { useState } from "react";
-import { SuggestionDialog } from "./suggestions/SuggestionDialog";
-import { BugReportDialog } from "./bugs/BugReportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@clerk/clerk-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface AppSidebarProps {
-  activePage?: string;
+interface SidebarProps {
+  activePage: "dashboard" | "notes" | "projects" | "settings";
 }
 
-export function AppSidebar({ activePage }: AppSidebarProps) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [isSuggestionDialogOpen, setIsSuggestionDialogOpen] = useState(false);
-  const [isBugReportDialogOpen, setIsBugReportDialogOpen] = useState(false);
-  
-  const menuItems = [
-    { icon: Mic, label: "Record", href: "/simple-record", id: "simple-record" },
-    { icon: FileText, label: "Notes", href: "/app", id: "notes" },
-    { icon: Settings, label: "Settings", href: "/settings", id: "settings" },
+export const AppSidebar = ({ activePage }: SidebarProps) => {
+  const { user } = useUser();
+
+  const sidebarMenuItems = [
+    {
+      title: "Dashboard",
+      url: "/app",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Notes",
+      url: "/app/notes",
+      icon: FileText,
+    },
+    {
+      title: "Projects",
+      url: "/app/projects",
+      icon: Folder,
+    },
+    {
+      title: "Settings",
+      url: "/app/settings",
+      icon: Settings,
+    },
+    {
+      title: "Help",
+      url: "/app/help",
+      icon: HelpCircle,
+    },
+    {
+      title: "Uncategorized",
+      url: "/app/uncategorized",
+      icon: Folder,
+    }
   ];
 
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl font-semibold text-palatinate-blue">InsightScribe</span>
-          </div>
-          <Button className="w-full bg-palatinate-blue hover:bg-hover-blue text-white">
-            Upgrade Now
-          </Button>
-        </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                const isActive = 
-                  (activePage === item.id) || 
-                  (location.pathname === item.href) ||
-                  (item.href === '/simple-record' && location.pathname === '/simple-record');
-                
-                return (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      asChild
-                      data-active={isActive}
-                      onClick={() => navigate(item.href)}
-                    >
-                      <button className="bg-white">
-                        <item.icon className={isActive ? "text-palatinate-blue" : ""} />
-                        <span className={isActive ? "text-palatinate-blue" : ""}>{item.label}</span>
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+    <aside className="w-64 border-r flex flex-col h-screen bg-gray-50">
+      <div className="flex items-center justify-between p-4">
+        <NavLink to="/app" className="font-bold text-xl">
+          My App
+        </NavLink>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0 rounded-full">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.imageUrl} alt={user?.fullName || "Avatar"} />
+                <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Book className="mr-2 h-4 w-4" />
+              <span>My Courses</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Help & Feedback</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <ProjectList />
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <TagList />
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarFooter>
-        <div className="p-4 mt-auto">
-          <div className="text-sm text-gray-500">
-            <a href="#" className="block py-1 hover:text-gray-900">What's new</a>
-            <a href="#" className="block py-1 hover:text-gray-900">Support</a>
-            <a href="#" className="block py-1 hover:text-gray-900">Guide</a>
-            <button 
-              onClick={() => setIsSuggestionDialogOpen(true)}
-              className="block w-full text-left py-1 hover:text-gray-900"
+      <ScrollArea className="flex-1 px-4 py-2">
+        <div className="space-y-1">
+          {sidebarMenuItems.map((item) => (
+            <NavLink
+              key={item.title}
+              to={item.url}
+              className={({ isActive }) =>
+                `flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors ${
+                  isActive
+                    ? "bg-gray-200 text-gray-900"
+                    : "text-gray-700"
+                }`
+              }
             >
-              Suggest an idea
-            </button>
-            <button 
-              onClick={() => setIsBugReportDialogOpen(true)}
-              className="block w-full text-left py-1 hover:text-gray-900"
-            >
-              Report a bug
-            </button>
-          </div>
+              <item.icon className="mr-2 h-4 w-4" />
+              <span>{item.title}</span>
+            </NavLink>
+          ))}
         </div>
-      </SidebarFooter>
+      </ScrollArea>
 
-      <SuggestionDialog 
-        open={isSuggestionDialogOpen}
-        onOpenChange={setIsSuggestionDialogOpen}
-      />
-      <BugReportDialog
-        open={isBugReportDialogOpen}
-        onOpenChange={setIsBugReportDialogOpen}
-      />
-    </Sidebar>
+      <div className="p-4">
+        <Button variant="secondary" className="w-full justify-start gap-2">
+          <Plus className="h-4 w-4" />
+          New Project
+        </Button>
+      </div>
+    </aside>
   );
-}
+};

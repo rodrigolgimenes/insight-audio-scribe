@@ -5,7 +5,7 @@ import { useMeetingMinutes } from "./minutes/useMeetingMinutes";
 import { MinutesContent } from "./minutes/MinutesContent";
 import { LoadingSpinner } from "./minutes/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Edit2 } from "lucide-react";
+import { Edit2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface MeetingMinutesProps {
@@ -14,6 +14,7 @@ interface MeetingMinutesProps {
   audioUrl?: string | null;
   initialContent?: string | null;
   isLoadingInitialContent?: boolean;
+  onClose?: () => void;
 }
 
 export const MeetingMinutes = ({ 
@@ -21,7 +22,8 @@ export const MeetingMinutes = ({
   noteId, 
   audioUrl, 
   initialContent,
-  isLoadingInitialContent 
+  isLoadingInitialContent,
+  onClose
 }: MeetingMinutesProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,6 +59,7 @@ export const MeetingMinutes = ({
     try {
       await updateMinutes(draftContent);
       setIsEditing(false);
+      if (onClose) onClose();
     } catch (error) {
       console.error('Error saving minutes:', error);
       toast({
@@ -70,6 +73,7 @@ export const MeetingMinutes = ({
   const handleCancel = () => {
     setIsEditing(false);
     setDraftContent(null);
+    if (onClose) onClose();
   };
 
   useEffect(() => {
@@ -113,6 +117,17 @@ export const MeetingMinutes = ({
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Edit Meeting Minutes</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCancel}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        
         {audioUrl && (
           <div className="mb-6">
             <AudioControlBar
@@ -122,20 +137,6 @@ export const MeetingMinutes = ({
             />
           </div>
         )}
-
-        <div className="mb-6 flex gap-2">
-          {minutes && !isEditing && (
-            <Button
-              onClick={handleStartEditing}
-              variant="outline"
-              className="gap-2"
-              disabled={isGenerating}
-            >
-              <Edit2 className="h-4 w-4" />
-              Edit Meeting Minutes
-            </Button>
-          )}
-        </div>
 
         {isGenerating && !minutes && (
           <LoadingSpinner message="Generating Minutes..." />

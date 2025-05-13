@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Note } from "@/integrations/supabase/types/notes";
 import { AudioPlayer } from "./AudioPlayer";
-import { NoteHeader } from "./NoteHeader";
 import { ProcessedContentAccordion } from "./ProcessedContentAccordion";
 import { TranscriptAccordion } from "./TranscriptAccordion";
 import { TranscriptError } from "./TranscriptError";
@@ -12,7 +11,9 @@ import { NoteSummary } from "./NoteSummary";
 import { NoteProjectClassifications } from "./NoteProjectClassifications";
 import { AddToProjectDialog } from "./AddToProjectDialog";
 import { TranscriptChat } from "./TranscriptChat";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
+import { MeetingMinutesContent } from "./content/MeetingMinutesContent";
 
 interface NoteContentProps {
   note: Note;
@@ -32,86 +33,89 @@ export function NoteContent({
   isLoadingMinutes = false
 }: NoteContentProps) {
   const [isAddToProjectDialogOpen, setIsAddToProjectDialogOpen] = useState(false);
+  const [isEditingMinutes, setIsEditingMinutes] = useState(false);
   const { validTranscript } = TranscriptValidation({ note });
 
-  const handleRenameNote = () => {
-    refetchNote();
-    // Return Promise.resolve() to satisfy TypeScript
-    return Promise.resolve();
+  const handleOpenMinutesEditor = () => {
+    setIsEditingMinutes(true);
   };
 
   return (
-    <div className="space-y-6">
-      <NoteHeader
-        title={note.title}
-        createdAt={note.created_at}
-        duration={note.duration}
-        folder={null}
-        onRenameNote={handleRenameNote}
-        onOpenTagsDialog={() => {}}
-        onOpenMoveDialog={() => {}}
-        onOpenDeleteDialog={() => {}}
-      />
+    <div className="space-y-8">
+      {/* Project Actions Section (Sticky) */}
+      <div className="sticky top-0 z-10 bg-white p-4 shadow-sm rounded-lg border border-gray-200 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={() => {
+              // Auto-classify functionality would go here
+            }}
+          >
+            <Sparkles className="h-4 w-4" />
+            Auto-Classify
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={() => setIsAddToProjectDialogOpen(true)}
+          >
+            + Add to Project
+          </Button>
+        </div>
+      </div>
 
+      {/* Audio Player */}
       {(audioUrl || note.audio_url) && (
-        <AudioPlayer
-          audioUrl={audioUrl || note.audio_url || ''}
-          isPlaying={false}
-          onPlayPause={() => {}}
+        <div className="mb-8">
+          <AudioPlayer
+            audioUrl={audioUrl || note.audio_url || ''}
+            isPlaying={false}
+            onPlayPause={() => {}}
+          />
+        </div>
+      )}
+
+      {/* Meeting Minutes Section */}
+      {isEditingMinutes ? (
+        <MeetingMinutes 
+          transcript={note.original_transcript || ""}
+          noteId={note.id}
+          audioUrl={audioUrl || note.audio_url}
+          initialContent={meetingMinutes}
+          isLoadingInitialContent={isLoadingMinutes}
+          onClose={() => setIsEditingMinutes(false)}
+        />
+      ) : (
+        <MeetingMinutesContent
+          content={meetingMinutes}
+          onEdit={handleOpenMinutesEditor}
+          isLoading={isLoadingMinutes}
         />
       )}
 
-      <Tabs defaultValue="content" className="w-full">
-        <TabsList className="flex w-full space-x-1 rounded-xl bg-gray-100 p-1">
-          <TabsTrigger 
-            value="content"
-            className="w-full rounded-lg py-2.5 text-sm font-medium leading-5"
-          >
-            Content
-          </TabsTrigger>
-          <TabsTrigger 
-            value="projects"
-            className="w-full rounded-lg py-2.5 text-sm font-medium leading-5"
-          >
-            Projects
-          </TabsTrigger>
-        </TabsList>
+      {/* Original Transcript Section */}
+      <div className="space-y-6">
+        {hasTranscriptError && <TranscriptError noteId={note.id} />}
         
-        <TabsContent value="content" className="mt-2 rounded-xl bg-white p-3">
-          {hasTranscriptError && <TranscriptError noteId={note.id} />}
+        <TranscriptAccordion
+          transcript={note.original_transcript || ""}
+          noteId={note.id}
+        />
+      </div>
 
-          <div className="space-y-6">
-            <ProcessedContentAccordion
-              content={note.processed_content}
-            />
+      {/* Chat with Transcript */}
+      <div className="mt-8">
+        <TranscriptChat note={note} />
+      </div>
 
-            <TranscriptAccordion
-              transcript={note.original_transcript || ""}
-              noteId={note.id}
-            />
+      {/* Hidden until needed - these sections can be conditionally shown based on user requirements */}
+      <div className="hidden">
+        <ProcessedContentAccordion content={note.processed_content} />
+        <NoteSummary noteId={note.id} />
+      </div>
 
-            <TranscriptChat note={note} />
-
-            <MeetingMinutes 
-              transcript={note.original_transcript || ""}
-              noteId={note.id}
-              audioUrl={audioUrl || note.audio_url}
-              initialContent={meetingMinutes}
-              isLoadingInitialContent={isLoadingMinutes}
-            />
-            
-            <NoteSummary noteId={note.id} />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="projects" className="mt-2 rounded-xl bg-white p-3">
-          <NoteProjectClassifications 
-            noteId={note.id} 
-            onAddToProject={() => setIsAddToProjectDialogOpen(true)}
-          />
-        </TabsContent>
-      </Tabs>
-
+      {/* Dialog for adding to project */}
       <AddToProjectDialog 
         noteId={note.id}
         isOpen={isAddToProjectDialogOpen}

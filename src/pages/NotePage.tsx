@@ -34,7 +34,7 @@ const NotePage = () => {
   const { toast } = useToast();
   const hasMountedRef = useRef(false);
 
-  // Add validation check for noteId format
+  // Validate noteId format
   const isValidUUID = noteId ? /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(noteId) : false;
 
   useEffect(() => {
@@ -84,8 +84,8 @@ const NotePage = () => {
       return publicUrl;
     },
     enabled: !!note?.audio_url,
-    staleTime: Infinity, // Audio URLs don't change, so we can cache them indefinitely
-    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
     retry: 2,
     meta: {
       onError: (error) => {
@@ -123,15 +123,14 @@ const NotePage = () => {
       return data?.content || null;
     },
     enabled: !!noteId && isValidUUID,
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: 2,
     meta: {
       onError: (error) => {
         console.error("Error fetching meeting minutes:", error);
-        // No need to show toast as we'll display fallback content
       }
     }
   });
@@ -183,20 +182,22 @@ const NotePage = () => {
         <div className="flex-1 flex flex-col">
           <main className="flex-1 overflow-auto">
             <div className="max-w-5xl mx-auto px-6 py-8">
-              <NoteHeader
-                title={note.title}
-                createdAt={note.created_at}
-                duration={note.duration}
-                folder={currentProject}
-                onRenameNote={renameNote}
-                onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
-                onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
-                onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
-              />
+              <div className="sticky top-0 z-20 bg-gray-50 pt-4 pb-6">
+                <NoteHeader
+                  title={note.title}
+                  createdAt={note.created_at}
+                  duration={note.duration}
+                  folder={currentProject}
+                  onRenameNote={renameNote}
+                  onOpenTagsDialog={() => setIsTagsDialogOpen(true)}
+                  onOpenMoveDialog={() => setIsMoveDialogOpen(true)}
+                  onOpenDeleteDialog={() => setIsDeleteDialogOpen(true)}
+                />
+                
+                {noteId && <NoteTags noteId={noteId} />}
+              </div>
               
-              {noteId && <NoteTags noteId={noteId} />}
-
-              <div className="mt-8">
+              <div className="mt-4">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                   <NoteContent 
                     note={note}
