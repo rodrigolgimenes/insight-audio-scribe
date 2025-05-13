@@ -1,4 +1,3 @@
-
 // 1) Necessary for some Deno libraries that use XMLHttpRequest
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 // 2) HTTP server

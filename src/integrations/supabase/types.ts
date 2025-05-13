@@ -542,7 +542,7 @@ export type Database = {
           {
             foreignKeyName: "project_embeddings_project_id_fkey"
             columns: ["project_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
