@@ -11,6 +11,7 @@ import { MeetingMinutes } from "./MeetingMinutes";
 import { NoteSummary } from "./NoteSummary";
 import { NoteProjectClassifications } from "./NoteProjectClassifications";
 import { AddToProjectDialog } from "./AddToProjectDialog";
+import { TranscriptChat } from "./TranscriptChat";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface NoteContentProps {
@@ -88,6 +89,8 @@ export function NoteContent({
               transcript={note.original_transcript || ""}
               noteId={note.id}
             />
+
+            <TranscriptChat note={note} />
 
             <MeetingMinutes 
               transcript={note.original_transcript || ""}
