@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -55,13 +56,14 @@ export const generateProjectEmbeddings = async (
     }
 
     // Call the edge function to generate the embedding
+    // Fix: Use the correct parameter name 'project_id' for compatibility with the edge function
     const { data: result, error: invokeError } = await supabase.functions.invoke('vectorize-project', {
       body: { 
-        projectId: projectId, 
+        project_id: projectId, // Changed from projectId to project_id
         forceUpdate: force,
         content: projectContext,
         contentHash: contentHash,
-        fieldType: 'full' // Specify field type for the embedding
+        fieldType: 'full'
       }
     });
     

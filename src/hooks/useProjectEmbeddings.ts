@@ -32,6 +32,7 @@ export function useProjectEmbeddings() {
       
       return result;
     } catch (error) {
+      console.error('Error in generateEmbeddings:', error);
       if (showToasts) {
         toast.error(`Error generating embeddings: ${error.message || 'Unknown error'}`);
       }
@@ -87,7 +88,7 @@ export function useProjectEmbeddings() {
     setIsProcessing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('classify-note-to-projects', {
+      const { data, error } = await supabase.functions.invoke('classify-transcription', {
         body: { noteId }
       });
       

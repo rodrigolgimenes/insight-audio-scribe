@@ -1,13 +1,24 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.3.0";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
+import { Configuration, OpenAIApi } from "openai";
 
+// CORS headers for cross-origin requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Initialize OpenAI API client
+const configuration = new Configuration({ 
+  apiKey: Deno.env.get("OPENAI_API_KEY") 
+});
+const openai = new OpenAIApi(configuration);
+
+// Create Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -16,185 +27,141 @@ serve(async (req) => {
   }
 
   try {
+    // Parse request body
     const { noteId, threshold = 0.7, limit = 5 } = await req.json();
+    
     if (!noteId) {
       return new Response(
-        JSON.stringify({ success: false, error: "Note ID is required" }),
+        JSON.stringify({ error: "Missing required parameter: noteId" }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
 
-    console.log(`[classify-transcription] Processing note: ${noteId}`);
+    // 1. Get the note data
+    const { data: note, error: noteError } = await supabase
+      .from('notes')
+      .select('*, recordings(*)')
+      .eq('id', noteId)
+      .single();
 
-    // Setup clients
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const openaiConfig = new Configuration({ apiKey: Deno.env.get("OPENAI_API_KEY") });
-    const openai = new OpenAIApi(openaiConfig);
-
-    // 1. Fetch the note content (from meeting_minutes if available, or from original_transcript)
-    const { data: meetingMinutes, error: meetingMinutesError } = await supabase
-      .from('meeting_minutes')
-      .select('content, note_id')
-      .eq('note_id', noteId)
-      .maybeSingle();
-
-    // If no meeting minutes, get the note's original transcript
-    let contentToEmbed = "";
-    if (!meetingMinutes) {
-      console.log(`[classify-transcription] No meeting minutes found, checking original transcript`);
-      const { data: note, error: noteError } = await supabase
-        .from('notes')
-        .select('original_transcript, processed_content')
-        .eq('id', noteId)
-        .maybeSingle();
-
-      if (noteError || !note) {
-        return new Response(
-          JSON.stringify({ success: false, error: `Note not found: ${noteError?.message}` }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-        );
-      }
-
-      contentToEmbed = note.processed_content || note.original_transcript || "";
-      if (!contentToEmbed) {
-        return new Response(
-          JSON.stringify({ success: false, error: "No content available to classify" }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-        );
-      }
-    } else {
-      contentToEmbed = meetingMinutes.content;
-    }
-
-    // 2. Generate embedding for the note content
-    console.log(`[classify-transcription] Generating embedding for content of length: ${contentToEmbed.length}`);
-    const MAX_TOKENS = 8000;
-    const trimmedContent = contentToEmbed.trim().substring(0, MAX_TOKENS);
-    
-    const embeddingResponse = await openai.createEmbedding({
-      model: "text-embedding-ada-002",
-      input: trimmedContent,
-    });
-    
-    if (!embeddingResponse.data.data || embeddingResponse.data.data.length === 0) {
+    if (noteError) {
+      console.error("Error fetching note:", noteError);
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to generate embedding" }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        JSON.stringify({ error: `Failed to fetch note: ${noteError.message}` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
-    
-    const [{ embedding }] = embeddingResponse.data.data;
-    console.log(`[classify-transcription] Generated embedding with ${embedding.length} dimensions`);
 
-    // 3. Find similar projects using the embedding
-    const { data: similarProjects, error: similarProjectsError } = await supabase.rpc(
+    // 2. Get note content for embedding
+    const noteContent = note.processed_content || note.original_transcript || "";
+    if (!noteContent) {
+      return new Response(
+        JSON.stringify({ error: "Note has no content to classify" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // 3. Generate embedding for note content
+    console.log(`Generating embedding for note ${noteId} with content length ${noteContent.length}`);
+    const embeddingResponse = await openai.createEmbedding({
+      model: "text-embedding-ada-002",
+      input: noteContent.substring(0, 8000), // Limit to 8000 chars to avoid token limits
+    });
+
+    const [{ embedding }] = embeddingResponse.data.data;
+    
+    // 4. Find similar projects using RPC function
+    console.log(`Finding similar projects with threshold ${threshold} and limit ${limit}`);
+    const { data: similarProjects, error: projectError } = await supabase.rpc(
       'find_similar_projects',
       {
-        project_embedding: embedding,
+        project_embedding: JSON.stringify(embedding),
         similarity_threshold: threshold,
         max_results: limit
       }
     );
 
-    if (similarProjectsError) {
-      console.error('[classify-transcription] Error finding similar projects:', similarProjectsError);
+    if (projectError) {
+      console.error("Error finding similar projects:", projectError);
       return new Response(
-        JSON.stringify({ success: false, error: `Error finding similar projects: ${similarProjectsError.message}` }),
+        JSON.stringify({ error: `Failed to find similar projects: ${projectError.message}` }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    console.log(`[classify-transcription] Found ${similarProjects?.length || 0} similar projects`);
-
-    // 4. Fetch project details
-    const projectIds = similarProjects.map((p: any) => p.project_id);
+    console.log(`Found ${similarProjects?.length || 0} similar projects`);
     
-    if (projectIds.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "No similar projects found", 
-          classifications: [] 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // 5. Get project details
+    const projectIds = similarProjects?.map(p => p.project_id) || [];
+    let projectDetails = [];
     
-    const { data: projectDetails, error: projectDetailsError } = await supabase
-      .from('projects')
-      .select('id, name, description')
-      .in('id', projectIds);
+    if (projectIds.length > 0) {
+      const { data: projects, error: projectsError } = await supabase
+        .from('projects')
+        .select('id, name')
+        .in('id', projectIds);
       
-    if (projectDetailsError) {
-      console.error('[classify-transcription] Error fetching project details:', projectDetailsError);
-    }
-    
-    // 5. Create an array of classifications with similarity scores and reasons
-    const classifications = similarProjects.map((p: any) => {
-      const projectDetail = projectDetails?.find((pd: any) => pd.id === p.project_id) || null;
-      const similarity = p.similarity;
-      
-      // Generate classification reason
-      let reason = "";
-      if (similarity > 0.85) {
-        reason = "Strong semantic similarity";
-      } else if (similarity > 0.75) {
-        reason = "Moderate semantic similarity";
+      if (projectsError) {
+        console.error("Error fetching project details:", projectsError);
       } else {
-        reason = "Partial semantic similarity";
+        projectDetails = projects || [];
       }
-
-      return {
-        project_id: p.project_id,
-        project_name: projectDetail?.name || "Unknown Project",
-        project_description: projectDetail?.description || null,
-        similarity_score: similarity,
-        classification_reason: reason
-      };
-    });
-
-    // 6. Insert or update the classifications in notes_projects table
-    const now = new Date().toISOString();
-    const notesProjectsData = classifications.map(c => ({
-      note_id: noteId,
-      project_id: c.project_id,
-      similarity_score: c.similarity_score,
-      classification_reason: c.classification_reason,
-      classified_at: now
-    }));
-
-    // Use upsert to insert or update the classifications
-    const { error: upsertError } = await supabase
-      .from('notes_projects')
-      .upsert(notesProjectsData, {
-        onConflict: 'note_id,project_id',
-        ignoreDuplicates: false
-      });
-      
-    if (upsertError) {
-      console.error('[classify-transcription] Error upserting classifications:', upsertError);
-      return new Response(
-        JSON.stringify({ success: false, error: `Error saving classifications: ${upsertError.message}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
     }
 
-    // 7. Return the classifications
+    // 6. Save classifications to notes_projects
+    const timestamp = new Date().toISOString();
+    const classificationsToInsert = similarProjects?.map(project => ({
+      note_id: noteId,
+      project_id: project.project_id,
+      similarity_score: project.similarity,
+      classified_at: timestamp,
+      classification_reason: "Automatic classification by content similarity",
+      created_at: timestamp
+    })) || [];
+
+    if (classificationsToInsert.length > 0) {
+      const { error: insertError } = await supabase
+        .from('notes_projects')
+        .upsert(
+          classificationsToInsert,
+          { onConflict: 'note_id,project_id', ignoreDuplicates: false }
+        );
+
+      if (insertError) {
+        console.error("Error saving classifications:", insertError);
+        return new Response(
+          JSON.stringify({ 
+            error: `Failed to save classifications: ${insertError.message}`,
+            classifications: similarProjects 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+    }
+
+    // 7. Combine project details with classifications
+    const classificationsWithDetails = similarProjects?.map(project => {
+      const details = projectDetails.find(p => p.id === project.project_id);
+      return {
+        projectId: project.project_id,
+        similarity: project.similarity,
+        projectName: details?.name || "Unknown Project"
+      };
+    }) || [];
+
+    // Return response
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: `Classified note ${noteId} into ${classifications.length} projects`,
-        classifications
+      JSON.stringify({ 
+        success: true, 
+        message: `Note classified successfully, found ${classificationsWithDetails.length} matching projects`,
+        classifications: classificationsWithDetails
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('[classify-transcription] Unexpected error:', error);
+    console.error("Unhandled error in classify-transcription:", error);
     return new Response(
-      JSON.stringify({ success: false, error: `Unexpected error: ${error.message || 'Unknown error'}` }),
+      JSON.stringify({ error: `Unexpected error: ${error.message || "Unknown error"}` }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
