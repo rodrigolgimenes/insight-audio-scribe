@@ -1,15 +1,29 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Note } from "@/integrations/supabase/types/notes";
+import { Note } from "@/types/notes";
 import { useToast } from "@/components/ui/use-toast";
 
-interface NoteWithTags extends Note {
+interface DatabaseNote {
+  id: string;
+  title: string;
+  original_transcript: string | null;
+  processed_content: string | null;
+  full_prompt: string | null;
+  created_at: string;
+  updated_at: string;
+  recording_id: string;
+  user_id: string;
+  duration: number | null;
+  audio_url: string | null;
+  status: string;
+  processing_progress: number | null;
+  error_message: string | null;
   tags: Array<{
     id: string;
     name: string;
-    color: string;
-  }>;
+    color: string | null;
+  }> | null;
 }
 
 export const useNotesQuery = () => {
@@ -25,7 +39,7 @@ export const useNotesQuery = () => {
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData?.session) {
           console.error("No active session found");
-          return [] as NoteWithTags[];
+          return [] as Note[];
         }
         
         // First, get notes without projects from the view
@@ -66,14 +80,14 @@ export const useNotesQuery = () => {
         
         // If no data, return empty array
         if (!data || data.length === 0) {
-          return [] as NoteWithTags[];
+          return [] as Note[];
         }
         
         // Get the note IDs to check their status in the notes table
         const noteIds = data.map(note => note.id).filter(Boolean);
         
         if (noteIds.length === 0) {
-          return [] as NoteWithTags[];
+          return [] as Note[];
         }
         
         // Fetch status information from the actual notes table
@@ -120,21 +134,32 @@ export const useNotesQuery = () => {
         }
         
         // Merge the data from notes_without_projects with status information
-        const notesWithTags = (data || []).map(note => {
+        const transformedNotes: Note[] = (data || []).map((note: DatabaseNote) => {
           const statusInfo = statusMap.get(note.id) || { 
             status: 'processing', 
             processing_progress: 0 
           };
           
           return {
-            ...note,
-            status: statusInfo.status,
+            id: note.id,
+            title: note.title || "Untitled",
+            processed_content: note.processed_content || "",
+            original_transcript: note.original_transcript,
+            full_prompt: note.full_prompt,
+            created_at: note.created_at,
+            updated_at: note.updated_at,
+            recording_id: note.recording_id,
+            user_id: note.user_id,
+            duration: note.duration,
+            audio_url: note.audio_url,
+            status: statusInfo.status as Note['status'],
             processing_progress: statusInfo.processing_progress,
+            error_message: note.error_message,
             tags: note.tags || []
-          } as NoteWithTags;
+          };
         });
         
-        return notesWithTags;
+        return transformedNotes;
       } catch (error) {
         console.error("Error in useNotesQuery:", error);
         toast({

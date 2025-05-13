@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -100,7 +101,7 @@ const Dashboard = () => {
 
   const filteredNotes = notes?.filter(note =>
     note.title.toLowerCase().includes(searchQuery.toLowerCase())
-  ) as Note[];
+  );
 
   return (
     <SidebarProvider>
@@ -117,7 +118,7 @@ const Dashboard = () => {
           <div className="flex-1 overflow-auto p-6">
             <h2 className="text-xl font-semibold mb-4">Recent Files</h2>
             <DashboardContent 
-              notes={filteredNotes}
+              notes={filteredNotes as Note[]}
               isLoading={isLoading}
               isSelectionMode={isSelectionMode}
               selectedNotes={selectedNotes}
