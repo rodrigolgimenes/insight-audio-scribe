@@ -513,6 +513,7 @@ export type Database = {
           content_hash: string
           created_at: string
           embedding: Json | null
+          field_type: string | null
           id: string
           project_id: string | null
           updated_at: string
@@ -522,6 +523,7 @@ export type Database = {
           content_hash: string
           created_at?: string
           embedding?: Json | null
+          field_type?: string | null
           id?: string
           project_id?: string | null
           updated_at?: string
@@ -531,6 +533,7 @@ export type Database = {
           content_hash?: string
           created_at?: string
           embedding?: Json | null
+          field_type?: string | null
           id?: string
           project_id?: string | null
           updated_at?: string
