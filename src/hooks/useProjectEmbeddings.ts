@@ -18,24 +18,14 @@ export function useProjectEmbeddings() {
   /**
    * Generate embeddings for a project
    */
-  const generateEmbeddings = async (projectId: string, showToasts: boolean = true) => {
+  const generateEmbeddings = async (projectId: string, force: boolean = false) => {
     setIsProcessing(true);
     
     try {
-      const result = await generateProjectEmbeddings(projectId, true);
-      
-      if (result.success && showToasts) {
-        toast.success('Project embeddings generation initiated');
-      } else if (!result.success && showToasts) {
-        toast.error(`Failed to generate embeddings: ${result.message}`);
-      }
-      
+      const result = await generateProjectEmbeddings(projectId, force);
       return result;
     } catch (error) {
       console.error('Error in generateEmbeddings:', error);
-      if (showToasts) {
-        toast.error(`Error generating embeddings: ${error.message || 'Unknown error'}`);
-      }
       return { success: false, message: error.message || 'Unknown error' };
     } finally {
       setIsProcessing(false);

@@ -111,18 +111,51 @@ export const findSimilarProjects = async (
   limit: number = 5
 ): Promise<Array<{ projectId: string; similarity: number; projectName?: string }>> => {
   try {
-    const { data: similarProjects, error } = await supabase.rpc('find_similar_projects', {
-      search_text: searchText,
-      similarity_threshold: threshold,
-      max_results: limit
-    });
-
-    if (error) {
-      console.error('Error finding similar projects:', error);
+    // Get the current session for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    
+    if (!accessToken) {
+      console.error('No access token available. User might not be authenticated.');
       return [];
     }
 
-    return similarProjects || [];
+    // Use the OpenAI API to generate an embedding for the search text
+    const { data, error } = await supabase.functions.invoke('vectorize-project', {
+      body: {
+        content: searchText,
+        contentHash: 'search-' + Date.now(),
+        fieldType: 'search',
+        project_id: 'temp-' + Date.now() // This is just a placeholder, not used for storage
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+    
+    if (error) {
+      console.error('Error generating search embedding:', error);
+      return [];
+    }
+
+    // Use the embedding to find similar projects
+    const { data: similarProjects, error: similarError } = await supabase.functions.invoke('classify-transcription', {
+      body: {
+        noteContent: searchText,
+        threshold,
+        limit
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (similarError) {
+      console.error('Error finding similar projects:', similarError);
+      return [];
+    }
+
+    return similarProjects?.classifications || [];
   } catch (error) {
     console.error('Error in findSimilarProjects:', error);
     return [];

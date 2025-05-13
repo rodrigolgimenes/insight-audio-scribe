@@ -18,7 +18,7 @@ export function ProjectEmbeddingsManager({ projectId }: ProjectEmbeddingsManager
       return;
     }
 
-    const result = await generateEmbeddings(projectId);
+    const result = await generateEmbeddings(projectId, true);
     
     if (result.success) {
       toast.success("Project embeddings generation initiated");

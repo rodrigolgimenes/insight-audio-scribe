@@ -1,7 +1,6 @@
-
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Configuration, OpenAIApi } from "https://esm.sh/openai@3.3.0";
+import { createClient } from "@supabase/supabase-js";
+import { Configuration, OpenAIApi } from "openai";
 
 // CORS headers for cross-origin requests
 const corsHeaders = {
@@ -26,6 +25,10 @@ const MAX_TOKENS = 8000;
 interface RequestData {
   project_id: string;
   manual_trigger?: boolean;
+  content?: string;
+  contentHash?: string;
+  fieldType?: string;
+  forceUpdate?: boolean;
 }
 
 // Simple hash function for content change detection
@@ -41,64 +44,82 @@ function createContentHash(content: string): string {
 }
 
 // Generate and store embeddings for a project
-async function vectorizeProject(projectId: string, manualTrigger = false): Promise<Response> {
+async function vectorizeProject(
+  projectId: string, 
+  manualTrigger = false,
+  contentOverride?: string,
+  contentHashOverride?: string,
+  fieldTypeOverride: string = 'full',
+  forceUpdate: boolean = false
+): Promise<Response> {
   try {
-    console.log(`Processing project ID: ${projectId}`);
+    console.log(`Processing project ID: ${projectId}, fieldType: ${fieldTypeOverride}`);
     
-    // Fetch the project data
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
+    let normalizedText = '';
+    let contentHash = '';
     
-    if (projectError || !project) {
-      console.error('Error fetching project:', projectError);
-      return new Response(
-        JSON.stringify({ error: `Project not found: ${projectError?.message || 'Unknown error'}` }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      );
+    // If content is provided directly, use it
+    if (contentOverride) {
+      normalizedText = contentOverride.trim().substring(0, MAX_TOKENS);
+      contentHash = contentHashOverride || createContentHash(normalizedText);
+    } else {
+      // Otherwise fetch the project data
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+      
+      if (projectError || !project) {
+        console.error('Error fetching project:', projectError);
+        return new Response(
+          JSON.stringify({ error: `Project not found: ${projectError?.message || 'Unknown error'}` }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        );
+      }
+
+      // Prepare text content from project fields
+      const textFields = [
+        project.name || '',
+        project.description || '',
+        project.scope || '',
+        project.objective || '',
+        project.user_role || ''
+      ];
+
+      // Add array fields with proper labeling
+      if (project.business_area && Array.isArray(project.business_area)) {
+        textFields.push(`Business areas: ${project.business_area.join(', ')}`);
+      }
+
+      if (project.key_terms && Array.isArray(project.key_terms)) {
+        textFields.push(`Key terms: ${project.key_terms.join(', ')}`);
+      }
+
+      if (project.meeting_types && Array.isArray(project.meeting_types)) {
+        textFields.push(`Meeting types: ${project.meeting_types.join(', ')}`);
+      }
+
+      // Combine all text into a single string and normalize
+      normalizedText = textFields.filter(text => text.trim() !== '').join('\n\n');
+      normalizedText = normalizedText.trim().substring(0, MAX_TOKENS);
+
+      // Create a hash of the content to check if it has changed
+      contentHash = createContentHash(normalizedText);
     }
-
-    // Prepare text content from project fields
-    const textFields = [
-      project.name || '',
-      project.description || '',
-      project.scope || '',
-      project.objective || '',
-      project.user_role || ''
-    ];
-
-    // Add array fields with proper labeling
-    if (project.business_area && Array.isArray(project.business_area)) {
-      textFields.push(`Business areas: ${project.business_area.join(', ')}`);
-    }
-
-    if (project.key_terms && Array.isArray(project.key_terms)) {
-      textFields.push(`Key terms: ${project.key_terms.join(', ')}`);
-    }
-
-    if (project.meeting_types && Array.isArray(project.meeting_types)) {
-      textFields.push(`Meeting types: ${project.meeting_types.join(', ')}`);
-    }
-
-    // Combine all text into a single string and normalize
-    const combinedText = textFields.filter(text => text.trim() !== '').join('\n\n');
-    const normalizedText = combinedText.trim().substring(0, MAX_TOKENS);
-
-    // Create a hash of the content to check if it has changed
-    const contentHash = createContentHash(normalizedText);
 
     // Check if we already have an embedding with this content hash
     const { data: existingEmbedding, error: existingEmbeddingError } = await supabase
       .from('project_embeddings')
-      .select('content_hash')
+      .select('content_hash, field_type')
       .eq('project_id', projectId)
-      .single();
+      .eq('field_type', fieldTypeOverride)
+      .maybeSingle();
 
     // If manual trigger is not set and content hasn't changed, return early
     if (
       !manualTrigger && 
+      !forceUpdate &&
       existingEmbedding && 
       !existingEmbeddingError && 
       existingEmbedding.content_hash === contentHash
@@ -135,15 +156,16 @@ async function vectorizeProject(projectId: string, manualTrigger = false): Promi
 
     const [{ embedding }] = embeddingResponse.data.data;
     
-    // Store the embedding as a JSON array instead of vector type
+    // Store the embedding as a JSONB array
     const { error: upsertError } = await supabase
       .from('project_embeddings')
       .upsert({
         project_id: projectId,
-        embedding: JSON.stringify(embedding), // Convert array to JSON string for jsonb column
+        embedding: embedding, // Store directly as JSONB
         content_hash: contentHash,
         updated_at: new Date().toISOString(),
-        content: normalizedText // Store the normalized content for debugging
+        content: normalizedText, // Store the normalized content for debugging
+        field_type: fieldTypeOverride
       });
 
     if (upsertError) {
@@ -192,7 +214,14 @@ serve(async (req) => {
         );
       }
 
-      return await vectorizeProject(requestData.project_id, requestData.manual_trigger);
+      return await vectorizeProject(
+        requestData.project_id, 
+        requestData.manual_trigger,
+        requestData.content,
+        requestData.contentHash,
+        requestData.fieldType,
+        requestData.forceUpdate
+      );
     }
 
     // Handle unsupported methods
