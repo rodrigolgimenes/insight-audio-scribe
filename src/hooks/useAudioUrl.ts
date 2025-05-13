@@ -51,12 +51,59 @@ export const useAudioUrl = (audioUrl: string | null) => {
       
       console.log('[useAudioUrl] Cleaned path:', cleanPath);
 
-      // First check if the file exists
+      // Check if the file exists directly using download with head request
+      try {
+        const { data: fileExists, error: headError } = await supabase
+          .storage
+          .from('audio_recordings')
+          .download(decodedPath, {
+            transform: {
+              width: 1, // Minimum size
+              height: 1,
+              resize: 'contain',
+            }
+          });
+        
+        if (headError) {
+          console.error('[useAudioUrl] Error checking file existence:', headError);
+          
+          // Try one more direct approach - create a signed URL and check if it works
+          const { data: signedUrlData, error: signedUrlError } = await supabase
+            .storage
+            .from('audio_recordings')
+            .createSignedUrl(decodedPath, 60);
+          
+          if (signedUrlError || !signedUrlData?.signedUrl) {
+            throw new Error(`File not accessible in storage: ${cleanPath}`);
+          }
+          
+          // Verify the signed URL actually works
+          const signedUrlCheck = await fetch(signedUrlData.signedUrl, { method: 'HEAD' });
+          if (!signedUrlCheck.ok) {
+            throw new Error(`File exists but is not accessible: ${cleanPath}`);
+          }
+          
+          // If we got here, the file exists and is accessible
+          setSignedUrl(signedUrlData.signedUrl);
+          setIsAudioReady(true);
+          setError(null);
+          setRetryCount(0);
+          return;
+        }
+        
+        // If we got data back, the file exists
+        console.log('[useAudioUrl] File exists check passed');
+      } catch (existsErr) {
+        console.error('[useAudioUrl] Error in file existence check:', existsErr);
+        // Continue to the list-based check as backup method
+      }
+
+      // As a fallback, try listing files to check existence
       const pathParts = decodedPath.split('/');
       const bucketFolder = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
       const fileName = pathParts[pathParts.length - 1];
       
-      console.log('[useAudioUrl] Checking if file exists:', { bucketFolder, fileName });
+      console.log('[useAudioUrl] Checking if file exists via listing:', { bucketFolder, fileName });
       
       const { data: existsList, error: listError } = await supabase
         .storage

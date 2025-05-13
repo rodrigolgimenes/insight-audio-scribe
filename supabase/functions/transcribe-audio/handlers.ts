@@ -1,6 +1,5 @@
 
 import { createSupabaseClient } from './utils/clientUtils.ts';
-// import { processTranscription } from './transcriptionService.ts';
 import { updateTranscriptionStatus, handleTranscriptionError } from './statusUpdater.ts';
 
 const corsHeaders = {
@@ -85,7 +84,15 @@ export async function handleTranscription(params: TranscriptionParams): Promise<
     console.log('[transcribe-audio] Dados e áudio recuperados:', { noteId, audioSize: `${(audioBlob.size / (1024 * 1024)).toFixed(2)}MB` });
     
     // --- 1) Chama o serviço Python para criar a task ---
-    const svcUrl = Deno.env.get('TRANSCRIPTION_SERVICE_URL') || 'http://167.88.42.2:8001';
+    // Get the transcription service URL from environment variable
+    const transcriptionServiceUrl = Deno.env.get('TRANSCRIPTION_SERVICE_URL');
+    
+    if (!transcriptionServiceUrl) {
+      console.error('[transcribe-audio] TRANSCRIPTION_SERVICE_URL environment variable is not set');
+      throw new Error('Transcription service URL is not configured');
+    }
+    
+    console.log('[transcribe-audio] Using transcription service at:', transcriptionServiceUrl);
     
     // Generate callback URL using Supabase URL
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -104,71 +111,118 @@ export async function handleTranscription(params: TranscriptionParams): Promise<
     const formData = new FormData();
     formData.append('file', audioBlob, 'audio.mp3');
     
-    // MODIFICAÇÃO: Não anexar o callback_url ao FormData, mas à URL como parâmetro de query
     console.log('[transcribe-audio] Iniciando transcrição...');
     await updateTranscriptionStatus(noteId, 'processing', 30);
     
-    // Start transcription and get task ID - com callbackUrl como parâmetro de query
+    // Start transcription and get task ID - with callbackUrl as query parameter
     const apiUrl = callbackUrl 
-      ? `${svcUrl}/api/transcribe?callback_url=${encodeURIComponent(callbackUrl)}`
-      : `${svcUrl}/api/transcribe`;
+      ? `${transcriptionServiceUrl}/api/transcribe?callback_url=${encodeURIComponent(callbackUrl)}`
+      : `${transcriptionServiceUrl}/api/transcribe`;
       
     console.log('[transcribe-audio] Calling API with URL:', apiUrl);
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      if (response.status === 422) {
-        throw new Error('Invalid audio format or missing file');
-      } else {
-        throw new Error(`Transcription service returned status ${response.status}`);
-      }
-    }
-    
-    const result = await response.json();
-    console.log('[transcribe-audio] Transcription service response:', result);
-    
-    if (result.error) {
-      throw new Error(`Transcription failed: ${result.error}`);
-    }
-    
-    // Use either task_id or id field from the response
-    const taskId = result.task_id || result.id;
-    
-    if (!taskId) {
-      throw new Error('Task ID is empty or invalid');
-    }
-    
-    console.log('[transcribe-audio] Transcription task created with ID:', taskId);
-    console.log('[transcribe-audio] Status:', result.status || 'unknown');
-    
-    // --- 2) Salva o task_id na tabela recordings ---
-    if (recordingId) {
-      console.log('[transcribe-audio] Saving task_id to recording:', recordingId);
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
       
-      const { error: updateError } = await supabase
-        .from('recordings')
-        .update({ 
-          task_id: taskId,
-          status: 'processing',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', recordingId);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[transcribe-audio] Error response from transcription service:', errorText);
         
-      if (updateError) {
-        console.error('[transcribe-audio] Error updating task_id:', updateError);
-      } else {
-        console.log('[transcribe-audio] Successfully updated task_id with direct update');
+        if (response.status === 422) {
+          throw new Error('Invalid audio format or missing file');
+        } else {
+          throw new Error(`Transcription service returned status ${response.status}: ${errorText}`);
+        }
       }
+      
+      const result = await response.json();
+      console.log('[transcribe-audio] Transcription service response:', result);
+      
+      if (result.error) {
+        throw new Error(`Transcription failed: ${result.error}`);
+      }
+      
+      // Use either task_id or id field from the response
+      const taskId = result.task_id || result.id;
+      
+      if (!taskId) {
+        throw new Error('Task ID is empty or invalid');
+      }
+      
+      console.log('[transcribe-audio] Transcription task created with ID:', taskId);
+      console.log('[transcribe-audio] Status:', result.status || 'unknown');
+      
+      // --- 2) Salva o task_id na tabela recordings ---
+      if (recordingId) {
+        console.log('[transcribe-audio] Saving task_id to recording:', recordingId);
+        
+        const { error: updateError } = await supabase
+          .from('recordings')
+          .update({ 
+            task_id: taskId,
+            status: 'processing',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', recordingId);
+          
+        if (updateError) {
+          console.error('[transcribe-audio] Error updating task_id:', updateError);
+        } else {
+          console.log('[transcribe-audio] Successfully updated task_id with direct update');
+        }
+      }
+      
+      // Update note status to show it's now being transcribed by the service
+      await updateTranscriptionStatus(noteId, 'transcribing', 50);
+      
+      return taskId;
+    } catch (fetchError) {
+      console.error('[transcribe-audio] Error calling transcription service:', fetchError);
+      
+      // Try with backup URL if primary fails
+      if (transcriptionServiceUrl === 'http://167.88.42.2:8001') {
+        console.log('[transcribe-audio] Trying backup transcription service');
+        
+        const backupResponse = await fetch('http://transcribe.reportflex.com.br/api/transcribe', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!backupResponse.ok) {
+          throw new Error(`Backup transcription service returned status ${backupResponse.status}`);
+        }
+        
+        const backupResult = await backupResponse.json();
+        const backupTaskId = backupResult.task_id || backupResult.id;
+        
+        if (!backupTaskId) {
+          throw new Error('Backup service task ID is empty or invalid');
+        }
+        
+        console.log('[transcribe-audio] Backup transcription task created with ID:', backupTaskId);
+        
+        // Update recording with backup task ID
+        if (recordingId) {
+          await supabase
+            .from('recordings')
+            .update({ 
+              task_id: backupTaskId,
+              status: 'processing',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', recordingId);
+        }
+        
+        await updateTranscriptionStatus(noteId, 'transcribing', 50);
+        return backupTaskId;
+      }
+      
+      // If backup also fails or we didn't try backup, throw the original error
+      throw fetchError;
     }
-    
-    // Update note status to show it's now being transcribed by the service
-    await updateTranscriptionStatus(noteId, 'transcribing', 50);
-    
-    return taskId;
   } catch (error) {
     console.error('[transcribe-audio] Erro durante processamento:', error);
     

@@ -1,5 +1,7 @@
+
 import { Note } from "@/integrations/supabase/types/notes";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 
 interface NoteListProps {
   notes: Note[];
@@ -17,6 +19,7 @@ export const NoteList = ({
   isSelectionMode = false 
 }: NoteListProps) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -25,8 +28,31 @@ export const NoteList = ({
   const handleNoteClick = (note: Note, event: React.MouseEvent) => {
     if (isSelectionMode) {
       onSelect(note);
-    } else {
+      return;
+    }
+    
+    try {
+      console.log("Navigating to note from NoteList:", note.id);
+      // Verify note ID before navigation
+      if (!note.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id)) {
+        console.error("Invalid note ID format:", note.id);
+        toast({
+          title: "Navigation Error",
+          description: "This note has an invalid ID and cannot be opened.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Make sure to include the full path
       navigate(`/app/notes/${note.id}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      toast({
+        title: "Navigation Error",
+        description: "Could not open this note. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

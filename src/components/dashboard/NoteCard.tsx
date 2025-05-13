@@ -11,6 +11,8 @@ import { NoteCardHeader } from "./NoteCardHeader";
 import { NoteCardContent } from "./NoteCardContent";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 
 interface NoteCardProps {
   note: Note;
@@ -24,6 +26,8 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { deleteNote, renameNote, isRenaming: isRenamingNote, moveNoteToProject } = useNoteOperations(note.id);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Fetch current project for the note
   const { data: currentProject } = useQuery({
@@ -107,7 +111,35 @@ export const NoteCard = ({ note, isSelectionMode, isSelected, onClick }: NoteCar
          e.target.closest('[role="dialog"]'))) {
       return;
     }
-    onClick();
+    
+    if (isSelectionMode) {
+      onClick();
+      return;
+    }
+    
+    try {
+      console.log("Navigating to note:", note.id);
+      // Verify note ID before navigation
+      if (!note.id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(note.id)) {
+        console.error("Invalid note ID format:", note.id);
+        toast({
+          title: "Navigation Error",
+          description: "This note has an invalid ID and cannot be opened.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Make sure to include the full path
+      navigate(`/app/notes/${note.id}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      toast({
+        title: "Navigation Error",
+        description: "Could not open this note. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async () => {
