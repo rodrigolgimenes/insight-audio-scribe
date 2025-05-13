@@ -10,7 +10,7 @@ interface UncategorizedContentProps {
   notes: Note[] | undefined;
   isSelectionMode: boolean;
   selectedNotes: Note[];
-  toggleNoteSelection: (noteId: string) => void;
+  toggleNoteSelection: (note: Note) => void;
   isFolderDialogOpen: boolean;
   setIsFolderDialogOpen: (value: boolean) => void;
   folders: any[];
@@ -56,7 +56,10 @@ export const UncategorizedContent = ({
           notes={notes}
           isSelectionMode={isSelectionMode}
           selectedNotes={selectedNotes.map(note => note.id)}
-          toggleNoteSelection={toggleNoteSelection}
+          toggleNoteSelection={(noteId) => {
+            const note = notes.find(n => n.id === noteId);
+            if (note) toggleNoteSelection(note);
+          }}
         />
       ) : (
         <FolderEmptyState />

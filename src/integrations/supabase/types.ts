@@ -110,6 +110,30 @@ export type Database = {
         }
         Relationships: []
       }
+      folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meeting_minutes: {
         Row: {
           content: string
@@ -237,6 +261,46 @@ export type Database = {
             columns: ["recording_id"]
             isOneToOne: true
             referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notes_folders: {
+        Row: {
+          created_at: string
+          folder_id: string
+          note_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          note_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          note_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_folders_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_folders_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: true
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_folders_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: true
+            referencedRelation: "notes_without_projects"
             referencedColumns: ["id"]
           },
         ]

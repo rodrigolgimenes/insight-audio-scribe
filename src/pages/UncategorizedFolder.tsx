@@ -2,14 +2,13 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import { useProjectActions } from "@/hooks/notes/useProjectActions";
+import { useFolderActions } from "@/hooks/notes/useFolderActions";
 import { useNoteSelection } from "@/hooks/notes/useNoteSelection";
 import { useNoteActions } from "@/hooks/notes/useNoteActions";
 import { useUncategorizedNotes } from "@/hooks/notes/useUncategorizedNotes";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { UncategorizedHeader } from "@/components/project/UncategorizedHeader";
-import { UncategorizedContent } from "@/components/project/UncategorizedContent";
+import { useFoldersQuery } from "@/hooks/notes/useFoldersQuery";
+import { UncategorizedHeader } from "@/components/folder/UncategorizedHeader";
+import { UncategorizedContent } from "@/components/folder/UncategorizedContent";
 import { Note } from "@/integrations/supabase/types/notes";
 
 const UncategorizedFolder = () => {
@@ -18,26 +17,15 @@ const UncategorizedFolder = () => {
   const { handleDeleteNotes } = useNoteActions();
   const { data: notes, isLoading } = useUncategorizedNotes();
   const {
-    isProjectDialogOpen,
-    setIsProjectDialogOpen,
-    newProjectName,
-    setNewProjectName,
-    createNewProject,
-    handleMoveToProject,
-  } = useProjectActions();
+    isFolderDialogOpen,
+    setIsFolderDialogOpen,
+    newFolderName,
+    setNewFolderName,
+    createNewFolder,
+    handleMoveToFolder,
+  } = useFolderActions();
 
-  const { data: projects } = useQuery({
-    queryKey: ["projects"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  const { data: folders } = useFoldersQuery();
 
   const toggleNoteSelection = (note: Note) => {
     setSelectedNotes((prev) =>
@@ -48,19 +36,19 @@ const UncategorizedFolder = () => {
   };
 
   const handleMoveNotes = () => {
-    setIsProjectDialogOpen(true);
+    setIsFolderDialogOpen(true);
   };
 
-  const handleSelectProject = async (projectId: string) => {
+  const handleSelectFolder = async (folderId: string) => {
     try {
-      await handleMoveToProject(selectedNotes, projectId);
+      await handleMoveToFolder(selectedNotes, folderId);
       setSelectedNotes([]);
       setIsSelectionMode(false);
-      setIsProjectDialogOpen(false);
+      setIsFolderDialogOpen(false);
       
       toast({
         title: "Success",
-        description: "Notes moved to project successfully.",
+        description: "Notes moved to folder successfully.",
       });
     } catch (error) {
       console.error("Error moving notes:", error);
@@ -75,7 +63,7 @@ const UncategorizedFolder = () => {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-gray-50">
-        <AppSidebar activePage="notes" />
+        <AppSidebar activePage="uncategorized" />
         <main className="flex-1 p-8">
           <UncategorizedHeader
             isSelectionMode={isSelectionMode}
@@ -88,13 +76,13 @@ const UncategorizedFolder = () => {
             isSelectionMode={isSelectionMode}
             selectedNotes={selectedNotes}
             toggleNoteSelection={toggleNoteSelection}
-            isProjectDialogOpen={isProjectDialogOpen}
-            setIsProjectDialogOpen={setIsProjectDialogOpen}
-            projects={projects || []}
-            newProjectName={newProjectName}
-            setNewProjectName={setNewProjectName}
-            createNewProject={createNewProject}
-            handleSelectProject={handleSelectProject}
+            isFolderDialogOpen={isFolderDialogOpen}
+            setIsFolderDialogOpen={setIsFolderDialogOpen}
+            folders={folders || []}
+            newFolderName={newFolderName}
+            setNewFolderName={setNewFolderName}
+            createNewFolder={createNewFolder}
+            handleSelectFolder={handleSelectFolder}
             handleMoveNotes={handleMoveNotes}
             handleDeleteNotes={handleDeleteNotes}
           />

@@ -10,6 +10,7 @@ import {
   Book,
   User,
   HelpCircle,
+  Archive,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
 
 interface AppSidebarProps {
-  activePage?: "dashboard" | "notes" | "projects" | "settings" | "recorder" | "test" | string;
+  activePage?: "dashboard" | "notes" | "projects" | "settings" | "recorder" | "test" | "uncategorized" | string;
 }
 
 export function AppSidebar({ activePage = "dashboard" }: AppSidebarProps) {
@@ -61,7 +62,7 @@ export function AppSidebar({ activePage = "dashboard" }: AppSidebarProps) {
     {
       title: "Uncategorized",
       url: "/app/uncategorized",
-      icon: Folder,
+      icon: Archive,
     }
   ];
 
@@ -109,7 +110,7 @@ export function AppSidebar({ activePage = "dashboard" }: AppSidebarProps) {
               to={item.url}
               className={({ isActive }) =>
                 `flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-gray-200 transition-colors ${
-                  isActive
+                  isActive || activePage === item.title.toLowerCase()
                     ? "bg-gray-200 text-gray-900"
                     : "text-gray-700"
                 }`
