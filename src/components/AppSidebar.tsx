@@ -21,12 +21,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@clerk/clerk-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from '@/lib/utils';
 
-interface SidebarProps {
-  activePage: "dashboard" | "notes" | "projects" | "settings";
+interface AppSidebarProps {
+  activePage?: "dashboard" | "notes" | "projects" | "settings" | "recorder" | "test" | string;
 }
 
-export const AppSidebar = ({ activePage }: SidebarProps) => {
+export function AppSidebar({ activePage = "dashboard" }: AppSidebarProps) {
   const { user } = useUser();
 
   const sidebarMenuItems = [
@@ -127,4 +128,4 @@ export const AppSidebar = ({ activePage }: SidebarProps) => {
       </div>
     </aside>
   );
-};
+}

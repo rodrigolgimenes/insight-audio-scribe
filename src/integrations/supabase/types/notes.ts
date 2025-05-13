@@ -16,3 +16,22 @@ export interface Note {
   error_message?: string | null;
   tags?: any[];
 }
+
+export interface ClassificationResult {
+  project_id: string;
+  project_name: string;
+  project_description: string | null;
+  similarity_score: number;
+  classification_reason: string;
+  classification_method?: string;
+  status: 'classified' | 'processed' | 'failed';
+}
+
+export interface ClassificationResponse {
+  success: boolean;
+  classifications: ClassificationResult[];
+  count: number;
+  error?: string;
+  best_score?: number;
+  threshold_used?: number;
+}

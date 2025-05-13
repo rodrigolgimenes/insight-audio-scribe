@@ -12,7 +12,6 @@ import { NoteProjectClassifications } from "./NoteProjectClassifications";
 import { AddToProjectDialog } from "./AddToProjectDialog";
 import { TranscriptChat } from "./TranscriptChat";
 import { Button } from "@/components/ui/button";
-import { Sparkles } from "lucide-react";
 import { MeetingMinutesContent } from "./content/MeetingMinutesContent";
 
 interface NoteContentProps {
@@ -42,32 +41,9 @@ export function NoteContent({
 
   return (
     <div className="space-y-8">
-      {/* Project Actions Section (Sticky) */}
-      <div className="sticky top-0 z-10 bg-white p-4 shadow-sm rounded-lg border border-gray-200 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            onClick={() => {
-              // Auto-classify functionality would go here
-            }}
-          >
-            <Sparkles className="h-4 w-4" />
-            Auto-Classify
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={() => setIsAddToProjectDialogOpen(true)}
-          >
-            + Add to Project
-          </Button>
-        </div>
-      </div>
-
       {/* Audio Player */}
       {(audioUrl || note.audio_url) && (
-        <div className="mb-8">
+        <div className="mb-6">
           <AudioPlayer
             audioUrl={audioUrl || note.audio_url || ''}
             isPlaying={false}
@@ -75,6 +51,14 @@ export function NoteContent({
           />
         </div>
       )}
+
+      {/* Project Classification Section */}
+      <div className="mb-8">
+        <NoteProjectClassifications 
+          noteId={note.id}
+          onAddToProject={() => setIsAddToProjectDialogOpen(true)}
+        />
+      </div>
 
       {/* Meeting Minutes Section */}
       {isEditingMinutes ? (
@@ -95,7 +79,7 @@ export function NoteContent({
       )}
 
       {/* Original Transcript Section */}
-      <div className="space-y-6">
+      <div className="space-y-6 mt-8">
         {hasTranscriptError && <TranscriptError noteId={note.id} />}
         
         <TranscriptAccordion

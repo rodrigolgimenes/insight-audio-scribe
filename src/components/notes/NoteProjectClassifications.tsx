@@ -4,7 +4,8 @@ import { useNoteClassification } from '@/hooks/useNoteClassification';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Plus, RefreshCw, Sparkles, MoveRight } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Trash2, Plus, RefreshCw, Sparkles, MoveRight, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -18,6 +19,7 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
   const {
     isClassifying,
     classifications,
+    classificationError,
     classifyNote,
     fetchClassifications,
     removeClassification
@@ -34,7 +36,7 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
     await classifyNote(threshold);
     // Invalidate relevant queries to refresh data
     queryClient.invalidateQueries({ queryKey: ["note-project", noteId] });
-    toast.success('Note classified successfully');
+    toast.success('Note classification process completed');
   };
 
   const handleRemoveClassification = async (projectId: string) => {
@@ -85,6 +87,25 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
         </div>
       </div>
 
+      {/* Classification Error Alert */}
+      {classificationError && !isClassifying && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Classification not completed</AlertTitle>
+          <AlertDescription>
+            <p className="mb-1">{classificationError.message}</p>
+            {classificationError.bestScore !== undefined && (
+              <p className="text-sm">
+                Maximum similarity found: {formatScore(classificationError.bestScore)}
+                {classificationError.threshold !== undefined && (
+                  <> (minimum required: {formatScore(classificationError.threshold)})</>
+                )}
+              </p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {classifications.length > 0 ? (
         <div className="space-y-2">
           {classifications.map((classification) => (
@@ -96,6 +117,14 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
                     <Badge variant={classification.similarity_score > 0.8 ? "default" : "secondary"}>
                       {formatScore(classification.similarity_score)}
                     </Badge>
+                    {classification.classification_method && (
+                      <Badge variant="outline" className="text-xs">
+                        {classification.classification_method === 'embedding' ? 'AI Match' : 
+                         classification.classification_method === 'gpt' ? 'GPT Analysis' : 
+                         classification.classification_method === 'manual' ? 'Manual' : 
+                         'Auto'}
+                      </Badge>
+                    )}
                   </div>
                   {classification.project_description && (
                     <p className="text-sm text-gray-500 line-clamp-1">{classification.project_description}</p>
@@ -124,12 +153,12 @@ export function NoteProjectClassifications({ noteId, onAddToProject }: NoteProje
             </Card>
           ))}
         </div>
-      ) : (
+      ) : !classificationError ? (
         <div className="text-center py-6 border rounded-md bg-gray-50">
           <p className="text-gray-500">No classifications yet</p>
           <p className="text-sm text-gray-400 mt-1">Click "Auto-Classify" to find relevant projects</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
