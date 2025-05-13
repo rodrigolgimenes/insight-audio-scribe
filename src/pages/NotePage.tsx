@@ -87,13 +87,15 @@ const NotePage = () => {
     staleTime: Infinity, // Audio URLs don't change, so we can cache them indefinitely
     gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
     retry: 2,
-    onError: (error) => {
-      console.error("Error fetching audio URL:", error);
-      toast({
-        title: "Audio Unavailable",
-        description: "The audio file for this note could not be loaded.",
-        variant: "destructive",
-      });
+    meta: {
+      onError: (error) => {
+        console.error("Error fetching audio URL:", error);
+        toast({
+          title: "Audio Unavailable",
+          description: "The audio file for this note could not be loaded.",
+          variant: "destructive",
+        });
+      }
     }
   });
 
@@ -126,9 +128,11 @@ const NotePage = () => {
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     retry: 2,
-    onError: (error) => {
-      console.error("Error fetching meeting minutes:", error);
-      // No need to show toast as we'll display fallback content
+    meta: {
+      onError: (error) => {
+        console.error("Error fetching meeting minutes:", error);
+        // No need to show toast as we'll display fallback content
+      }
     }
   });
 
