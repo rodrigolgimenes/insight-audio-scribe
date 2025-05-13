@@ -75,7 +75,7 @@ serve(async (req) => {
     const { data: similarProjects, error: projectError } = await supabase.rpc(
       'find_similar_projects',
       {
-        project_embedding: embedding,
+        search_embedding: embedding,
         similarity_threshold: threshold,
         max_results: limit
       }
