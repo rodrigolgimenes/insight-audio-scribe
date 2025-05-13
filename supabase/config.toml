@@ -58,6 +58,9 @@ enable_confirmations = false
 [functions.vectorize-project]
 verify_jwt = true
 
+[functions.on-transcription-complete]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327
