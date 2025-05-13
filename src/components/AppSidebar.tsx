@@ -1,3 +1,4 @@
+
 import {
   LayoutDashboard,
   FileText,
@@ -19,7 +20,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
 
@@ -28,7 +29,8 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activePage = "dashboard" }: AppSidebarProps) {
-  const { user } = useUser();
+  const { session } = useAuth();
+  const user = session?.user;
 
   const sidebarMenuItems = [
     {
@@ -73,8 +75,8 @@ export function AppSidebar({ activePage = "dashboard" }: AppSidebarProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.imageUrl} alt={user?.fullName || "Avatar"} />
-                <AvatarFallback>{user?.firstName?.[0]}{user?.lastName?.[0]}</AvatarFallback>
+                <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name || "Avatar"} />
+                <AvatarFallback>{user?.email?.[0]?.toUpperCase() || "U"}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
