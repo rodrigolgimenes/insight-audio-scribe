@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 interface TranscriptionStatusProps {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'error';
   progress?: number;
   error?: string;
 }
@@ -24,6 +24,7 @@ export const TranscriptionStatus: React.FC<TranscriptionStatusProps> = ({
       case 'completed':
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case 'failed':
+      case 'error':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       default:
         return <Clock className="h-5 w-5 text-gray-500" />;
@@ -39,6 +40,7 @@ export const TranscriptionStatus: React.FC<TranscriptionStatusProps> = ({
       case 'completed':
         return 'Completed';
       case 'failed':
+      case 'error':
         return 'Failed';
       default:
         return 'Unknown';
@@ -60,7 +62,7 @@ export const TranscriptionStatus: React.FC<TranscriptionStatusProps> = ({
           </div>
         )}
         
-        {status === 'failed' && error && (
+        {(status === 'failed' || status === 'error') && error && (
           <div className="p-3 bg-red-50 text-red-800 rounded-md text-sm">
             <p><strong>Error:</strong> {error}</p>
           </div>

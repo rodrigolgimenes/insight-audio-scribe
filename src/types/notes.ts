@@ -11,7 +11,7 @@ export interface Note {
   user_id: string;
   duration: number | null;
   audio_url: string | null;
-  status: 'pending' | 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error';
+  status: 'pending' | 'processing' | 'transcribing' | 'generating_minutes' | 'completed' | 'error' | 'failed';
   processing_progress: number;
   error_message: string | null;
   tags?: Array<{
@@ -19,6 +19,9 @@ export interface Note {
     name: string;
     color: string | null;
   }>;
+  classified_at?: string | null;
+  classification_score?: number | null;
+  classification_reason?: string | null;
 }
 
 export interface StatusInfo {

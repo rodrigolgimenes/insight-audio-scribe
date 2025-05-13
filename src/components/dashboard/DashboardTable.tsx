@@ -1,7 +1,7 @@
 
 import { useNavigate } from "react-router-dom";
 import { Loader2, PlusSquare } from "lucide-react";
-import { Note } from "@/integrations/supabase/types/notes";
+import { Note } from "@/types/notes";
 import { formatDate } from "@/utils/formatDate";
 import { formatDuration } from "@/utils/formatDuration";
 import { Button } from "@/components/ui/button";
@@ -192,7 +192,7 @@ export const DashboardTable = ({
               </TableCell>
               <TableCell onClick={() => navigate(`/app/notes/${note.id}`)}>
                 <NoteStatus 
-                  status={note.status || 'processing'} 
+                  status={note.status} 
                   progress={progress} 
                   noteId={note.id}
                 />
