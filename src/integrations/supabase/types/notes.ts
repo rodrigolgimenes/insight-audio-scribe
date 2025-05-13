@@ -15,7 +15,4 @@ export interface Note {
   processing_progress?: number;
   error_message?: string | null;
   tags?: any[];
-  classified_at?: string | null;
-  classification_score?: number | null;
-  classification_reason?: string | null;
 }

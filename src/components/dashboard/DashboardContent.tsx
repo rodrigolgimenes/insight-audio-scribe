@@ -1,5 +1,5 @@
 
-import { Note } from "@/integrations/supabase/types/notes";
+import { Note } from "@/types/notes";
 import { DashboardTable } from "./DashboardTable";
 import { PlusSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";

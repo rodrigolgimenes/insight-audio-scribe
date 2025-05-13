@@ -46,7 +46,7 @@ export default function TagPage() {
   const { data: notesData, isLoading: isNotesLoading } = useTagNotesQuery(tagId);
   
   // Safely transform the notes data to match the Note type
-  const notes: Note[] | undefined = notesData?.map((rawNote: any) => {
+  const notes: Note[] = notesData?.map((rawNote: any) => {
     // Extract tags from notes_tags array
     const noteTags = rawNote.notes_tags?.map((nt: any) => ({
       id: nt.tags.id || '',
@@ -71,7 +71,7 @@ export default function TagPage() {
       error_message: rawNote.error_message || null,
       tags: noteTags
     };
-  });
+  }) || [];
 
   const {
     isEditing,

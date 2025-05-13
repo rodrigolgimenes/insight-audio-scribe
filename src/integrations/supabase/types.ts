@@ -244,6 +244,7 @@ export type Database = {
       notes_projects: {
         Row: {
           classification_reason: string | null
+          classification_score: number | null
           classified_at: string | null
           created_at: string
           note_id: string
@@ -252,6 +253,7 @@ export type Database = {
         }
         Insert: {
           classification_reason?: string | null
+          classification_score?: number | null
           classified_at?: string | null
           created_at?: string
           note_id: string
@@ -260,6 +262,7 @@ export type Database = {
         }
         Update: {
           classification_reason?: string | null
+          classification_score?: number | null
           classified_at?: string | null
           created_at?: string
           note_id?: string

@@ -19,9 +19,6 @@ export interface Note {
     name: string;
     color: string | null;
   }>;
-  classified_at?: string | null;
-  classification_score?: number | null;
-  classification_reason?: string | null;
 }
 
 export interface StatusInfo {

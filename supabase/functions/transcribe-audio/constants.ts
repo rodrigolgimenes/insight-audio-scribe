@@ -1,4 +1,3 @@
-
 // Constants for file size and duration limits
 export const MAX_AUDIO_DURATION_MS = 120 * 60 * 1000; // 120 minutes in milliseconds
 export const MAX_FILE_SIZE_MB = 100; // 100 MB
@@ -21,15 +20,15 @@ export const PROGRESS_STAGES = {
   COMPLETED: 100
 };
 
-// Valid status values for the notes table - MUST match exactly with the database enum constraint
-// NEVER use values that are not in this list when updating the database!
+// Valid note statuses
 export const VALID_NOTE_STATUSES = [
   'pending',
   'processing',
   'transcribing',
   'generating_minutes',
   'completed',
-  'error'
+  'error',
+  'failed'
 ];
 
 // Valid status values for the recordings table
