@@ -1,8 +1,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { logData } from '@/lib/logger';
 
 /**
  * Generate embeddings for a project
+ * Creates or updates the vector embedding in the database
  */
 export const generateProjectEmbeddings = async (
   projectId: string,
@@ -37,8 +39,9 @@ export const generateProjectEmbeddings = async (
 
     // Generate a simple hash for content checking
     const contentHash = btoa(projectContext).slice(0, 12);
+    logData(`Generated content hash: ${contentHash}`);
     
-    // Check if we already have an embedding for this content hash
+    // Check if we already have an embedding for this content hash and field type
     const { data: existingEmbedding, error: embeddingError } = await supabase
       .from('project_embeddings')
       .select('*')
@@ -120,25 +123,7 @@ export const findSimilarProjects = async (
       return [];
     }
 
-    // Use the OpenAI API to generate an embedding for the search text
-    const { data, error } = await supabase.functions.invoke('vectorize-project', {
-      body: {
-        content: searchText,
-        contentHash: 'search-' + Date.now(),
-        fieldType: 'search',
-        project_id: 'temp-' + Date.now() // This is just a placeholder, not used for storage
-      },
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-    
-    if (error) {
-      console.error('Error generating search embedding:', error);
-      return [];
-    }
-
-    // Use the embedding to find similar projects
+    // Call the classify-transcription function directly with the search text
     const { data: similarProjects, error: similarError } = await supabase.functions.invoke('classify-transcription', {
       body: {
         noteContent: searchText,

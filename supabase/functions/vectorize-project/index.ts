@@ -1,3 +1,4 @@
+
 // 1) Necessary for some Deno libraries that use XMLHttpRequest
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 // 2) HTTP server
@@ -32,16 +33,26 @@ const EMBEDDING_MODEL = "text-embedding-ada-002";
 const MAX_TOKENS = 8000;
 const MAX_RETRIES = 3;
 
-// Simple hash function for content change detection
+/**
+ * Create a standardized content hash using Base64 encoding
+ * This matches the client-side approach for consistency
+ */
 function createContentHash(content: string): string {
-  // Simple hash function that provides a unique string based on content
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
+  try {
+    // Use Base64 encoding and take first 12 characters for the hash
+    return btoa(content).slice(0, 12);
+  } catch (error) {
+    console.error('Error creating content hash:', error);
+    
+    // Fallback to simpler hash if btoa fails (non-ASCII characters)
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString(16).slice(0, 12);
   }
-  return hash.toString(16);
 }
 
 // Generate embedding with retry logic
@@ -83,6 +94,7 @@ async function vectorizeProject(
     if (contentOverride) {
       normalizedText = contentOverride.trim().substring(0, MAX_TOKENS);
       contentHash = contentHashOverride || createContentHash(normalizedText);
+      console.log(`Using override content with hash: ${contentHash}`);
     } else {
       // Otherwise fetch the project data
       const { data: project, error: projectError } = await supabase
@@ -125,11 +137,12 @@ async function vectorizeProject(
       normalizedText = textFields.filter(text => text.trim() !== '').join('\n\n');
       normalizedText = normalizedText.trim().substring(0, MAX_TOKENS);
 
-      // Create a hash of the content to check if it has changed
+      // Create a hash of the content
       contentHash = createContentHash(normalizedText);
+      console.log(`Generated content hash from project data: ${contentHash}`);
     }
 
-    // Check if we already have an embedding with this content hash
+    // Check if we already have an embedding with this content hash and field type
     const { data: existingEmbedding, error: existingEmbeddingError } = await supabase
       .from('project_embeddings')
       .select('content_hash, field_type')
@@ -172,16 +185,18 @@ async function vectorizeProject(
     // Generate embedding using OpenAI
     const embedding = await generateEmbedding(normalizedText);
     
-    // Store the embedding as a JSONB array
-    const { error: upsertError } = await supabase
+    // Store the embedding - using upsert which now works with the composite key
+    const { data: upsertData, error: upsertError } = await supabase
       .from('project_embeddings')
       .upsert({
         project_id: projectId,
-        embedding: embedding, // Store directly as JSONB
+        embedding: embedding,
         content_hash: contentHash,
         updated_at: new Date().toISOString(),
-        content: normalizedText, // Store the normalized content for debugging
+        content: normalizedText,
         field_type: fieldTypeOverride
+      }, {
+        onConflict: 'project_id,field_type'
       });
 
     if (upsertError) {
@@ -193,12 +208,13 @@ async function vectorizeProject(
     }
 
     // Log and return success
-    console.log('Successfully generated and stored embedding for project:', projectId);
+    console.log('Successfully generated and stored embedding for project:', projectId, 'with field_type:', fieldTypeOverride);
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Embedding generated and stored successfully',
         project_id: projectId,
+        field_type: fieldTypeOverride,
         vector_length: embedding.length
       }),
       { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }

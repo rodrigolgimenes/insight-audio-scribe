@@ -1,7 +1,7 @@
 
--- Create a function to compute cosine similarity between two jsonb vectors
+-- Create a function to calculate cosine similarity between two vectors
 CREATE OR REPLACE FUNCTION public.cosine_similarity(vector1 jsonb, vector2 jsonb)
-RETURNS float8
+RETURNS double precision
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -41,5 +41,28 @@ BEGIN
     
     -- Return cosine similarity
     RETURN dot_product / (magnitude1 * magnitude2);
+END;
+$$;
+
+-- Create find_similar_projects function
+CREATE OR REPLACE FUNCTION public.find_similar_projects(
+    project_embedding jsonb,
+    similarity_threshold double precision DEFAULT 0.7,
+    max_results integer DEFAULT 5
+)
+RETURNS TABLE (
+    project_id uuid,
+    similarity double precision
+) 
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Return the most similar projects using our cosine similarity function
+    RETURN QUERY
+    SELECT pe.project_id, public.cosine_similarity(pe.embedding, project_embedding) as similarity
+    FROM project_embeddings pe
+    WHERE public.cosine_similarity(pe.embedding, project_embedding) > similarity_threshold
+    ORDER BY similarity DESC
+    LIMIT max_results;
 END;
 $$;
