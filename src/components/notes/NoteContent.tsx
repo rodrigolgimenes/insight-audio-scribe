@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { Tab } from "@headlessui/react";
 import { Note } from "@/integrations/supabase/types/notes";
 import { AudioPlayer } from "./AudioPlayer";
 import { NoteHeader } from "./NoteHeader";
@@ -12,6 +11,7 @@ import { MeetingMinutes } from "./MeetingMinutes";
 import { NoteSummary } from "./NoteSummary";
 import { NoteProjectClassifications } from "./NoteProjectClassifications";
 import { AddToProjectDialog } from "./AddToProjectDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface NoteContentProps {
   note: Note;
@@ -60,64 +60,54 @@ export function NoteContent({
         />
       )}
 
-      <Tab.Group>
-        <Tab.List className="flex space-x-1 rounded-xl bg-gray-100 p-1">
-          <Tab
-            className={({ selected }) =>
-              `w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 ${
-                selected
-                  ? "bg-white shadow text-blue-700"
-                  : "text-gray-700 hover:bg-white/[0.12] hover:text-blue-700"
-              }`
-            }
+      <Tabs defaultValue="content" className="w-full">
+        <TabsList className="flex w-full space-x-1 rounded-xl bg-gray-100 p-1">
+          <TabsTrigger 
+            value="content"
+            className="w-full rounded-lg py-2.5 text-sm font-medium leading-5"
           >
             Content
-          </Tab>
-          <Tab
-            className={({ selected }) =>
-              `w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 ${
-                selected
-                  ? "bg-white shadow text-blue-700"
-                  : "text-gray-700 hover:bg-white/[0.12] hover:text-blue-700"
-              }`
-            }
+          </TabsTrigger>
+          <TabsTrigger 
+            value="projects"
+            className="w-full rounded-lg py-2.5 text-sm font-medium leading-5"
           >
             Projects
-          </Tab>
-        </Tab.List>
-        <Tab.Panels className="mt-2">
-          <Tab.Panel className="rounded-xl bg-white p-3">
-            {hasTranscriptError && <TranscriptError noteId={note.id} />}
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="content" className="mt-2 rounded-xl bg-white p-3">
+          {hasTranscriptError && <TranscriptError noteId={note.id} />}
 
-            <div className="space-y-6">
-              <ProcessedContentAccordion
-                content={note.processed_content}
-              />
-
-              <TranscriptAccordion
-                transcript={note.original_transcript || ""}
-                noteId={note.id}
-              />
-
-              <MeetingMinutes 
-                transcript={note.original_transcript || ""}
-                noteId={note.id}
-                audioUrl={audioUrl || note.audio_url}
-                initialContent={meetingMinutes}
-                isLoadingInitialContent={isLoadingMinutes}
-              />
-              
-              <NoteSummary noteId={note.id} />
-            </div>
-          </Tab.Panel>
-          <Tab.Panel className="rounded-xl bg-white p-3">
-            <NoteProjectClassifications 
-              noteId={note.id} 
-              onAddToProject={() => setIsAddToProjectDialogOpen(true)}
+          <div className="space-y-6">
+            <ProcessedContentAccordion
+              content={note.processed_content}
             />
-          </Tab.Panel>
-        </Tab.Panels>
-      </Tab.Group>
+
+            <TranscriptAccordion
+              transcript={note.original_transcript || ""}
+              noteId={note.id}
+            />
+
+            <MeetingMinutes 
+              transcript={note.original_transcript || ""}
+              noteId={note.id}
+              audioUrl={audioUrl || note.audio_url}
+              initialContent={meetingMinutes}
+              isLoadingInitialContent={isLoadingMinutes}
+            />
+            
+            <NoteSummary noteId={note.id} />
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="projects" className="mt-2 rounded-xl bg-white p-3">
+          <NoteProjectClassifications 
+            noteId={note.id} 
+            onAddToProject={() => setIsAddToProjectDialogOpen(true)}
+          />
+        </TabsContent>
+      </Tabs>
 
       <AddToProjectDialog 
         noteId={note.id}
