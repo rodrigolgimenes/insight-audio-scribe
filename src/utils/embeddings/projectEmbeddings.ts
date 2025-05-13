@@ -55,15 +55,29 @@ export const generateProjectEmbeddings = async (
       };
     }
 
-    // Call the edge function to generate the embedding
-    // Fix: Use the correct parameter name 'project_id' for compatibility with the edge function
+    // Get the current session for authentication
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    
+    if (!accessToken) {
+      console.error('No access token available. User might not be authenticated.');
+      return {
+        success: false,
+        message: 'Authentication required'
+      };
+    }
+
+    // Call the edge function to generate the embedding with authorization header
     const { data: result, error: invokeError } = await supabase.functions.invoke('vectorize-project', {
       body: { 
-        project_id: projectId, // Changed from projectId to project_id
+        project_id: projectId,
         forceUpdate: force,
         content: projectContext,
         contentHash: contentHash,
         fieldType: 'full'
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`
       }
     });
     

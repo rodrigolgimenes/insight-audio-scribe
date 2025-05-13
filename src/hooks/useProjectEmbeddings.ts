@@ -88,8 +88,21 @@ export function useProjectEmbeddings() {
     setIsProcessing(true);
     
     try {
+      // Get the current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      
+      if (!accessToken) {
+        console.error('No access token available. User might not be authenticated.');
+        toast.error('Authentication required to classify notes');
+        return null;
+      }
+      
       const { data, error } = await supabase.functions.invoke('classify-transcription', {
-        body: { noteId }
+        body: { noteId },
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
       });
       
       if (error) {
